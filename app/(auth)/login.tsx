@@ -1,5 +1,6 @@
+import { supabase } from "@/utils/supabase";
 import { Feather } from "@expo/vector-icons";
-import { Link } from "expo-router";
+import { Link, router } from "expo-router";
 import React, { useState } from "react";
 import {
   Keyboard,
@@ -12,6 +13,7 @@ import {
   TextInput,
   View,
   Image,
+  Alert,
 } from "react-native";
 
 const COLORS = {
@@ -27,10 +29,25 @@ export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  function handleLogin() {
-    console.log("Email:", email);
-    console.log("Password:", password);
+  async function handleLogin() {
+    if (loading) return;
+    setLoading(true);
+
+    const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+    });
+
+    if (error) {
+        Alert.alert("Login error", error.message);
+        console.log("Login error", error);
+    } else {
+        router.replace("/(tabs)");
+        console.log("Successfully logged in!");
+    }
+    setLoading(false)
   }
 
   // Social handlers (stub)

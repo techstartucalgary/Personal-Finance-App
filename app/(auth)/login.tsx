@@ -1,7 +1,12 @@
 import { supabase } from "@/utils/supabase";
 import { Feather } from "@expo/vector-icons";
 import { Link, router } from "expo-router";
-import React, { useState } from "react";
+import {
+  GoogleSignin,
+  isSuccessResponse,
+  statusCodes,
+} from "@react-native-google-signin/google-signin";
+import React, { useEffect, useState } from "react";
 import {
   Keyboard,
   KeyboardAvoidingView,
@@ -31,31 +36,88 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  useEffect(() => {
+    GoogleSignin.configure({
+      webClientId:
+        "801083441538-qdj0ai72fhs80t56379l3eo9tnlad2go.apps.googleusercontent.com",
+      iosClientId:
+        "801083441538-653cd41r45k21kd0u6cgrlf4d5km4uf8.apps.googleusercontent.com",
+    });
+  }, []);
+
   async function handleLogin() {
     if (loading) return;
     setLoading(true);
 
     const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
+      email,
+      password,
     });
 
     if (error) {
-        Alert.alert("Login error", error.message);
-        console.log("Login error", error);
+      Alert.alert("Login error", error.message);
+      console.log("Login error", error);
     } else {
-        router.replace("/(tabs)");
-        console.log("Successfully logged in!");
+      router.replace("/(tabs)");
+      console.log("Successfully logged in!");
     }
-    setLoading(false)
+    setLoading(false);
   }
 
-  // Social handlers (stub)
-  function handleGoogle() {
-    console.log("Login with Google pressed");
+  // Social handlers
+  async function handleGoogle() {
+    if (Platform.OS === "web") {
+      Alert.alert(
+        "Error",
+        "Google Sign-in is not supported on web in this version."
+      );
+      return;
+    }
+    try {
+      await GoogleSignin.hasPlayServices();
+      const response = await GoogleSignin.signIn();
+
+      if (!isSuccessResponse(response)) return;
+
+      const idToken = response.data.idToken;
+      if (!idToken) {
+        Alert.alert("Google Sign-In Error", "No ID token returned.");
+        return;
+      }
+
+      const { error } = await supabase.auth.signInWithIdToken({
+        provider: "google",
+        token: idToken,
+      });
+
+      if (error) {
+        Alert.alert("Google Sign-In Error", error.message);
+        return;
+      }
+
+      router.replace("/(tabs)");
+    } catch (error: any) {
+      if (error?.code === statusCodes.IN_PROGRESS) return;
+
+      if (error?.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
+        Alert.alert(
+          "Google Sign-In Error",
+          "Google Play Services is not available or is outdated."
+        );
+        return;
+      }
+
+      Alert.alert("Google Sign-In Error", "Sign-in failed. Please try again.");
+      console.log("Google Sign-In Error", error);
+    }
   }
-  function handleApple() {
-    console.log("Login with Apple pressed");
+
+  {
+    /*
+    function handleApple() {
+      console.log("Login with Apple pressed");
+    }
+      */
   }
 
   return (
@@ -153,18 +215,20 @@ export default function Login() {
             <Text style={styles.socialText}>Continue with Google</Text>
           </Pressable>
 
-          {/* Apple Login */}
-          <Pressable
+          {/* Apple Signup (needs a developer account) */}
+          {/*
+        <Pressable
             onPress={handleApple}
             style={[styles.socialBtn, styles.shadow]}
-          >
+        >
             <Image
-              source={require("../../assets/images/apple.png")}
-              style={styles.socialIcon}
-              resizeMode="contain"
+            source={require("../../assets/images/apple.png")}
+            style={styles.socialIcon}
+            resizeMode="contain"
             />
-            <Text style={styles.socialText}>Continue with Apple</Text>
-          </Pressable>
+            <Text style={styles.socialText}>Signup with Apple</Text>
+        </Pressable>
+        */}
         </View>
 
         {/* Link to signup */}

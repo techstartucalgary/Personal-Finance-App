@@ -1,50 +1,63 @@
-# Welcome to your Expo app 👋
+# Sterling Budgeting App
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+A personal finance application built with React Native, Expo, and Supabase.
 
-## Get started
+## ⚠️ Important: Google Authentication
 
-1. Install dependencies
+**Google Sign-In is NOT supported on the Web version of this app.**
 
+This project uses native modules (`@react-native-google-signin/google-signin`, `expo-crypto`) for secure authentication. You must run the app on a native iOS Simulator or Android Emulator using a **Development Build**.
+
+Standard "Expo Go" client will NOT work for authentication because it does not include the required native Google Sign-In code.
+
+## Prerequisites
+
+- Node.js
+- **iOS**: Xcode (macOS only)
+- **Android**: Android Studio & Java Development Kit (JDK)
+
+## Setup
+
+1. **Install Dependencies**
    ```bash
    npm install
    ```
 
-2. Start the app
-
-   ```bash
-   npx expo start
+2. **Environment Variables**
+   Ensure you have your Supabase credentials in `.env` (or `.env.local`):
+   ```
+   EXPO_PUBLIC_SUPABASE_URL=your_url
+   EXPO_PUBLIC_SUPABASE_ANON_KEY=your_key
    ```
 
-In the output, you'll find options to open the app in a
+## Running the App
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+### 🍎 iOS (Simulator)
+*Requires a Mac with Xcode installed.*
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+1. Build and run the native app:
+   ```bash
+   npx expo run:ios
+   ```
+   *This command builds the native project, installs it on the simulator, and starts the Metro bundler.*
 
-## Get a fresh project
+### 🤖 Android (Emulator)
+*Requires Android Studio.*
 
-When you're ready, run:
+1. Start your Android Emulator via Android Studio.
+2. Build and run the native app:
+   ```bash
+   npx expo run:android
+   ```
+
+### 🌐 Web
+*Note: Google Sign-In will NOT work.*
 
 ```bash
-npm run reset-project
+npx expo start --web
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+## Troubleshooting
 
-## Learn more
-
-To learn more about developing your project with Expo, look at the following resources:
-
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
-
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+- **"Cannot find native module"**: You are likely trying to use Expo Go. Please use `npx expo run:ios` or `npx expo run:android` to create a custom development build.
+- **CocoaPods errors**: Run `cd ios && pod install && cd ..`

@@ -70,7 +70,7 @@ export default function AuthProvider({ children }: PropsWithChildren) {
         session,
         isLoading,
         profile,
-        isLoggedIn: session != undefined,
+        isLoggedIn: session !== undefined,
       }}
     >
       {children}

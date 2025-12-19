@@ -1,36 +1,40 @@
 import { supabase } from "@/utils/supabase";
 import { Feather } from "@expo/vector-icons";
 import { Link, router } from "expo-router";
+import { StatusBar } from "expo-status-bar";
 import {
   GoogleSignin,
   isSuccessResponse,
   statusCodes,
 } from "@react-native-google-signin/google-signin";
+import { Colors } from "@/constants/theme";
+import { useColorScheme } from "@/hooks/use-color-scheme";
 import React, { useEffect, useState } from "react";
 import {
-  Alert,
   Image,
-  Keyboard,
-  KeyboardAvoidingView,
   Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from "react-native";
+import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
+import { Button, Dialog, Portal, Text as PaperText } from "react-native-paper";
 
 const COLORS = {
-  bg: "#FFFFFF",
-  text: "#111111",
-  subtext: "#7C808D",
-  border: "#DDDDDD",
   primary: "#013f33ff",
   inputCursor: "#013f33ff",
 };
 
 export default function SignUp() {
+  const colorScheme = useColorScheme() ?? "light";
+  const theme = Colors[colorScheme];
+  const backgroundColor = theme.background;
+  const textColor = theme.text;
+  const subtextColor = theme.icon;
+  const borderColor = theme.icon;
+
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
@@ -38,7 +42,14 @@ export default function SignUp() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  // Dialog state (replaces Snackbar + Alert)
+  const [dialogVisible, setDialogVisible] = useState(false);
+  const [dialogTitle, setDialogTitle] = useState("Notice");
+  const [dialogMessage, setDialogMessage] = useState("");
+
   useEffect(() => {
+    if (Platform.OS === "web") return;
+
     GoogleSignin.configure({
       webClientId:
         "801083441538-qdj0ai72fhs80t56379l3eo9tnlad2go.apps.googleusercontent.com",
@@ -47,55 +58,63 @@ export default function SignUp() {
     });
   }, []);
 
+  const showDialog = (title: string, message: string) => {
+    setDialogTitle(title);
+    setDialogMessage(message);
+    setDialogVisible(true);
+  };
+
   async function handleSignUp() {
     if (loading) return;
     setLoading(true);
 
-    const { data, error } = await supabase.auth.signUp({
-      email: email,
-      password: password,
-      options: {
-        data: {
-          first_name: firstName,
-          last_name: lastName,
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: { first_name: firstName, last_name: lastName },
         },
-      },
-    });
+      });
 
-    if (error) {
-      Alert.alert("SignUp Error", error.message);
-      console.log("SignUp Error", error);
-    } else if (data.session) {
-      console.log("Success", "You have successfully signed up!");
-      router.replace("/(tabs)");
-    } else {
-      Alert.alert(
+      if (error) {
+        console.log("SignUp Error", error);
+        showDialog("Sign Up Failed", error.message);
+        return;
+      }
+
+      if (data.session) {
+        router.replace("/(tabs)");
+        return;
+      }
+
+      // Happens when email confirmations are enabled
+      showDialog(
         "Check your email",
         "A confirmation link has been sent to your email address."
       );
-      console.log(
-        "Check your email",
-        "A confirmation link has been sent to your email address."
-      );
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }
 
-  // Social handlers
   async function handleGoogle() {
-    if (Platform.OS === 'web') {
-        Alert.alert("Error", "Google Sign-in is not supported on web in this version.");
-        return;
+    if (Platform.OS === "web") {
+      showDialog(
+        "Google Sign-In",
+        "Google Sign-in is not supported on web in this version."
+      );
+      return;
     }
+
     try {
       await GoogleSignin.hasPlayServices();
       const response = await GoogleSignin.signIn();
-
       if (!isSuccessResponse(response)) return;
 
       const idToken = response.data.idToken;
       if (!idToken) {
-        Alert.alert("Google Sign-In Error", "No ID token returned.");
+        showDialog("Google Sign-In Failed", "No ID token returned.");
         return;
       }
 
@@ -105,7 +124,7 @@ export default function SignUp() {
       });
 
       if (error) {
-        Alert.alert("Google Sign-In Error", error.message);
+        showDialog("Google Sign-In Failed", error.message);
         return;
       }
 
@@ -114,115 +133,117 @@ export default function SignUp() {
       if (error?.code === statusCodes.IN_PROGRESS) return;
 
       if (error?.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
-        Alert.alert(
-          "Google Sign-In Error",
+        showDialog(
+          "Google Sign-In Failed",
           "Google Play Services is not available or is outdated."
         );
         return;
       }
 
-      Alert.alert("Google Sign-In Error", "Sign-in failed. Please try again.");
       console.log("Google Sign-In Error", error);
+      showDialog("Google Sign-In Failed", "Please try again.");
     }
   }
 
-  {/*
-  function handleApple() {
-    console.log("Login with Apple pressed");
-  }
-    */}
-
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: "#FFFFFF" }}
-      behavior={Platform.select({ ios: "padding", android: "height" })}
-      keyboardVerticalOffset={Platform.select({ ios: 0, android: 0 })}
-    >
-      <ScrollView
-        contentContainerStyle={styles.container}
+    <View style={{ flex: 1, backgroundColor }}>
+      <StatusBar style={colorScheme === "dark" ? "light" : "dark"} />
+
+      <KeyboardAwareScrollView
+        style={{ flex: 1, backgroundColor }}
+        contentContainerStyle={[styles.container, { backgroundColor }]}
+        enableOnAndroid
+        enableAutomaticScroll
+        extraScrollHeight={16}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
-        onScrollBeginDrag={Keyboard.dismiss}
+        keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
       >
-        <Text style={styles.title}>Create Your Account</Text>
+        <Text style={[styles.title, { color: textColor }]}>
+          Create Your Account
+        </Text>
 
         {/* First Name */}
-        <View style={styles.inputRow}>
+        <View style={[styles.inputRow, { borderBottomColor: borderColor }]}>
           <Feather
             name="user"
             size={20}
-            color={COLORS.subtext}
+            color={subtextColor}
             style={styles.leftIcon}
           />
           <TextInput
-            style={[styles.input]}
+            style={[styles.input, { color: textColor }]}
             placeholder="First Name"
-            placeholderTextColor={COLORS.subtext}
+            placeholderTextColor={subtextColor}
             value={firstName}
             onChangeText={setFirstName}
             selectionColor={COLORS.inputCursor}
             underlineColorAndroid="transparent"
+            returnKeyType="next"
           />
         </View>
 
         {/* Last Name */}
-        <View style={styles.inputRow}>
+        <View style={[styles.inputRow, { borderBottomColor: borderColor }]}>
           <Feather
             name="user"
             size={20}
-            color={COLORS.subtext}
+            color={subtextColor}
             style={styles.leftIcon}
           />
           <TextInput
-            style={[styles.input]}
+            style={[styles.input, { color: textColor }]}
             placeholder="Last Name"
-            placeholderTextColor={COLORS.subtext}
+            placeholderTextColor={subtextColor}
             value={lastName}
             onChangeText={setLastName}
             selectionColor={COLORS.inputCursor}
             underlineColorAndroid="transparent"
+            returnKeyType="next"
           />
         </View>
 
         {/* Email */}
-        <View style={styles.inputRow}>
+        <View style={[styles.inputRow, { borderBottomColor: borderColor }]}>
           <Feather
             name="mail"
             size={20}
-            color={COLORS.subtext}
+            color={subtextColor}
             style={styles.leftIcon}
           />
           <TextInput
-            style={[styles.input]}
+            style={[styles.input, { color: textColor }]}
             placeholder="Email"
-            placeholderTextColor={COLORS.subtext}
+            placeholderTextColor={subtextColor}
             value={email}
             onChangeText={setEmail}
             keyboardType="email-address"
             autoCapitalize="none"
             selectionColor={COLORS.inputCursor}
             underlineColorAndroid="transparent"
+            returnKeyType="next"
           />
         </View>
 
         {/* Password */}
-        <View style={styles.inputRow}>
+        <View style={[styles.inputRow, { borderBottomColor: borderColor }]}>
           <Feather
             name="lock"
             size={20}
-            color={COLORS.subtext}
+            color={subtextColor}
             style={styles.leftIcon}
           />
           <TextInput
-            style={[styles.input]}
+            style={[styles.input, { color: textColor }]}
             placeholder="Password"
-            placeholderTextColor={COLORS.subtext}
+            placeholderTextColor={subtextColor}
             value={password}
             onChangeText={setPassword}
             secureTextEntry={!showPassword}
             autoCapitalize="none"
             selectionColor={COLORS.inputCursor}
             underlineColorAndroid="transparent"
+            returnKeyType="done"
           />
           <Pressable
             onPress={() => setShowPassword(!showPassword)}
@@ -231,7 +252,7 @@ export default function SignUp() {
             <Feather
               name={showPassword ? "eye" : "eye-off"}
               size={20}
-              color={COLORS.subtext}
+              color={subtextColor}
             />
           </Pressable>
         </View>
@@ -246,45 +267,35 @@ export default function SignUp() {
 
         {/* OR LINE */}
         <View style={styles.orContainer}>
-          <View style={styles.orLine}></View>
-          <Text style={styles.orText}>OR</Text>
-          <View style={styles.orLine}></View>
+          <View style={[styles.orLine, { backgroundColor: borderColor }]} />
+          <Text style={[styles.orText, { color: subtextColor }]}>OR</Text>
+          <View style={[styles.orLine, { backgroundColor: borderColor }]} />
         </View>
 
-        {/* Social Singup */}
+        {/* Social Signup */}
         <View style={{ gap: 10, marginTop: 10 }}>
-          {/* Google Signup */}
           <Pressable
             onPress={handleGoogle}
-            style={[styles.socialBtn, styles.shadow]}
+            style={[
+              styles.socialBtn,
+              styles.shadow,
+              { borderColor, backgroundColor },
+            ]}
           >
             <Image
               source={require("../../assets/images/google.png")}
               style={styles.socialIcon}
               resizeMode="contain"
             />
-            <Text style={styles.socialText}>Signup with Google</Text>
+            <Text style={[styles.socialText, { color: textColor }]}>
+              Signup with Google
+            </Text>
           </Pressable>
-
-          {/* Apple Signup (needs a developer account) */}
-          {/*
-          <Pressable
-            onPress={handleApple}
-            style={[styles.socialBtn, styles.shadow]}
-          >
-            <Image
-              source={require("../../assets/images/apple.png")}
-              style={styles.socialIcon}
-              resizeMode="contain"
-            />
-            <Text style={styles.socialText}>Signup with Apple</Text>
-          </Pressable>
-          */}
         </View>
 
         {/* Link to login */}
         <View style={styles.linkRow}>
-          <Text style={[styles.linkPrompt, { color: COLORS.subtext }]}>
+          <Text style={[styles.linkPrompt, { color: subtextColor }]}>
             Already have an account?{" "}
           </Text>
           <Link
@@ -294,15 +305,29 @@ export default function SignUp() {
             Sign in instead
           </Link>
         </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+      </KeyboardAwareScrollView>
+
+      <Portal>
+        <Dialog
+          visible={dialogVisible}
+          onDismiss={() => setDialogVisible(false)}
+        >
+          <Dialog.Title>{dialogTitle}</Dialog.Title>
+          <Dialog.Content>
+            <PaperText>{dialogMessage}</PaperText>
+          </Dialog.Content>
+          <Dialog.Actions>
+            <Button onPress={() => setDialogVisible(false)}>OK</Button>
+          </Dialog.Actions>
+        </Dialog>
+      </Portal>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flexGrow: 1,
-    backgroundColor: "#FFFFFF",
     justifyContent: "center",
     paddingHorizontal: 28,
     paddingVertical: 40,

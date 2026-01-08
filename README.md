@@ -32,6 +32,13 @@ Standard "Expo Go" client will NOT work for authentication because it does not i
 
 ## Running the App
 
+### Expo Go
+1. Start the development build
+   ```bash
+   npx expo start
+   ```
+2. Open Expo Go on your phone and scan the QR code.
+
 ### 🍎 iOS (Simulator)
 *Requires a Mac with Xcode installed.*
 

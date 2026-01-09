@@ -12,6 +12,22 @@ import { useAuthContext } from '@/hooks/use-auth-context'
 export default function HomeScreen() {
   const { profile, session } = useAuthContext()
 
+  const userMetadata = session?.user?.user_metadata as Record<string, any> | undefined
+  const fallbackFullName =
+    (userMetadata?.full_name as string | undefined)?.trim() ||
+    (userMetadata?.name as string | undefined)?.trim() ||
+    undefined
+  const fallbackGiven = (userMetadata?.given_name as string | undefined)?.trim() || undefined
+  const fallbackFamily = (userMetadata?.family_name as string | undefined)?.trim() || undefined
+
+  const firstName = (profile?.first_name as string | undefined)?.trim() || fallbackGiven
+  const lastName = (profile?.last_name as string | undefined)?.trim() || fallbackFamily
+  const fullName =
+    [firstName, lastName].filter(Boolean).join(' ') ||
+    fallbackFullName ||
+    session?.user?.email ||
+    'there'
+
   return (
     <ParallaxScrollView
       headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
@@ -23,11 +39,11 @@ export default function HomeScreen() {
       }
     >
       <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome, {profile?.first_name} </ThemedText>
+        <ThemedText type="title">Welcome, {firstName || fullName} </ThemedText>
         <HelloWave />
       </ThemedView>
       <ThemedView style={styles.stepContainer}>
-        <ThemedText type="default"> Full name: {profile?.first_name} {profile?.last_name}</ThemedText>
+        <ThemedText type="default"> Full name: {fullName}</ThemedText>
         <ThemedText type="default"> Email: {session?.user?.email}</ThemedText>
         <ThemedText type="default"> Preferred currency: {profile?.currency_preference}</ThemedText>
       </ThemedView>

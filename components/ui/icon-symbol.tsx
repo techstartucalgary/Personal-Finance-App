@@ -1,5 +1,6 @@
 // Fallback for using MaterialIcons on Android and web.
 
+import Feather from "@expo/vector-icons/Feather";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { SymbolViewProps, SymbolWeight } from "expo-symbols";
 import React, { ComponentProps } from "react";
@@ -9,7 +10,10 @@ type IconMapping = Record<
   SymbolViewProps["name"],
   ComponentProps<typeof MaterialIcons>["name"]
 >;
-type IconSymbolName = keyof typeof MAPPING;
+
+type FeatherMapping = Partial<
+  Record<SymbolViewProps["name"], ComponentProps<typeof Feather>["name"]>
+>;
 
 /**
  * Add your SF Symbols to Material Icons mappings here.
@@ -17,12 +21,19 @@ type IconSymbolName = keyof typeof MAPPING;
  * - see SF Symbols in the [SF Symbols](https://developer.apple.com/sf-symbols/) app.
  */
 const MAPPING = {
+  "wallet.bifold": "account-balance",
   "house.fill": "home",
-  "paperplane.fill": "send",
-  "person.fill": "person",
+  "paperplane": "send",
+  "person": "person",
   "chevron.left.forwardslash.chevron.right": "code",
   "chevron.right": "chevron-right",
 } as IconMapping;
+
+const FEATHER_MAPPING: FeatherMapping = {
+  target: "target",
+  "chart.pie": "pie-chart",
+  "list.bullet": "list",
+};
 
 /**
  * An icon component that uses native SF Symbols on iOS, and Material Icons on Android and web.
@@ -35,12 +46,18 @@ export function IconSymbol({
   color,
   style,
 }: {
-  name: IconSymbolName;
+  name: keyof typeof MAPPING;
   size?: number;
   color: string | OpaqueColorValue;
   style?: StyleProp<TextStyle>;
   weight?: SymbolWeight;
 }) {
+  const featherName = FEATHER_MAPPING[name];
+  if (featherName) {
+    return (
+      <Feather color={color} size={size} name={featherName} style={style} />
+    );
+  }
   return (
     <MaterialIcons
       color={color}

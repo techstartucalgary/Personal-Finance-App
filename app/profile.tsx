@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 
+import SignOutButton from "@/components/auth_buttons/sign-out-button";
 import { useAuthContext } from "@/hooks/use-auth-context";
 
 export default function ProfileScreen() {
@@ -65,6 +66,7 @@ export default function ProfileScreen() {
           <ThemedText type="defaultSemiBold">Currency</ThemedText>
           <ThemedText>{currecy_pref ?? "—"}</ThemedText>
         </ThemedView>
+        <SignOutButton />
       </ThemedView>
     </>
   );

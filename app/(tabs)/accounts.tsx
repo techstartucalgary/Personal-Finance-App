@@ -12,8 +12,11 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { useRouter } from "expo-router";
+
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
+import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useAuthContext } from "@/hooks/use-auth-context";
 import { supabase } from "@/utils/supabase";
 
@@ -40,6 +43,8 @@ type AccountRow = {
 
 export default function AccountsScreen() {
   const { session, isLoading: authLoading } = useAuthContext();
+
+  const router = useRouter();
 
   const insets = useSafeAreaInsets();
 
@@ -288,7 +293,12 @@ export default function AccountsScreen() {
         },
       ]}
     >
-      <ThemedText type="title">Accounts</ThemedText>
+      <View style={styles.headerRow}>
+        <ThemedText type="title">Accounts</ThemedText>
+        <Pressable onPress={() => router.push("/profile")}>
+          <IconSymbol size={28} name="person" color={ui.text} />
+        </Pressable>
+      </View>
 
       <View
         style={[
@@ -628,6 +638,11 @@ export default function AccountsScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, paddingHorizontal: 16, paddingBottom: 16, gap: 12 },
+  headerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
   card: {
     padding: 12,
     borderRadius: 12,
@@ -636,13 +651,13 @@ const styles = StyleSheet.create({
   },
   input: {
     borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: 10,
+    borderRadius: 12,
     paddingHorizontal: 12,
     paddingVertical: 10,
   },
   pickerContainer: {
     borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: 10,
+    borderRadius: 12,
     paddingHorizontal: 8,
     paddingVertical: 6,
     gap: 6,

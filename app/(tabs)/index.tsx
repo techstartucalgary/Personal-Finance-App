@@ -1,39 +1,31 @@
-import React from "react";
-import { StyleSheet } from "react-native";
+import React, { useMemo } from "react";
+import { Pressable, StyleSheet, View, useColorScheme } from "react-native";
 
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 
-import SignOutButton from "@/components/auth_buttons/sign-out-button";
-import { useAuthContext } from "@/hooks/use-auth-context";
+import { IconSymbol } from "@/components/ui/icon-symbol";
+
+import { useRouter } from "expo-router";
 
 export default function HomeScreen() {
-  const { profile, session } = useAuthContext();
   const insets = useSafeAreaInsets();
-
-  const userMetadata = session?.user?.user_metadata as
-    | Record<string, any>
-    | undefined;
-  const fallbackFullName =
-    (userMetadata?.full_name as string | undefined)?.trim() ||
-    (userMetadata?.name as string | undefined)?.trim() ||
-    undefined;
-  const fallbackGiven =
-    (userMetadata?.given_name as string | undefined)?.trim() || undefined;
-  const fallbackFamily =
-    (userMetadata?.family_name as string | undefined)?.trim() || undefined;
-
-  const firstName =
-    (profile?.first_name as string | undefined)?.trim() || fallbackGiven;
-  const lastName =
-    (profile?.last_name as string | undefined)?.trim() || fallbackFamily;
-  const fullName =
-    [firstName, lastName].filter(Boolean).join(" ") ||
-    fallbackFullName ||
-    session?.user?.email ||
-    "there";
+  const router = useRouter();
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === "dark";
+  const ui = useMemo(
+    () => ({
+      surface: isDark ? "#121212" : "#ffffff",
+      surface2: isDark ? "#1a1a1a" : "#ffffff",
+      border: isDark ? "rgba(255,255,255,0.18)" : "rgba(0,0,0,0.12)",
+      text: isDark ? "#ffffff" : "#111111",
+      mutedText: isDark ? "rgba(255,255,255,0.6)" : "rgba(0,0,0,0.5)",
+      backdrop: "rgba(0,0,0,0.45)",
+    }),
+    [isDark]
+  );
 
   return (
     <ThemedView
@@ -44,18 +36,12 @@ export default function HomeScreen() {
         },
       ]}
     >
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome, {firstName || fullName} </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="default"> Full name: {fullName}</ThemedText>
-        <ThemedText type="default"> Email: {session?.user?.email}</ThemedText>
-        <ThemedText type="default">
-          {" "}
-          Preferred currency: {profile?.currency_preference}
-        </ThemedText>
-      </ThemedView>
-      <SignOutButton />
+      <View style={styles.headerRow}>
+        <ThemedText type="title">Dashboard</ThemedText>
+        <Pressable onPress={() => router.push("/profile")}>
+          <IconSymbol size={28} name="person" color={ui.text} />
+        </Pressable>
+      </View>
     </ThemedView>
   );
 }
@@ -66,6 +52,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingBottom: 16,
     gap: 12,
+  },
+  headerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
   },
   titleContainer: {
     flexDirection: "row",

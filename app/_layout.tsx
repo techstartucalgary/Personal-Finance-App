@@ -1,13 +1,17 @@
-import React, { useEffect } from "react";
-import { DarkTheme, DefaultTheme, ThemeProvider } from "@react-navigation/native";
+import {
+  DarkTheme,
+  DefaultTheme,
+  ThemeProvider,
+} from "@react-navigation/native";
 import { Stack, useRouter, useSegments } from "expo-router";
 import { StatusBar } from "expo-status-bar";
+import React, { useEffect } from "react";
 import { MD3DarkTheme, MD3LightTheme, PaperProvider } from "react-native-paper";
 
+import { SplashScreenController } from "@/components/splash-screen-controller";
 import { useAuthContext } from "@/hooks/use-auth-context";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import AuthProvider from "@/providers/auth-provider";
-import { SplashScreenController } from "@/components/splash-screen-controller";
 
 // This component handles the protection logic
 function ProtectedLayout() {
@@ -39,7 +43,9 @@ export default function RootLayout() {
   const colorScheme = useColorScheme() ?? "light";
 
   return (
-    <PaperProvider theme={colorScheme === "dark" ? MD3DarkTheme : MD3LightTheme}>
+    <PaperProvider
+      theme={colorScheme === "dark" ? MD3DarkTheme : MD3LightTheme}
+    >
       <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
         <AuthProvider>
           <SplashScreenController />

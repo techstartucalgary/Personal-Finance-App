@@ -21,10 +21,10 @@ type FeatherMapping = Partial<
  * - see SF Symbols in the [SF Symbols](https://developer.apple.com/sf-symbols/) app.
  */
 const MAPPING = {
-  "wallet.bifold": "account-balance",
+  "wallet.bifold": "wallet",
   "house.fill": "home",
-  "paperplane": "send",
-  "person": "person",
+  paperplane: "send",
+  person: "person-outline",
   "chevron.left.forwardslash.chevron.right": "code",
   "chevron.right": "chevron-right",
 } as IconMapping;

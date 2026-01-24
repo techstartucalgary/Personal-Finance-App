@@ -27,20 +27,20 @@ export default function TabLayout() {
       }}
     >
       <Tabs.Screen
-        name="accounts"
-        options={{
-          title: "Accounts",
-          tabBarIcon: ({ color }) => (
-            <IconSymbol size={28} name="wallet.bifold" color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
         name="index"
         options={{
           title: "Dashboard",
           tabBarIcon: ({ color }) => (
             <IconSymbol size={28} name="chart.pie" color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="accounts"
+        options={{
+          title: "Accounts",
+          tabBarIcon: ({ color }) => (
+            <IconSymbol size={28} name="wallet.bifold" color={color} />
           ),
         }}
       />

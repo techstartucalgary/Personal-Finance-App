@@ -32,7 +32,12 @@ export default function ProfileScreen() {
   const lastName =
     (profile?.last_name as string | undefined)?.trim() || fallbackFamily;
   const fullName =
-    [firstName, lastName].filter(Boolean).join(" ") ||
+    [
+      capitalizeFirstLetter(firstName ?? ""),
+      capitalizeFirstLetter(lastName ?? ""),
+    ]
+      .filter(Boolean)
+      .join(" ") ||
     fallbackFullName ||
     session?.user?.email ||
     "there";
@@ -70,6 +75,10 @@ export default function ProfileScreen() {
       </ThemedView>
     </>
   );
+}
+
+function capitalizeFirstLetter(str: string): string {
+  return str.charAt(0).toUpperCase() + str.slice(1);
 }
 
 const styles = StyleSheet.create({

@@ -1,14 +1,14 @@
+import { Colors } from "@/constants/theme";
+import { useColorScheme } from "@/hooks/use-color-scheme";
 import { supabase } from "@/utils/supabase";
 import { Feather } from "@expo/vector-icons";
-import { Link, router } from "expo-router";
-import { StatusBar } from "expo-status-bar";
 import {
   GoogleSignin,
   isSuccessResponse,
   statusCodes,
 } from "@react-native-google-signin/google-signin";
-import { Colors } from "@/constants/theme";
-import { useColorScheme } from "@/hooks/use-color-scheme";
+import { Link, router } from "expo-router";
+import { StatusBar } from "expo-status-bar";
 import React, { useEffect, useState } from "react";
 import {
   Image,
@@ -20,7 +20,7 @@ import {
   View,
 } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
-import { Button, Dialog, Portal, Text as PaperText } from "react-native-paper";
+import { Button, Dialog, Text as PaperText, Portal } from "react-native-paper";
 
 const COLORS = {
   primary: "#013f33ff",
@@ -91,7 +91,7 @@ export default function SignUp() {
       // Happens when email confirmations are enabled
       showDialog(
         "Check your email",
-        "A confirmation link has been sent to your email address."
+        "A confirmation link has been sent to your email address.",
       );
     } finally {
       setLoading(false);
@@ -102,7 +102,7 @@ export default function SignUp() {
     if (Platform.OS === "web") {
       showDialog(
         "Google Sign-In",
-        "Google Sign-in is not supported on web in this version."
+        "Google Sign-in is not supported on web in this version.",
       );
       return;
     }
@@ -135,7 +135,7 @@ export default function SignUp() {
       if (error?.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
         showDialog(
           "Google Sign-In Failed",
-          "Google Play Services is not available or is outdated."
+          "Google Play Services is not available or is outdated.",
         );
         return;
       }

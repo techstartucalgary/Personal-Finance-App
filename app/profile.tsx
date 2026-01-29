@@ -39,6 +39,7 @@ export default function ProfileScreen() {
     fallbackFullName ||
     session?.user?.email ||
     "there";
+
   const currecy_pref =
     (profile?.currency_preference as string | undefined)?.trim() || "CAD";
 

@@ -69,3 +69,16 @@ export async function getGoal(params: { id: string; profile_id: string }) {
   if (error) throw error;
   return data;
 }
+
+export async function listGoals(params: { profile_id: string }) {
+  const { profile_id } = params;
+
+  const { data, error } = await supabase
+    .from("Goal")
+    .select("*")
+    .eq("profile_id", profile_id)
+    .order("created_at", { ascending: false });
+
+  if (error) throw error;
+  return data; // data will be an array
+}

@@ -18,6 +18,11 @@ import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useAuthContext } from "@/hooks/use-auth-context";
+import {
+  createAccount as createAccountApi,
+  deleteAccount as deleteAccountApi,
+  updateAccount as updateAccountApi,
+} from "@/utils/accounts";
 import { supabase } from "@/utils/supabase";
 
 type AccountType = "credit" | "debit";
@@ -60,7 +65,7 @@ export default function AccountsScreen() {
       mutedText: isDark ? "rgba(255,255,255,0.6)" : "rgba(0,0,0,0.5)",
       backdrop: "rgba(0,0,0,0.45)",
     }),
-    [isDark]
+    [isDark],
   );
 
   const userId = session?.user.id;
@@ -85,7 +90,7 @@ export default function AccountsScreen() {
 
   const canCreate = useMemo(
     () => !!userId && name.trim().length > 0,
-    [userId, name]
+    [userId, name],
   );
 
   const loadAccounts = useCallback(async () => {
@@ -99,7 +104,7 @@ export default function AccountsScreen() {
     const { data, error } = await supabase
       .from("account")
       .select(
-        "id, profile_id, created_at, account_name, account_type, balance, credit_limit, statement_duedate, payment_duedate, interest_rate, currency"
+        "id, profile_id, created_at, account_name, account_type, balance, credit_limit, statement_duedate, payment_duedate, interest_rate, currency",
       )
       .eq("profile_id", userId)
       .order("created_at", { ascending: false });
@@ -151,12 +156,11 @@ export default function AccountsScreen() {
       currency: "CAD",
     };
 
-    // insert the payload into accounts table
-    const { error } = await supabase.from("account").insert(payload);
-
-    if (error) {
+    try {
+      await createAccountApi(payload);
+    } catch (error) {
       console.error("Error creating account:", error);
-      Alert.alert("Could not create account", error.message);
+      Alert.alert("Could not create account", "Please try again.");
       setIsLoading(false);
       return;
     }
@@ -176,7 +180,7 @@ export default function AccountsScreen() {
     const cleanText = (value: string, fallback?: string | null) => {
       const trimmed = value.trim();
       if (trimmed.length > 0) return trimmed;
-      return fallback ?? null;
+      return fallback ?? undefined;
     };
 
     const cleanNumber = (value: string, fallback?: number | null) => {
@@ -194,24 +198,24 @@ export default function AccountsScreen() {
       interest_rate: cleanNumber(editInterest, editingAccount.interest_rate),
       statement_duedate: cleanText(
         editStatementDate,
-        editingAccount.statement_duedate
+        editingAccount.statement_duedate,
       ),
       payment_duedate: cleanText(
         editPaymentDate,
-        editingAccount.payment_duedate
+        editingAccount.payment_duedate,
       ),
       currency: cleanText(editCurrency, editingAccount.currency),
     };
 
-    const { error } = await supabase
-      .from("account")
-      .update(payload)
-      .eq("id", editingAccount.id)
-      .eq("profile_id", userId);
-
-    if (error) {
+    try {
+      await updateAccountApi({
+        id: editingAccount.id,
+        profile_id: userId,
+        update: payload,
+      });
+    } catch (error) {
       console.error("Error updating account:", error);
-      Alert.alert("Could not update account", error.message);
+      Alert.alert("Could not update account", "Please try again.");
       setIsLoading(false);
       return;
     }
@@ -245,15 +249,11 @@ export default function AccountsScreen() {
           onPress: async () => {
             setIsLoading(true);
 
-            const { error } = await supabase
-              .from("account")
-              .delete()
-              .eq("id", accountId)
-              .eq("profile_id", userId);
-
-            if (error) {
+            try {
+              await deleteAccountApi({ id: accountId, profile_id: userId });
+            } catch (error) {
               console.error("Error deleting account:", error);
-              Alert.alert("Could not delete account", error.message);
+              Alert.alert("Could not delete account", "Please try again.");
               setIsLoading(false);
               return;
             }
@@ -264,7 +264,7 @@ export default function AccountsScreen() {
         },
       ]);
     },
-    [userId, loadAccounts]
+    [userId, loadAccounts],
   );
 
   if (authLoading && !session) {

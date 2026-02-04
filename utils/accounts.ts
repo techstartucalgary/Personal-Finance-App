@@ -6,6 +6,7 @@ export type AccountRow = {
   created_at?: string | null;
   account_name: string | null;
   account_type: string | null;
+  balance: number | null;
   currency: string | null;
 };
 
@@ -14,12 +15,33 @@ export async function listAccounts(params: { profile_id: string }) {
 
   const { data, error } = await supabase
     .from("account")
-    .select("id, profile_id, created_at, account_name, account_type, currency")
+    .select(
+      "id, profile_id, created_at, account_name, account_type, balance, currency",
+    )
     .eq("profile_id", profile_id)
     .order("created_at", { ascending: false });
 
   if (error) throw error;
   return data as AccountRow[];
+}
+
+export async function getAccountById(params: {
+  id: string | number;
+  profile_id: string;
+}) {
+  const { id, profile_id } = params;
+
+  const { data, error } = await supabase
+    .from("account")
+    .select(
+      "id, profile_id, created_at, account_name, account_type, balance, currency",
+    )
+    .eq("id", id)
+    .eq("profile_id", profile_id)
+    .maybeSingle();
+
+  if (error) throw error;
+  return (data as AccountRow | null) ?? null;
 }
 
 export type AccountInsert = {

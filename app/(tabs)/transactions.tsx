@@ -18,7 +18,7 @@ import { ThemedView } from "@/components/themed-view";
 
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useAuthContext } from "@/hooks/use-auth-context";
-import { listAccounts } from "@/utils/accounts";
+import { getAccountById, listAccounts, updateAccount } from "@/utils/accounts";
 import { addCategory, listCategories } from "@/utils/categories";
 import {
   addExpense,
@@ -53,6 +53,7 @@ export default function HomeScreen() {
     id: number;
     account_name: string | null;
     account_type: string | null;
+    balance: number | null;
     currency: string | null;
   };
 
@@ -228,10 +229,11 @@ export default function HomeScreen() {
       !!userId &&
       !!selectedAccount &&
       !!selectedCategory &&
+      description.trim().length > 0 &&
       Number.isFinite(parsed) &&
       parsed > 0
     );
-  }, [userId, selectedAccount, selectedCategory, amount]);
+  }, [userId, selectedAccount, selectedCategory, amount, description]);
 
   const createTransaction = useCallback(async () => {
     if (!userId || !selectedAccount) return;
@@ -242,8 +244,8 @@ export default function HomeScreen() {
       Alert.alert("Invalid amount", "Enter a valid amount greater than 0.");
       return;
     }
-    if (!editSelectedAccount || !editSelectedCategory) {
-      Alert.alert("Missing details", "Select an account and category.");
+    if (!description.trim()) {
+      Alert.alert("Missing description", "Enter a description.");
       return;
     }
     if (!selectedCategory) return;
@@ -266,11 +268,29 @@ export default function HomeScreen() {
         end_date: null,
       });
 
+      const latestAccount = await getAccountById({
+        id: selectedAccount.id,
+        profile_id: userId,
+      });
+      const balanceSource = latestAccount ?? selectedAccount;
+      const currentBalance = balanceSource.balance ?? 0;
+      const isCredit = balanceSource.account_type === "credit";
+      const nextBalance = isCredit
+        ? currentBalance + parsed
+        : currentBalance - parsed;
+
+      await updateAccount({
+        id: String(selectedAccount.id),
+        profile_id: userId,
+        update: { balance: nextBalance },
+      });
+
       setAmount("");
       setDescription("");
       setSubcategoryId("");
       setAddModalOpen(false);
       await loadExpenses();
+      await loadAccounts();
     } catch (error) {
       console.error("Error creating transaction:", error);
       Alert.alert("Could not create transaction", "Please try again.");
@@ -282,12 +302,22 @@ export default function HomeScreen() {
     selectedAccount,
     amount,
     subcategoryId,
-    editSelectedAccount,
-    editSelectedCategory,
     selectedCategory,
     description,
     loadExpenses,
+    loadAccounts,
   ]);
+
+  const applyTransactionToBalance = useCallback(
+    (account: AccountRow, transactionAmount: number) => {
+      const currentBalance = account.balance ?? 0;
+      const isCredit = account.account_type === "credit";
+      return isCredit
+        ? currentBalance + transactionAmount
+        : currentBalance - transactionAmount;
+    },
+    [],
+  );
 
   const updateTransaction = useCallback(async () => {
     if (!userId || !editingExpense) return;
@@ -318,8 +348,67 @@ export default function HomeScreen() {
             : null,
         },
       });
+
+      const originalAmount = editingExpense.amount ?? 0;
+      const originalAccountId = editingExpense.account_id;
+      const updatedAccountId = editSelectedAccount.id;
+
+      if (originalAccountId != null && originalAccountId === updatedAccountId) {
+        const originalAccount = await getAccountById({
+          id: originalAccountId,
+          profile_id: userId,
+        });
+        if (originalAccount) {
+          const netAmount = parsed - originalAmount;
+          const nextBalance = applyTransactionToBalance(
+            originalAccount,
+            netAmount,
+          );
+          await updateAccount({
+            id: String(originalAccount.id),
+            profile_id: userId,
+            update: { balance: nextBalance },
+          });
+        }
+      } else {
+        if (originalAccountId != null) {
+          const originalAccount = await getAccountById({
+            id: originalAccountId,
+            profile_id: userId,
+          });
+          if (originalAccount) {
+            const revertedBalance = applyTransactionToBalance(
+              originalAccount,
+              -originalAmount,
+            );
+            await updateAccount({
+              id: String(originalAccount.id),
+              profile_id: userId,
+              update: { balance: revertedBalance },
+            });
+          }
+        }
+
+        const updatedAccount = await getAccountById({
+          id: updatedAccountId,
+          profile_id: userId,
+        });
+        if (updatedAccount) {
+          const updatedBalance = applyTransactionToBalance(
+            updatedAccount,
+            parsed,
+          );
+          await updateAccount({
+            id: String(updatedAccount.id),
+            profile_id: userId,
+            update: { balance: updatedBalance },
+          });
+        }
+      }
+
       setEditingExpense(null);
       await loadExpenses();
+      await loadAccounts();
     } catch (error) {
       console.error("Error updating transaction:", error);
       Alert.alert("Could not update transaction", "Please try again.");
@@ -333,7 +422,9 @@ export default function HomeScreen() {
     editDescription,
     editSelectedAccount,
     editSelectedCategory,
+    applyTransactionToBalance,
     loadExpenses,
+    loadAccounts,
   ]);
 
   const deleteTransaction = useCallback(async () => {
@@ -347,12 +438,35 @@ export default function HomeScreen() {
         onPress: async () => {
           setIsLoading(true);
           try {
+            const originalAmount = editingExpense.amount ?? 0;
+            const originalAccountId = editingExpense.account_id;
+
             await deleteExpense({
               id: editingExpense.id,
               profile_id: userId,
             });
+
+            if (originalAccountId != null) {
+              const originalAccount = await getAccountById({
+                id: originalAccountId,
+                profile_id: userId,
+              });
+              if (originalAccount) {
+                const revertedBalance = applyTransactionToBalance(
+                  originalAccount,
+                  -originalAmount,
+                );
+                await updateAccount({
+                  id: String(originalAccount.id),
+                  profile_id: userId,
+                  update: { balance: revertedBalance },
+                });
+              }
+            }
+
             setEditingExpense(null);
             await loadExpenses();
+            await loadAccounts();
           } catch (error) {
             console.error("Error deleting transaction:", error);
             Alert.alert("Could not delete transaction", "Please try again.");
@@ -362,7 +476,13 @@ export default function HomeScreen() {
         },
       },
     ]);
-  }, [userId, editingExpense, loadExpenses]);
+  }, [
+    userId,
+    editingExpense,
+    applyTransactionToBalance,
+    loadExpenses,
+    loadAccounts,
+  ]);
 
   return (
     <ThemedView
@@ -754,7 +874,8 @@ export default function HomeScreen() {
                     {account.account_type
                       ? account.account_type.charAt(0).toUpperCase() +
                         account.account_type.slice(1)
-                      : "—"} {account.currency ?? ""}
+                      : "—"}{" "}
+                    {account.currency ?? ""}
                   </ThemedText>
                 </Pressable>
               ))
@@ -872,7 +993,8 @@ export default function HomeScreen() {
                     {account.account_type
                       ? account.account_type.charAt(0).toUpperCase() +
                         account.account_type.slice(1)
-                      : "—"} {account.currency ?? ""}
+                      : "—"}{" "}
+                    {account.currency ?? ""}
                   </ThemedText>
                 </Pressable>
               ))

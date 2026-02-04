@@ -178,8 +178,8 @@ export default function AccountsScreen() {
     try {
       await createAccountApi(payload);
     } catch (error) {
-      console.error("Error adding account:", error);
-      Alert.alert("Could not add account", "Please try again.");
+      console.error("Error creating account:", error);
+      Alert.alert("Could not create account", "Please try again.");
       setIsLoading(false);
       return;
     }
@@ -445,7 +445,7 @@ export default function AccountsScreen() {
               marginBottom: 16,
             }}
           >
-            <ThemedText type="title">Add Account</ThemedText>
+            <ThemedText type="title">Create account</ThemedText>
             <Pressable onPress={() => setCreateModalOpen(false)}>
               <ThemedText style={{ color: "#007AFF" }}>Cancel</ThemedText>
             </Pressable>
@@ -591,7 +591,7 @@ export default function AccountsScreen() {
               ]}
             >
               <ThemedText type="defaultSemiBold" style={{ color: ui.surface }}>
-                Add
+                Create
               </ThemedText>
             </Pressable>
           </ScrollView>

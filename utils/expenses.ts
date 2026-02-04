@@ -33,16 +33,14 @@ export async function updateExpense(params: {
 }) {
   const { id, profile_id, update } = params;
 
-  const { data, error } = await supabase
+  const { error } = await supabase
     .from("Expense")
     .update(update)
     .eq("id", id)
-    .eq("profile_id", profile_id)
-    .select("*")
-    .single();
+    .eq("profile_id", profile_id);
 
   if (error) throw error;
-  return data;
+  return true;
 }
 
 export async function deleteExpense(params: {
@@ -85,5 +83,5 @@ export async function listExpenses(params: { profile_id: string }) {
     .order("created_at", { ascending: false });
 
   if (error) throw error;
-  return data;  // data returned will be an array
+  return data; // data returned will be an array
 }

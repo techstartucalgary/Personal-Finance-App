@@ -77,6 +77,13 @@ export default function AccountsScreen() {
   const [name, setName] = useState("");
   const [type, setType] = useState<AccountType>("credit");
   const [typeModalOpen, setTypeModalOpen] = useState(false);
+  const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [createBalance, setCreateBalance] = useState("");
+  const [createLimit, setCreateLimit] = useState("");
+  const [createInterest, setCreateInterest] = useState("");
+  const [createStatementDate, setCreateStatementDate] = useState("");
+  const [createPaymentDate, setCreatePaymentDate] = useState("");
+  const [createCurrency, setCreateCurrency] = useState("CAD");
 
   // edit state
   const [editingAccount, setEditingAccount] = useState<AccountRow | null>(null);
@@ -142,34 +149,65 @@ export default function AccountsScreen() {
 
     setIsLoading(true);
 
+    const cleanNumber = (value: string, fallback?: number) => {
+      const trimmed = value.trim();
+      if (trimmed.length === 0) return fallback ?? 0;
+      const parsed = parseFloat(trimmed);
+      return Number.isFinite(parsed) ? parsed : (fallback ?? 0);
+    };
+
+    const cleanText = (value: string, fallback?: string) => {
+      const trimmed = value.trim();
+      return trimmed.length > 0 ? trimmed : (fallback ?? "");
+    };
+
     // payload for fields upon creating account
     const payload = {
       profile_id: userId,
       account_name: name.trim(),
       account_type: type,
       // default values, can be edited later
-      balance: 0,
-      credit_limit: 0,
-      statement_duedate: "2026-01-01",
-      payment_duedate: "2026-01-01",
-      interest_rate: 0.0,
-      currency: "CAD",
+      balance: cleanNumber(createBalance, 0),
+      credit_limit: cleanNumber(createLimit, 0),
+      statement_duedate: cleanText(createStatementDate, "2026-01-01"),
+      payment_duedate: cleanText(createPaymentDate, "2026-01-01"),
+      interest_rate: cleanNumber(createInterest, 0),
+      currency: cleanText(createCurrency, "CAD"),
     };
 
     try {
       await createAccountApi(payload);
     } catch (error) {
-      console.error("Error creating account:", error);
-      Alert.alert("Could not create account", "Please try again.");
+      console.error("Error adding account:", error);
+      Alert.alert("Could not add account", "Please try again.");
       setIsLoading(false);
       return;
     }
 
     setName("");
     setType("credit");
+    setCreateBalance("");
+    setCreateLimit("");
+    setCreateInterest("");
+    setCreateStatementDate("");
+    setCreatePaymentDate("");
+    setCreateCurrency("CAD");
+    setCreateModalOpen(false);
     await loadAccounts();
     setIsLoading(false);
-  }, [userId, canCreate, name, type, loadAccounts]);
+  }, [
+    userId,
+    canCreate,
+    name,
+    type,
+    createBalance,
+    createLimit,
+    createInterest,
+    createStatementDate,
+    createPaymentDate,
+    createCurrency,
+    loadAccounts,
+  ]);
 
   const updateAccount = useCallback(async () => {
     if (!userId || !editingAccount) return;
@@ -241,28 +279,32 @@ export default function AccountsScreen() {
     async (accountId: string) => {
       if (!userId) return;
 
-      Alert.alert("Delete account?", "This action cannot be undone.", [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: async () => {
-            setIsLoading(true);
+      Alert.alert(
+        "Delete account?",
+        "This will delete all transactions associated with the eaccount.\n\nThis action cannot be undone.",
+        [
+          { text: "Cancel", style: "cancel" },
+          {
+            text: "Delete",
+            style: "destructive",
+            onPress: async () => {
+              setIsLoading(true);
 
-            try {
-              await deleteAccountApi({ id: accountId, profile_id: userId });
-            } catch (error) {
-              console.error("Error deleting account:", error);
-              Alert.alert("Could not delete account", "Please try again.");
+              try {
+                await deleteAccountApi({ id: accountId, profile_id: userId });
+              } catch (error) {
+                console.error("Error deleting account:", error);
+                Alert.alert("Could not delete account", "Please try again.");
+                setIsLoading(false);
+                return;
+              }
+
+              await loadAccounts();
               setIsLoading(false);
-              return;
-            }
-
-            await loadAccounts();
-            setIsLoading(false);
+            },
           },
-        },
-      ]);
+        ],
+      );
     },
     [userId, loadAccounts],
   );
@@ -317,60 +359,6 @@ export default function AccountsScreen() {
             { borderColor: ui.border, backgroundColor: ui.surface2 },
           ]}
         >
-          <ThemedText type="defaultSemiBold">Create an account</ThemedText>
-          <TextInput
-            value={name}
-            onChangeText={setName}
-            placeholder="Account name (e.g. TD Credit)"
-            placeholderTextColor={ui.mutedText}
-            autoCapitalize="words"
-            style={[
-              styles.input,
-              {
-                borderColor: ui.border,
-                backgroundColor: ui.surface,
-                color: ui.text,
-              },
-            ]}
-          />
-          <View
-            style={[
-              styles.pickerContainer,
-              { borderColor: ui.border, backgroundColor: ui.surface },
-            ]}
-          >
-            <ThemedText type="defaultSemiBold">Account type</ThemedText>
-            <Pressable
-              onPress={() => setTypeModalOpen(true)}
-              style={[
-                styles.dropdownButton,
-                { borderColor: ui.border, backgroundColor: ui.surface2 },
-              ]}
-            >
-              <ThemedText>{type === "credit" ? "Credit" : "Debit"}</ThemedText>
-            </Pressable>
-          </View>
-
-          {/* Create Button */}
-          <Pressable
-            onPress={createAccount}
-            disabled={!canCreate || isLoading}
-            style={[
-              styles.button,
-              { borderColor: ui.border, backgroundColor: ui.surface2 },
-              (!canCreate || isLoading) && styles.buttonDisabled,
-            ]}
-          >
-            <ThemedText type="defaultSemiBold">Create</ThemedText>
-          </Pressable>
-        </View>
-
-        <View
-          style={[
-            styles.card,
-            { borderColor: ui.border, backgroundColor: ui.surface2 },
-          ]}
-        >
           <ThemedText type="defaultSemiBold">Your accounts</ThemedText>
           {accounts.length === 0 ? (
             <ThemedText>
@@ -395,7 +383,10 @@ export default function AccountsScreen() {
                     {item.account_name ?? "Unnamed account"}
                   </ThemedText>
                   <ThemedText type="default">
-                    {item.account_type ?? "—"}
+                    {item.account_type
+                      ? item.account_type.charAt(0).toUpperCase() +
+                        item.account_type.slice(1)
+                      : "—"}
                   </ThemedText>
                   <ThemedText>Balance: {item.balance ?? 0}</ThemedText>
                   <ThemedText>{item.currency}</ThemedText>
@@ -417,7 +408,197 @@ export default function AccountsScreen() {
         </View>
       </ScrollView>
 
-      {/* Account Type Selection Modal (Create) */}
+      <Pressable
+        onPress={() => setCreateModalOpen(true)}
+        style={({ pressed }) => [
+          styles.fabCenter,
+          {
+            backgroundColor: ui.text,
+            opacity: pressed ? 0.8 : 1,
+          },
+        ]}
+      >
+        <ThemedText style={{ color: ui.surface, fontSize: 20 }}>
+          + Account
+        </ThemedText>
+      </Pressable>
+
+      <Modal
+        visible={createModalOpen}
+        animationType="slide"
+        presentationStyle="fullScreen"
+        onRequestClose={() => setCreateModalOpen(false)}
+      >
+        <ThemedView
+          style={{
+            flex: 1,
+            padding: 16,
+            paddingTop: 16 + insets.top,
+            paddingBottom: 16 + insets.bottom,
+          }}
+        >
+          <View
+            style={{
+              flexDirection: "row",
+              justifyContent: "space-between",
+              alignItems: "center",
+              marginBottom: 16,
+            }}
+          >
+            <ThemedText type="title">Add Account</ThemedText>
+            <Pressable onPress={() => setCreateModalOpen(false)}>
+              <ThemedText style={{ color: "#007AFF" }}>Cancel</ThemedText>
+            </Pressable>
+          </View>
+
+          <ScrollView contentContainerStyle={{ gap: 12, paddingBottom: 24 }}>
+            <ThemedText type="defaultSemiBold">Account name</ThemedText>
+            <TextInput
+              value={name}
+              onChangeText={setName}
+              placeholder="Account name (e.g. TD Credit)"
+              placeholderTextColor={ui.mutedText}
+              autoCapitalize="words"
+              style={[
+                styles.input,
+                {
+                  borderColor: ui.border,
+                  backgroundColor: ui.surface,
+                  color: ui.text,
+                },
+              ]}
+            />
+
+            <View
+              style={[
+                styles.pickerContainer,
+                { borderColor: ui.border, backgroundColor: ui.surface },
+              ]}
+            >
+              <ThemedText type="defaultSemiBold">Account type</ThemedText>
+              <Pressable
+                onPress={() => setTypeModalOpen(true)}
+                style={[
+                  styles.dropdownButton,
+                  { borderColor: ui.border, backgroundColor: ui.surface2 },
+                ]}
+              >
+                <ThemedText>
+                  {type === "credit" ? "Credit" : "Debit"}
+                </ThemedText>
+              </Pressable>
+            </View>
+
+            <ThemedText type="defaultSemiBold">Balance</ThemedText>
+            <TextInput
+              value={createBalance}
+              onChangeText={setCreateBalance}
+              keyboardType="numeric"
+              style={[
+                styles.input,
+                {
+                  borderColor: ui.border,
+                  backgroundColor: ui.surface,
+                  color: ui.text,
+                },
+              ]}
+            />
+
+            <ThemedText type="defaultSemiBold">Credit Limit</ThemedText>
+            <TextInput
+              value={createLimit}
+              onChangeText={setCreateLimit}
+              keyboardType="numeric"
+              style={[
+                styles.input,
+                {
+                  borderColor: ui.border,
+                  backgroundColor: ui.surface,
+                  color: ui.text,
+                },
+              ]}
+            />
+
+            <ThemedText type="defaultSemiBold">Interest Rate (%)</ThemedText>
+            <TextInput
+              value={createInterest}
+              onChangeText={setCreateInterest}
+              keyboardType="numeric"
+              style={[
+                styles.input,
+                {
+                  borderColor: ui.border,
+                  backgroundColor: ui.surface,
+                  color: ui.text,
+                },
+              ]}
+            />
+
+            <ThemedText type="defaultSemiBold">Currency</ThemedText>
+            <TextInput
+              value={createCurrency}
+              onChangeText={setCreateCurrency}
+              autoCapitalize="characters"
+              style={[
+                styles.input,
+                {
+                  borderColor: ui.border,
+                  backgroundColor: ui.surface,
+                  color: ui.text,
+                },
+              ]}
+            />
+
+            <ThemedText type="defaultSemiBold">Statement Due Date</ThemedText>
+            <TextInput
+              value={createStatementDate}
+              onChangeText={setCreateStatementDate}
+              placeholder="Day of month or YYYY-MM-DD"
+              placeholderTextColor={ui.mutedText}
+              style={[
+                styles.input,
+                {
+                  borderColor: ui.border,
+                  backgroundColor: ui.surface,
+                  color: ui.text,
+                },
+              ]}
+            />
+
+            <ThemedText type="defaultSemiBold">Payment Due Date</ThemedText>
+            <TextInput
+              value={createPaymentDate}
+              onChangeText={setCreatePaymentDate}
+              placeholder="Day of month or YYYY-MM-DD"
+              placeholderTextColor={ui.mutedText}
+              style={[
+                styles.input,
+                {
+                  borderColor: ui.border,
+                  backgroundColor: ui.surface,
+                  color: ui.text,
+                },
+              ]}
+            />
+
+            <Pressable
+              onPress={createAccount}
+              disabled={!canCreate || isLoading}
+              style={[
+                styles.button,
+                { borderColor: ui.border, backgroundColor: ui.text },
+                (!canCreate || isLoading) && styles.buttonDisabled,
+              ]}
+            >
+              <ThemedText type="defaultSemiBold" style={{ color: ui.surface }}>
+                Add
+              </ThemedText>
+            </Pressable>
+          </ScrollView>
+        </ThemedView>
+      </Modal>
+
+      {/* Account Type Selection Modal (Add) */}
       <Modal
         visible={typeModalOpen}
         transparent
@@ -724,6 +905,21 @@ const styles = StyleSheet.create({
     padding: 12,
     borderRadius: 12,
     borderWidth: StyleSheet.hairlineWidth,
+  },
+  fabCenter: {
+    position: "absolute",
+    bottom: 24,
+    alignSelf: "center",
+    paddingHorizontal: 16,
+    height: 48,
+    borderRadius: 24,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 6,
   },
   deleteButton: {
     paddingHorizontal: 10,

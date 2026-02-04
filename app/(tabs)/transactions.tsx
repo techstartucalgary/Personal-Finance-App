@@ -20,7 +20,12 @@ import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useAuthContext } from "@/hooks/use-auth-context";
 import { listAccounts } from "@/utils/accounts";
 import { addCategory, listCategories } from "@/utils/categories";
-import { addExpense, listExpenses } from "@/utils/expenses";
+import {
+  addExpense,
+  deleteExpense,
+  listExpenses,
+  updateExpense,
+} from "@/utils/expenses";
 
 import { useFocusEffect, useRouter } from "expo-router";
 
@@ -57,6 +62,9 @@ export default function HomeScreen() {
   const [selectedAccount, setSelectedAccount] = useState<AccountRow | null>(
     null,
   );
+  const [editAccountModalOpen, setEditAccountModalOpen] = useState(false);
+  const [editSelectedAccount, setEditSelectedAccount] =
+    useState<AccountRow | null>(null);
   type CategoryRow = {
     id: number;
     category_name: string | null;
@@ -77,11 +85,18 @@ export default function HomeScreen() {
   const [selectedCategory, setSelectedCategory] = useState<CategoryRow | null>(
     null,
   );
+  const [editCategoryModalOpen, setEditCategoryModalOpen] = useState(false);
+  const [editSelectedCategory, setEditSelectedCategory] =
+    useState<CategoryRow | null>(null);
+  const [addModalOpen, setAddModalOpen] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState("");
   const [amount, setAmount] = useState("");
   const [description, setDescription] = useState("");
   const [subcategoryId, setSubcategoryId] = useState("");
   const [expenses, setExpenses] = useState<ExpenseRow[]>([]);
+  const [editingExpense, setEditingExpense] = useState<ExpenseRow | null>(null);
+  const [editAmount, setEditAmount] = useState("");
+  const [editDescription, setEditDescription] = useState("");
 
   const formatDate = useCallback((value?: string | null) => {
     if (!value) return "";
@@ -156,6 +171,25 @@ export default function HomeScreen() {
     loadExpenses();
   }, [loadExpenses]);
 
+  useEffect(() => {
+    if (editingExpense) {
+      setEditAmount(editingExpense.amount?.toString() ?? "");
+      setEditDescription(editingExpense.description ?? "");
+    }
+  }, [editingExpense]);
+
+  useEffect(() => {
+    if (!editingExpense) return;
+    const accountMatch = accounts.find(
+      (account) => account.id === editingExpense.account_id,
+    );
+    const categoryMatch = categories.find(
+      (category) => category.id === editingExpense.expense_categoryid,
+    );
+    setEditSelectedAccount(accountMatch ?? null);
+    setEditSelectedCategory(categoryMatch ?? null);
+  }, [editingExpense, accounts, categories]);
+
   useFocusEffect(
     useCallback(() => {
       loadAccounts();
@@ -208,6 +242,10 @@ export default function HomeScreen() {
       Alert.alert("Invalid amount", "Enter a valid amount greater than 0.");
       return;
     }
+    if (!editSelectedAccount || !editSelectedCategory) {
+      Alert.alert("Missing details", "Select an account and category.");
+      return;
+    }
     if (!selectedCategory) return;
 
     setIsLoading(true);
@@ -231,6 +269,7 @@ export default function HomeScreen() {
       setAmount("");
       setDescription("");
       setSubcategoryId("");
+      setAddModalOpen(false);
       await loadExpenses();
     } catch (error) {
       console.error("Error creating transaction:", error);
@@ -243,10 +282,87 @@ export default function HomeScreen() {
     selectedAccount,
     amount,
     subcategoryId,
+    editSelectedAccount,
+    editSelectedCategory,
     selectedCategory,
     description,
     loadExpenses,
   ]);
+
+  const updateTransaction = useCallback(async () => {
+    if (!userId || !editingExpense) return;
+
+    const parsed = parseFloat(editAmount.trim());
+    if (!Number.isFinite(parsed) || parsed <= 0) {
+      Alert.alert("Invalid amount", "Enter a valid amount greater than 0.");
+      return;
+    }
+
+    if (!editSelectedAccount || !editSelectedCategory) {
+      Alert.alert("Missing details", "Select an account and category.");
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      await updateExpense({
+        id: editingExpense.id,
+        profile_id: userId,
+        update: {
+          account_id: editSelectedAccount.id,
+          expense_categoryid: editSelectedCategory.id,
+          amount: parsed,
+          description: editDescription.trim().length
+            ? editDescription.trim()
+            : null,
+        },
+      });
+      setEditingExpense(null);
+      await loadExpenses();
+    } catch (error) {
+      console.error("Error updating transaction:", error);
+      Alert.alert("Could not update transaction", "Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
+  }, [
+    userId,
+    editingExpense,
+    editAmount,
+    editDescription,
+    editSelectedAccount,
+    editSelectedCategory,
+    loadExpenses,
+  ]);
+
+  const deleteTransaction = useCallback(async () => {
+    if (!userId || !editingExpense) return;
+
+    Alert.alert("Delete transaction?", "This action cannot be undone.", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: async () => {
+          setIsLoading(true);
+          try {
+            await deleteExpense({
+              id: editingExpense.id,
+              profile_id: userId,
+            });
+            setEditingExpense(null);
+            await loadExpenses();
+          } catch (error) {
+            console.error("Error deleting transaction:", error);
+            Alert.alert("Could not delete transaction", "Please try again.");
+          } finally {
+            setIsLoading(false);
+          }
+        },
+      },
+    ]);
+  }, [userId, editingExpense, loadExpenses]);
 
   return (
     <ThemedView
@@ -285,113 +401,6 @@ export default function HomeScreen() {
             { borderColor: ui.border, backgroundColor: ui.surface2 },
           ]}
         >
-          <ThemedText type="defaultSemiBold">Add transaction</ThemedText>
-
-          <View style={styles.fieldGroup}>
-            <ThemedText type="defaultSemiBold">Account</ThemedText>
-            <Pressable
-              onPress={() => setAccountModalOpen(true)}
-              style={[
-                styles.dropdownButton,
-                { borderColor: ui.border, backgroundColor: ui.surface },
-              ]}
-            >
-              <ThemedText>
-                {selectedAccount?.account_name ?? "Select an account"}
-              </ThemedText>
-            </Pressable>
-          </View>
-
-          <View style={styles.fieldGroup}>
-            <ThemedText type="defaultSemiBold">Category</ThemedText>
-            <Pressable
-              onPress={() => setCategoryModalOpen(true)}
-              style={[
-                styles.dropdownButton,
-                { borderColor: ui.border, backgroundColor: ui.surface },
-              ]}
-            >
-              <ThemedText>
-                {selectedCategory?.category_name ?? "Select a category"}
-              </ThemedText>
-            </Pressable>
-          </View>
-
-          <View style={styles.fieldGroup}>
-            <ThemedText type="defaultSemiBold">Amount</ThemedText>
-            <TextInput
-              value={amount}
-              onChangeText={setAmount}
-              keyboardType="numeric"
-              placeholder="0.00"
-              placeholderTextColor={ui.mutedText}
-              style={[
-                styles.input,
-                {
-                  borderColor: ui.border,
-                  backgroundColor: ui.surface,
-                  color: ui.text,
-                },
-              ]}
-            />
-          </View>
-
-          <View style={styles.fieldGroup}>
-            <ThemedText type="defaultSemiBold">Description</ThemedText>
-            <TextInput
-              value={description}
-              onChangeText={setDescription}
-              placeholder="e.g. Grocery run"
-              placeholderTextColor={ui.mutedText}
-              style={[
-                styles.input,
-                {
-                  borderColor: ui.border,
-                  backgroundColor: ui.surface,
-                  color: ui.text,
-                },
-              ]}
-            />
-          </View>
-
-          <View style={styles.fieldGroup}>
-            <ThemedText type="defaultSemiBold">Subcategory ID</ThemedText>
-            <TextInput
-              value={subcategoryId}
-              onChangeText={setSubcategoryId}
-              keyboardType="numeric"
-              placeholder="Optional"
-              placeholderTextColor={ui.mutedText}
-              style={[
-                styles.input,
-                {
-                  borderColor: ui.border,
-                  backgroundColor: ui.surface,
-                  color: ui.text,
-                },
-              ]}
-            />
-          </View>
-
-          <Pressable
-            onPress={createTransaction}
-            disabled={!canCreate || isLoading}
-            style={[
-              styles.button,
-              { borderColor: ui.border, backgroundColor: ui.surface },
-              (!canCreate || isLoading) && styles.buttonDisabled,
-            ]}
-          >
-            <ThemedText type="defaultSemiBold">Add transaction</ThemedText>
-          </Pressable>
-        </View>
-
-        <View
-          style={[
-            styles.card,
-            { borderColor: ui.border, backgroundColor: ui.surface2 },
-          ]}
-        >
           <ThemedText type="defaultSemiBold">Recent transactions</ThemedText>
           {expenses.length === 0 ? (
             <ThemedText>
@@ -399,11 +408,16 @@ export default function HomeScreen() {
             </ThemedText>
           ) : (
             expenses.map((expense) => (
-              <View
+              <Pressable
                 key={expense.id}
-                style={[
+                onPress={() => setEditingExpense(expense)}
+                style={({ pressed }) => [
                   styles.row,
-                  { borderColor: ui.border, backgroundColor: ui.surface },
+                  {
+                    borderColor: ui.border,
+                    backgroundColor: ui.surface,
+                    opacity: pressed ? 0.7 : 1,
+                  },
                 ]}
               >
                 <View style={{ flex: 1 }}>
@@ -417,11 +431,403 @@ export default function HomeScreen() {
                 <ThemedText type="defaultSemiBold">
                   {formatMoney(expense.amount ?? 0)}
                 </ThemedText>
-              </View>
+              </Pressable>
             ))
           )}
         </View>
       </ScrollView>
+
+      <Pressable
+        onPress={() => setAddModalOpen(true)}
+        style={({ pressed }) => [
+          styles.fab,
+          {
+            backgroundColor: ui.text,
+            opacity: pressed ? 0.8 : 1,
+          },
+        ]}
+      >
+        <ThemedText style={{ color: ui.surface, fontSize: 24 }}>+</ThemedText>
+      </Pressable>
+
+      <Modal
+        visible={addModalOpen}
+        animationType="slide"
+        presentationStyle="fullScreen"
+        onRequestClose={() => setAddModalOpen(false)}
+      >
+        <ThemedView
+          style={{
+            flex: 1,
+            padding: 16,
+            paddingTop: 16 + insets.top,
+            paddingBottom: 16 + insets.bottom,
+          }}
+        >
+          <View
+            style={{
+              flexDirection: "row",
+              justifyContent: "space-between",
+              alignItems: "center",
+              marginBottom: 16,
+            }}
+          >
+            <ThemedText type="title">Add Transaction</ThemedText>
+            <Pressable onPress={() => setAddModalOpen(false)}>
+              <ThemedText style={{ color: "#007AFF" }}>Cancel</ThemedText>
+            </Pressable>
+          </View>
+
+          <ScrollView contentContainerStyle={{ gap: 12, paddingBottom: 24 }}>
+            <View style={styles.fieldGroup}>
+              <ThemedText type="defaultSemiBold">Account</ThemedText>
+              <Pressable
+                onPress={() => setAccountModalOpen(true)}
+                style={[
+                  styles.dropdownButton,
+                  { borderColor: ui.border, backgroundColor: ui.surface },
+                ]}
+              >
+                <ThemedText>
+                  {selectedAccount?.account_name ?? "Select an account"}
+                </ThemedText>
+              </Pressable>
+            </View>
+
+            <View style={styles.fieldGroup}>
+              <ThemedText type="defaultSemiBold">Category</ThemedText>
+              <Pressable
+                onPress={() => setCategoryModalOpen(true)}
+                style={[
+                  styles.dropdownButton,
+                  { borderColor: ui.border, backgroundColor: ui.surface },
+                ]}
+              >
+                <ThemedText>
+                  {selectedCategory?.category_name ?? "Select a category"}
+                </ThemedText>
+              </Pressable>
+            </View>
+
+            <View style={styles.fieldGroup}>
+              <ThemedText type="defaultSemiBold">Amount</ThemedText>
+              <TextInput
+                value={amount}
+                onChangeText={setAmount}
+                keyboardType="numeric"
+                placeholder="0.00"
+                placeholderTextColor={ui.mutedText}
+                style={[
+                  styles.input,
+                  {
+                    borderColor: ui.border,
+                    backgroundColor: ui.surface,
+                    color: ui.text,
+                  },
+                ]}
+              />
+            </View>
+
+            <View style={styles.fieldGroup}>
+              <ThemedText type="defaultSemiBold">Description</ThemedText>
+              <TextInput
+                value={description}
+                onChangeText={setDescription}
+                placeholder="e.g. Grocery run"
+                placeholderTextColor={ui.mutedText}
+                style={[
+                  styles.input,
+                  {
+                    borderColor: ui.border,
+                    backgroundColor: ui.surface,
+                    color: ui.text,
+                  },
+                ]}
+              />
+            </View>
+
+            <View style={styles.fieldGroup}>
+              <ThemedText type="defaultSemiBold">Subcategory ID</ThemedText>
+              <TextInput
+                value={subcategoryId}
+                onChangeText={setSubcategoryId}
+                keyboardType="numeric"
+                placeholder="Optional"
+                placeholderTextColor={ui.mutedText}
+                style={[
+                  styles.input,
+                  {
+                    borderColor: ui.border,
+                    backgroundColor: ui.surface,
+                    color: ui.text,
+                  },
+                ]}
+              />
+            </View>
+
+            <Pressable
+              onPress={createTransaction}
+              disabled={!canCreate || isLoading}
+              style={[
+                styles.button,
+                { borderColor: ui.border, backgroundColor: ui.text },
+                (!canCreate || isLoading) && styles.buttonDisabled,
+              ]}
+            >
+              <ThemedText type="defaultSemiBold" style={{ color: ui.surface }}>
+                Add transaction
+              </ThemedText>
+            </Pressable>
+          </ScrollView>
+        </ThemedView>
+      </Modal>
+
+      <Modal
+        visible={!!editingExpense}
+        animationType="slide"
+        presentationStyle="fullScreen"
+        onRequestClose={() => setEditingExpense(null)}
+      >
+        <ThemedView
+          style={{
+            flex: 1,
+            padding: 16,
+            paddingTop: 16 + insets.top,
+            paddingBottom: 16 + insets.bottom,
+          }}
+        >
+          <View
+            style={{
+              flexDirection: "row",
+              justifyContent: "space-between",
+              alignItems: "center",
+              marginBottom: 16,
+            }}
+          >
+            <ThemedText type="title">Edit Transaction</ThemedText>
+            <Pressable onPress={() => setEditingExpense(null)}>
+              <ThemedText style={{ color: "#007AFF" }}>Cancel</ThemedText>
+            </Pressable>
+          </View>
+
+          <View style={{ gap: 16 }}>
+            <View style={{ gap: 6 }}>
+              <ThemedText type="defaultSemiBold">Account</ThemedText>
+              <Pressable
+                onPress={() => setEditAccountModalOpen(true)}
+                style={[
+                  styles.dropdownButton,
+                  { borderColor: ui.border, backgroundColor: ui.surface },
+                ]}
+              >
+                <ThemedText>
+                  {editSelectedAccount?.account_name ?? "Select an account"}
+                </ThemedText>
+              </Pressable>
+            </View>
+
+            <View style={{ gap: 6 }}>
+              <ThemedText type="defaultSemiBold">Category</ThemedText>
+              <Pressable
+                onPress={() => setEditCategoryModalOpen(true)}
+                style={[
+                  styles.dropdownButton,
+                  { borderColor: ui.border, backgroundColor: ui.surface },
+                ]}
+              >
+                <ThemedText>
+                  {editSelectedCategory?.category_name ?? "Select a category"}
+                </ThemedText>
+              </Pressable>
+            </View>
+
+            <View style={{ gap: 6 }}>
+              <ThemedText type="defaultSemiBold">Amount</ThemedText>
+              <TextInput
+                value={editAmount}
+                onChangeText={setEditAmount}
+                keyboardType="numeric"
+                style={[
+                  styles.input,
+                  {
+                    borderColor: ui.border,
+                    backgroundColor: ui.surface,
+                    color: ui.text,
+                  },
+                ]}
+              />
+            </View>
+
+            <View style={{ gap: 6 }}>
+              <ThemedText type="defaultSemiBold">Description</ThemedText>
+              <TextInput
+                value={editDescription}
+                onChangeText={setEditDescription}
+                style={[
+                  styles.input,
+                  {
+                    borderColor: ui.border,
+                    backgroundColor: ui.surface,
+                    color: ui.text,
+                  },
+                ]}
+              />
+            </View>
+
+            <Pressable
+              onPress={updateTransaction}
+              disabled={isLoading}
+              style={[
+                styles.button,
+                {
+                  backgroundColor: ui.text,
+                  borderColor: ui.border,
+                  alignSelf: "center",
+                  width: "100%",
+                  alignItems: "center",
+                },
+                isLoading && styles.buttonDisabled,
+              ]}
+            >
+              <ThemedText type="defaultSemiBold" style={{ color: ui.surface }}>
+                Save Changes
+              </ThemedText>
+            </Pressable>
+
+            <Pressable
+              onPress={deleteTransaction}
+              disabled={isLoading}
+              style={[
+                styles.deleteAction,
+                { borderColor: ui.border, backgroundColor: ui.surface },
+                isLoading && styles.buttonDisabled,
+              ]}
+            >
+              <ThemedText style={{ color: "#FF3B30" }}>
+                Delete Transaction
+              </ThemedText>
+            </Pressable>
+          </View>
+        </ThemedView>
+      </Modal>
+
+      <Modal
+        visible={editAccountModalOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setEditAccountModalOpen(false)}
+      >
+        <Pressable
+          style={[styles.modalBackdrop, { backgroundColor: ui.backdrop }]}
+          onPress={() => setEditAccountModalOpen(false)}
+        >
+          <Pressable
+            style={[
+              styles.modalCard,
+              { backgroundColor: ui.surface2, borderColor: ui.border },
+            ]}
+            onPress={() => {}}
+          >
+            <ThemedText type="defaultSemiBold">Select account</ThemedText>
+
+            {accounts.length === 0 ? (
+              <ThemedText>
+                {isLoading ? "Loading…" : "No accounts yet."}
+              </ThemedText>
+            ) : (
+              accounts.map((account) => (
+                <Pressable
+                  key={account.id}
+                  style={[
+                    styles.modalOption,
+                    { borderColor: ui.border, backgroundColor: ui.surface },
+                  ]}
+                  onPress={() => {
+                    setEditSelectedAccount(account);
+                    setEditAccountModalOpen(false);
+                  }}
+                >
+                  <ThemedText>
+                    {account.account_name ?? "Unnamed account"}
+                  </ThemedText>
+                  <ThemedText type="default">
+                    {account.account_type
+                      ? account.account_type.charAt(0).toUpperCase() +
+                        account.account_type.slice(1)
+                      : "—"} {account.currency ?? ""}
+                  </ThemedText>
+                </Pressable>
+              ))
+            )}
+
+            <Pressable
+              style={[
+                styles.modalOption,
+                styles.modalCancel,
+                { borderColor: ui.border, backgroundColor: ui.surface },
+              ]}
+              onPress={() => setEditAccountModalOpen(false)}
+            >
+              <ThemedText>Cancel</ThemedText>
+            </Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      <Modal
+        visible={editCategoryModalOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setEditCategoryModalOpen(false)}
+      >
+        <Pressable
+          style={[styles.modalBackdrop, { backgroundColor: ui.backdrop }]}
+          onPress={() => setEditCategoryModalOpen(false)}
+        >
+          <Pressable
+            style={[
+              styles.modalCard,
+              { backgroundColor: ui.surface2, borderColor: ui.border },
+            ]}
+            onPress={() => {}}
+          >
+            <ThemedText type="defaultSemiBold">Select category</ThemedText>
+
+            {categories.length === 0 ? (
+              <ThemedText>No categories yet.</ThemedText>
+            ) : (
+              categories.map((category) => (
+                <Pressable
+                  key={category.id}
+                  style={[
+                    styles.modalOption,
+                    { borderColor: ui.border, backgroundColor: ui.surface },
+                  ]}
+                  onPress={() => {
+                    setEditSelectedCategory(category);
+                    setEditCategoryModalOpen(false);
+                  }}
+                >
+                  <ThemedText>
+                    {category.category_name ?? "Unnamed category"}
+                  </ThemedText>
+                </Pressable>
+              ))
+            )}
+
+            <Pressable
+              style={[
+                styles.modalOption,
+                styles.modalCancel,
+                { borderColor: ui.border, backgroundColor: ui.surface },
+              ]}
+              onPress={() => setEditCategoryModalOpen(false)}
+            >
+              <ThemedText>Cancel</ThemedText>
+            </Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
 
       <Modal
         visible={accountModalOpen}
@@ -463,7 +869,10 @@ export default function HomeScreen() {
                     {account.account_name ?? "Unnamed account"}
                   </ThemedText>
                   <ThemedText type="default">
-                    {account.account_type ?? "—"} {account.currency ?? ""}
+                    {account.account_type
+                      ? account.account_type.charAt(0).toUpperCase() +
+                        account.account_type.slice(1)
+                      : "—"} {account.currency ?? ""}
                   </ThemedText>
                 </Pressable>
               ))
@@ -642,6 +1051,30 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 10,
     gap: 12,
+  },
+  deleteAction: {
+    alignSelf: "center",
+    width: "100%",
+    alignItems: "center",
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderRadius: 10,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  fab: {
+    position: "absolute",
+    right: 20,
+    bottom: 24,
+    height: 56,
+    width: 56,
+    borderRadius: 28,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 6,
   },
   titleContainer: {
     flexDirection: "row",

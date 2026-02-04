@@ -69,6 +69,15 @@ export async function deleteAccount(params: {
   profile_id: string;
 }) {
   const { id, profile_id } = params;
+  const accountId = Number.isNaN(Number(id)) ? id : Number(id);
+
+  const { error: expenseError } = await supabase
+    .from("Expense")
+    .delete()
+    .eq("account_id", accountId)
+    .eq("profile_id", profile_id);
+
+  if (expenseError) throw expenseError;
 
   const { error } = await supabase
     .from("account")

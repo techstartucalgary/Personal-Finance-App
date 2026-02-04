@@ -1,9 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Alert,
-  FlatList,
   Modal,
   Pressable,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   TextInput,
@@ -293,66 +293,129 @@ export default function AccountsScreen() {
         },
       ]}
     >
-      <View style={styles.headerRow}>
-        <ThemedText type="title">Accounts</ThemedText>
-        <Pressable onPress={() => router.push("/profile")}>
-          <IconSymbol size={28} name="person" color={ui.text} />
-        </Pressable>
-      </View>
-
-      <View
-        style={[
-          styles.card,
-          { borderColor: ui.border, backgroundColor: ui.surface2 },
-        ]}
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={isLoading}
+            onRefresh={loadAccounts}
+            tintColor={ui.text}
+          />
+        }
       >
-        <ThemedText type="defaultSemiBold">Create an account</ThemedText>
-        <TextInput
-          value={name}
-          onChangeText={setName}
-          placeholder="Account name (e.g. TD Credit)"
-          placeholderTextColor={ui.mutedText}
-          autoCapitalize="words"
-          style={[
-            styles.input,
-            {
-              borderColor: ui.border,
-              backgroundColor: ui.surface,
-              color: ui.text,
-            },
-          ]}
-        />
-        <View
-          style={[
-            styles.pickerContainer,
-            { borderColor: ui.border, backgroundColor: ui.surface },
-          ]}
-        >
-          <ThemedText type="defaultSemiBold">Account type</ThemedText>
-          <Pressable
-            onPress={() => setTypeModalOpen(true)}
-            style={[
-              styles.dropdownButton,
-              { borderColor: ui.border, backgroundColor: ui.surface2 },
-            ]}
-          >
-            <ThemedText>{type === "credit" ? "Credit" : "Debit"}</ThemedText>
+        <View style={styles.headerRow}>
+          <ThemedText type="title">Accounts</ThemedText>
+          <Pressable onPress={() => router.push("/profile")}>
+            <IconSymbol size={28} name="person" color={ui.text} />
           </Pressable>
         </View>
 
-        {/* Create Button */}
-        <Pressable
-          onPress={createAccount}
-          disabled={!canCreate || isLoading}
+        <View
           style={[
-            styles.button,
+            styles.card,
             { borderColor: ui.border, backgroundColor: ui.surface2 },
-            (!canCreate || isLoading) && styles.buttonDisabled,
           ]}
         >
-          <ThemedText type="defaultSemiBold">Create</ThemedText>
-        </Pressable>
-      </View>
+          <ThemedText type="defaultSemiBold">Create an account</ThemedText>
+          <TextInput
+            value={name}
+            onChangeText={setName}
+            placeholder="Account name (e.g. TD Credit)"
+            placeholderTextColor={ui.mutedText}
+            autoCapitalize="words"
+            style={[
+              styles.input,
+              {
+                borderColor: ui.border,
+                backgroundColor: ui.surface,
+                color: ui.text,
+              },
+            ]}
+          />
+          <View
+            style={[
+              styles.pickerContainer,
+              { borderColor: ui.border, backgroundColor: ui.surface },
+            ]}
+          >
+            <ThemedText type="defaultSemiBold">Account type</ThemedText>
+            <Pressable
+              onPress={() => setTypeModalOpen(true)}
+              style={[
+                styles.dropdownButton,
+                { borderColor: ui.border, backgroundColor: ui.surface2 },
+              ]}
+            >
+              <ThemedText>{type === "credit" ? "Credit" : "Debit"}</ThemedText>
+            </Pressable>
+          </View>
+
+          {/* Create Button */}
+          <Pressable
+            onPress={createAccount}
+            disabled={!canCreate || isLoading}
+            style={[
+              styles.button,
+              { borderColor: ui.border, backgroundColor: ui.surface2 },
+              (!canCreate || isLoading) && styles.buttonDisabled,
+            ]}
+          >
+            <ThemedText type="defaultSemiBold">Create</ThemedText>
+          </Pressable>
+        </View>
+
+        <View
+          style={[
+            styles.card,
+            { borderColor: ui.border, backgroundColor: ui.surface2 },
+          ]}
+        >
+          <ThemedText type="defaultSemiBold">Your accounts</ThemedText>
+          {accounts.length === 0 ? (
+            <ThemedText>
+              {isLoading ? "Loading…" : "No accounts yet. Create one above."}
+            </ThemedText>
+          ) : (
+            accounts.map((item) => (
+              <Pressable
+                key={item.id}
+                onPress={() => setEditingAccount(item)}
+                style={({ pressed }) => [
+                  styles.row,
+                  {
+                    borderColor: ui.border,
+                    backgroundColor: ui.surface2,
+                    opacity: pressed ? 0.7 : 1,
+                  },
+                ]}
+              >
+                <View style={{ flex: 1 }}>
+                  <ThemedText type="defaultSemiBold">
+                    {item.account_name ?? "Unnamed account"}
+                  </ThemedText>
+                  <ThemedText type="default">
+                    {item.account_type ?? "—"}
+                  </ThemedText>
+                  <ThemedText>Balance: {item.balance ?? 0}</ThemedText>
+                  <ThemedText>{item.currency}</ThemedText>
+                </View>
+
+                <Pressable
+                  onPress={() => deleteAccount(item.id)}
+                  hitSlop={10}
+                  style={[
+                    styles.deleteButton,
+                    { borderColor: ui.border, backgroundColor: ui.surface },
+                  ]}
+                >
+                  <ThemedText>Delete</ThemedText>
+                </Pressable>
+              </Pressable>
+            ))
+          )}
+        </View>
+      </ScrollView>
 
       {/* Account Type Selection Modal (Create) */}
       <Modal
@@ -586,58 +649,16 @@ export default function AccountsScreen() {
           </ScrollView>
         </ThemedView>
       </Modal>
-
-      <FlatList
-        data={accounts}
-        keyExtractor={(item) => item.id}
-        refreshing={isLoading}
-        onRefresh={loadAccounts}
-        contentContainerStyle={styles.list}
-        ListEmptyComponent={
-          <ThemedText>
-            {isLoading ? "Loading…" : "No accounts yet. Create one above."}
-          </ThemedText>
-        }
-        renderItem={({ item }) => (
-          <Pressable
-            onPress={() => setEditingAccount(item)}
-            style={({ pressed }) => [
-              styles.row,
-              {
-                borderColor: ui.border,
-                backgroundColor: ui.surface2,
-                opacity: pressed ? 0.7 : 1,
-              },
-            ]}
-          >
-            <View style={{ flex: 1 }}>
-              <ThemedText type="defaultSemiBold">
-                {item.account_name ?? "Unnamed account"}
-              </ThemedText>
-              <ThemedText type="default">{item.account_type ?? "—"}</ThemedText>
-              <ThemedText>Balance: {item.balance ?? 0}</ThemedText>
-              <ThemedText>{item.currency}</ThemedText>
-            </View>
-
-            <Pressable
-              onPress={() => deleteAccount(item.id)}
-              hitSlop={10}
-              style={[
-                styles.deleteButton,
-                { borderColor: ui.border, backgroundColor: ui.surface },
-              ]}
-            >
-              <ThemedText>Delete</ThemedText>
-            </Pressable>
-          </Pressable>
-        )}
-      />
     </ThemedView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, paddingHorizontal: 16, paddingBottom: 16, gap: 12 },
+  scrollContent: {
+    gap: 12,
+    paddingBottom: 16,
+  },
   headerRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -696,7 +717,6 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
   },
   buttonDisabled: { opacity: 0.5 },
-  list: { paddingTop: 8, gap: 10 },
   row: {
     flexDirection: "row",
     alignItems: "center",

@@ -3,6 +3,7 @@ import {
   Alert,
   Modal,
   Pressable,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   TextInput,
@@ -21,7 +22,7 @@ import { listAccounts } from "@/utils/accounts";
 import { addCategory, listCategories } from "@/utils/categories";
 import { addExpense, listExpenses } from "@/utils/expenses";
 
-import { useRouter } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 
 export default function HomeScreen() {
   const { session } = useAuthContext();
@@ -155,6 +156,14 @@ export default function HomeScreen() {
     loadExpenses();
   }, [loadExpenses]);
 
+  useFocusEffect(
+    useCallback(() => {
+      loadAccounts();
+      loadCategories();
+      loadExpenses();
+    }, [loadAccounts, loadCategories, loadExpenses]),
+  );
+
   const createCategory = useCallback(async () => {
     if (!userId) return;
     const trimmed = newCategoryName.trim();
@@ -251,6 +260,17 @@ export default function HomeScreen() {
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={isLoading}
+            onRefresh={() => {
+              loadAccounts();
+              loadCategories();
+              loadExpenses();
+            }}
+            tintColor={ui.text}
+          />
+        }
       >
         <View style={styles.headerRow}>
           <ThemedText type="title">Transactions</ThemedText>

@@ -1,9 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Alert,
-  FlatList,
   Modal,
   Pressable,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   TextInput,
@@ -18,6 +18,11 @@ import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useAuthContext } from "@/hooks/use-auth-context";
+import {
+  createAccount as createAccountApi,
+  deleteAccount as deleteAccountApi,
+  updateAccount as updateAccountApi,
+} from "@/utils/accounts";
 import { supabase } from "@/utils/supabase";
 
 type AccountType = "credit" | "debit";
@@ -60,7 +65,7 @@ export default function AccountsScreen() {
       mutedText: isDark ? "rgba(255,255,255,0.6)" : "rgba(0,0,0,0.5)",
       backdrop: "rgba(0,0,0,0.45)",
     }),
-    [isDark]
+    [isDark],
   );
 
   const userId = session?.user.id;
@@ -72,6 +77,13 @@ export default function AccountsScreen() {
   const [name, setName] = useState("");
   const [type, setType] = useState<AccountType>("credit");
   const [typeModalOpen, setTypeModalOpen] = useState(false);
+  const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [createBalance, setCreateBalance] = useState("");
+  const [createLimit, setCreateLimit] = useState("");
+  const [createInterest, setCreateInterest] = useState("");
+  const [createStatementDate, setCreateStatementDate] = useState("");
+  const [createPaymentDate, setCreatePaymentDate] = useState("");
+  const [createCurrency, setCreateCurrency] = useState("CAD");
 
   // edit state
   const [editingAccount, setEditingAccount] = useState<AccountRow | null>(null);
@@ -85,7 +97,7 @@ export default function AccountsScreen() {
 
   const canCreate = useMemo(
     () => !!userId && name.trim().length > 0,
-    [userId, name]
+    [userId, name],
   );
 
   const loadAccounts = useCallback(async () => {
@@ -99,7 +111,7 @@ export default function AccountsScreen() {
     const { data, error } = await supabase
       .from("account")
       .select(
-        "id, profile_id, created_at, account_name, account_type, balance, credit_limit, statement_duedate, payment_duedate, interest_rate, currency"
+        "id, profile_id, created_at, account_name, account_type, balance, credit_limit, statement_duedate, payment_duedate, interest_rate, currency",
       )
       .eq("profile_id", userId)
       .order("created_at", { ascending: false });
@@ -137,35 +149,65 @@ export default function AccountsScreen() {
 
     setIsLoading(true);
 
+    const cleanNumber = (value: string, fallback?: number) => {
+      const trimmed = value.trim();
+      if (trimmed.length === 0) return fallback ?? 0;
+      const parsed = parseFloat(trimmed);
+      return Number.isFinite(parsed) ? parsed : (fallback ?? 0);
+    };
+
+    const cleanText = (value: string, fallback?: string) => {
+      const trimmed = value.trim();
+      return trimmed.length > 0 ? trimmed : (fallback ?? "");
+    };
+
     // payload for fields upon creating account
     const payload = {
       profile_id: userId,
       account_name: name.trim(),
       account_type: type,
       // default values, can be edited later
-      balance: 0,
-      credit_limit: 0,
-      statement_duedate: "2026-01-01",
-      payment_duedate: "2026-01-01",
-      interest_rate: 0.0,
-      currency: "CAD",
+      balance: cleanNumber(createBalance, 0),
+      credit_limit: cleanNumber(createLimit, 0),
+      statement_duedate: cleanText(createStatementDate, "2026-01-01"),
+      payment_duedate: cleanText(createPaymentDate, "2026-01-01"),
+      interest_rate: cleanNumber(createInterest, 0),
+      currency: cleanText(createCurrency, "CAD"),
     };
 
-    // insert the payload into accounts table
-    const { error } = await supabase.from("account").insert(payload);
-
-    if (error) {
+    try {
+      await createAccountApi(payload);
+    } catch (error) {
       console.error("Error creating account:", error);
-      Alert.alert("Could not create account", error.message);
+      Alert.alert("Could not create account", "Please try again.");
       setIsLoading(false);
       return;
     }
 
     setName("");
     setType("credit");
+    setCreateBalance("");
+    setCreateLimit("");
+    setCreateInterest("");
+    setCreateStatementDate("");
+    setCreatePaymentDate("");
+    setCreateCurrency("CAD");
+    setCreateModalOpen(false);
     await loadAccounts();
     setIsLoading(false);
-  }, [userId, canCreate, name, type, loadAccounts]);
+  }, [
+    userId,
+    canCreate,
+    name,
+    type,
+    createBalance,
+    createLimit,
+    createInterest,
+    createStatementDate,
+    createPaymentDate,
+    createCurrency,
+    loadAccounts,
+  ]);
 
   const updateAccount = useCallback(async () => {
     if (!userId || !editingAccount) return;
@@ -176,7 +218,7 @@ export default function AccountsScreen() {
     const cleanText = (value: string, fallback?: string | null) => {
       const trimmed = value.trim();
       if (trimmed.length > 0) return trimmed;
-      return fallback ?? null;
+      return fallback ?? undefined;
     };
 
     const cleanNumber = (value: string, fallback?: number | null) => {
@@ -194,24 +236,24 @@ export default function AccountsScreen() {
       interest_rate: cleanNumber(editInterest, editingAccount.interest_rate),
       statement_duedate: cleanText(
         editStatementDate,
-        editingAccount.statement_duedate
+        editingAccount.statement_duedate,
       ),
       payment_duedate: cleanText(
         editPaymentDate,
-        editingAccount.payment_duedate
+        editingAccount.payment_duedate,
       ),
       currency: cleanText(editCurrency, editingAccount.currency),
     };
 
-    const { error } = await supabase
-      .from("account")
-      .update(payload)
-      .eq("id", editingAccount.id)
-      .eq("profile_id", userId);
-
-    if (error) {
+    try {
+      await updateAccountApi({
+        id: editingAccount.id,
+        profile_id: userId,
+        update: payload,
+      });
+    } catch (error) {
       console.error("Error updating account:", error);
-      Alert.alert("Could not update account", error.message);
+      Alert.alert("Could not update account", "Please try again.");
       setIsLoading(false);
       return;
     }
@@ -237,34 +279,35 @@ export default function AccountsScreen() {
     async (accountId: string) => {
       if (!userId) return;
 
-      Alert.alert("Delete account?", "This action cannot be undone.", [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: async () => {
-            setIsLoading(true);
+      Alert.alert(
+        "Delete account?",
+        "This will delete all transactions associated with the eaccount.\n\nThis action cannot be undone.",
+        [
+          { text: "Cancel", style: "cancel" },
+          {
+            text: "Delete",
+            style: "destructive",
+            onPress: async () => {
+              setIsLoading(true);
 
-            const { error } = await supabase
-              .from("account")
-              .delete()
-              .eq("id", accountId)
-              .eq("profile_id", userId);
+              try {
+                await deleteAccountApi({ id: accountId, profile_id: userId });
+              } catch (error) {
+                console.error("Error deleting account:", error);
+                Alert.alert("Could not delete account", "Please try again.");
+                setIsLoading(false);
+                return;
+              }
 
-            if (error) {
-              console.error("Error deleting account:", error);
-              Alert.alert("Could not delete account", error.message);
+              await loadAccounts();
+              setEditingAccount(null); // Close the modal
               setIsLoading(false);
-              return;
-            }
-
-            await loadAccounts();
-            setIsLoading(false);
+            },
           },
-        },
-      ]);
+        ],
+      );
     },
-    [userId, loadAccounts]
+    [userId, loadAccounts],
   );
 
   if (authLoading && !session) {
@@ -293,122 +336,316 @@ export default function AccountsScreen() {
         },
       ]}
     >
-      <View style={styles.headerRow}>
-        <ThemedText type="title">Accounts</ThemedText>
-        <Pressable onPress={() => router.push("/profile")}>
-          <IconSymbol size={28} name="person" color={ui.text} />
-        </Pressable>
-      </View>
-
-      <View
-        style={[
-          styles.card,
-          { borderColor: ui.border, backgroundColor: ui.surface2 },
-        ]}
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={isLoading}
+            onRefresh={loadAccounts}
+            tintColor={ui.text}
+          />
+        }
       >
-        <ThemedText type="defaultSemiBold">Create an account</ThemedText>
-        <TextInput
-          value={name}
-          onChangeText={setName}
-          placeholder="Account name (e.g. TD Credit)"
-          placeholderTextColor={ui.mutedText}
-          autoCapitalize="words"
-          style={[
-            styles.input,
-            {
-              borderColor: ui.border,
-              backgroundColor: ui.surface,
-              color: ui.text,
-            },
-          ]}
-        />
-        <View
-          style={[
-            styles.pickerContainer,
-            { borderColor: ui.border, backgroundColor: ui.surface },
-          ]}
-        >
-          <ThemedText type="defaultSemiBold">Account type</ThemedText>
-          <Pressable
-            onPress={() => setTypeModalOpen(true)}
-            style={[
-              styles.dropdownButton,
-              { borderColor: ui.border, backgroundColor: ui.surface2 },
-            ]}
-          >
-            <ThemedText>{type === "credit" ? "Credit" : "Debit"}</ThemedText>
+        <View style={styles.headerRow}>
+          <ThemedText type="title">Accounts</ThemedText>
+          <Pressable onPress={() => router.push("/profile")}>
+            <IconSymbol size={28} name="person" color={ui.text} />
           </Pressable>
         </View>
 
-        {/* Create Button */}
-        <Pressable
-          onPress={createAccount}
-          disabled={!canCreate || isLoading}
+        <View
           style={[
-            styles.button,
+            styles.card,
             { borderColor: ui.border, backgroundColor: ui.surface2 },
-            (!canCreate || isLoading) && styles.buttonDisabled,
           ]}
         >
-          <ThemedText type="defaultSemiBold">Create</ThemedText>
-        </Pressable>
-      </View>
+          <ThemedText type="defaultSemiBold">Your accounts</ThemedText>
+          {accounts.length === 0 ? (
+            <ThemedText>
+              {isLoading ? "Loading…" : "No accounts yet. Add one below."}
+            </ThemedText>
+          ) : (
+            accounts.map((item) => (
+              <Pressable
+                key={item.id}
+                onPress={() => setEditingAccount(item)}
+                style={({ pressed }) => [
+                  styles.row,
+                  {
+                    borderColor: ui.border,
+                    backgroundColor: ui.surface2,
+                    opacity: pressed ? 0.7 : 1,
+                  },
+                ]}
+              >
+                <View style={{ flex: 1 }}>
+                  <ThemedText type="defaultSemiBold">
+                    {item.account_name ?? "Unnamed account"}
+                  </ThemedText>
+                  <ThemedText type="default">
+                    {item.account_type
+                      ? item.account_type.charAt(0).toUpperCase() +
+                      item.account_type.slice(1)
+                      : "—"}
+                  </ThemedText>
+                  <ThemedText>Balance: {item.balance ?? 0}</ThemedText>
+                  <ThemedText>{item.currency}</ThemedText>
+                </View>
 
-      {/* Account Type Selection Modal (Create) */}
-      <Modal
-        visible={typeModalOpen}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setTypeModalOpen(false)}
+
+              </Pressable>
+            ))
+          )}
+        </View>
+      </ScrollView >
+
+      <Pressable
+        onPress={() => setCreateModalOpen(true)}
+        style={({ pressed }) => [
+          styles.fabCenter,
+          {
+            backgroundColor: ui.text,
+            opacity: pressed ? 0.8 : 1,
+          },
+        ]}
       >
-        <Pressable
-          style={[styles.modalBackdrop, { backgroundColor: ui.backdrop }]}
-          onPress={() => setTypeModalOpen(false)}
+        <ThemedText style={{ color: ui.surface, fontSize: 20 }}>
+          Add Account
+        </ThemedText>
+      </Pressable>
+
+      <Modal
+        visible={createModalOpen}
+        animationType="slide"
+        presentationStyle="fullScreen"
+        onRequestClose={() => setCreateModalOpen(false)}
+      >
+        <ThemedView
+          style={{
+            flex: 1,
+            padding: 16,
+            paddingTop: 16 + insets.top,
+            paddingBottom: 16 + insets.bottom,
+          }}
         >
-          <Pressable
-            style={[
-              styles.modalCard,
-              { backgroundColor: ui.surface2, borderColor: ui.border },
-            ]}
-            onPress={() => {}}
+          <View
+            style={{
+              flexDirection: "row",
+              justifyContent: "space-between",
+              alignItems: "center",
+              marginBottom: 16,
+            }}
           >
-            <ThemedText type="defaultSemiBold">Select account type</ThemedText>
-            <Pressable
+            <ThemedText type="title">Create account</ThemedText>
+            <Pressable onPress={() => setCreateModalOpen(false)}>
+              <ThemedText style={{ color: "#007AFF" }}>Cancel</ThemedText>
+            </Pressable>
+          </View>
+
+          <ScrollView contentContainerStyle={{ gap: 12, paddingBottom: 24 }}>
+            <ThemedText type="defaultSemiBold">Account name</ThemedText>
+            <TextInput
+              value={name}
+              onChangeText={setName}
+              placeholder="Account name (e.g. TD Credit)"
+              placeholderTextColor={ui.mutedText}
+              autoCapitalize="words"
               style={[
-                styles.modalOption,
+                styles.input,
+                {
+                  borderColor: ui.border,
+                  backgroundColor: ui.surface,
+                  color: ui.text,
+                },
+              ]}
+            />
+
+            <View
+              style={[
+                styles.pickerContainer,
                 { borderColor: ui.border, backgroundColor: ui.surface },
               ]}
-              onPress={() => {
-                setType("credit");
-                setTypeModalOpen(false);
-              }}
             >
-              <ThemedText>Credit</ThemedText>
-            </Pressable>
-            <Pressable
+              <ThemedText type="defaultSemiBold">Account type</ThemedText>
+              <Pressable
+                onPress={() => setTypeModalOpen(true)}
+                style={[
+                  styles.dropdownButton,
+                  { borderColor: ui.border, backgroundColor: ui.surface2 },
+                ]}
+              >
+                <ThemedText>
+                  {type === "credit" ? "Credit" : "Debit"}
+                </ThemedText>
+              </Pressable>
+            </View>
+
+            <ThemedText type="defaultSemiBold">Balance</ThemedText>
+            <TextInput
+              value={createBalance}
+              onChangeText={setCreateBalance}
+              keyboardType="numeric"
               style={[
-                styles.modalOption,
-                { borderColor: ui.border, backgroundColor: ui.surface },
+                styles.input,
+                {
+                  borderColor: ui.border,
+                  backgroundColor: ui.surface,
+                  color: ui.text,
+                },
               ]}
-              onPress={() => {
-                setType("debit");
-                setTypeModalOpen(false);
-              }}
+            />
+
+            <ThemedText type="defaultSemiBold">Credit Limit</ThemedText>
+            <TextInput
+              value={createLimit}
+              onChangeText={setCreateLimit}
+              keyboardType="numeric"
+              style={[
+                styles.input,
+                {
+                  borderColor: ui.border,
+                  backgroundColor: ui.surface,
+                  color: ui.text,
+                },
+              ]}
+            />
+
+            <ThemedText type="defaultSemiBold">Interest Rate (%)</ThemedText>
+            <TextInput
+              value={createInterest}
+              onChangeText={setCreateInterest}
+              keyboardType="numeric"
+              style={[
+                styles.input,
+                {
+                  borderColor: ui.border,
+                  backgroundColor: ui.surface,
+                  color: ui.text,
+                },
+              ]}
+            />
+
+            <ThemedText type="defaultSemiBold">Currency</ThemedText>
+            <TextInput
+              value={createCurrency}
+              onChangeText={setCreateCurrency}
+              autoCapitalize="characters"
+              style={[
+                styles.input,
+                {
+                  borderColor: ui.border,
+                  backgroundColor: ui.surface,
+                  color: ui.text,
+                },
+              ]}
+            />
+
+            <ThemedText type="defaultSemiBold">Statement Due Date</ThemedText>
+            <TextInput
+              value={createStatementDate}
+              onChangeText={setCreateStatementDate}
+              placeholder="Day of month or YYYY-MM-DD"
+              placeholderTextColor={ui.mutedText}
+              style={[
+                styles.input,
+                {
+                  borderColor: ui.border,
+                  backgroundColor: ui.surface,
+                  color: ui.text,
+                },
+              ]}
+            />
+
+            <ThemedText type="defaultSemiBold">Payment Due Date</ThemedText>
+            <TextInput
+              value={createPaymentDate}
+              onChangeText={setCreatePaymentDate}
+              placeholder="Day of month or YYYY-MM-DD"
+              placeholderTextColor={ui.mutedText}
+              style={[
+                styles.input,
+                {
+                  borderColor: ui.border,
+                  backgroundColor: ui.surface,
+                  color: ui.text,
+                },
+              ]}
+            />
+
+            <Pressable
+              onPress={createAccount}
+              disabled={!canCreate || isLoading}
+              style={[
+                styles.button,
+                { borderColor: ui.border, backgroundColor: ui.text },
+                (!canCreate || isLoading) && styles.buttonDisabled,
+              ]}
             >
-              <ThemedText>Debit</ThemedText>
+              <ThemedText type="defaultSemiBold" style={{ color: ui.surface }}>
+                Create
+              </ThemedText>
             </Pressable>
+          </ScrollView>
+
+          {/* Account Type Selection Modal (Add) - Overlay */}
+          {typeModalOpen && (
             <Pressable
               style={[
-                styles.modalOption,
-                styles.modalCancel,
-                { borderColor: ui.border, backgroundColor: ui.surface },
+                styles.modalBackdrop,
+                StyleSheet.absoluteFill,
+                { backgroundColor: ui.backdrop, zIndex: 100 },
               ]}
               onPress={() => setTypeModalOpen(false)}
             >
-              <ThemedText>Cancel</ThemedText>
+              <Pressable
+                style={[
+                  styles.modalCard,
+                  { backgroundColor: ui.surface2, borderColor: ui.border },
+                ]}
+                onPress={() => { }}
+              >
+                <ThemedText type="defaultSemiBold">
+                  Select account type
+                </ThemedText>
+                <Pressable
+                  style={[
+                    styles.modalOption,
+                    { borderColor: ui.border, backgroundColor: ui.surface },
+                  ]}
+                  onPress={() => {
+                    setType("credit");
+                    setTypeModalOpen(false);
+                  }}
+                >
+                  <ThemedText>Credit</ThemedText>
+                </Pressable>
+                <Pressable
+                  style={[
+                    styles.modalOption,
+                    { borderColor: ui.border, backgroundColor: ui.surface },
+                  ]}
+                  onPress={() => {
+                    setType("debit");
+                    setTypeModalOpen(false);
+                  }}
+                >
+                  <ThemedText>Debit</ThemedText>
+                </Pressable>
+                <Pressable
+                  style={[
+                    styles.modalOption,
+                    styles.modalCancel,
+                    { borderColor: ui.border, backgroundColor: ui.surface },
+                  ]}
+                  onPress={() => setTypeModalOpen(false)}
+                >
+                  <ThemedText>Cancel</ThemedText>
+                </Pressable>
+              </Pressable>
             </Pressable>
-          </Pressable>
-        </Pressable>
+          )}
+        </ThemedView>
       </Modal>
 
       {/* Edit Account Modal */}
@@ -583,61 +820,33 @@ export default function AccountsScreen() {
                 Save Changes
               </ThemedText>
             </Pressable>
+
+            <Pressable
+              onPress={() => editingAccount && deleteAccount(editingAccount.id)}
+              disabled={isLoading}
+              style={[
+                styles.deleteAction,
+                { borderColor: ui.border, backgroundColor: ui.surface },
+                isLoading && styles.buttonDisabled,
+              ]}
+            >
+              <ThemedText style={{ color: "#FF3B30" }}>
+                Delete Account
+              </ThemedText>
+            </Pressable>
           </ScrollView>
         </ThemedView>
       </Modal>
-
-      <FlatList
-        data={accounts}
-        keyExtractor={(item) => item.id}
-        refreshing={isLoading}
-        onRefresh={loadAccounts}
-        contentContainerStyle={styles.list}
-        ListEmptyComponent={
-          <ThemedText>
-            {isLoading ? "Loading…" : "No accounts yet. Create one above."}
-          </ThemedText>
-        }
-        renderItem={({ item }) => (
-          <Pressable
-            onPress={() => setEditingAccount(item)}
-            style={({ pressed }) => [
-              styles.row,
-              {
-                borderColor: ui.border,
-                backgroundColor: ui.surface2,
-                opacity: pressed ? 0.7 : 1,
-              },
-            ]}
-          >
-            <View style={{ flex: 1 }}>
-              <ThemedText type="defaultSemiBold">
-                {item.account_name ?? "Unnamed account"}
-              </ThemedText>
-              <ThemedText type="default">{item.account_type ?? "—"}</ThemedText>
-              <ThemedText>Balance: {item.balance ?? 0}</ThemedText>
-              <ThemedText>{item.currency}</ThemedText>
-            </View>
-
-            <Pressable
-              onPress={() => deleteAccount(item.id)}
-              hitSlop={10}
-              style={[
-                styles.deleteButton,
-                { borderColor: ui.border, backgroundColor: ui.surface },
-              ]}
-            >
-              <ThemedText>Delete</ThemedText>
-            </Pressable>
-          </Pressable>
-        )}
-      />
-    </ThemedView>
+    </ThemedView >
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, paddingHorizontal: 16, paddingBottom: 16, gap: 12 },
+  scrollContent: {
+    gap: 12,
+    paddingBottom: 16,
+  },
   headerRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -696,7 +905,6 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
   },
   buttonDisabled: { opacity: 0.5 },
-  list: { paddingTop: 8, gap: 10 },
   row: {
     flexDirection: "row",
     alignItems: "center",
@@ -705,9 +913,33 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: StyleSheet.hairlineWidth,
   },
+  fabCenter: {
+    position: "absolute",
+    bottom: 24,
+    alignSelf: "center",
+    paddingHorizontal: 16,
+    height: 48,
+    borderRadius: 24,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 6,
+  },
   deleteButton: {
     paddingHorizontal: 10,
     paddingVertical: 8,
+    borderRadius: 10,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  deleteAction: {
+    alignSelf: "center",
+    width: "100%",
+    alignItems: "center",
+    paddingHorizontal: 14,
+    paddingVertical: 12,
     borderRadius: 10,
     borderWidth: StyleSheet.hairlineWidth,
   },

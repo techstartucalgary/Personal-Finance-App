@@ -1,3 +1,4 @@
+import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Alert,
@@ -55,6 +56,16 @@ export default function AccountsScreen() {
 
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
+
+  // Dynamic tab bar height
+  let tabBarHeight = 0;
+  try {
+    tabBarHeight = useBottomTabBarHeight();
+  } catch (e) {
+    // Fallback if hook fails (e.g. not in tab navigator context)
+    tabBarHeight = insets.bottom + 60;
+  }
+  const fabBottom = tabBarHeight + 24;
 
   const ui = useMemo(
     () => ({
@@ -407,6 +418,7 @@ export default function AccountsScreen() {
           {
             backgroundColor: ui.text,
             opacity: pressed ? 0.8 : 1,
+            bottom: fabBottom,
           },
         ]}
       >
@@ -915,7 +927,6 @@ const styles = StyleSheet.create({
   },
   fabCenter: {
     position: "absolute",
-    bottom: 24,
     alignSelf: "center",
     paddingHorizontal: 16,
     height: 48,

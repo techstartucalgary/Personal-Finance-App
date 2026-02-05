@@ -11,6 +11,7 @@ import {
   useColorScheme,
 } from "react-native";
 
+import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { ThemedText } from "@/components/themed-text";
@@ -42,6 +43,15 @@ export default function HomeScreen() {
   const router = useRouter();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
+
+  // Dynamic tab bar height
+  let tabBarHeight = 0;
+  try {
+    tabBarHeight = useBottomTabBarHeight();
+  } catch (e) {
+    tabBarHeight = insets.bottom + 60;
+  }
+  const fabBottom = tabBarHeight + 24;
   const ui = useMemo(
     () => ({
       surface: isDark ? "#121212" : "#ffffff",
@@ -828,6 +838,7 @@ export default function HomeScreen() {
           {
             backgroundColor: ui.text,
             opacity: pressed ? 0.8 : 1,
+            bottom: fabBottom,
           },
         ]}
       >
@@ -1720,7 +1731,7 @@ const styles = StyleSheet.create({
   fab: {
     position: "absolute",
     right: 20,
-    bottom: 24,
+    // bottom is dynamic
     width: 56,
     height: 56,
     borderRadius: 28,

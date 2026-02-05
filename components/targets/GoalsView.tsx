@@ -3,6 +3,7 @@ import { ThemedView } from "@/components/themed-view";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useAuthContext } from "@/hooks/use-auth-context";
 import { createGoal, deleteGoal, editGoal, listGoals } from "@/utils/goals";
+import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
     Alert,
@@ -32,6 +33,15 @@ export function GoalsView() {
     const insets = useSafeAreaInsets();
     const colorScheme = useColorScheme();
     const isDark = colorScheme === "dark";
+
+    // Dynamic tab bar height
+    let tabBarHeight = 0;
+    try {
+        tabBarHeight = useBottomTabBarHeight();
+    } catch (e) {
+        tabBarHeight = insets.bottom + 60;
+    }
+    const fabBottom = tabBarHeight + 24;
 
     const ui = useMemo(
         () => ({
@@ -246,6 +256,7 @@ export function GoalsView() {
                     {
                         backgroundColor: ui.text,
                         opacity: pressed ? 0.8 : 1,
+                        bottom: fabBottom,
                     },
                 ]}
             >
@@ -402,7 +413,7 @@ const styles = StyleSheet.create({
     fab: {
         position: "absolute",
         right: 4,
-        bottom: 8,
+        // bottom is set dynamically
         width: 56,
         height: 56,
         borderRadius: 28,

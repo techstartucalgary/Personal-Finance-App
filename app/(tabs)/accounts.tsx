@@ -385,7 +385,7 @@ export default function AccountsScreen() {
                   <ThemedText type="default">
                     {item.account_type
                       ? item.account_type.charAt(0).toUpperCase() +
-                        item.account_type.slice(1)
+                      item.account_type.slice(1)
                       : "—"}
                   </ThemedText>
                   <ThemedText>Balance: {item.balance ?? 0}</ThemedText>
@@ -595,64 +595,65 @@ export default function AccountsScreen() {
               </ThemedText>
             </Pressable>
           </ScrollView>
-        </ThemedView>
-      </Modal>
 
-      {/* Account Type Selection Modal (Add) */}
-      <Modal
-        visible={typeModalOpen}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setTypeModalOpen(false)}
-      >
-        <Pressable
-          style={[styles.modalBackdrop, { backgroundColor: ui.backdrop }]}
-          onPress={() => setTypeModalOpen(false)}
-        >
-          <Pressable
-            style={[
-              styles.modalCard,
-              { backgroundColor: ui.surface2, borderColor: ui.border },
-            ]}
-            onPress={() => {}}
-          >
-            <ThemedText type="defaultSemiBold">Select account type</ThemedText>
+          {/* Account Type Selection Modal (Add) - Overlay */}
+          {typeModalOpen && (
             <Pressable
               style={[
-                styles.modalOption,
-                { borderColor: ui.border, backgroundColor: ui.surface },
-              ]}
-              onPress={() => {
-                setType("credit");
-                setTypeModalOpen(false);
-              }}
-            >
-              <ThemedText>Credit</ThemedText>
-            </Pressable>
-            <Pressable
-              style={[
-                styles.modalOption,
-                { borderColor: ui.border, backgroundColor: ui.surface },
-              ]}
-              onPress={() => {
-                setType("debit");
-                setTypeModalOpen(false);
-              }}
-            >
-              <ThemedText>Debit</ThemedText>
-            </Pressable>
-            <Pressable
-              style={[
-                styles.modalOption,
-                styles.modalCancel,
-                { borderColor: ui.border, backgroundColor: ui.surface },
+                styles.modalBackdrop,
+                StyleSheet.absoluteFill,
+                { backgroundColor: ui.backdrop, zIndex: 100 },
               ]}
               onPress={() => setTypeModalOpen(false)}
             >
-              <ThemedText>Cancel</ThemedText>
+              <Pressable
+                style={[
+                  styles.modalCard,
+                  { backgroundColor: ui.surface2, borderColor: ui.border },
+                ]}
+                onPress={() => { }}
+              >
+                <ThemedText type="defaultSemiBold">
+                  Select account type
+                </ThemedText>
+                <Pressable
+                  style={[
+                    styles.modalOption,
+                    { borderColor: ui.border, backgroundColor: ui.surface },
+                  ]}
+                  onPress={() => {
+                    setType("credit");
+                    setTypeModalOpen(false);
+                  }}
+                >
+                  <ThemedText>Credit</ThemedText>
+                </Pressable>
+                <Pressable
+                  style={[
+                    styles.modalOption,
+                    { borderColor: ui.border, backgroundColor: ui.surface },
+                  ]}
+                  onPress={() => {
+                    setType("debit");
+                    setTypeModalOpen(false);
+                  }}
+                >
+                  <ThemedText>Debit</ThemedText>
+                </Pressable>
+                <Pressable
+                  style={[
+                    styles.modalOption,
+                    styles.modalCancel,
+                    { borderColor: ui.border, backgroundColor: ui.surface },
+                  ]}
+                  onPress={() => setTypeModalOpen(false)}
+                >
+                  <ThemedText>Cancel</ThemedText>
+                </Pressable>
+              </Pressable>
             </Pressable>
-          </Pressable>
-        </Pressable>
+          )}
+        </ThemedView>
       </Modal>
 
       {/* Edit Account Modal */}

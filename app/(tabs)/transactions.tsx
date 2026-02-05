@@ -699,6 +699,151 @@ export default function HomeScreen() {
               </ThemedText>
             </Pressable>
           </ScrollView>
+
+          {/* Account Picker Overlay (Add) */}
+          {accountModalOpen && (
+            <Pressable
+              style={[
+                styles.modalBackdrop,
+                StyleSheet.absoluteFill,
+                { backgroundColor: ui.backdrop, zIndex: 100 },
+              ]}
+              onPress={() => setAccountModalOpen(false)}
+            >
+              <Pressable
+                style={[
+                  styles.modalCard,
+                  { backgroundColor: ui.surface2, borderColor: ui.border },
+                ]}
+                onPress={() => { }}
+              >
+                <ThemedText type="defaultSemiBold">Select account</ThemedText>
+
+                {accounts.length === 0 ? (
+                  <ThemedText>
+                    {isLoading ? "Loading…" : "No accounts yet."}
+                  </ThemedText>
+                ) : (
+                  accounts.map((account) => (
+                    <Pressable
+                      key={account.id}
+                      style={[
+                        styles.modalOption,
+                        { borderColor: ui.border, backgroundColor: ui.surface },
+                      ]}
+                      onPress={() => {
+                        setSelectedAccount(account);
+                        setAccountModalOpen(false);
+                      }}
+                    >
+                      <ThemedText>
+                        {account.account_name ?? "Unnamed account"}
+                      </ThemedText>
+                      <ThemedText type="default">
+                        {account.account_type
+                          ? account.account_type.charAt(0).toUpperCase() +
+                          account.account_type.slice(1)
+                          : "—"}{" "}
+                        {account.currency ?? ""}
+                      </ThemedText>
+                    </Pressable>
+                  ))
+                )}
+
+                <Pressable
+                  style={[
+                    styles.modalOption,
+                    styles.modalCancel,
+                    { borderColor: ui.border, backgroundColor: ui.surface },
+                  ]}
+                  onPress={() => setAccountModalOpen(false)}
+                >
+                  <ThemedText>Cancel</ThemedText>
+                </Pressable>
+              </Pressable>
+            </Pressable>
+          )}
+
+          {/* Category Picker Overlay (Add) */}
+          {categoryModalOpen && (
+            <Pressable
+              style={[
+                styles.modalBackdrop,
+                StyleSheet.absoluteFill,
+                { backgroundColor: ui.backdrop, zIndex: 100 },
+              ]}
+              onPress={() => setCategoryModalOpen(false)}
+            >
+              <Pressable
+                style={[
+                  styles.modalCard,
+                  { backgroundColor: ui.surface2, borderColor: ui.border },
+                ]}
+                onPress={() => { }}
+              >
+                <ThemedText type="defaultSemiBold">Select category</ThemedText>
+
+                {categories.length === 0 ? (
+                  <ThemedText>No categories yet.</ThemedText>
+                ) : (
+                  categories.map((category) => (
+                    <Pressable
+                      key={category.id}
+                      style={[
+                        styles.modalOption,
+                        { borderColor: ui.border, backgroundColor: ui.surface },
+                      ]}
+                      onPress={() => {
+                        setSelectedCategory(category);
+                        setCategoryModalOpen(false);
+                      }}
+                    >
+                      <ThemedText>
+                        {category.category_name ?? "Unnamed category"}
+                      </ThemedText>
+                    </Pressable>
+                  ))
+                )}
+
+                <View style={styles.fieldGroup}>
+                  <TextInput
+                    value={newCategoryName}
+                    onChangeText={setNewCategoryName}
+                    placeholder="New category name"
+                    placeholderTextColor={ui.mutedText}
+                    style={[
+                      styles.input,
+                      {
+                        borderColor: ui.border,
+                        backgroundColor: ui.surface,
+                        color: ui.text,
+                      },
+                    ]}
+                  />
+                  <Pressable
+                    onPress={createCategory}
+                    style={[
+                      styles.button,
+                      { borderColor: ui.border, backgroundColor: ui.surface },
+                    ]}
+                  >
+                    <ThemedText type="defaultSemiBold">Add category</ThemedText>
+                  </Pressable>
+                </View>
+
+                <Pressable
+                  style={[
+                    styles.modalOption,
+                    styles.modalCancel,
+                    { borderColor: ui.border, backgroundColor: ui.surface },
+                  ]}
+                  onPress={() => setCategoryModalOpen(false)}
+                >
+                  <ThemedText>Cancel</ThemedText>
+                </Pressable>
+              </Pressable>
+            </Pressable>
+          )}
         </ThemedView>
       </Modal>
 
@@ -828,272 +973,129 @@ export default function HomeScreen() {
               </ThemedText>
             </Pressable>
           </View>
-        </ThemedView>
-      </Modal>
 
-      <Modal
-        visible={editAccountModalOpen}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setEditAccountModalOpen(false)}
-      >
-        <Pressable
-          style={[styles.modalBackdrop, { backgroundColor: ui.backdrop }]}
-          onPress={() => setEditAccountModalOpen(false)}
-        >
-          <Pressable
-            style={[
-              styles.modalCard,
-              { backgroundColor: ui.surface2, borderColor: ui.border },
-            ]}
-            onPress={() => {}}
-          >
-            <ThemedText type="defaultSemiBold">Select account</ThemedText>
-
-            {accounts.length === 0 ? (
-              <ThemedText>
-                {isLoading ? "Loading…" : "No accounts yet."}
-              </ThemedText>
-            ) : (
-              accounts.map((account) => (
-                <Pressable
-                  key={account.id}
-                  style={[
-                    styles.modalOption,
-                    { borderColor: ui.border, backgroundColor: ui.surface },
-                  ]}
-                  onPress={() => {
-                    setEditSelectedAccount(account);
-                    setEditAccountModalOpen(false);
-                  }}
-                >
-                  <ThemedText>
-                    {account.account_name ?? "Unnamed account"}
-                  </ThemedText>
-                  <ThemedText type="default">
-                    {account.account_type
-                      ? account.account_type.charAt(0).toUpperCase() +
-                        account.account_type.slice(1)
-                      : "—"}{" "}
-                    {account.currency ?? ""}
-                  </ThemedText>
-                </Pressable>
-              ))
-            )}
-
+          {/* Account Picker Overlay (Edit) */}
+          {editAccountModalOpen && (
             <Pressable
               style={[
-                styles.modalOption,
-                styles.modalCancel,
-                { borderColor: ui.border, backgroundColor: ui.surface },
+                styles.modalBackdrop,
+                StyleSheet.absoluteFill,
+                { backgroundColor: ui.backdrop, zIndex: 100 },
               ]}
               onPress={() => setEditAccountModalOpen(false)}
             >
-              <ThemedText>Cancel</ThemedText>
-            </Pressable>
-          </Pressable>
-        </Pressable>
-      </Modal>
+              <Pressable
+                style={[
+                  styles.modalCard,
+                  { backgroundColor: ui.surface2, borderColor: ui.border },
+                ]}
+                onPress={() => { }}
+              >
+                <ThemedText type="defaultSemiBold">Select account</ThemedText>
 
-      <Modal
-        visible={editCategoryModalOpen}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setEditCategoryModalOpen(false)}
-      >
-        <Pressable
-          style={[styles.modalBackdrop, { backgroundColor: ui.backdrop }]}
-          onPress={() => setEditCategoryModalOpen(false)}
-        >
-          <Pressable
-            style={[
-              styles.modalCard,
-              { backgroundColor: ui.surface2, borderColor: ui.border },
-            ]}
-            onPress={() => {}}
-          >
-            <ThemedText type="defaultSemiBold">Select category</ThemedText>
+                {accounts.length === 0 ? (
+                  <ThemedText>
+                    {isLoading ? "Loading…" : "No accounts yet."}
+                  </ThemedText>
+                ) : (
+                  accounts.map((account) => (
+                    <Pressable
+                      key={account.id}
+                      style={[
+                        styles.modalOption,
+                        { borderColor: ui.border, backgroundColor: ui.surface },
+                      ]}
+                      onPress={() => {
+                        setEditSelectedAccount(account);
+                        setEditAccountModalOpen(false);
+                      }}
+                    >
+                      <ThemedText>
+                        {account.account_name ?? "Unnamed account"}
+                      </ThemedText>
+                      <ThemedText type="default">
+                        {account.account_type
+                          ? account.account_type.charAt(0).toUpperCase() +
+                          account.account_type.slice(1)
+                          : "—"}{" "}
+                        {account.currency ?? ""}
+                      </ThemedText>
+                    </Pressable>
+                  ))
+                )}
 
-            {categories.length === 0 ? (
-              <ThemedText>No categories yet.</ThemedText>
-            ) : (
-              categories.map((category) => (
                 <Pressable
-                  key={category.id}
                   style={[
                     styles.modalOption,
+                    styles.modalCancel,
                     { borderColor: ui.border, backgroundColor: ui.surface },
                   ]}
-                  onPress={() => {
-                    setEditSelectedCategory(category);
-                    setEditCategoryModalOpen(false);
-                  }}
+                  onPress={() => setEditAccountModalOpen(false)}
                 >
-                  <ThemedText>
-                    {category.category_name ?? "Unnamed category"}
-                  </ThemedText>
+                  <ThemedText>Cancel</ThemedText>
                 </Pressable>
-              ))
-            )}
+              </Pressable>
+            </Pressable>
+          )}
 
+          {/* Category Picker Overlay (Edit) */}
+          {editCategoryModalOpen && (
             <Pressable
               style={[
-                styles.modalOption,
-                styles.modalCancel,
-                { borderColor: ui.border, backgroundColor: ui.surface },
+                styles.modalBackdrop,
+                StyleSheet.absoluteFill,
+                { backgroundColor: ui.backdrop, zIndex: 100 },
               ]}
               onPress={() => setEditCategoryModalOpen(false)}
             >
-              <ThemedText>Cancel</ThemedText>
-            </Pressable>
-          </Pressable>
-        </Pressable>
-      </Modal>
-
-      <Modal
-        visible={accountModalOpen}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setAccountModalOpen(false)}
-      >
-        <Pressable
-          style={[styles.modalBackdrop, { backgroundColor: ui.backdrop }]}
-          onPress={() => setAccountModalOpen(false)}
-        >
-          <Pressable
-            style={[
-              styles.modalCard,
-              { backgroundColor: ui.surface2, borderColor: ui.border },
-            ]}
-            onPress={() => {}}
-          >
-            <ThemedText type="defaultSemiBold">Select account</ThemedText>
-
-            {accounts.length === 0 ? (
-              <ThemedText>
-                {isLoading ? "Loading…" : "No accounts yet."}
-              </ThemedText>
-            ) : (
-              accounts.map((account) => (
-                <Pressable
-                  key={account.id}
-                  style={[
-                    styles.modalOption,
-                    { borderColor: ui.border, backgroundColor: ui.surface },
-                  ]}
-                  onPress={() => {
-                    setSelectedAccount(account);
-                    setAccountModalOpen(false);
-                  }}
-                >
-                  <ThemedText>
-                    {account.account_name ?? "Unnamed account"}
-                  </ThemedText>
-                  <ThemedText type="default">
-                    {account.account_type
-                      ? account.account_type.charAt(0).toUpperCase() +
-                        account.account_type.slice(1)
-                      : "—"}{" "}
-                    {account.currency ?? ""}
-                  </ThemedText>
-                </Pressable>
-              ))
-            )}
-
-            <Pressable
-              style={[
-                styles.modalOption,
-                styles.modalCancel,
-                { borderColor: ui.border, backgroundColor: ui.surface },
-              ]}
-              onPress={() => setAccountModalOpen(false)}
-            >
-              <ThemedText>Cancel</ThemedText>
-            </Pressable>
-          </Pressable>
-        </Pressable>
-      </Modal>
-
-      <Modal
-        visible={categoryModalOpen}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setCategoryModalOpen(false)}
-      >
-        <Pressable
-          style={[styles.modalBackdrop, { backgroundColor: ui.backdrop }]}
-          onPress={() => setCategoryModalOpen(false)}
-        >
-          <Pressable
-            style={[
-              styles.modalCard,
-              { backgroundColor: ui.surface2, borderColor: ui.border },
-            ]}
-            onPress={() => {}}
-          >
-            <ThemedText type="defaultSemiBold">Select category</ThemedText>
-
-            {categories.length === 0 ? (
-              <ThemedText>No categories yet.</ThemedText>
-            ) : (
-              categories.map((category) => (
-                <Pressable
-                  key={category.id}
-                  style={[
-                    styles.modalOption,
-                    { borderColor: ui.border, backgroundColor: ui.surface },
-                  ]}
-                  onPress={() => {
-                    setSelectedCategory(category);
-                    setCategoryModalOpen(false);
-                  }}
-                >
-                  <ThemedText>
-                    {category.category_name ?? "Unnamed category"}
-                  </ThemedText>
-                </Pressable>
-              ))
-            )}
-
-            <View style={styles.fieldGroup}>
-              <TextInput
-                value={newCategoryName}
-                onChangeText={setNewCategoryName}
-                placeholder="New category name"
-                placeholderTextColor={ui.mutedText}
-                style={[
-                  styles.input,
-                  {
-                    borderColor: ui.border,
-                    backgroundColor: ui.surface,
-                    color: ui.text,
-                  },
-                ]}
-              />
               <Pressable
-                onPress={createCategory}
                 style={[
-                  styles.button,
-                  { borderColor: ui.border, backgroundColor: ui.surface },
+                  styles.modalCard,
+                  { backgroundColor: ui.surface2, borderColor: ui.border },
                 ]}
+                onPress={() => { }}
               >
-                <ThemedText type="defaultSemiBold">Add category</ThemedText>
-              </Pressable>
-            </View>
+                <ThemedText type="defaultSemiBold">Select category</ThemedText>
 
-            <Pressable
-              style={[
-                styles.modalOption,
-                styles.modalCancel,
-                { borderColor: ui.border, backgroundColor: ui.surface },
-              ]}
-              onPress={() => setCategoryModalOpen(false)}
-            >
-              <ThemedText>Cancel</ThemedText>
+                {categories.length === 0 ? (
+                  <ThemedText>No categories yet.</ThemedText>
+                ) : (
+                  categories.map((category) => (
+                    <Pressable
+                      key={category.id}
+                      style={[
+                        styles.modalOption,
+                        { borderColor: ui.border, backgroundColor: ui.surface },
+                      ]}
+                      onPress={() => {
+                        setEditSelectedCategory(category);
+                        setEditCategoryModalOpen(false);
+                      }}
+                    >
+                      <ThemedText>
+                        {category.category_name ?? "Unnamed category"}
+                      </ThemedText>
+                    </Pressable>
+                  ))
+                )}
+
+                <Pressable
+                  style={[
+                    styles.modalOption,
+                    styles.modalCancel,
+                    { borderColor: ui.border, backgroundColor: ui.surface },
+                  ]}
+                  onPress={() => setEditCategoryModalOpen(false)}
+                >
+                  <ThemedText>Cancel</ThemedText>
+                </Pressable>
+              </Pressable>
             </Pressable>
-          </Pressable>
-        </Pressable>
+          )}
+        </ThemedView>
       </Modal>
+
+
     </ThemedView>
   );
 }

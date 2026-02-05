@@ -300,6 +300,7 @@ export default function AccountsScreen() {
               }
 
               await loadAccounts();
+              setEditingAccount(null); // Close the modal
               setIsLoading(false);
             },
           },
@@ -362,7 +363,7 @@ export default function AccountsScreen() {
           <ThemedText type="defaultSemiBold">Your accounts</ThemedText>
           {accounts.length === 0 ? (
             <ThemedText>
-              {isLoading ? "Loading…" : "No accounts yet. Create one above."}
+              {isLoading ? "Loading…" : "No accounts yet. Add one below."}
             </ThemedText>
           ) : (
             accounts.map((item) => (
@@ -392,21 +393,12 @@ export default function AccountsScreen() {
                   <ThemedText>{item.currency}</ThemedText>
                 </View>
 
-                <Pressable
-                  onPress={() => deleteAccount(item.id)}
-                  hitSlop={10}
-                  style={[
-                    styles.deleteButton,
-                    { borderColor: ui.border, backgroundColor: ui.surface },
-                  ]}
-                >
-                  <ThemedText>Delete</ThemedText>
-                </Pressable>
+
               </Pressable>
             ))
           )}
         </View>
-      </ScrollView>
+      </ScrollView >
 
       <Pressable
         onPress={() => setCreateModalOpen(true)}
@@ -419,7 +411,7 @@ export default function AccountsScreen() {
         ]}
       >
         <ThemedText style={{ color: ui.surface, fontSize: 20 }}>
-          + Account
+          Add Account
         </ThemedText>
       </Pressable>
 
@@ -828,10 +820,24 @@ export default function AccountsScreen() {
                 Save Changes
               </ThemedText>
             </Pressable>
+
+            <Pressable
+              onPress={() => editingAccount && deleteAccount(editingAccount.id)}
+              disabled={isLoading}
+              style={[
+                styles.deleteAction,
+                { borderColor: ui.border, backgroundColor: ui.surface },
+                isLoading && styles.buttonDisabled,
+              ]}
+            >
+              <ThemedText style={{ color: "#FF3B30" }}>
+                Delete Account
+              </ThemedText>
+            </Pressable>
           </ScrollView>
         </ThemedView>
       </Modal>
-    </ThemedView>
+    </ThemedView >
   );
 }
 
@@ -925,6 +931,15 @@ const styles = StyleSheet.create({
   deleteButton: {
     paddingHorizontal: 10,
     paddingVertical: 8,
+    borderRadius: 10,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  deleteAction: {
+    alignSelf: "center",
+    width: "100%",
+    alignItems: "center",
+    paddingHorizontal: 14,
+    paddingVertical: 12,
     borderRadius: 10,
     borderWidth: StyleSheet.hairlineWidth,
   },

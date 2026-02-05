@@ -19,7 +19,14 @@ import { ThemedView } from "@/components/themed-view";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useAuthContext } from "@/hooks/use-auth-context";
 import { getAccountById, listAccounts, updateAccount } from "@/utils/accounts";
-import { addCategory, listCategories } from "@/utils/categories";
+import {
+  addCategory,
+  addSubcategory,
+  deleteCategory,
+  deleteSubcategory,
+  listCategories,
+  listSubcategories,
+} from "@/utils/categories";
 import {
   addExpense,
   deleteExpense,
@@ -71,6 +78,12 @@ export default function HomeScreen() {
     category_name: string | null;
   };
 
+  type SubcategoryRow = {
+    id: number;
+    category_name: string | null;
+    expense_categoryid: number | null;
+  };
+
   type ExpenseRow = {
     id: string;
     amount: number | null;
@@ -86,14 +99,31 @@ export default function HomeScreen() {
   const [selectedCategory, setSelectedCategory] = useState<CategoryRow | null>(
     null,
   );
+
+  // subcategory state
+  const [subcategories, setSubcategories] = useState<SubcategoryRow[]>([]);
+  const [subcategoryModalOpen, setSubcategoryModalOpen] = useState(false);
+  const [selectedSubcategory, setSelectedSubcategory] =
+    useState<SubcategoryRow | null>(null);
+  const [newSubcategoryName, setNewSubcategoryName] = useState("");
+
   const [editCategoryModalOpen, setEditCategoryModalOpen] = useState(false);
   const [editSelectedCategory, setEditSelectedCategory] =
     useState<CategoryRow | null>(null);
+
+  // edit subcategory state
+  const [editSubcategories, setEditSubcategories] = useState<SubcategoryRow[]>(
+    [],
+  );
+  const [editSubcategoryModalOpen, setEditSubcategoryModalOpen] =
+    useState(false);
+  const [editSelectedSubcategory, setEditSelectedSubcategory] =
+    useState<SubcategoryRow | null>(null);
+
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState("");
   const [amount, setAmount] = useState("");
   const [description, setDescription] = useState("");
-  const [subcategoryId, setSubcategoryId] = useState("");
   const [expenses, setExpenses] = useState<ExpenseRow[]>([]);
   const [editingExpense, setEditingExpense] = useState<ExpenseRow | null>(null);
   const [editAmount, setEditAmount] = useState("");
@@ -154,6 +184,51 @@ export default function HomeScreen() {
     loadCategories();
   }, [loadCategories]);
 
+  // Load subcategories when selectedCategory changes in Add Modal
+  useEffect(() => {
+    const fetchSub = async () => {
+      if (!userId || !selectedCategory) {
+        setSubcategories([]);
+        setSelectedSubcategory(null);
+        return;
+      }
+      try {
+        const data = await listSubcategories({
+          profile_id: userId,
+          category_id: selectedCategory.id,
+        });
+        setSubcategories((data as SubcategoryRow[]) ?? []);
+        setSelectedSubcategory(null); // reset subcategory when category changes
+      } catch (error) {
+        console.error("Error loading subcategories:", error);
+      }
+    };
+    fetchSub();
+  }, [userId, selectedCategory]);
+
+  // Load subcategories when editSelectedCategory changes in Edit Modal
+  useEffect(() => {
+    const fetchSub = async () => {
+      if (!userId || !editSelectedCategory) {
+        setEditSubcategories([]);
+        setEditSelectedSubcategory(null);
+        return;
+      }
+      try {
+        const data = await listSubcategories({
+          profile_id: userId,
+          category_id: editSelectedCategory.id,
+        });
+        setEditSubcategories((data as SubcategoryRow[]) ?? []);
+        // Don't auto-reset editSelectedSubcategory here because we might be
+        // setting it from the editingExpense data
+      } catch (error) {
+        console.error("Error loading edit subcategories:", error);
+      }
+    };
+    fetchSub();
+  }, [userId, editSelectedCategory]);
+
   const loadExpenses = useCallback(async () => {
     if (!userId) {
       setExpenses([]);
@@ -180,6 +255,7 @@ export default function HomeScreen() {
   }, [editingExpense]);
 
   useEffect(() => {
+    // Populate initial edit state from expense
     if (!editingExpense) return;
     const accountMatch = accounts.find(
       (account) => account.id === editingExpense.account_id,
@@ -189,7 +265,24 @@ export default function HomeScreen() {
     );
     setEditSelectedAccount(accountMatch ?? null);
     setEditSelectedCategory(categoryMatch ?? null);
-  }, [editingExpense, accounts, categories]);
+
+    // wait for categories to load
+    if (categoryMatch && editingExpense.subcategory_id) {
+      // fetch subcategories for this category to find the match
+      listSubcategories({
+        profile_id: session?.user.id ?? "",
+        category_id: categoryMatch.id,
+      }).then((subs) => {
+        setEditSubcategories((subs as SubcategoryRow[]) ?? []);
+        const subMatch = (subs as SubcategoryRow[]).find(
+          (s) => s.id === editingExpense.subcategory_id,
+        );
+        setEditSelectedSubcategory(subMatch ?? null);
+      });
+    } else {
+      setEditSelectedSubcategory(null);
+    }
+  }, [editingExpense, accounts, categories, session]);
 
   useFocusEffect(
     useCallback(() => {
@@ -198,6 +291,62 @@ export default function HomeScreen() {
       loadExpenses();
     }, [loadAccounts, loadCategories, loadExpenses]),
   );
+
+  const createSubcategory = useCallback(async () => {
+    if (!userId || !selectedCategory) return;
+    const trimmed = newSubcategoryName.trim();
+    if (!trimmed) {
+      Alert.alert("Subcategory name required", "Enter a name.");
+      return;
+    }
+    try {
+      const data = await addSubcategory({
+        profile_id: userId,
+        category_id: selectedCategory.id,
+        category_name: trimmed,
+      });
+      setNewSubcategoryName("");
+      setSelectedSubcategory(data as SubcategoryRow);
+      // refresh list
+      const subs = await listSubcategories({
+        profile_id: userId,
+        category_id: selectedCategory.id,
+      });
+      setSubcategories((subs as SubcategoryRow[]) ?? []);
+      setSubcategoryModalOpen(false);
+    } catch (err) {
+      console.error("Error creating subcategory", err);
+      Alert.alert("Error", "Could not create subcategory.");
+    }
+  }, [userId, selectedCategory, newSubcategoryName]);
+
+  const createEditSubcategory = useCallback(async () => {
+    if (!userId || !editSelectedCategory) return;
+    const trimmed = newSubcategoryName.trim();
+    if (!trimmed) {
+      Alert.alert("Subcategory name required", "Enter a name.");
+      return;
+    }
+    try {
+      const data = await addSubcategory({
+        profile_id: userId,
+        category_id: editSelectedCategory.id,
+        category_name: trimmed,
+      });
+      setNewSubcategoryName("");
+      setEditSelectedSubcategory(data as SubcategoryRow);
+      // refresh list
+      const subs = await listSubcategories({
+        profile_id: userId,
+        category_id: editSelectedCategory.id,
+      });
+      setEditSubcategories((subs as SubcategoryRow[]) ?? []);
+      setEditSubcategoryModalOpen(false);
+    } catch (err) {
+      console.error("Error creating subcategory", err);
+      Alert.alert("Error", "Could not create subcategory.");
+    }
+  }, [userId, editSelectedCategory, newSubcategoryName]);
 
   const createCategory = useCallback(async () => {
     if (!userId) return;
@@ -223,6 +372,120 @@ export default function HomeScreen() {
     }
   }, [userId, newCategoryName, loadCategories]);
 
+  const createEditCategory = useCallback(async () => {
+    if (!userId) return;
+    const trimmed = newCategoryName.trim();
+    if (!trimmed) {
+      Alert.alert("Category name required", "Enter a category name.");
+      return;
+    }
+
+    try {
+      const data = await addCategory({
+        profile_id: userId,
+        category_name: trimmed,
+      });
+
+      setNewCategoryName("");
+      setEditSelectedCategory(data as CategoryRow);
+      await loadCategories();
+      setEditCategoryModalOpen(false);
+    } catch (error) {
+      console.error("Error creating category:", error);
+      Alert.alert("Could not create category", "Please try again.");
+    }
+  }, [userId, newCategoryName, loadCategories]);
+
+  const handleDeleteCategory = useCallback(
+    async (categoryId: number) => {
+      if (!userId) return;
+      Alert.alert(
+        "Delete category?",
+        "This will also delete the subcategories.\n\nTransactions using this category will be preserved but uncategorized.",
+        [
+          { text: "Cancel", style: "cancel" },
+          {
+            text: "Delete",
+            style: "destructive",
+            onPress: async () => {
+              try {
+                await deleteCategory({ id: categoryId, profile_id: userId });
+                await loadCategories();
+                // If the deleted category was selected, clear it
+                if (selectedCategory?.id === categoryId) {
+                  setSelectedCategory(null);
+                  setSubcategories([]);
+                  setSelectedSubcategory(null);
+                }
+                if (editSelectedCategory?.id === categoryId) {
+                  setEditSelectedCategory(null);
+                  setEditSubcategories([]);
+                  setEditSelectedSubcategory(null);
+                }
+              } catch (error) {
+                console.error("Error deleting category:", error);
+                Alert.alert("Error", "Could not delete category.");
+              }
+            },
+          },
+        ],
+      );
+    },
+    [userId, loadCategories, selectedCategory, editSelectedCategory],
+  );
+
+  const handleDeleteSubcategory = useCallback(
+    async (subcategoryId: number) => {
+      if (!userId) return;
+      Alert.alert(
+        "Delete subcategory?",
+        "Transactions using this subcategory will be set to no subcategory.",
+        [
+          { text: "Cancel", style: "cancel" },
+          {
+            text: "Delete",
+            style: "destructive",
+            onPress: async () => {
+              try {
+                await deleteSubcategory({
+                  id: subcategoryId,
+                  profile_id: userId,
+                });
+                // refresh subcategories list for current selection
+                if (selectedCategory) {
+                  const subs = await listSubcategories({
+                    profile_id: userId,
+                    category_id: selectedCategory.id,
+                  });
+                  setSubcategories(subs);
+                }
+                if (editSelectedCategory) {
+                  const editSubs = await listSubcategories({
+                    profile_id: userId,
+                    category_id: editSelectedCategory.id,
+                  });
+                  setEditSubcategories(editSubs);
+                }
+
+                // If deleted subcategory was selected, clear it
+                if (selectedSubcategory?.id === subcategoryId) {
+                  setSelectedSubcategory(null);
+                }
+                if (editSelectedSubcategory?.id === subcategoryId) {
+                  setEditSelectedSubcategory(null);
+                }
+              } catch (error) {
+                console.error("Error deleting subcategory:", error);
+                Alert.alert("Error", "Could not delete subcategory.");
+              }
+            },
+          },
+        ],
+      );
+    },
+    [userId, selectedCategory, editSelectedCategory, selectedSubcategory, editSelectedSubcategory],
+  );
+
   const canCreate = useMemo(() => {
     const parsed = parseFloat(amount);
     return (
@@ -239,7 +502,6 @@ export default function HomeScreen() {
     if (!userId || !selectedAccount) return;
 
     const parsed = parseFloat(amount.trim());
-    const subcategoryParsed = parseInt(subcategoryId.trim(), 10);
     if (!Number.isFinite(parsed) || parsed <= 0) {
       Alert.alert("Invalid amount", "Enter a valid amount greater than 0.");
       return;
@@ -259,9 +521,7 @@ export default function HomeScreen() {
         amount: parsed,
         description: description.trim().length ? description.trim() : null,
         expense_categoryid: selectedCategory.id,
-        subcategory_id: Number.isFinite(subcategoryParsed)
-          ? subcategoryParsed
-          : null,
+        subcategory_id: selectedSubcategory ? selectedSubcategory.id : null,
         is_recurring: false,
         reccurence_freq: null,
         next_occurence: null,
@@ -287,7 +547,7 @@ export default function HomeScreen() {
 
       setAmount("");
       setDescription("");
-      setSubcategoryId("");
+      setSelectedSubcategory(null);
       setAddModalOpen(false);
       await loadExpenses();
       await loadAccounts();
@@ -301,7 +561,7 @@ export default function HomeScreen() {
     userId,
     selectedAccount,
     amount,
-    subcategoryId,
+    selectedSubcategory,
     selectedCategory,
     description,
     loadExpenses,
@@ -342,6 +602,9 @@ export default function HomeScreen() {
         update: {
           account_id: editSelectedAccount.id,
           expense_categoryid: editSelectedCategory.id,
+          subcategory_id: editSelectedSubcategory
+            ? editSelectedSubcategory.id
+            : null,
           amount: parsed,
           description: editDescription.trim().length
             ? editDescription.trim()
@@ -422,6 +685,7 @@ export default function HomeScreen() {
     editDescription,
     editSelectedAccount,
     editSelectedCategory,
+    editSelectedSubcategory,
     applyTransactionToBalance,
     loadExpenses,
     loadAccounts,
@@ -629,6 +893,25 @@ export default function HomeScreen() {
               </Pressable>
             </View>
 
+            {/* Subcategory Picker Input */}
+            {selectedCategory && (
+              <View style={styles.fieldGroup}>
+                <ThemedText type="defaultSemiBold">Subcategory</ThemedText>
+                <Pressable
+                  onPress={() => setSubcategoryModalOpen(true)}
+                  style={[
+                    styles.dropdownButton,
+                    { borderColor: ui.border, backgroundColor: ui.surface },
+                  ]}
+                >
+                  <ThemedText>
+                    {selectedSubcategory?.category_name ??
+                      "Select subcategory"}
+                  </ThemedText>
+                </Pressable>
+              </View>
+            )}
+
             <View style={styles.fieldGroup}>
               <ThemedText type="defaultSemiBold">Amount</ThemedText>
               <TextInput
@@ -667,12 +950,11 @@ export default function HomeScreen() {
             </View>
 
             <View style={styles.fieldGroup}>
-              <ThemedText type="defaultSemiBold">Subcategory ID</ThemedText>
+              <ThemedText type="defaultSemiBold">Description</ThemedText>
               <TextInput
-                value={subcategoryId}
-                onChangeText={setSubcategoryId}
-                keyboardType="numeric"
-                placeholder="Optional"
+                value={description}
+                onChangeText={setDescription}
+                placeholder="e.g. Grocery run"
                 placeholderTextColor={ui.mutedText}
                 style={[
                   styles.input,
@@ -699,6 +981,99 @@ export default function HomeScreen() {
               </ThemedText>
             </Pressable>
           </ScrollView>
+
+          {/* Subcategory Picker Overlay (Add) */}
+          {subcategoryModalOpen && (
+            <Pressable
+              style={[
+                styles.modalBackdrop,
+                StyleSheet.absoluteFill,
+                { backgroundColor: ui.backdrop, zIndex: 100 },
+              ]}
+              onPress={() => setSubcategoryModalOpen(false)}
+            >
+              <Pressable
+                style={[
+                  styles.modalCard,
+                  { backgroundColor: ui.surface2, borderColor: ui.border },
+                ]}
+                onPress={() => { }}
+              >
+                <ThemedText type="defaultSemiBold">Select subcategory</ThemedText>
+
+                {subcategories.length === 0 ? (
+                  <ThemedText>No subcategories found.</ThemedText>
+                ) : (
+                  subcategories.map((sub) => (
+                    <View
+                      key={sub.id}
+                      style={{ flexDirection: "row", alignItems: "center", gap: 8 }}
+                    >
+                      <Pressable
+                        style={[
+                          styles.modalOption,
+                          { borderColor: ui.border, backgroundColor: ui.surface, flex: 1 },
+                        ]}
+                        onPress={() => {
+                          setSelectedSubcategory(sub);
+                          setSubcategoryModalOpen(false);
+                        }}
+                      >
+                        <ThemedText>
+                          {sub.category_name ?? "Unnamed subcategory"}
+                        </ThemedText>
+                      </Pressable>
+                      <Pressable
+                        onPress={() => handleDeleteSubcategory(sub.id)}
+                        style={{ padding: 8 }}
+                      >
+                        <IconSymbol name="trash" size={20} color="#FF3B30" />
+                      </Pressable>
+                    </View>
+                  ))
+                )}
+
+                <View style={styles.fieldGroup}>
+                  <TextInput
+                    value={newSubcategoryName}
+                    onChangeText={setNewSubcategoryName}
+                    placeholder="New subcategory name"
+                    placeholderTextColor={ui.mutedText}
+                    style={[
+                      styles.input,
+                      {
+                        borderColor: ui.border,
+                        backgroundColor: ui.surface,
+                        color: ui.text,
+                      },
+                    ]}
+                  />
+                  <Pressable
+                    onPress={createSubcategory}
+                    style={[
+                      styles.button,
+                      { borderColor: ui.border, backgroundColor: ui.surface },
+                    ]}
+                  >
+                    <ThemedText type="defaultSemiBold">
+                      Add subcategory
+                    </ThemedText>
+                  </Pressable>
+                </View>
+
+                <Pressable
+                  style={[
+                    styles.modalOption,
+                    styles.modalCancel,
+                    { borderColor: ui.border, backgroundColor: ui.surface },
+                  ]}
+                  onPress={() => setSubcategoryModalOpen(false)}
+                >
+                  <ThemedText>Cancel</ThemedText>
+                </Pressable>
+              </Pressable>
+            </Pressable>
+          )}
 
           {/* Account Picker Overlay (Add) */}
           {accountModalOpen && (
@@ -787,21 +1162,31 @@ export default function HomeScreen() {
                   <ThemedText>No categories yet.</ThemedText>
                 ) : (
                   categories.map((category) => (
-                    <Pressable
+                    <View
                       key={category.id}
-                      style={[
-                        styles.modalOption,
-                        { borderColor: ui.border, backgroundColor: ui.surface },
-                      ]}
-                      onPress={() => {
-                        setSelectedCategory(category);
-                        setCategoryModalOpen(false);
-                      }}
+                      style={{ flexDirection: "row", alignItems: "center", gap: 8 }}
                     >
-                      <ThemedText>
-                        {category.category_name ?? "Unnamed category"}
-                      </ThemedText>
-                    </Pressable>
+                      <Pressable
+                        style={[
+                          styles.modalOption,
+                          { borderColor: ui.border, backgroundColor: ui.surface, flex: 1 },
+                        ]}
+                        onPress={() => {
+                          setSelectedCategory(category);
+                          setCategoryModalOpen(false);
+                        }}
+                      >
+                        <ThemedText>
+                          {category.category_name ?? "Unnamed category"}
+                        </ThemedText>
+                      </Pressable>
+                      <Pressable
+                        onPress={() => handleDeleteCategory(category.id)}
+                        style={{ padding: 8 }}
+                      >
+                        <IconSymbol name="trash" size={20} color="#FF3B30" />
+                      </Pressable>
+                    </View>
                   ))
                 )}
 
@@ -906,6 +1291,24 @@ export default function HomeScreen() {
               </Pressable>
             </View>
 
+            {editSelectedCategory && (
+              <View style={{ gap: 6 }}>
+                <ThemedText type="defaultSemiBold">Subcategory</ThemedText>
+                <Pressable
+                  onPress={() => setEditSubcategoryModalOpen(true)}
+                  style={[
+                    styles.dropdownButton,
+                    { borderColor: ui.border, backgroundColor: ui.surface },
+                  ]}
+                >
+                  <ThemedText>
+                    {editSelectedSubcategory?.category_name ??
+                      "Select subcategory"}
+                  </ThemedText>
+                </Pressable>
+              </View>
+            )}
+
             <View style={{ gap: 6 }}>
               <ThemedText type="defaultSemiBold">Amount</ThemedText>
               <TextInput
@@ -973,6 +1376,99 @@ export default function HomeScreen() {
               </ThemedText>
             </Pressable>
           </View>
+
+          {/* Subcategory Picker Overlay (Edit) */}
+          {editSubcategoryModalOpen && (
+            <Pressable
+              style={[
+                styles.modalBackdrop,
+                StyleSheet.absoluteFill,
+                { backgroundColor: ui.backdrop, zIndex: 100 },
+              ]}
+              onPress={() => setEditSubcategoryModalOpen(false)}
+            >
+              <Pressable
+                style={[
+                  styles.modalCard,
+                  { backgroundColor: ui.surface2, borderColor: ui.border },
+                ]}
+                onPress={() => { }}
+              >
+                <ThemedText type="defaultSemiBold">Select subcategory</ThemedText>
+
+                {editSubcategories.length === 0 ? (
+                  <ThemedText>No subcategories found.</ThemedText>
+                ) : (
+                  editSubcategories.map((sub) => (
+                    <View
+                      key={sub.id}
+                      style={{ flexDirection: "row", alignItems: "center", gap: 8 }}
+                    >
+                      <Pressable
+                        style={[
+                          styles.modalOption,
+                          { borderColor: ui.border, backgroundColor: ui.surface, flex: 1 },
+                        ]}
+                        onPress={() => {
+                          setEditSelectedSubcategory(sub);
+                          setEditSubcategoryModalOpen(false);
+                        }}
+                      >
+                        <ThemedText>
+                          {sub.category_name ?? "Unnamed subcategory"}
+                        </ThemedText>
+                      </Pressable>
+                      <Pressable
+                        onPress={() => handleDeleteSubcategory(sub.id)}
+                        style={{ padding: 8 }}
+                      >
+                        <IconSymbol name="trash" size={20} color="#FF3B30" />
+                      </Pressable>
+                    </View>
+                  ))
+                )}
+
+                <View style={styles.fieldGroup}>
+                  <TextInput
+                    value={newSubcategoryName}
+                    onChangeText={setNewSubcategoryName}
+                    placeholder="New subcategory name"
+                    placeholderTextColor={ui.mutedText}
+                    style={[
+                      styles.input,
+                      {
+                        borderColor: ui.border,
+                        backgroundColor: ui.surface,
+                        color: ui.text,
+                      },
+                    ]}
+                  />
+                  <Pressable
+                    onPress={createEditSubcategory}
+                    style={[
+                      styles.button,
+                      { borderColor: ui.border, backgroundColor: ui.surface },
+                    ]}
+                  >
+                    <ThemedText type="defaultSemiBold">
+                      Add subcategory
+                    </ThemedText>
+                  </Pressable>
+                </View>
+
+                <Pressable
+                  style={[
+                    styles.modalOption,
+                    styles.modalCancel,
+                    { borderColor: ui.border, backgroundColor: ui.surface },
+                  ]}
+                  onPress={() => setEditSubcategoryModalOpen(false)}
+                >
+                  <ThemedText>Cancel</ThemedText>
+                </Pressable>
+              </Pressable>
+            </Pressable>
+          )}
 
           {/* Account Picker Overlay (Edit) */}
           {editAccountModalOpen && (
@@ -1061,23 +1557,59 @@ export default function HomeScreen() {
                   <ThemedText>No categories yet.</ThemedText>
                 ) : (
                   categories.map((category) => (
-                    <Pressable
+                    <View
                       key={category.id}
-                      style={[
-                        styles.modalOption,
-                        { borderColor: ui.border, backgroundColor: ui.surface },
-                      ]}
-                      onPress={() => {
-                        setEditSelectedCategory(category);
-                        setEditCategoryModalOpen(false);
-                      }}
+                      style={{ flexDirection: "row", alignItems: "center", gap: 8 }}
                     >
-                      <ThemedText>
-                        {category.category_name ?? "Unnamed category"}
-                      </ThemedText>
-                    </Pressable>
+                      <Pressable
+                        style={[
+                          styles.modalOption,
+                          { borderColor: ui.border, backgroundColor: ui.surface, flex: 1 },
+                        ]}
+                        onPress={() => {
+                          setEditSelectedCategory(category);
+                          setEditCategoryModalOpen(false);
+                        }}
+                      >
+                        <ThemedText>
+                          {category.category_name ?? "Unnamed category"}
+                        </ThemedText>
+                      </Pressable>
+                      <Pressable
+                        onPress={() => handleDeleteCategory(category.id)}
+                        style={{ padding: 8 }}
+                      >
+                        <IconSymbol name="trash" size={20} color="#FF3B30" />
+                      </Pressable>
+                    </View>
                   ))
                 )}
+
+                <View style={styles.fieldGroup}>
+                  <TextInput
+                    value={newCategoryName}
+                    onChangeText={setNewCategoryName}
+                    placeholder="New category name"
+                    placeholderTextColor={ui.mutedText}
+                    style={[
+                      styles.input,
+                      {
+                        borderColor: ui.border,
+                        backgroundColor: ui.surface,
+                        color: ui.text,
+                      },
+                    ]}
+                  />
+                  <Pressable
+                    onPress={createEditCategory}
+                    style={[
+                      styles.button,
+                      { borderColor: ui.border, backgroundColor: ui.surface },
+                    ]}
+                  >
+                    <ThemedText type="defaultSemiBold">Add category</ThemedText>
+                  </Pressable>
+                </View>
 
                 <Pressable
                   style={[

@@ -178,8 +178,8 @@ export default function AccountsScreen() {
     try {
       await createAccountApi(payload);
     } catch (error) {
-      console.error("Error creating account:", error);
-      Alert.alert("Could not create account", "Please try again.");
+      console.error("Error adding account:", error);
+      Alert.alert("Could not add account", "Please try again.");
       setIsLoading(false);
       return;
     }
@@ -418,7 +418,7 @@ export default function AccountsScreen() {
       <Modal
         visible={createModalOpen}
         animationType="slide"
-        presentationStyle="fullScreen"
+        presentationStyle="pageSheet"
         onRequestClose={() => setCreateModalOpen(false)}
       >
         <ThemedView
@@ -437,7 +437,7 @@ export default function AccountsScreen() {
               marginBottom: 16,
             }}
           >
-            <ThemedText type="title">Create account</ThemedText>
+            <ThemedText type="title">Add Account</ThemedText>
             <Pressable onPress={() => setCreateModalOpen(false)}>
               <ThemedText style={{ color: "#007AFF" }}>Cancel</ThemedText>
             </Pressable>
@@ -652,7 +652,7 @@ export default function AccountsScreen() {
       <Modal
         visible={!!editingAccount}
         animationType="slide"
-        presentationStyle="fullScreen"
+        presentationStyle="pageSheet"
         onRequestClose={() => setEditingAccount(null)}
       >
         <ThemedView

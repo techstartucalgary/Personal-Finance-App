@@ -831,13 +831,13 @@ export default function HomeScreen() {
           },
         ]}
       >
-        <ThemedText style={{ color: ui.surface, fontSize: 24 }}>+</ThemedText>
+        <IconSymbol name="plus" size={32} color={ui.surface} />
       </Pressable>
 
       <Modal
         visible={addModalOpen}
         animationType="slide"
-        presentationStyle="fullScreen"
+        presentationStyle="pageSheet"
         onRequestClose={() => setAddModalOpen(false)}
       >
         <ThemedView
@@ -1721,15 +1721,15 @@ const styles = StyleSheet.create({
     position: "absolute",
     right: 20,
     bottom: 24,
-    height: 56,
     width: 56,
+    height: 56,
     borderRadius: 28,
     alignItems: "center",
     justifyContent: "center",
     shadowColor: "#000",
-    shadowOpacity: 0.2,
-    shadowRadius: 6,
+    shadowOpacity: 0.3,
     shadowOffset: { width: 0, height: 4 },
+    shadowRadius: 6,
     elevation: 6,
   },
   titleContainer: {

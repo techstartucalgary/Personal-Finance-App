@@ -51,7 +51,7 @@ export default function HomeScreen() {
   } catch (e) {
     tabBarHeight = insets.bottom + 60;
   }
-  const fabBottom = tabBarHeight + 24;
+  const fabBottom = tabBarHeight + 60;
   const ui = useMemo(
     () => ({
       surface: isDark ? "#121212" : "#ffffff",
@@ -155,26 +155,25 @@ export default function HomeScreen() {
     }).format(value);
   }, []);
 
-  const loadAccounts = useCallback(async () => {
-    if (!userId) {
-      setAccounts([]);
-      return;
-    }
+  const loadAccounts = useCallback(
+    async (silent = false) => {
+      if (!userId) {
+        setAccounts([]);
+        return;
+      }
 
-    setIsLoading(true);
-    try {
-      const data = await listAccounts({ profile_id: userId });
-      setAccounts((data as AccountRow[]) ?? []);
-    } catch (error) {
-      console.error("Error loading accounts:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [userId]);
-
-  useEffect(() => {
-    loadAccounts();
-  }, [loadAccounts]);
+      if (!silent) setIsLoading(true);
+      try {
+        const data = await listAccounts({ profile_id: userId });
+        setAccounts((data as AccountRow[]) ?? []);
+      } catch (error) {
+        console.error("Error loading accounts:", error);
+      } finally {
+        if (!silent) setIsLoading(false);
+      }
+    },
+    [userId],
+  );
 
   const loadCategories = useCallback(async () => {
     if (!userId) {
@@ -296,7 +295,7 @@ export default function HomeScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      loadAccounts();
+      loadAccounts(true);
       loadCategories();
       loadExpenses();
     }, [loadAccounts, loadCategories, loadExpenses]),
@@ -493,7 +492,13 @@ export default function HomeScreen() {
         ],
       );
     },
-    [userId, selectedCategory, editSelectedCategory, selectedSubcategory, editSelectedSubcategory],
+    [
+      userId,
+      selectedCategory,
+      editSelectedCategory,
+      selectedSubcategory,
+      editSelectedSubcategory,
+    ],
   );
 
   const canCreate = useMemo(() => {
@@ -916,8 +921,7 @@ export default function HomeScreen() {
                   ]}
                 >
                   <ThemedText>
-                    {selectedSubcategory?.category_name ??
-                      "Select subcategory"}
+                    {selectedSubcategory?.category_name ?? "Select subcategory"}
                   </ThemedText>
                 </Pressable>
               </View>
@@ -1008,9 +1012,11 @@ export default function HomeScreen() {
                   styles.modalCard,
                   { backgroundColor: ui.surface2, borderColor: ui.border },
                 ]}
-                onPress={() => { }}
+                onPress={() => {}}
               >
-                <ThemedText type="defaultSemiBold">Select subcategory</ThemedText>
+                <ThemedText type="defaultSemiBold">
+                  Select subcategory
+                </ThemedText>
 
                 {subcategories.length === 0 ? (
                   <ThemedText>No subcategories found.</ThemedText>
@@ -1018,12 +1024,20 @@ export default function HomeScreen() {
                   subcategories.map((sub) => (
                     <View
                       key={sub.id}
-                      style={{ flexDirection: "row", alignItems: "center", gap: 8 }}
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        gap: 8,
+                      }}
                     >
                       <Pressable
                         style={[
                           styles.modalOption,
-                          { borderColor: ui.border, backgroundColor: ui.surface, flex: 1 },
+                          {
+                            borderColor: ui.border,
+                            backgroundColor: ui.surface,
+                            flex: 1,
+                          },
                         ]}
                         onPress={() => {
                           setSelectedSubcategory(sub);
@@ -1101,7 +1115,7 @@ export default function HomeScreen() {
                   styles.modalCard,
                   { backgroundColor: ui.surface2, borderColor: ui.border },
                 ]}
-                onPress={() => { }}
+                onPress={() => {}}
               >
                 <ThemedText type="defaultSemiBold">Select account</ThemedText>
 
@@ -1128,7 +1142,7 @@ export default function HomeScreen() {
                       <ThemedText type="default">
                         {account.account_type
                           ? account.account_type.charAt(0).toUpperCase() +
-                          account.account_type.slice(1)
+                            account.account_type.slice(1)
                           : "—"}{" "}
                         {account.currency ?? ""}
                       </ThemedText>
@@ -1165,7 +1179,7 @@ export default function HomeScreen() {
                   styles.modalCard,
                   { backgroundColor: ui.surface2, borderColor: ui.border },
                 ]}
-                onPress={() => { }}
+                onPress={() => {}}
               >
                 <ThemedText type="defaultSemiBold">Select category</ThemedText>
 
@@ -1175,12 +1189,20 @@ export default function HomeScreen() {
                   categories.map((category) => (
                     <View
                       key={category.id}
-                      style={{ flexDirection: "row", alignItems: "center", gap: 8 }}
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        gap: 8,
+                      }}
                     >
                       <Pressable
                         style={[
                           styles.modalOption,
-                          { borderColor: ui.border, backgroundColor: ui.surface, flex: 1 },
+                          {
+                            borderColor: ui.border,
+                            backgroundColor: ui.surface,
+                            flex: 1,
+                          },
                         ]}
                         onPress={() => {
                           setSelectedCategory(category);
@@ -1403,9 +1425,11 @@ export default function HomeScreen() {
                   styles.modalCard,
                   { backgroundColor: ui.surface2, borderColor: ui.border },
                 ]}
-                onPress={() => { }}
+                onPress={() => {}}
               >
-                <ThemedText type="defaultSemiBold">Select subcategory</ThemedText>
+                <ThemedText type="defaultSemiBold">
+                  Select subcategory
+                </ThemedText>
 
                 {editSubcategories.length === 0 ? (
                   <ThemedText>No subcategories found.</ThemedText>
@@ -1413,12 +1437,20 @@ export default function HomeScreen() {
                   editSubcategories.map((sub) => (
                     <View
                       key={sub.id}
-                      style={{ flexDirection: "row", alignItems: "center", gap: 8 }}
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        gap: 8,
+                      }}
                     >
                       <Pressable
                         style={[
                           styles.modalOption,
-                          { borderColor: ui.border, backgroundColor: ui.surface, flex: 1 },
+                          {
+                            borderColor: ui.border,
+                            backgroundColor: ui.surface,
+                            flex: 1,
+                          },
                         ]}
                         onPress={() => {
                           setEditSelectedSubcategory(sub);
@@ -1496,7 +1528,7 @@ export default function HomeScreen() {
                   styles.modalCard,
                   { backgroundColor: ui.surface2, borderColor: ui.border },
                 ]}
-                onPress={() => { }}
+                onPress={() => {}}
               >
                 <ThemedText type="defaultSemiBold">Select account</ThemedText>
 
@@ -1523,7 +1555,7 @@ export default function HomeScreen() {
                       <ThemedText type="default">
                         {account.account_type
                           ? account.account_type.charAt(0).toUpperCase() +
-                          account.account_type.slice(1)
+                            account.account_type.slice(1)
                           : "—"}{" "}
                         {account.currency ?? ""}
                       </ThemedText>
@@ -1560,7 +1592,7 @@ export default function HomeScreen() {
                   styles.modalCard,
                   { backgroundColor: ui.surface2, borderColor: ui.border },
                 ]}
-                onPress={() => { }}
+                onPress={() => {}}
               >
                 <ThemedText type="defaultSemiBold">Select category</ThemedText>
 
@@ -1570,12 +1602,20 @@ export default function HomeScreen() {
                   categories.map((category) => (
                     <View
                       key={category.id}
-                      style={{ flexDirection: "row", alignItems: "center", gap: 8 }}
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        gap: 8,
+                      }}
                     >
                       <Pressable
                         style={[
                           styles.modalOption,
-                          { borderColor: ui.border, backgroundColor: ui.surface, flex: 1 },
+                          {
+                            borderColor: ui.border,
+                            backgroundColor: ui.surface,
+                            flex: 1,
+                          },
                         ]}
                         onPress={() => {
                           setEditSelectedCategory(category);
@@ -1637,8 +1677,6 @@ export default function HomeScreen() {
           )}
         </ThemedView>
       </Modal>
-
-
     </ThemedView>
   );
 }
@@ -1731,7 +1769,6 @@ const styles = StyleSheet.create({
   fab: {
     position: "absolute",
     right: 20,
-    // bottom is dynamic
     width: 56,
     height: 56,
     borderRadius: 28,

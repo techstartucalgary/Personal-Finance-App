@@ -13,7 +13,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { useRouter } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
@@ -65,7 +65,7 @@ export default function AccountsScreen() {
     // Fallback if hook fails (e.g. not in tab navigator context)
     tabBarHeight = insets.bottom + 60;
   }
-  const fabBottom = tabBarHeight + 24;
+  const fabBottom = tabBarHeight + 60;
 
   const ui = useMemo(
     () => ({
@@ -111,14 +111,14 @@ export default function AccountsScreen() {
     [userId, name],
   );
 
-  const loadAccounts = useCallback(async () => {
+  const loadAccounts = useCallback(async (silent = false) => {
     if (!userId) {
       setAccounts([]);
       return;
     }
 
     // load accounts from user, where profile id == current user id
-    setIsLoading(true);
+    if (!silent) setIsLoading(true);
     const { data, error } = await supabase
       .from("account")
       .select(
@@ -129,17 +129,19 @@ export default function AccountsScreen() {
 
     if (error) {
       console.error("Error loading accounts:", error);
-      setIsLoading(false);
+      if (!silent) setIsLoading(false);
       return;
     }
 
     setAccounts((data as AccountRow[]) ?? []);
-    setIsLoading(false);
+    if (!silent) setIsLoading(false);
   }, [userId]);
 
-  useEffect(() => {
-    loadAccounts();
-  }, [loadAccounts]);
+  useFocusEffect(
+    useCallback(() => {
+      loadAccounts(true);
+    }, [loadAccounts])
+  );
 
   // Sync edit state when editingAccount changes
   useEffect(() => {

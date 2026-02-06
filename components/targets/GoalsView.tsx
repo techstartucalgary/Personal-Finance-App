@@ -41,7 +41,7 @@ export function GoalsView() {
     } catch (e) {
         tabBarHeight = insets.bottom + 60;
     }
-    const fabBottom = tabBarHeight + 24;
+    const fabBottom = tabBarHeight + 60;
 
     const ui = useMemo(
         () => ({
@@ -413,7 +413,6 @@ const styles = StyleSheet.create({
     fab: {
         position: "absolute",
         right: 4,
-        // bottom is set dynamically
         width: 56,
         height: 56,
         borderRadius: 28,

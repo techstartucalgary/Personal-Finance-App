@@ -1,3 +1,4 @@
+import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Alert,
@@ -12,7 +13,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { useRouter } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
@@ -55,6 +56,16 @@ export default function AccountsScreen() {
 
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
+
+  // Dynamic tab bar height
+  let tabBarHeight = 0;
+  try {
+    tabBarHeight = useBottomTabBarHeight();
+  } catch (e) {
+    // Fallback if hook fails (e.g. not in tab navigator context)
+    tabBarHeight = insets.bottom + 60;
+  }
+  const fabBottom = tabBarHeight + 60;
 
   const ui = useMemo(
     () => ({
@@ -100,14 +111,14 @@ export default function AccountsScreen() {
     [userId, name],
   );
 
-  const loadAccounts = useCallback(async () => {
+  const loadAccounts = useCallback(async (silent = false) => {
     if (!userId) {
       setAccounts([]);
       return;
     }
 
     // load accounts from user, where profile id == current user id
-    setIsLoading(true);
+    if (!silent) setIsLoading(true);
     const { data, error } = await supabase
       .from("account")
       .select(
@@ -118,17 +129,19 @@ export default function AccountsScreen() {
 
     if (error) {
       console.error("Error loading accounts:", error);
-      setIsLoading(false);
+      if (!silent) setIsLoading(false);
       return;
     }
 
     setAccounts((data as AccountRow[]) ?? []);
-    setIsLoading(false);
+    if (!silent) setIsLoading(false);
   }, [userId]);
 
-  useEffect(() => {
-    loadAccounts();
-  }, [loadAccounts]);
+  useFocusEffect(
+    useCallback(() => {
+      loadAccounts(true);
+    }, [loadAccounts])
+  );
 
   // Sync edit state when editingAccount changes
   useEffect(() => {
@@ -407,6 +420,7 @@ export default function AccountsScreen() {
           {
             backgroundColor: ui.text,
             opacity: pressed ? 0.8 : 1,
+            bottom: fabBottom,
           },
         ]}
       >
@@ -915,7 +929,6 @@ const styles = StyleSheet.create({
   },
   fabCenter: {
     position: "absolute",
-    bottom: 24,
     alignSelf: "center",
     paddingHorizontal: 16,
     height: 48,

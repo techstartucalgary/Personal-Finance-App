@@ -24,6 +24,7 @@ import {
   deleteAccount as deleteAccountApi,
   updateAccount as updateAccountApi,
 } from "@/utils/accounts";
+import { listGoals } from "@/utils/goals";
 import { supabase } from "@/utils/supabase";
 
 type AccountType = "credit" | "debit";
@@ -45,6 +46,15 @@ type AccountRow = {
 
   interest_rate: number | null;
   currency: string | null;
+};
+
+type GoalRow = {
+  id: string;
+  name: string;
+  target_amount: number;
+  current_amount: number | null;
+  target_date: string | null;
+  linked_account: number | null;
 };
 
 export default function AccountsScreen() {
@@ -83,6 +93,7 @@ export default function AccountsScreen() {
 
   const [isLoading, setIsLoading] = useState(false);
   const [accounts, setAccounts] = useState<AccountRow[]>([]);
+  const [goals, setGoals] = useState<GoalRow[]>([]);
 
   // create form
   const [name, setName] = useState("");
@@ -134,6 +145,22 @@ export default function AccountsScreen() {
     }
 
     setAccounts((data as AccountRow[]) ?? []);
+
+    // also load goals to calculate available balance
+    try {
+      const goalsData = await listGoals({ profile_id: userId });
+      setGoals((goalsData as any[])?.map(g => ({
+        id: g.id,
+        name: g.name,
+        target_amount: g.target_amount,
+        current_amount: g.current_amount,
+        target_date: g.target_date,
+        linked_account: g.linked_account
+      })) ?? []);
+    } catch (err) {
+      console.error("Error loading goals for accounts:", err);
+    }
+
     if (!silent) setIsLoading(false);
   }, [userId]);
 
@@ -294,7 +321,7 @@ export default function AccountsScreen() {
 
       Alert.alert(
         "Delete account?",
-        "This will delete all transactions associated with the eaccount.\n\nThis action cannot be undone.",
+        "This will delete all transactions associated with the account.\n\nThis action cannot be undone.",
         [
           { text: "Cancel", style: "cancel" },
           {
@@ -322,6 +349,17 @@ export default function AccountsScreen() {
     },
     [userId, loadAccounts],
   );
+
+  const calculateAvailable = useCallback((account: AccountRow) => {
+    const totalBalance = account.balance ?? 0;
+    const accountGoals = goals.filter(g => g.linked_account === Number(account.id));
+    const allocated = accountGoals.reduce((sum, g) => sum + (g.current_amount ?? 0), 0);
+    return totalBalance - allocated;
+  }, [goals]);
+
+  const formatMoney = (amount: number) => {
+    return new Intl.NumberFormat('en-CA', { style: 'currency', currency: 'CAD' }).format(amount);
+  };
 
   if (authLoading && !session) {
     return (
@@ -402,11 +440,12 @@ export default function AccountsScreen() {
                       item.account_type.slice(1)
                       : "—"}
                   </ThemedText>
-                  <ThemedText>Balance: {item.balance ?? 0}</ThemedText>
+                  <ThemedText>Balance: {formatMoney(item.balance ?? 0)}</ThemedText>
+                  <ThemedText style={{ opacity: 0.7, fontSize: 13 }}>
+                    Available: {formatMoney(calculateAvailable(item))}
+                  </ThemedText>
                   <ThemedText>{item.currency}</ThemedText>
                 </View>
-
-
               </Pressable>
             ))
           )}

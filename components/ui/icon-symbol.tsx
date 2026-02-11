@@ -33,6 +33,8 @@ const FEATHER_MAPPING: FeatherMapping = {
   target: "target",
   "chart.pie": "pie-chart",
   "list.bullet": "list",
+  "trash": "trash-2",
+  "plus": "plus",
 };
 
 /**

@@ -32,10 +32,14 @@ export default function ProfileScreen() {
   const lastName =
     (profile?.last_name as string | undefined)?.trim() || fallbackFamily;
   const fullName =
-    [firstName, lastName].filter(Boolean).join(" ") ||
+    [firstName, lastName]
+      .filter(Boolean)
+      .map((name) => capitalizeFirstLetter(name as string))
+      .join(" ") ||
     fallbackFullName ||
     session?.user?.email ||
     "there";
+
   const currecy_pref =
     (profile?.currency_preference as string | undefined)?.trim() || "CAD";
 
@@ -70,6 +74,13 @@ export default function ProfileScreen() {
       </ThemedView>
     </>
   );
+}
+
+function capitalizeFirstLetter(str: string): string {
+  if (!str) {
+    return "";
+  }
+  return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
 }
 
 const styles = StyleSheet.create({

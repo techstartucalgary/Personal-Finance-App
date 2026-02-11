@@ -3,7 +3,7 @@ import {
   DefaultTheme,
   ThemeProvider,
 } from "@react-navigation/native";
-import { Stack, useRouter, useSegments } from "expo-router";
+import { SplashScreen, Stack, useRouter, useSegments } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import React, { useEffect } from "react";
 import { MD3DarkTheme, MD3LightTheme, PaperProvider } from "react-native-paper";
@@ -12,6 +12,7 @@ import { SplashScreenController } from "@/components/splash-screen-controller";
 import { useAuthContext } from "@/hooks/use-auth-context";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import AuthProvider from "@/providers/auth-provider";
+import { useFonts } from "expo-font";
 
 // This component handles the protection logic
 function ProtectedLayout() {
@@ -27,7 +28,7 @@ function ProtectedLayout() {
     if (session && inAuthGroup) {
       router.replace("/(tabs)");
     } else if (!session && !inAuthGroup) {
-      router.replace("/(auth)/login");
+      router.replace("/(auth)/signup-social");
     }
   }, [session, isLoading, segments, router]);
 
@@ -40,7 +41,19 @@ function ProtectedLayout() {
 }
 
 export default function RootLayout() {
+  const [loaded] = useFonts({
+    "Avenir LT Std": require("../assets/fonts/AvenirLTStd65Medium.otf"),
+    "Avenir LT Std Bold": require("../assets/fonts/AvenirLTStd65Medium.otf"),
+  });
   const colorScheme = useColorScheme() ?? "light";
+
+  useEffect(() => {
+    if (loaded) {
+      SplashScreen.hideAsync();
+    }
+  }, [loaded]);
+
+  if (!loaded) return null;
 
   return (
     <PaperProvider

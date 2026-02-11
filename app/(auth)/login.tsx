@@ -1,26 +1,26 @@
+import { Colors } from "@/constants/theme";
+import { useColorScheme } from "@/hooks/use-color-scheme";
 import { supabase } from "@/utils/supabase";
 import { Feather } from "@expo/vector-icons";
-import { Link, router } from "expo-router";
-import { StatusBar } from "expo-status-bar";
 import {
   GoogleSignin,
   isSuccessResponse,
   statusCodes,
 } from "@react-native-google-signin/google-signin";
-import { Colors } from "@/constants/theme";
-import { useColorScheme } from "@/hooks/use-color-scheme";
+import { Link, router } from "expo-router";
+import { StatusBar } from "expo-status-bar";
 import React, { useEffect, useState } from "react";
 import {
+  Image,
   Platform,
   Pressable,
   StyleSheet,
   Text,
   TextInput,
   View,
-  Image,
 } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
-import { Button, Dialog, Portal, Text as PaperText } from "react-native-paper";
+import { Button, Dialog, Text as PaperText, Portal } from "react-native-paper";
 
 const COLORS = {
   primary: "#013f33ff",
@@ -86,7 +86,10 @@ export default function Login() {
   // Social handlers
   async function handleGoogle() {
     if (Platform.OS === "web") {
-      showDialog("Error", "Google Sign-in is not supported on web in this version.");
+      showDialog(
+        "Error",
+        "Google Sign-in is not supported on web in this version.",
+      );
       return;
     }
     try {
@@ -118,7 +121,7 @@ export default function Login() {
       if (error?.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
         showDialog(
           "Google Sign-In Error",
-          "Google Play Services is not available or is outdated."
+          "Google Play Services is not available or is outdated.",
         );
         return;
       }
@@ -257,7 +260,7 @@ export default function Login() {
             Don’t have an account?{" "}
           </Text>
           <Link
-            href="/(auth)/signup"
+            href="/(auth)/signup-social"
             style={[styles.link, { color: COLORS.primary }]}
           >
             Sign up
@@ -266,7 +269,10 @@ export default function Login() {
       </KeyboardAwareScrollView>
 
       <Portal>
-        <Dialog visible={dialogVisible} onDismiss={() => setDialogVisible(false)}>
+        <Dialog
+          visible={dialogVisible}
+          onDismiss={() => setDialogVisible(false)}
+        >
           <Dialog.Title>{dialogTitle}</Dialog.Title>
           <Dialog.Content>
             <PaperText>{dialogMessage}</PaperText>

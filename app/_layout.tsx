@@ -28,7 +28,7 @@ function ProtectedLayout() {
     if (session && inAuthGroup) {
       router.replace("/(tabs)/accounts");
     } else if (!session && !inAuthGroup) {
-      router.replace("/(auth)/onboarding-start");
+      router.replace("/onboarding-start");
     }
   }, [session, isLoading, segments, router]);
 

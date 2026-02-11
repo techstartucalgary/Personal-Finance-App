@@ -1,33 +1,28 @@
 import { AuthButton } from "@/components/auth_buttons/auth-button";
 import { InputField } from "@/components/auth_buttons/input-field";
 import { Tokens, getColors } from "@/constants/authTokens";
-import { useColorScheme } from "@/hooks/use-color-scheme";
 import { supabase } from "@/utils/supabase";
 import { Feather, Ionicons } from "@expo/vector-icons";
-import {
-  GoogleSignin,
-  isSuccessResponse,
-  statusCodes,
-} from "@react-native-google-signin/google-signin";
 import { Link, router } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
-  SafeAreaView,
   StyleSheet,
   Text,
   useWindowDimensions,
   View,
 } from "react-native";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { configureGoogleOnce, signInWithGoogle } from "@/utils/authGoogle";
 
 export default function Login() {
-  const scheme = (useColorScheme() ?? "light") as "light" | "dark";
-  const C = getColors(scheme);
+  const C = getColors("light");
   const { height } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -37,27 +32,19 @@ export default function Login() {
   const [authError, setAuthError] = useState("");
 
   useEffect(() => {
-    GoogleSignin.configure({
-      webClientId:
-        "801083441538-qdj0ai72fhs80t56379l3eo9tnlad2go.apps.googleusercontent.com",
-      iosClientId:
-        "801083441538-653cd41r45k21kd0u6cgrlf4d5km4uf8.apps.googleusercontent.com",
-    });
+    configureGoogleOnce();
   }, []);
 
-  const S = useMemo(() => {
-    const compact = height < 760;
-    return {
-      topGap: compact ? 8 : 16,
-      titleSize: compact ? 32 : 36,
-      titleBottom: compact ? 12 : 16,
-      formGap: compact ? 12 : 14,
-      metaBottom: compact ? 18 : 24,
-      actionTop: compact ? 16 : 20,
-      socialTop: compact ? 12 : 16,
-      footerMin: compact ? 30 : 60,
-    };
-  }, [height]);
+  const compact = height < 760;
+  const horizontalPad = compact ? 20 : 26;
+  const topPadding = (compact ? 0 : 4) + insets.top;
+  const bottomPad = 0;
+  const titleBottom = compact ? 12 : 16;
+  const formGap = compact ? 8 : 10;
+  const metaBottom = compact ? 10 : 12;
+  const signTop = compact ? 14 : 18;
+  const socialTop = compact ? 18 : 22;
+  const footerMin = compact ? 24 : 40;
 
   async function handleLogin() {
     if (loading) return;
@@ -87,143 +74,144 @@ export default function Login() {
   }
 
   async function handleGoogle() {
-    if (Platform.OS === "web") {
-      setAuthError("Google sign-in is not supported on web");
+    const result = await signInWithGoogle();
+    if (!result.ok) {
+      setAuthError(result.message ?? "Google sign-in failed");
       return;
     }
 
-    try {
-      await GoogleSignin.hasPlayServices();
-      const response = await GoogleSignin.signIn();
-      if (!isSuccessResponse(response)) return;
-
-      const idToken = response.data.idToken;
-      if (!idToken) {
-        setAuthError("Google sign-in failed");
-        return;
-      }
-
-      const { error } = await supabase.auth.signInWithIdToken({
-        provider: "google",
-        token: idToken,
-      });
-
-      if (error) {
-        setAuthError("Google sign-in failed");
-        return;
-      }
-
-      router.replace("/(tabs)/accounts");
-    } catch (error: any) {
-      if (error?.code === statusCodes.IN_PROGRESS) return;
-      if (error?.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
-        setAuthError("Google Play Services is not available");
-        return;
-      }
-      setAuthError("Google sign-in failed");
-    }
+    router.replace("/(tabs)/accounts");
   }
 
   return (
     <SafeAreaView style={[styles.screen, { backgroundColor: C.bg }]}>
-      <StatusBar style={scheme === "dark" ? "light" : "dark"} />
-      <KeyboardAvoidingView
-        style={styles.screen}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-      >
-        <View style={[styles.container, { paddingTop: S.topGap }]}>
-          <View style={styles.topBar}>
+      <StatusBar style="dark" />
+      <View style={styles.screen}>
+        <View
+          style={[
+            styles.container,
+            {
+              paddingTop: topPadding,
+              paddingBottom: bottomPad,
+              paddingHorizontal: horizontalPad,
+            },
+          ]}
+        >
+          <View
+            style={[
+              styles.backBtnWrap,
+              { top: topPadding - 4, left: horizontalPad - 2 },
+            ]}
+          >
             <Pressable onPress={() => router.back()} style={styles.backBtn} hitSlop={10}>
-              <Feather name="arrow-left" size={24} color={C.text} />
+              <Ionicons name="arrow-back" size={24} color={C.text} />
             </Pressable>
           </View>
 
-          <Text style={[styles.title, { color: C.text, fontSize: S.titleSize, marginBottom: S.titleBottom }]}>
-            Glad to see you again!
-          </Text>
-          {!!authError ? <Text style={[styles.errorText, { color: C.danger }]}>We do not recognize the email or password</Text> : null}
+          <Text style={[styles.brandTitle, { color: "#000000" }]}>Sterling</Text>
 
-          <View style={[styles.form, { gap: S.formGap }]}>
-            <InputField
-              value={email}
-              onChangeText={(text) => {
-                setEmail(text);
-                if (authError) setAuthError("");
-              }}
-              placeholder="Email"
-              hasError={!!authError}
-              inputProps={{ keyboardType: "email-address", autoCapitalize: "none" }}
-            />
+          <KeyboardAvoidingView
+            style={styles.formSection}
+            behavior={Platform.OS === "ios" ? "padding" : undefined}
+            keyboardVerticalOffset={topPadding + 12}
+          >
+            <Text style={[styles.title, { color: "#000000", marginBottom: titleBottom }]}>
+              Glad to see you again!
+            </Text>
+            {!!authError ? (
+              <Text style={[styles.errorText, { color: C.danger }]}>{authError}</Text>
+            ) : null}
 
-            <InputField
-              value={password}
-              onChangeText={(text) => {
-                setPassword(text);
-                if (authError) setAuthError("");
-              }}
-              placeholder="Password"
-              secureTextEntry={!showPassword}
-              showPasswordToggle
-              onTogglePassword={() => setShowPassword((v) => !v)}
-              hasError={!!authError}
-            />
-          </View>
-
-          <View style={[styles.metaRow, { marginBottom: S.metaBottom }]}>
-            <Pressable style={styles.rememberWrap} onPress={() => setRememberMe((v) => !v)}>
-              <Feather
-                name={rememberMe ? "check-square" : "square"}
-                size={20}
-                color={C.text}
+            <View style={[styles.form, { gap: formGap }]}>
+              <InputField
+                value={email}
+                onChangeText={(text) => {
+                  setEmail(text);
+                  if (authError) setAuthError("");
+                }}
+                placeholder="Email"
+                hasError={!!authError}
+                inputProps={{ keyboardType: "email-address", autoCapitalize: "none" }}
+                forceScheme="light"
+                inputStyle={styles.inputText}
+                containerStyle={styles.inputBox}
               />
-              <Text style={[styles.helperText, { color: C.text }]}>Remember Me</Text>
-            </Pressable>
-            <Pressable>
-              <Text style={[styles.helperText, { color: C.text }]}>Forgot Password?</Text>
-            </Pressable>
-          </View>
 
-          <AuthButton
-            label={loading ? "Logging In..." : "Log In"}
-            variant="primary"
-            onPress={handleLogin}
-            disabled={loading}
-          />
-
-          <View style={[styles.socialBlock, { marginTop: S.actionTop }]}>
-            <View style={styles.dividerRow}>
-              <View style={[styles.line, { backgroundColor: C.line }]} />
-              <Text style={[styles.orText, { color: C.text }]}>Or Continue With</Text>
-              <View style={[styles.line, { backgroundColor: C.line }]} />
+              <InputField
+                value={password}
+                onChangeText={(text) => {
+                  setPassword(text);
+                  if (authError) setAuthError("");
+                }}
+                placeholder="Password"
+                secureTextEntry={!showPassword}
+                showPasswordToggle
+                onTogglePassword={() => setShowPassword((v) => !v)}
+                hasError={!!authError}
+                forceScheme="light"
+                inputStyle={styles.inputText}
+                containerStyle={styles.inputBox}
+              />
             </View>
 
-            <View style={[styles.socialRow, { marginTop: S.socialTop }]}>
-              <Pressable style={styles.socialIconBtn} onPress={handleGoogle} hitSlop={8}>
-                <Image
-                  source={require("../../assets/images/google.png")}
-                  style={styles.socialIconImage}
-                  resizeMode="contain"
+            <View style={[styles.metaRow, { marginBottom: metaBottom }]}>
+              <Pressable style={styles.rememberWrap} onPress={() => setRememberMe((v) => !v)}>
+                <Feather
+                  name={rememberMe ? "check-square" : "square"}
+                  size={20}
+                  color={C.text}
                 />
+                <Text style={[styles.helperText, { color: C.text }]}>Remember Me</Text>
               </Pressable>
-              <Pressable style={styles.socialIconBtn} hitSlop={8}>
-                <Image
-                  source={require("../../assets/images/apple.png")}
-                  style={styles.socialIconImage}
-                  resizeMode="contain"
-                />
+              <Pressable>
+                <Text style={[styles.helperText, { color: C.text }]}>Forgot Password?</Text>
               </Pressable>
             </View>
-          </View>
 
-          <View style={[styles.footerSpacer, { minHeight: S.footerMin }]} />
+            <AuthButton
+              label={loading ? "Logging In..." : "Log In"}
+              variant="primary"
+              onPress={handleLogin}
+              disabled={loading}
+              style={[styles.actionBtn, { marginTop: signTop }]}
+              labelStyle={styles.actionLabel}
+            />
+
+            <View style={[styles.socialBlock, { marginTop: socialTop }]}>
+              <View style={styles.dividerRow}>
+                <View style={[styles.line, { backgroundColor: C.line }]} />
+                <Text style={[styles.orText, { color: C.text }]}>Or Continue With</Text>
+                <View style={[styles.line, { backgroundColor: C.line }]} />
+              </View>
+
+              <View style={styles.socialRow}>
+                <Pressable style={styles.socialIconBtn} onPress={handleGoogle} hitSlop={8}>
+                  <Image
+                    source={require("../../assets/images/google.png")}
+                    style={styles.socialIconImage}
+                    resizeMode="contain"
+                  />
+                </Pressable>
+                <Pressable style={styles.socialIconBtn} hitSlop={8}>
+                  <Image
+                    source={require("../../assets/images/apple.png")}
+                    style={styles.socialIconImage}
+                    resizeMode="contain"
+                  />
+                </Pressable>
+              </View>
+            </View>
+          </KeyboardAvoidingView>
+
+          <View style={[styles.footerSpacer, { minHeight: footerMin }]} />
           <View style={styles.footerRow}>
             <Text style={[styles.footerText, { color: C.text }]}>Do not have an account? </Text>
-            <Link href="/(auth)/signup" style={[styles.footerLink, { color: C.text }]}>
+            <Link href="/signup" style={[styles.footerLink, { color: C.text }]}>
               Sign Up Here
             </Link>
           </View>
         </View>
-      </KeyboardAvoidingView>
+      </View>
     </SafeAreaView>
   );
 }
@@ -234,28 +222,49 @@ const styles = StyleSheet.create({
   screen: { flex: 1 },
   container: {
     flex: 1,
-    paddingHorizontal: T.space.pageX,
-    paddingBottom: 20,
   },
-  topBar: {
-    paddingBottom: 8,
+  backBtnWrap: {
+    position: "absolute",
+    zIndex: 1,
   },
   backBtn: {
     width: 30,
     height: 30,
     justifyContent: "center",
   },
+  brandTitle: {
+    fontFamily: T.font.boldFamily ?? T.font.headingFamily,
+    fontSize: 33,
+    letterSpacing: -0.2,
+    textAlign: "center",
+    marginTop: -2,
+    marginBottom: 8,
+  },
   title: {
-    fontFamily: T.font.headingFamily,
-    lineHeight: 42,
+    fontFamily: T.font.boldFamily ?? T.font.headingFamily,
+    fontSize: 24,
+    letterSpacing: -0.6,
+    textAlign: "left",
+    lineHeight: 30,
+  },
+  inputBox: {
+    backgroundColor: "#E1E1E1",
+    minHeight: 56,
+  },
+  inputText: {
+    fontFamily: T.font.family,
+    fontSize: 15.5,
+    paddingVertical: 8,
   },
   errorText: {
-    fontFamily: T.font.obliqueFamily ?? T.font.inputFamily,
-    fontSize: T.font.bodySize - 1,
+    fontFamily: T.font.family,
+    fontSize: 14.5,
     marginBottom: 10,
   },
-  form: {
-    marginBottom: 10,
+  form: {},
+  formSection: {
+    flex: 1,
+    justifyContent: "center",
   },
   metaRow: {
     flexDirection: "row",
@@ -269,11 +278,21 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   helperText: {
-    fontFamily: T.font.obliqueFamily ?? T.font.inputFamily,
-    fontSize: T.font.helperSize,
-    letterSpacing: 0.7,
+    fontFamily: T.font.family,
+    fontSize: 14.5,
+    letterSpacing: 0.2,
   },
-  socialBlock: {},
+  actionBtn: {
+    marginTop: 20,
+    height: 50,
+  },
+  actionLabel: {
+    fontSize: 18,
+    letterSpacing: 0.5,
+  },
+  socialBlock: {
+    marginTop: 22,
+  },
   dividerRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -286,10 +305,11 @@ const styles = StyleSheet.create({
   },
   orText: {
     marginHorizontal: 12,
-    fontFamily: T.font.inputFamily,
-    fontSize: T.font.bodySize,
+    fontFamily: T.font.family,
+    fontSize: 15.5,
   },
   socialRow: {
+    marginTop: 14,
     flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",
@@ -306,18 +326,18 @@ const styles = StyleSheet.create({
     height: 36,
   },
   footerSpacer: {
-    flex: 1,
+    minHeight: 56,
   },
   footerRow: {
     flexDirection: "row",
     justifyContent: "center",
   },
   footerText: {
-    fontFamily: T.font.inputFamily,
-    fontSize: T.font.bodySize,
+    fontFamily: T.font.family,
+    fontSize: 15.5,
   },
   footerLink: {
-    fontFamily: T.font.semiFamily ?? T.font.inputFamily,
-    fontSize: T.font.bodySize,
+    fontFamily: T.font.semiFamily ?? T.font.family,
+    fontSize: 15.5,
   },
 });

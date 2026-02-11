@@ -171,14 +171,14 @@ export default function OnboardingStart() {
               variant="outline"
               style={{ height: buttonHeight }}
               labelStyle={styles.actionLabel}
-              onPress={() => router.push("/(auth)/signup")}
+              onPress={() => router.push("/signup")}
             />
             <AuthButton
               label="Log In"
               variant="primary"
               style={{ height: buttonHeight }}
               labelStyle={styles.actionLabel}
-              onPress={() => router.push("/(auth)/login")}
+              onPress={() => router.push("/login")}
             />
           </View>
         </View>

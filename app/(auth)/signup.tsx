@@ -5,7 +5,7 @@ import { supabase } from "@/utils/supabase";
 import { Ionicons } from "@expo/vector-icons";
 import { Link, router } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Image,
   KeyboardAvoidingView,
@@ -18,6 +18,7 @@ import {
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { Button, Dialog, Text as PaperText, Portal } from "react-native-paper";
+import { configureGoogleOnce, signInWithGoogle } from "@/utils/authGoogle";
 
 export default function SignUp() {
   const C = getColors("light");
@@ -51,6 +52,10 @@ export default function SignUp() {
     setDialogMessage(message);
     setDialogVisible(true);
   };
+
+  useEffect(() => {
+    configureGoogleOnce();
+  }, []);
 
   const handleSignUp = async () => {
     if (loading) return;
@@ -93,6 +98,13 @@ export default function SignUp() {
       );
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleGoogle = async () => {
+    const result = await signInWithGoogle();
+    if (!result.ok) {
+      showDialog("Google Sign-in Failed", result.message);
     }
   };
 
@@ -190,7 +202,7 @@ export default function SignUp() {
               </View>
 
               <View style={styles.socialRow}>
-                <Pressable style={styles.socialIconBtn} hitSlop={8}>
+                <Pressable style={styles.socialIconBtn} hitSlop={8} onPress={handleGoogle}>
                   <Image
                     source={require("../../assets/images/google.png")}
                     style={styles.socialIconImage}
@@ -211,7 +223,7 @@ export default function SignUp() {
           <View style={[styles.footerSpacer, { minHeight: footerMin }]} />
           <View style={styles.footerRow}>
             <Text style={[styles.footerText, { color: C.text }]}>Already have an account? </Text>
-            <Link href="/(auth)/login" style={[styles.footerLink, { color: C.text }]}>
+            <Link href="/login" style={[styles.footerLink, { color: C.text }]}>
               Log In Here
             </Link>
           </View>

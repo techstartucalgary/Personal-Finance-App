@@ -26,7 +26,7 @@ function ProtectedLayout() {
     const inAuthGroup = segments[0] === "(auth)";
 
     if (session && inAuthGroup) {
-      router.replace("/(tabs)");
+      router.replace("/(tabs)/accounts");
     } else if (!session && !inAuthGroup) {
       router.replace("/(auth)/onboarding-start");
     }

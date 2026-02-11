@@ -1,7 +1,9 @@
+import Feather from "@expo/vector-icons/Feather";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Alert,
+  Image,
   Modal,
   Pressable,
   RefreshControl,
@@ -17,7 +19,6 @@ import { useFocusEffect, useRouter } from "expo-router";
 
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
-import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useAuthContext } from "@/hooks/use-auth-context";
 import {
   createAccount as createAccountApi,
@@ -70,6 +71,7 @@ export default function AccountsScreen() {
   // Dynamic tab bar height
   let tabBarHeight = 0;
   try {
+    // eslint-disable-next-line react-hooks/rules-of-hooks
     tabBarHeight = useBottomTabBarHeight();
   } catch (e) {
     // Fallback if hook fails (e.g. not in tab navigator context)
@@ -116,58 +118,64 @@ export default function AccountsScreen() {
   const [editStatementDate, setEditStatementDate] = useState("");
   const [editPaymentDate, setEditPaymentDate] = useState("");
   const [editCurrency, setEditCurrency] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
 
   const canCreate = useMemo(
     () => !!userId && name.trim().length > 0,
     [userId, name],
   );
 
-  const loadAccounts = useCallback(async (silent = false) => {
-    if (!userId) {
-      setAccounts([]);
-      return;
-    }
+  const loadAccounts = useCallback(
+    async (silent = false) => {
+      if (!userId) {
+        setAccounts([]);
+        return;
+      }
 
-    // load accounts from user, where profile id == current user id
-    if (!silent) setIsLoading(true);
-    const { data, error } = await supabase
-      .from("account")
-      .select(
-        "id, profile_id, created_at, account_name, account_type, balance, credit_limit, statement_duedate, payment_duedate, interest_rate, currency",
-      )
-      .eq("profile_id", userId)
-      .order("created_at", { ascending: false });
+      // load accounts from user, where profile id == current user id
+      if (!silent) setIsLoading(true);
+      const { data, error } = await supabase
+        .from("account")
+        .select(
+          "id, profile_id, created_at, account_name, account_type, balance, credit_limit, statement_duedate, payment_duedate, interest_rate, currency",
+        )
+        .eq("profile_id", userId)
+        .order("created_at", { ascending: false });
 
-    if (error) {
-      console.error("Error loading accounts:", error);
+      if (error) {
+        console.error("Error loading accounts:", error);
+        if (!silent) setIsLoading(false);
+        return;
+      }
+
+      setAccounts((data as AccountRow[]) ?? []);
+
+      // also load goals to calculate available balance
+      try {
+        const goalsData = await listGoals({ profile_id: userId });
+        setGoals(
+          (goalsData as any[])?.map((g) => ({
+            id: g.id,
+            name: g.name,
+            target_amount: g.target_amount,
+            current_amount: g.current_amount,
+            target_date: g.target_date,
+            linked_account: g.linked_account,
+          })) ?? [],
+        );
+      } catch (err) {
+        console.error("Error loading goals for accounts:", err);
+      }
+
       if (!silent) setIsLoading(false);
-      return;
-    }
-
-    setAccounts((data as AccountRow[]) ?? []);
-
-    // also load goals to calculate available balance
-    try {
-      const goalsData = await listGoals({ profile_id: userId });
-      setGoals((goalsData as any[])?.map(g => ({
-        id: g.id,
-        name: g.name,
-        target_amount: g.target_amount,
-        current_amount: g.current_amount,
-        target_date: g.target_date,
-        linked_account: g.linked_account
-      })) ?? []);
-    } catch (err) {
-      console.error("Error loading goals for accounts:", err);
-    }
-
-    if (!silent) setIsLoading(false);
-  }, [userId]);
+    },
+    [userId],
+  );
 
   useFocusEffect(
     useCallback(() => {
       loadAccounts(true);
-    }, [loadAccounts])
+    }, [loadAccounts]),
   );
 
   // Sync edit state when editingAccount changes
@@ -350,16 +358,57 @@ export default function AccountsScreen() {
     [userId, loadAccounts],
   );
 
-  const calculateAvailable = useCallback((account: AccountRow) => {
-    const totalBalance = account.balance ?? 0;
-    const accountGoals = goals.filter(g => g.linked_account === Number(account.id));
-    const allocated = accountGoals.reduce((sum, g) => sum + (g.current_amount ?? 0), 0);
-    return totalBalance - allocated;
-  }, [goals]);
+  const calculateAvailable = useCallback(
+    (account: AccountRow) => {
+      const totalBalance = account.balance ?? 0;
+      const accountGoals = goals.filter(
+        (g) => g.linked_account === Number(account.id),
+      );
+      const allocated = accountGoals.reduce(
+        (sum, g) => sum + (g.current_amount ?? 0),
+        0,
+      );
+      return totalBalance - allocated;
+    },
+    [goals],
+  );
 
   const formatMoney = (amount: number) => {
-    return new Intl.NumberFormat('en-CA', { style: 'currency', currency: 'CAD' }).format(amount);
+    return new Intl.NumberFormat("en-CA", {
+      style: "currency",
+      currency: "CAD",
+    }).format(amount);
   };
+
+  const formatCardDate = (value?: string | null) => {
+    if (!value) return "--/--/--";
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return value;
+    return parsed.toLocaleDateString("en-CA", {
+      month: "2-digit",
+      day: "2-digit",
+      year: "2-digit",
+    });
+  };
+
+  const totalBalance = useMemo(
+    () => accounts.reduce((sum, account) => sum + (account.balance ?? 0), 0),
+    [accounts],
+  );
+
+  const filteredAccounts = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return accounts;
+
+    return accounts.filter((account) => {
+      const namePart = account.account_name?.toLowerCase() ?? "";
+      const typePart = account.account_type?.toLowerCase() ?? "";
+      const currencyPart = account.currency?.toLowerCase() ?? "";
+      return (
+        namePart.includes(q) || typePart.includes(q) || currencyPart.includes(q)
+      );
+    });
+  }, [accounts, searchQuery]);
 
   if (authLoading && !session) {
     return (
@@ -383,12 +432,16 @@ export default function AccountsScreen() {
       style={[
         styles.container,
         {
-          paddingTop: 16 + insets.top,
+          paddingTop: 12 + insets.top,
+          backgroundColor: isDark ? "#16181C" : "#ECECF1",
         },
       ]}
     >
       <ScrollView
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingBottom: tabBarHeight + 88 },
+        ]}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
@@ -399,16 +452,30 @@ export default function AccountsScreen() {
         }
       >
         <View style={styles.headerRow}>
-          <ThemedText type="title">Accounts</ThemedText>
+          <View style={styles.headerLeft}>
+            <Pressable style={styles.iconBtn} hitSlop={8}>
+              <Feather name="menu" size={28} color={ui.text} />
+            </Pressable>
+            <Pressable style={styles.iconBtn} hitSlop={8}>
+              <Feather name="bell" size={24} color={ui.text} />
+            </Pressable>
+          </View>
+          <ThemedText style={[styles.headerTitle, { color: ui.text }]}>
+            Accounts
+          </ThemedText>
           <Pressable onPress={() => router.push("/profile")}>
-            <IconSymbol size={28} name="person" color={ui.text} />
+            <Feather name="user" size={24} color={ui.text} />
           </Pressable>
         </View>
 
         <View
           style={[
             styles.card,
-            { borderColor: ui.border, backgroundColor: ui.surface2 },
+            {
+              borderColor: ui.border,
+              backgroundColor: ui.surface2,
+              display: "none",
+            },
           ]}
         >
           <ThemedText type="defaultSemiBold">Your accounts</ThemedText>
@@ -437,10 +504,12 @@ export default function AccountsScreen() {
                   <ThemedText type="default">
                     {item.account_type
                       ? item.account_type.charAt(0).toUpperCase() +
-                      item.account_type.slice(1)
+                        item.account_type.slice(1)
                       : "—"}
                   </ThemedText>
-                  <ThemedText>Balance: {formatMoney(item.balance ?? 0)}</ThemedText>
+                  <ThemedText>
+                    Balance: {formatMoney(item.balance ?? 0)}
+                  </ThemedText>
                   <ThemedText style={{ opacity: 0.7, fontSize: 13 }}>
                     Available: {formatMoney(calculateAvailable(item))}
                   </ThemedText>
@@ -450,22 +519,208 @@ export default function AccountsScreen() {
             ))
           )}
         </View>
-      </ScrollView >
+        <View style={styles.balanceWrap}>
+          <ThemedText style={[styles.balanceLabel, { color: ui.mutedText }]}>
+            Total Balance
+          </ThemedText>
+          <ThemedText style={[styles.balanceValue, { color: ui.text }]}>
+            {formatMoney(totalBalance)}
+          </ThemedText>
+        </View>
+
+        <View
+          style={[
+            styles.chartCard,
+            { borderColor: ui.border, backgroundColor: ui.surface2 },
+          ]}
+        >
+          <View style={styles.chartRow}>
+            <View style={styles.yAxis}>
+              <ThemedText style={[styles.yLabel, { color: ui.mutedText }]}>
+                50k
+              </ThemedText>
+              <ThemedText style={[styles.yLabel, { color: ui.mutedText }]}>
+                20k
+              </ThemedText>
+              <ThemedText style={[styles.yLabel, { color: ui.mutedText }]}>
+                10k
+              </ThemedText>
+              <ThemedText style={[styles.yLabel, { color: ui.mutedText }]}>
+                0
+              </ThemedText>
+            </View>
+
+            <View style={styles.chartArea}>
+              <View
+                style={[
+                  styles.chartGuide,
+                  { borderColor: ui.border, top: "8%" },
+                ]}
+              />
+              <View
+                style={[
+                  styles.chartGuide,
+                  { borderColor: ui.border, top: "34%" },
+                ]}
+              />
+              <View
+                style={[
+                  styles.chartGuide,
+                  { borderColor: ui.border, top: "58%" },
+                ]}
+              />
+              <View
+                style={[
+                  styles.chartGuide,
+                  { borderColor: ui.border, top: "82%" },
+                ]}
+              />
+              <Image
+                source={{
+                  uri: "https://api.builder.io/api/v1/image/assets/TEMP/94870884-619f-436a-b553-127d9ef92e88?placeholderIfAbsent=true&apiKey=342743ad2e264936acee3aea8d83ec5e",
+                }}
+                style={styles.chartImage}
+                resizeMode="contain"
+              />
+            </View>
+          </View>
+
+          <View style={styles.monthRow}>
+            <ThemedText style={[styles.monthLabel, { color: ui.mutedText }]}>
+              Jan
+            </ThemedText>
+            <ThemedText style={[styles.monthLabel, { color: ui.mutedText }]}>
+              Feb
+            </ThemedText>
+            <ThemedText style={[styles.monthLabel, { color: ui.text }]}>
+              Mar
+            </ThemedText>
+            <ThemedText style={[styles.monthLabel, { color: ui.mutedText }]}>
+              Apr
+            </ThemedText>
+          </View>
+        </View>
+
+        <View style={styles.toolbarRow}>
+          <Pressable
+            onPress={() => setCreateModalOpen(true)}
+            style={[
+              styles.smallActionBtn,
+              { borderColor: ui.border, backgroundColor: ui.surface2 },
+            ]}
+          >
+            <Feather name="plus" size={18} color={ui.text} />
+            <Feather name="credit-card" size={18} color={ui.text} />
+          </Pressable>
+
+          <View
+            style={[
+              styles.viewPill,
+              {
+                borderColor: ui.border,
+                backgroundColor: isDark ? "#2A2D33" : "#D8D8DA",
+              },
+            ]}
+          >
+            <Feather name="grid" size={18} color={ui.text} />
+            <View
+              style={[styles.viewDivider, { backgroundColor: ui.border }]}
+            />
+            <Feather name="list" size={18} color={ui.text} />
+          </View>
+        </View>
+
+        <View
+          style={[
+            styles.searchWrap,
+            { borderColor: ui.border, backgroundColor: ui.surface2 },
+          ]}
+        >
+          <Feather name="search" size={18} color={ui.mutedText} />
+          <TextInput
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            placeholder="Search"
+            placeholderTextColor={ui.mutedText}
+            style={[styles.searchInput, { color: ui.text }]}
+          />
+          <Feather name="sliders" size={18} color={ui.mutedText} />
+        </View>
+
+        {filteredAccounts.length === 0 ? (
+          <View
+            style={[
+              styles.emptyState,
+              { borderColor: ui.border, backgroundColor: ui.surface2 },
+            ]}
+          >
+            <ThemedText style={{ color: ui.text }}>
+              {isLoading
+                ? "Loading..."
+                : "No accounts found. Tap + to add your first account."}
+            </ThemedText>
+          </View>
+        ) : (
+          filteredAccounts.map((item) => {
+            const isCredit =
+              (item.account_type ?? "").toLowerCase() === "credit";
+            const cardColor = isDark
+              ? isCredit
+                ? "#B24E4E"
+                : "#61202A"
+              : isCredit
+                ? "#D86666"
+                : "#701D26";
+
+            return (
+              <Pressable
+                key={item.id}
+                onPress={() => setEditingAccount(item)}
+                style={({ pressed }) => [
+                  styles.accountCard,
+                  { backgroundColor: cardColor, opacity: pressed ? 0.88 : 1 },
+                ]}
+              >
+                <ThemedText style={styles.cardTitle}>
+                  {item.account_name ?? "Unnamed account"}
+                </ThemedText>
+                <ThemedText style={styles.cardBalance}>
+                  {formatMoney(item.balance ?? 0)}
+                </ThemedText>
+                <View style={styles.cardMetaRow}>
+                  <ThemedText style={styles.cardMetaText}>
+                    {item.account_type
+                      ? item.account_type.charAt(0).toUpperCase() +
+                        item.account_type.slice(1)
+                      : "Account"}
+                  </ThemedText>
+                  <ThemedText style={styles.cardMetaText}>
+                    {formatCardDate(item.payment_duedate)}
+                  </ThemedText>
+                </View>
+                <ThemedText style={styles.cardSubText}>
+                  Available: {formatMoney(calculateAvailable(item))}
+                  {item.currency ? ` • ${item.currency}` : ""}
+                </ThemedText>
+              </Pressable>
+            );
+          })
+        )}
+      </ScrollView>
 
       <Pressable
         onPress={() => setCreateModalOpen(true)}
         style={({ pressed }) => [
           styles.fabCenter,
           {
-            backgroundColor: ui.text,
+            backgroundColor: ui.surface2,
             opacity: pressed ? 0.8 : 1,
             bottom: fabBottom,
+            borderColor: ui.border,
           },
         ]}
       >
-        <ThemedText style={{ color: ui.surface, fontSize: 20 }}>
-          Add Account
-        </ThemedText>
+        <Feather name="plus" size={34} color={ui.text} />
       </Pressable>
 
       <Modal
@@ -656,7 +911,7 @@ export default function AccountsScreen() {
                   styles.modalCard,
                   { backgroundColor: ui.surface2, borderColor: ui.border },
                 ]}
-                onPress={() => { }}
+                onPress={() => {}}
               >
                 <ThemedText type="defaultSemiBold">
                   Select account type
@@ -890,7 +1145,7 @@ export default function AccountsScreen() {
           </ScrollView>
         </ThemedView>
       </Modal>
-    </ThemedView >
+    </ThemedView>
   );
 }
 
@@ -904,6 +1159,179 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+  },
+  headerLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+  },
+  iconBtn: {
+    width: 30,
+    height: 30,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  headerTitle: {
+    fontSize: 40 / 2,
+    fontWeight: "600",
+    letterSpacing: 0.2,
+  },
+  balanceWrap: {
+    alignItems: "center",
+    marginTop: 6,
+    marginBottom: 4,
+  },
+  balanceLabel: {
+    fontSize: 17 / 2 + 2,
+    fontWeight: "500",
+    marginBottom: 4,
+  },
+  balanceValue: {
+    fontSize: 96 / 2,
+    lineHeight: 54,
+    fontWeight: "700",
+    letterSpacing: 0.2,
+  },
+  chartCard: {
+    borderWidth: 1,
+    borderRadius: 14,
+    paddingTop: 10,
+    paddingBottom: 10,
+    paddingHorizontal: 10,
+  },
+  chartRow: {
+    flexDirection: "row",
+    alignItems: "stretch",
+  },
+  yAxis: {
+    width: 36,
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    paddingVertical: 12,
+  },
+  yLabel: {
+    fontSize: 13,
+    fontWeight: "500",
+  },
+  chartArea: {
+    flex: 1,
+    height: 240,
+    position: "relative",
+    justifyContent: "center",
+  },
+  chartGuide: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    borderTopWidth: 1,
+    borderStyle: "dashed",
+    opacity: 0.7,
+  },
+  chartImage: {
+    width: "100%",
+    height: 214,
+    alignSelf: "center",
+  },
+  monthRow: {
+    marginTop: 6,
+    paddingHorizontal: 42,
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  monthLabel: {
+    fontSize: 15 / 1.8,
+    fontWeight: "500",
+  },
+  toolbarRow: {
+    marginTop: 8,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  smallActionBtn: {
+    height: 46,
+    minWidth: 82,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 8,
+  },
+  viewPill: {
+    height: 44,
+    borderRadius: 999,
+    borderWidth: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 14,
+    gap: 12,
+  },
+  viewDivider: {
+    width: StyleSheet.hairlineWidth,
+    height: 16,
+  },
+  searchWrap: {
+    marginTop: 6,
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    height: 52,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 32 / 2,
+    paddingVertical: 0,
+  },
+  emptyState: {
+    borderRadius: 16,
+    borderWidth: StyleSheet.hairlineWidth,
+    paddingHorizontal: 14,
+    paddingVertical: 16,
+    marginTop: 10,
+  },
+  accountCard: {
+    borderRadius: 20,
+    paddingVertical: 18,
+    paddingHorizontal: 18,
+    marginTop: 10,
+    shadowColor: "#000",
+    shadowOpacity: 0.16,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 4,
+  },
+  cardTitle: {
+    color: "#F6F6F6",
+    fontSize: 42 / 2,
+    fontWeight: "700",
+    marginBottom: 6,
+  },
+  cardBalance: {
+    color: "#FFFFFF",
+    fontSize: 58 / 2,
+    fontWeight: "700",
+    marginBottom: 6,
+  },
+  cardMetaRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  cardMetaText: {
+    color: "rgba(255,255,255,0.95)",
+    fontSize: 17,
+    fontWeight: "500",
+  },
+  cardSubText: {
+    color: "rgba(255,255,255,0.9)",
+    marginTop: 8,
+    fontSize: 14,
   },
   card: {
     padding: 12,
@@ -969,9 +1397,10 @@ const styles = StyleSheet.create({
   fabCenter: {
     position: "absolute",
     alignSelf: "center",
-    paddingHorizontal: 16,
-    height: 48,
-    borderRadius: 24,
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    borderWidth: 1,
     alignItems: "center",
     justifyContent: "center",
     shadowColor: "#000",

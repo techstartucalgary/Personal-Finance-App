@@ -80,7 +80,7 @@ export default function Login() {
         return;
       }
 
-      router.replace("/(tabs)");
+      router.replace("/(tabs)/accounts");
     } finally {
       setLoading(false);
     }
@@ -113,7 +113,7 @@ export default function Login() {
         return;
       }
 
-      router.replace("/(tabs)");
+      router.replace("/(tabs)/accounts");
     } catch (error: any) {
       if (error?.code === statusCodes.IN_PROGRESS) return;
       if (error?.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {

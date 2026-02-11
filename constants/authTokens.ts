@@ -1,24 +1,29 @@
 export const Tokens = {
   font: {
     family: "Avenir LT Std",
-    titleSize: 26,
-    buttonSize: 16,
-    bodySize: 16,
+    headingFamily: "Avenir LT Std",
+    inputFamily: "Nunito Sans",
+    titleSize: 34,
+    subtitleSize: 22,
+    buttonSize: 24,
+    bodySize: 18,
+    helperSize: 16,
     weightSemi: "600" as const,
     weightBold: "700" as const,
   },
   space: {
-    pageX: 28,
-    section: 18,
-    gap: 14,
+    pageX: 26,
+    section: 20,
+    gap: 16,
   },
   radius: {
     pill: 999,
-    card: 16,
+    card: 10,
   },
   size: {
-    logo: 310,
-    buttonH: 58,
+    logo: 280,
+    buttonH: 64,
+    inputH: 74,
   },
 };
 
@@ -39,15 +44,15 @@ export function getColors(scheme: "light" | "dark") {
   }
 
   return {
-    bg: "#F8F8FFFC",
-    text: "#020202",
-    muted: "rgba(2,2,2,0.65)",
+    bg: "#ECECF1",
+    text: "#222225",
+    muted: "#5C5C60",
     line: "#020202",
-    chipBorder: "rgba(2,2,2,0.28)",
-    inputBg: "rgba(255,255,255,0.75)",
-    danger: "#D64545",
+    chipBorder: "rgba(2,2,2,0.25)",
+    inputBg: "#D7D7D9",
+    danger: "#EF4444",
     primaryBtn: "#1F1F1F",
-    primaryText: "#FFFFFF",
-    surface: "#FFFFFF",
+    primaryText: "#F4F4F4",
+    surface: "#ECECF1",
   };
 }

@@ -1,78 +1,58 @@
 import { Tokens, getColors } from "@/constants/authTokens";
 import { useColorScheme } from "@/hooks/use-color-scheme";
+import { Feather } from "@expo/vector-icons";
 import React from "react";
 import {
-    Image,
-    Pressable,
-    StyleSheet,
-    Text,
-    TextInput,
-    View,
+  Pressable,
+  StyleSheet,
+  TextInput,
+  TextInputProps,
+  View,
 } from "react-native";
 
 type Props = {
-  label: string;
-  placeholder?: string;
   value: string;
   onChangeText: (t: string) => void;
+  placeholder: string;
   secureTextEntry?: boolean;
   showPasswordToggle?: boolean;
   onTogglePassword?: () => void;
-  keyboardType?: "default" | "email-address";
-  autoCapitalize?: "none" | "sentences" | "words" | "characters";
+  hasError?: boolean;
+  inputProps?: Omit<TextInputProps, "value" | "onChangeText" | "placeholder">;
 };
 
 export function InputField({
-  label,
-  placeholder,
   value,
   onChangeText,
-  secureTextEntry,
-  showPasswordToggle,
+  placeholder,
+  secureTextEntry = false,
+  showPasswordToggle = false,
   onTogglePassword,
-  keyboardType = "default",
-  autoCapitalize = "none",
+  hasError = false,
+  inputProps,
 }: Props) {
   const scheme = (useColorScheme() ?? "light") as "light" | "dark";
   const C = getColors(scheme);
 
   return (
-    <View style={styles.wrap}>
-      <View
-        style={[
-          styles.box,
-          { backgroundColor: "#EDEDED", borderColor: "rgba(2,2,2,0.25)" },
-        ]}
-      >
-        <Text style={[styles.label, { color: "rgba(2,2,2,0.70)" }]}>
-          {label}
-        </Text>
+    <View style={[styles.box, { backgroundColor: C.inputBg }, hasError ? styles.error : null]}>
+      <TextInput
+        value={value}
+        onChangeText={onChangeText}
+        placeholder={placeholder}
+        placeholderTextColor={C.muted}
+        secureTextEntry={secureTextEntry}
+        style={[styles.input, { color: C.text }, showPasswordToggle ? styles.inputWithIcon : null]}
+        selectionColor={C.primaryBtn}
+        underlineColorAndroid="transparent"
+        {...inputProps}
+      />
 
-        <TextInput
-          value={value}
-          onChangeText={onChangeText}
-          placeholder={placeholder}
-          placeholderTextColor={"rgba(2,2,2,0.35)"}
-          secureTextEntry={secureTextEntry}
-          keyboardType={keyboardType}
-          autoCapitalize={autoCapitalize}
-          style={[styles.input, { color: C.text }]}
-        />
-
-        {showPasswordToggle && (
-          <Pressable
-            onPress={onTogglePassword}
-            style={styles.eyeBtn}
-            hitSlop={10}
-          >
-            <Image
-              source={require("../../assets/images/logo.png")}
-              style={styles.eye}
-              resizeMode="contain"
-            />
-          </Pressable>
-        )}
-      </View>
+      {showPasswordToggle ? (
+        <Pressable onPress={onTogglePassword} style={styles.eyeButton} hitSlop={8}>
+          <Feather name={secureTextEntry ? "eye" : "eye-off"} size={20} color="#707070" />
+        </Pressable>
+      ) : null}
     </View>
   );
 }
@@ -80,41 +60,32 @@ export function InputField({
 const T = Tokens;
 
 const styles = StyleSheet.create({
-  wrap: { marginBottom: 14 },
-
   box: {
+    minHeight: T.size.inputH,
+    borderRadius: T.radius.card,
+    justifyContent: "center",
+    paddingHorizontal: 18,
     borderWidth: 1,
-    borderTopLeftRadius: 10,
-    borderTopRightRadius: 10,
-    borderBottomLeftRadius: 10,
-    borderBottomRightRadius: 10,
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 10,
+    borderColor: "transparent",
     position: "relative",
   },
-
-  label: {
-    fontFamily: T.font.family,
-    fontSize: 12,
-    marginBottom: 6,
+  error: {
+    borderColor: "#EF4444",
   },
-
   input: {
-    fontFamily: T.font.family,
-    fontSize: 16,
-    paddingVertical: 0,
-    paddingHorizontal: 0,
+    fontFamily: T.font.inputFamily,
+    fontSize: T.font.bodySize,
+    paddingVertical: 10,
   },
-
-  eyeBtn: {
+  inputWithIcon: {
+    paddingRight: 36,
+  },
+  eyeButton: {
     position: "absolute",
-    right: 14,
-    top: 18,
-    width: 34,
-    height: 34,
+    right: 12,
+    top: 0,
+    bottom: 0,
     alignItems: "center",
     justifyContent: "center",
   },
-  eye: { width: 20, height: 20 },
 });

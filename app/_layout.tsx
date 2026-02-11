@@ -28,7 +28,7 @@ function ProtectedLayout() {
     if (session && inAuthGroup) {
       router.replace("/(tabs)");
     } else if (!session && !inAuthGroup) {
-      router.replace("/(auth)/signup-social");
+      router.replace("/(auth)/onboarding-start");
     }
   }, [session, isLoading, segments, router]);
 
@@ -44,6 +44,7 @@ export default function RootLayout() {
   const [loaded] = useFonts({
     "Avenir LT Std": require("../assets/fonts/AvenirLTStd65Medium.otf"),
     "Avenir LT Std Bold": require("../assets/fonts/AvenirLTStd65Medium.otf"),
+    "Nunito Sans": require("../assets/fonts/NunitoSans-Regular.ttf"),
   });
   const colorScheme = useColorScheme() ?? "light";
 

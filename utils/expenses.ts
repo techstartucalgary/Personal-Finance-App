@@ -5,12 +5,10 @@ export type ExpenseInsert = {
   account_id: number;
   amount: number;
   description?: string | null;
-  is_recurring?: boolean | null;
-  reccurence_freq?: string | null;
-  next_occurence?: string | null;
-  end_date?: string | null;
+  recurring_rule_id?: number;
   expense_categoryid?: number | null;
   subcategory_id?: number | null;
+  transaction_date?: string;
 };
 
 export type ExpenseUpdate = Partial<Omit<ExpenseInsert, "profile_id">>;

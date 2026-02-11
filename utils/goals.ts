@@ -6,6 +6,7 @@ export type GoalInsert = {
   target_amount: number;
   current_amount?: number | null;
   target_date?: string | null;
+  linked_account?: number | null;
 };
 
 export type GoalUpdate = Partial<Omit<GoalInsert, "profile_id">>;

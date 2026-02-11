@@ -3,7 +3,8 @@ import { supabase } from "./supabase";
 
 export type BudgetInsert = {
   profile_id: string;
-  amount: number;
+  budget_name: string;
+  total_amount: number;
   start_date: string;
   end_date: string;
 };

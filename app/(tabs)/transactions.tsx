@@ -135,6 +135,7 @@ export default function HomeScreen() {
   const [amount, setAmount] = useState("");
   const [description, setDescription] = useState("");
   const [expenses, setExpenses] = useState<ExpenseRow[]>([]);
+  const [filterAccountId, setFilterAccountId] = useState<number | null>(null);
   const [editingExpense, setEditingExpense] = useState<ExpenseRow | null>(null);
   const [editAmount, setEditAmount] = useState("");
   const [editDescription, setEditDescription] = useState("");
@@ -794,6 +795,43 @@ export default function HomeScreen() {
           </Pressable>
         </View>
 
+        {/* Account filter chips */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ gap: 8, paddingVertical: 8 }}
+        >
+          <Pressable
+            onPress={() => setFilterAccountId(null)}
+            style={[styles.chip, {
+              backgroundColor: filterAccountId === null ? ui.text : ui.surface2,
+              borderColor: ui.border,
+            }]}
+          >
+            <ThemedText style={{
+              fontSize: 13,
+              fontWeight: "600",
+              color: filterAccountId === null ? ui.surface : ui.text,
+            }}>All</ThemedText>
+          </Pressable>
+          {accounts.map((acct) => (
+            <Pressable
+              key={acct.id}
+              onPress={() => setFilterAccountId(acct.id)}
+              style={[styles.chip, {
+                backgroundColor: filterAccountId === acct.id ? ui.text : ui.surface2,
+                borderColor: ui.border,
+              }]}
+            >
+              <ThemedText style={{
+                fontSize: 13,
+                fontWeight: "600",
+                color: filterAccountId === acct.id ? ui.surface : ui.text,
+              }}>{acct.account_name ?? "Account"}</ThemedText>
+            </Pressable>
+          ))}
+        </ScrollView>
+
         <View
           style={[
             styles.card,
@@ -801,12 +839,12 @@ export default function HomeScreen() {
           ]}
         >
           <ThemedText type="defaultSemiBold">Recent transactions</ThemedText>
-          {expenses.length === 0 ? (
+          {expenses.filter((e) => filterAccountId === null || e.account_id === filterAccountId).length === 0 ? (
             <ThemedText>
-              {isLoading ? "Loading…" : "No transactions yet."}
+              {isLoading ? "Loading…" : "No transactions found."}
             </ThemedText>
           ) : (
-            expenses.map((expense) => (
+            expenses.filter((e) => filterAccountId === null || e.account_id === filterAccountId).map((expense) => (
               <Pressable
                 key={expense.id}
                 onPress={() => setEditingExpense(expense)}
@@ -1012,7 +1050,7 @@ export default function HomeScreen() {
                   styles.modalCard,
                   { backgroundColor: ui.surface2, borderColor: ui.border },
                 ]}
-                onPress={() => {}}
+                onPress={() => { }}
               >
                 <ThemedText type="defaultSemiBold">
                   Select subcategory
@@ -1115,7 +1153,7 @@ export default function HomeScreen() {
                   styles.modalCard,
                   { backgroundColor: ui.surface2, borderColor: ui.border },
                 ]}
-                onPress={() => {}}
+                onPress={() => { }}
               >
                 <ThemedText type="defaultSemiBold">Select account</ThemedText>
 
@@ -1142,7 +1180,7 @@ export default function HomeScreen() {
                       <ThemedText type="default">
                         {account.account_type
                           ? account.account_type.charAt(0).toUpperCase() +
-                            account.account_type.slice(1)
+                          account.account_type.slice(1)
                           : "—"}{" "}
                         {account.currency ?? ""}
                       </ThemedText>
@@ -1179,7 +1217,7 @@ export default function HomeScreen() {
                   styles.modalCard,
                   { backgroundColor: ui.surface2, borderColor: ui.border },
                 ]}
-                onPress={() => {}}
+                onPress={() => { }}
               >
                 <ThemedText type="defaultSemiBold">Select category</ThemedText>
 
@@ -1268,7 +1306,7 @@ export default function HomeScreen() {
       <Modal
         visible={!!editingExpense}
         animationType="slide"
-        presentationStyle="fullScreen"
+        presentationStyle="pageSheet"
         onRequestClose={() => setEditingExpense(null)}
       >
         <ThemedView
@@ -1425,7 +1463,7 @@ export default function HomeScreen() {
                   styles.modalCard,
                   { backgroundColor: ui.surface2, borderColor: ui.border },
                 ]}
-                onPress={() => {}}
+                onPress={() => { }}
               >
                 <ThemedText type="defaultSemiBold">
                   Select subcategory
@@ -1528,7 +1566,7 @@ export default function HomeScreen() {
                   styles.modalCard,
                   { backgroundColor: ui.surface2, borderColor: ui.border },
                 ]}
-                onPress={() => {}}
+                onPress={() => { }}
               >
                 <ThemedText type="defaultSemiBold">Select account</ThemedText>
 
@@ -1555,7 +1593,7 @@ export default function HomeScreen() {
                       <ThemedText type="default">
                         {account.account_type
                           ? account.account_type.charAt(0).toUpperCase() +
-                            account.account_type.slice(1)
+                          account.account_type.slice(1)
                           : "—"}{" "}
                         {account.currency ?? ""}
                       </ThemedText>
@@ -1592,7 +1630,7 @@ export default function HomeScreen() {
                   styles.modalCard,
                   { backgroundColor: ui.surface2, borderColor: ui.border },
                 ]}
-                onPress={() => {}}
+                onPress={() => { }}
               >
                 <ThemedText type="defaultSemiBold">Select category</ThemedText>
 
@@ -1795,5 +1833,11 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     position: "absolute",
+  },
+  chip: {
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 20,
+    borderWidth: StyleSheet.hairlineWidth,
   },
 });

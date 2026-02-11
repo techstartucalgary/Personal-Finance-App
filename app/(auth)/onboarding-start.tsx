@@ -2,77 +2,186 @@ import { router } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import React from "react";
 import {
+  Animated,
   Image,
   KeyboardAvoidingView,
   Platform,
-  SafeAreaView,
   StyleSheet,
   Text,
   useWindowDimensions,
   View,
 } from "react-native";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 
 import { AuthButton } from "@/components/auth_buttons/auth-button";
-import { Tokens, getColors } from "@/constants/authTokens";
-import { useColorScheme } from "@/hooks/use-color-scheme";
+import { getColors, Tokens } from "@/constants/authTokens";
 
 export default function OnboardingStart() {
-  const scheme = (useColorScheme() ?? "light") as "light" | "dark";
-  const C = getColors(scheme);
+  const C = getColors("light");
   const { height, width } = useWindowDimensions();
+  const scrollX = React.useRef(new Animated.Value(0)).current;
+  const insets = useSafeAreaInsets();
 
-  const compact = height < 760;
-  const topPadding = compact ? 12 : 20;
-  const heroSize = Math.max(compact ? 180 : 220, Math.min(width - 56, height * (compact ? 0.3 : 0.36)));
-  const heroGap = compact ? 12 : 20;
-  const textGap = compact ? 12 : 18;
-  const bottomPad = compact ? 16 : 24;
+  const compact = height < 760 || width < 370;
+  const horizontalPad = compact ? 20 : 26;
+  const topPadding = (compact ? 0 : 4) + insets.top;
+  const bottomPad = 0;
+  const cardWidth = width - horizontalPad * 2;
+  const sectionHeight = compact ? 138 : 156;
+  const textGap = compact ? 6 : 10;
+  const buttonHeight = compact ? 48 : 50;
+  const dotsGap = compact ? -6 : -8;
+  const actionsGap = compact ? 6 : 8;
+
+  const heroMin = compact ? 140 : 170;
+  const heroMax = compact ? 220 : 280;
+  const reserved =
+    topPadding +
+    bottomPad +
+    (compact ? 44 : 50) +
+    textGap +
+    sectionHeight +
+    dotsGap +
+    8 +
+    actionsGap +
+    (buttonHeight * 2 + 10);
+  const available = height - reserved;
+  const heroSize = Math.min(
+    width - horizontalPad * 2,
+    heroMax,
+    Math.max(heroMin, available),
+  );
+
+  const slides = [
+    {
+      title: "See Every Dollar Clearly",
+      body: "Sterling gives you one place to track spending, balances, and monthly cash flow without the clutter.",
+    },
+    {
+      title: "Build Smarter Budgets",
+      body: "Set practical category budgets, spot overspending early, and adjust your plan before the month gets away from you.",
+    },
+    {
+      title: "Stay Focused on Goals",
+      body: "Turn your financial targets into progress you can see so saving for short and long term goals feels simple and consistent.",
+    },
+  ];
 
   return (
     <SafeAreaView style={[styles.screen, { backgroundColor: C.bg }]}>
-      <StatusBar style={scheme === "dark" ? "light" : "dark"} />
+      <StatusBar style="dark" />
       <KeyboardAvoidingView
         style={styles.screen}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
-        <View style={[styles.main, { paddingTop: topPadding, paddingBottom: bottomPad }]}>
-        <Text style={[styles.brandTitle, { color: C.text }]}>Sterling</Text>
+        <View
+          style={[
+            styles.main,
+            {
+              paddingTop: topPadding,
+              paddingBottom: bottomPad,
+              paddingHorizontal: horizontalPad,
+            },
+          ]}
+        >
+          <Text style={[styles.brandTitle, { color: "#000000" }]}>
+            Sterling
+          </Text>
 
-        <View style={[styles.heroBox, { height: heroSize }]}>
-          <Image
-            source={require("../../assets/images/logo.png")}
-            style={styles.heroImage}
-            resizeMode="contain"
-          />
+          <View style={[styles.heroBox, { height: heroSize }]}>
+            <Image
+              source={require("../../assets/images/logo.png")}
+              style={styles.heroImage}
+              resizeMode="contain"
+            />
+          </View>
+
+          <View style={{ height: textGap }} />
+
+          <View style={[styles.infoSection, { height: sectionHeight }]}>
+            <Animated.ScrollView
+              horizontal
+              pagingEnabled
+              snapToInterval={cardWidth}
+              decelerationRate="fast"
+              showsHorizontalScrollIndicator={false}
+              onScroll={Animated.event(
+                [{ nativeEvent: { contentOffset: { x: scrollX } } }],
+                { useNativeDriver: false },
+              )}
+              scrollEventThrottle={16}
+              contentContainerStyle={styles.slideTrack}
+            >
+              {slides.map((slide) => (
+                <View
+                  key={slide.title}
+                  style={[styles.slide, { width: cardWidth }]}
+                >
+                  <Text style={[styles.heading, { color: "#000000" }]}>
+                    {slide.title}
+                  </Text>
+                  <Text style={[styles.copy, { color: C.muted }]}>
+                    {slide.body}
+                  </Text>
+                </View>
+              ))}
+            </Animated.ScrollView>
+
+            <View style={[styles.pager, { marginTop: dotsGap }]}>
+              {slides.map((slide, index) => {
+                const inputRange = slides.map((_, idx) => idx * cardWidth);
+                const widthRange = inputRange.map((_, idx) =>
+                  idx === index ? 18 : 8,
+                );
+                const opacityRange = inputRange.map((_, idx) =>
+                  idx === index ? 1 : 0.3,
+                );
+
+                return (
+                  <Animated.View
+                    key={slide.title}
+                    style={[
+                      styles.dot,
+                      {
+                        backgroundColor: C.text,
+                        width: scrollX.interpolate({
+                          inputRange,
+                          outputRange: widthRange,
+                          extrapolate: "clamp",
+                        }),
+                        opacity: scrollX.interpolate({
+                          inputRange,
+                          outputRange: opacityRange,
+                          extrapolate: "clamp",
+                        }),
+                      },
+                    ]}
+                  />
+                );
+              })}
+            </View>
+          </View>
+
+          <View style={[styles.actions, { paddingTop: actionsGap }]}>
+            <AuthButton
+              label="Sign Up"
+              variant="outline"
+              style={{ height: buttonHeight }}
+              labelStyle={styles.actionLabel}
+              onPress={() => router.push("/(auth)/signup")}
+            />
+            <AuthButton
+              label="Log In"
+              variant="primary"
+              style={{ height: buttonHeight }}
+              labelStyle={styles.actionLabel}
+              onPress={() => router.push("/(auth)/login")}
+            />
+          </View>
         </View>
-
-        <View style={{ height: heroGap }} />
-
-        <Text style={[styles.heading, { color: C.text }]}>Heading</Text>
-        <Text style={[styles.copy, { color: C.text }]}>
-          Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod
-          tempor incididunt ut labore et dolore magna aliqua.
-        </Text>
-
-        <View style={[styles.pager, { marginTop: textGap }]}>
-          <View style={[styles.dot, styles.dotActive]} />
-          <View style={styles.dot} />
-          <View style={styles.dot} />
-        </View>
-
-        <View style={styles.actions}>
-          <AuthButton
-            label="Sign Up"
-            variant="outline"
-            onPress={() => router.push("/(auth)/signup")}
-          />
-          <AuthButton
-            label="Log In"
-            variant="primary"
-            onPress={() => router.push("/(auth)/login")}
-          />
-        </View>
-      </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -84,73 +193,79 @@ const styles = StyleSheet.create({
   screen: { flex: 1 },
 
   main: {
-    flexGrow: 1,
-    paddingHorizontal: T.space.pageX,
+    flex: 1,
   },
 
   brandTitle: {
-    fontFamily: T.font.family,
-    fontSize: T.font.titleSize,
-    fontWeight: T.font.weightBold,
+    fontFamily: T.font.boldFamily ?? T.font.headingFamily,
+    fontSize: 33,
+    letterSpacing: -0.2,
     textAlign: "center",
-    marginBottom: 26,
+    marginTop: -2,
+    marginBottom: 8,
   },
 
   heroBox: {
     width: "100%",
-    borderWidth: 1,
-    borderColor: "rgba(2,2,2,0.65)",
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 30,
-    backgroundColor: "rgba(0,0,0,0.02)",
+    marginBottom: 6,
   },
 
   heroImage: {
-    width: "85%",
-    height: "85%",
+    width: "82%",
+    height: "82%",
+  },
+
+  infoSection: {
+    justifyContent: "flex-start",
+  },
+
+  slideTrack: {
+    alignItems: "flex-start",
+  },
+
+  slide: {
+    alignItems: "center",
+    justifyContent: "flex-start",
+    paddingHorizontal: 2,
   },
 
   heading: {
-    fontFamily: T.font.family,
-    fontSize: T.font.subtitleSize,
-    fontWeight: T.font.weightBold,
+    fontFamily: T.font.boldFamily ?? T.font.headingFamily,
+    fontSize: 22,
+    letterSpacing: -0.6,
     textAlign: "center",
-    marginBottom: 12,
+    marginBottom: 10,
   },
 
   copy: {
-    fontFamily: T.font.inputFamily,
-    fontSize: T.font.bodySize,
-    lineHeight: 24,
+    fontFamily: T.font.family,
+    fontSize: 15.5,
+    lineHeight: 23,
     textAlign: "center",
-    color: "rgba(2,2,2,0.9)",
-    paddingHorizontal: 10,
+    paddingHorizontal: 6,
   },
 
   pager: {
     flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",
-    gap: 10,
-    marginBottom: 26,
+    gap: 8,
   },
 
   dot: {
-    width: 42,
-    height: 12,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: "#1F1F1F",
-    backgroundColor: "transparent",
-  },
-
-  dotActive: {
-    backgroundColor: "#1F1F1F",
+    height: 8,
+    borderRadius: 999,
   },
 
   actions: {
-    gap: 14,
+    gap: 10,
     marginTop: "auto",
+  },
+
+  actionLabel: {
+    fontSize: 18,
+    letterSpacing: 0.5,
   },
 });

@@ -1,8 +1,11 @@
 export const Tokens = {
   font: {
-    family: "Avenir LT Std",
-    headingFamily: "Avenir LT Std",
-    inputFamily: "Nunito Sans",
+    family: "Avenir LT Std 55 Roman",
+    headingFamily: "Avenir LT Std 95 Black",
+    inputFamily: "Avenir LT Std 55 Roman",
+    semiFamily: "Avenir LT Std 65 Medium",
+    boldFamily: "Avenir LT Std 85 Heavy",
+    obliqueFamily: "Avenir LT Std 55 Oblique",
     titleSize: 34,
     subtitleSize: 22,
     buttonSize: 24,

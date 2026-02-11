@@ -32,9 +32,8 @@ const styles = StyleSheet.create({
     borderRadius: 2,
   },
   text: {
-    fontFamily: T.font.family,
+    fontFamily: T.font.boldFamily ?? T.font.headingFamily ?? T.font.family,
     fontSize: 16,
-    fontWeight: T.font.weightBold,
     letterSpacing: 1.2,
   },
 });

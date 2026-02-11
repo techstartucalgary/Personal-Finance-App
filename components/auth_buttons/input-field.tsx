@@ -7,6 +7,8 @@ import {
   StyleSheet,
   TextInput,
   TextInputProps,
+  TextStyle,
+  ViewStyle,
   View,
 } from "react-native";
 
@@ -19,6 +21,9 @@ type Props = {
   onTogglePassword?: () => void;
   hasError?: boolean;
   inputProps?: Omit<TextInputProps, "value" | "onChangeText" | "placeholder">;
+  inputStyle?: TextStyle;
+  containerStyle?: ViewStyle;
+  forceScheme?: "light" | "dark";
 };
 
 export function InputField({
@@ -30,19 +35,34 @@ export function InputField({
   onTogglePassword,
   hasError = false,
   inputProps,
+  inputStyle,
+  containerStyle,
+  forceScheme,
 }: Props) {
-  const scheme = (useColorScheme() ?? "light") as "light" | "dark";
+  const scheme = (forceScheme ?? useColorScheme() ?? "light") as "light" | "dark";
   const C = getColors(scheme);
 
   return (
-    <View style={[styles.box, { backgroundColor: C.inputBg }, hasError ? styles.error : null]}>
+    <View
+      style={[
+        styles.box,
+        { backgroundColor: C.inputBg },
+        hasError ? styles.error : null,
+        containerStyle,
+      ]}
+    >
       <TextInput
         value={value}
         onChangeText={onChangeText}
         placeholder={placeholder}
         placeholderTextColor={C.muted}
         secureTextEntry={secureTextEntry}
-        style={[styles.input, { color: C.text }, showPasswordToggle ? styles.inputWithIcon : null]}
+        style={[
+          styles.input,
+          { color: C.text },
+          showPasswordToggle ? styles.inputWithIcon : null,
+          inputStyle,
+        ]}
         selectionColor={C.primaryBtn}
         underlineColorAndroid="transparent"
         {...inputProps}

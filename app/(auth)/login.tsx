@@ -206,7 +206,11 @@ export default function Login() {
                 />
               </Pressable>
               <Pressable style={styles.socialIconBtn} hitSlop={8}>
-                <Ionicons name="infinite" size={40} color="#1D74E7" />
+                <Image
+                  source={require("../../assets/images/apple.png")}
+                  style={styles.socialIconImage}
+                  resizeMode="contain"
+                />
               </Pressable>
             </View>
           </View>
@@ -243,13 +247,11 @@ const styles = StyleSheet.create({
   },
   title: {
     fontFamily: T.font.headingFamily,
-    fontWeight: T.font.weightBold,
     lineHeight: 42,
   },
   errorText: {
-    fontFamily: T.font.inputFamily,
+    fontFamily: T.font.obliqueFamily ?? T.font.inputFamily,
     fontSize: T.font.bodySize - 1,
-    fontStyle: "italic",
     marginBottom: 10,
   },
   form: {
@@ -267,10 +269,9 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   helperText: {
-    fontFamily: T.font.inputFamily,
+    fontFamily: T.font.obliqueFamily ?? T.font.inputFamily,
     fontSize: T.font.helperSize,
     letterSpacing: 0.7,
-    fontStyle: "italic",
   },
   socialBlock: {},
   dividerRow: {
@@ -316,8 +317,7 @@ const styles = StyleSheet.create({
     fontSize: T.font.bodySize,
   },
   footerLink: {
-    fontFamily: T.font.inputFamily,
+    fontFamily: T.font.semiFamily ?? T.font.inputFamily,
     fontSize: T.font.bodySize,
-    fontWeight: "600",
   },
 });

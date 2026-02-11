@@ -1,29 +1,28 @@
 import { AuthButton } from "@/components/auth_buttons/auth-button";
 import { InputField } from "@/components/auth_buttons/input-field";
 import { Tokens, getColors } from "@/constants/authTokens";
-import { useColorScheme } from "@/hooks/use-color-scheme";
 import { supabase } from "@/utils/supabase";
 import { Ionicons } from "@expo/vector-icons";
 import { Link, router } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import React, { useMemo, useState } from "react";
+import React, { useState } from "react";
 import {
   Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
-  SafeAreaView,
   StyleSheet,
   Text,
   useWindowDimensions,
   View,
 } from "react-native";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { Button, Dialog, Text as PaperText, Portal } from "react-native-paper";
 
 export default function SignUp() {
-  const scheme = (useColorScheme() ?? "light") as "light" | "dark";
-  const C = getColors(scheme);
+  const C = getColors("light");
   const { height } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -37,19 +36,15 @@ export default function SignUp() {
   const [dialogTitle, setDialogTitle] = useState("Notice");
   const [dialogMessage, setDialogMessage] = useState("");
 
-  const S = useMemo(() => {
-    const compact = height < 760;
-    return {
-      topGap: compact ? 8 : 12,
-      heroHeight: compact ? 132 : 176,
-      titleTop: compact ? 12 : 20,
-      titleBottom: compact ? 12 : 16,
-      formGap: compact ? 10 : 14,
-      signTop: compact ? 14 : 20,
-      socialTop: compact ? 14 : 22,
-      footerMin: compact ? 16 : 56,
-    };
-  }, [height]);
+  const compact = height < 760;
+  const horizontalPad = compact ? 20 : 26;
+  const topPadding = (compact ? 0 : 4) + insets.top;
+  const bottomPad = 0;
+  const titleBottom = compact ? 12 : 16;
+  const formGap = compact ? 8 : 10;
+  const signTop = compact ? 14 : 18;
+  const socialTop = compact ? 18 : 22;
+  const footerMin = compact ? 24 : 40;
 
   const showDialog = (title: string, message: string) => {
     setDialogTitle(title);
@@ -103,86 +98,117 @@ export default function SignUp() {
 
   return (
     <SafeAreaView style={[styles.screen, { backgroundColor: C.bg }]}>
-      <StatusBar style={scheme === "dark" ? "light" : "dark"} />
-      <KeyboardAvoidingView
-        style={styles.screen}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-      >
-        <View style={[styles.container, { paddingTop: S.topGap }]}>
-          <View style={styles.topBar}>
+      <StatusBar style="dark" />
+      <View style={styles.screen}>
+        <View
+          style={[
+            styles.container,
+            {
+              paddingTop: topPadding,
+              paddingBottom: bottomPad,
+              paddingHorizontal: horizontalPad,
+            },
+          ]}
+        >
+          <View
+            style={[
+              styles.backBtnWrap,
+              { top: topPadding - 4, left: horizontalPad - 2 },
+            ]}
+          >
             <Pressable onPress={() => router.back()} style={styles.backBtn} hitSlop={10}>
               <Ionicons name="arrow-back" size={24} color={C.text} />
             </Pressable>
           </View>
 
-          <View style={[styles.hero, { height: S.heroHeight }]}>
-            <Image
-              source={require("../../assets/images/logo.png")}
-              style={styles.heroImage}
-              resizeMode="contain"
-            />
-          </View>
+          <Text style={[styles.brandTitle, { color: "#000000" }]}>Sterling</Text>
 
-          <Text style={[styles.title, { color: C.text, marginTop: S.titleTop, marginBottom: S.titleBottom }]}>
-            Create your account
-          </Text>
-
-          <View style={[styles.form, { gap: S.formGap }]}>
-            <InputField value={name} onChangeText={setName} placeholder="Name" />
-            <InputField
-              value={email}
-              onChangeText={setEmail}
-              placeholder="Email"
-              inputProps={{ keyboardType: "email-address", autoCapitalize: "none" }}
-            />
-            <InputField
-              value={password}
-              onChangeText={setPassword}
-              placeholder="Password"
-              secureTextEntry={!showPassword}
-              showPasswordToggle
-              onTogglePassword={() => setShowPassword((v) => !v)}
-            />
-            <InputField
-              value={confirmPassword}
-              onChangeText={setConfirmPassword}
-              placeholder="Confirm Password"
-              secureTextEntry={!showConfirm}
-              showPasswordToggle
-              onTogglePassword={() => setShowConfirm((v) => !v)}
-            />
-          </View>
-
-          <AuthButton
-            label={loading ? "Creating..." : "Sign Up"}
-            variant="primary"
-            onPress={handleSignUp}
-            disabled={loading}
-            style={[styles.signUpBtn, { marginTop: S.signTop }]}
-          />
-
-          <View style={[styles.socialBlock, { marginTop: S.socialTop }]}>
-            <View style={styles.dividerRow}>
-              <View style={[styles.line, { backgroundColor: C.line }]} />
-              <Text style={[styles.orText, { color: C.text }]}>Or Continue With</Text>
-              <View style={[styles.line, { backgroundColor: C.line }]} />
+          <KeyboardAvoidingView
+            style={styles.formSection}
+            behavior={Platform.OS === "ios" ? "padding" : undefined}
+            keyboardVerticalOffset={topPadding + 12}
+          >
+            <Text style={[styles.title, { color: "#000000", marginBottom: titleBottom }]}>
+              Let's get you set up
+            </Text>
+            <View style={[styles.form, { gap: formGap }]}>
+              <InputField
+                value={name}
+                onChangeText={setName}
+                placeholder="Name"
+                forceScheme="light"
+                inputStyle={styles.inputText}
+                containerStyle={styles.inputBox}
+              />
+              <InputField
+                value={email}
+                onChangeText={setEmail}
+                placeholder="Email"
+                inputProps={{ keyboardType: "email-address", autoCapitalize: "none" }}
+                forceScheme="light"
+                inputStyle={styles.inputText}
+                containerStyle={styles.inputBox}
+              />
+              <InputField
+                value={password}
+                onChangeText={setPassword}
+                placeholder="Password"
+                secureTextEntry={!showPassword}
+                showPasswordToggle
+                onTogglePassword={() => setShowPassword((v) => !v)}
+                forceScheme="light"
+                inputStyle={styles.inputText}
+                containerStyle={styles.inputBox}
+              />
+              <InputField
+                value={confirmPassword}
+                onChangeText={setConfirmPassword}
+                placeholder="Confirm Password"
+                secureTextEntry={!showConfirm}
+                showPasswordToggle
+                onTogglePassword={() => setShowConfirm((v) => !v)}
+                forceScheme="light"
+                inputStyle={styles.inputText}
+                containerStyle={styles.inputBox}
+              />
             </View>
 
-            <View style={styles.socialRow}>
-              <Pressable style={styles.socialIconBtn} hitSlop={8}>
-                <Image
-                  source={require("../../assets/images/google.png")}
-                  style={styles.socialIconImage}
-                  resizeMode="contain"
-                />
-              </Pressable>
-              <Pressable style={styles.socialIconBtn} hitSlop={8}>
-                <Ionicons name="infinite" size={40} color="#1D74E7" />
-              </Pressable>
-            </View>
-          </View>
+            <AuthButton
+              label={loading ? "Creating..." : "Sign Up"}
+              variant="primary"
+              onPress={handleSignUp}
+              disabled={loading}
+              style={[styles.signUpBtn, { marginTop: signTop }]}
+              labelStyle={styles.actionLabel}
+            />
 
-          <View style={[styles.footerSpacer, { minHeight: S.footerMin }]} />
+            <View style={[styles.socialBlock, { marginTop: socialTop }]}>
+              <View style={styles.dividerRow}>
+                <View style={[styles.line, { backgroundColor: C.line }]} />
+                <Text style={[styles.orText, { color: C.text }]}>Or Continue With</Text>
+                <View style={[styles.line, { backgroundColor: C.line }]} />
+              </View>
+
+              <View style={styles.socialRow}>
+                <Pressable style={styles.socialIconBtn} hitSlop={8}>
+                  <Image
+                    source={require("../../assets/images/google.png")}
+                    style={styles.socialIconImage}
+                    resizeMode="contain"
+                  />
+                </Pressable>
+                <Pressable style={styles.socialIconBtn} hitSlop={8}>
+                  <Image
+                    source={require("../../assets/images/apple.png")}
+                    style={styles.socialIconImage}
+                    resizeMode="contain"
+                  />
+                </Pressable>
+              </View>
+            </View>
+          </KeyboardAvoidingView>
+
+          <View style={[styles.footerSpacer, { minHeight: footerMin }]} />
           <View style={styles.footerRow}>
             <Text style={[styles.footerText, { color: C.text }]}>Already have an account? </Text>
             <Link href="/(auth)/login" style={[styles.footerLink, { color: C.text }]}>
@@ -190,7 +216,7 @@ export default function SignUp() {
             </Link>
           </View>
         </View>
-      </KeyboardAvoidingView>
+      </View>
 
       <Portal>
         <Dialog visible={dialogVisible} onDismiss={() => setDialogVisible(false)}>
@@ -213,42 +239,54 @@ const styles = StyleSheet.create({
   screen: { flex: 1 },
   container: {
     flex: 1,
-    paddingHorizontal: T.space.pageX,
-    paddingBottom: 20,
   },
-  topBar: {
-    paddingBottom: 8,
+  backBtnWrap: {
+    position: "absolute",
+    zIndex: 1,
   },
   backBtn: {
     width: 30,
     height: 30,
     justifyContent: "center",
   },
-  hero: {
-    height: 176,
-    borderColor: "rgba(2,2,2,0.65)",
-    borderWidth: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "rgba(0,0,0,0.02)",
-    marginTop: 4,
-  },
-  heroImage: {
-    width: "78%",
-    height: "78%",
+  brandTitle: {
+    fontFamily: T.font.boldFamily ?? T.font.headingFamily,
+    fontSize: 33,
+    letterSpacing: -0.2,
+    textAlign: "center",
+    marginTop: -2,
+    marginBottom: 8,
   },
   title: {
-    marginTop: 20,
-    marginBottom: 16,
-    fontFamily: T.font.headingFamily,
-    fontSize: T.font.titleSize - 2,
-    fontWeight: T.font.weightBold,
+    fontFamily: T.font.boldFamily ?? T.font.headingFamily,
+    fontSize: 24,
+    letterSpacing: -0.6,
+    textAlign: "left",
+    lineHeight: 30,
+  },
+  inputBox: {
+    backgroundColor: "#E1E1E1",
+    minHeight: 56,
+  },
+  inputText: {
+    fontFamily: T.font.family,
+    fontSize: 15.5,
+    paddingVertical: 8,
   },
   form: {
     gap: 14,
   },
+  formSection: {
+    flex: 1,
+    justifyContent: "center",
+  },
   signUpBtn: {
     marginTop: 20,
+    height: 50,
+  },
+  actionLabel: {
+    fontSize: 18,
+    letterSpacing: 0.5,
   },
   socialBlock: {
     marginTop: 22,
@@ -265,8 +303,8 @@ const styles = StyleSheet.create({
   },
   orText: {
     marginHorizontal: 12,
-    fontFamily: T.font.inputFamily,
-    fontSize: T.font.bodySize,
+    fontFamily: T.font.family,
+    fontSize: 15.5,
   },
   socialRow: {
     marginTop: 14,
@@ -286,7 +324,6 @@ const styles = StyleSheet.create({
     height: 36,
   },
   footerSpacer: {
-    flex: 1,
     minHeight: 56,
   },
   footerRow: {
@@ -294,12 +331,11 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   footerText: {
-    fontFamily: T.font.inputFamily,
-    fontSize: T.font.bodySize,
+    fontFamily: T.font.family,
+    fontSize: 15.5,
   },
   footerLink: {
-    fontFamily: T.font.inputFamily,
-    fontSize: T.font.bodySize,
-    fontWeight: "600",
+    fontFamily: T.font.semiFamily ?? T.font.family,
+    fontSize: 15.5,
   },
 });

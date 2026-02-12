@@ -125,8 +125,8 @@ export async function getCategorySpending(params: {
         .select("amount")
         .eq("profile_id", profile_id)
         .eq("expense_categoryid", expense_category_id)
-        .gte("created_at", start_date)
-        .lte("created_at", end_date + "T23:59:59.999Z");
+        .gte("transaction_date", start_date)
+        .lte("transaction_date", end_date + "T23:59:59.999Z");
 
     if (error) throw error;
 

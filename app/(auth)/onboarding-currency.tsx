@@ -1,12 +1,10 @@
 import { AuthButton } from "@/components/auth_buttons/auth-button";
 import { Tokens, getColors } from "@/constants/authTokens";
 import { Feather } from "@expo/vector-icons";
-import { Picker } from "@react-native-picker/picker";
 import { router, useLocalSearchParams } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import React, { useMemo, useState } from "react";
 import {
-  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -37,6 +35,7 @@ export default function OnboardingCurrency() {
   );
 
   const [currency, setCurrency] = useState<CurrencyOption["value"]>("CAD");
+  const [open, setOpen] = useState(false);
   const params = useLocalSearchParams<{ needsEmailConfirm?: string }>();
 
   const selectedLabel =
@@ -112,27 +111,55 @@ export default function OnboardingCurrency() {
           </Text>
 
           <View style={[styles.selectWrap, { borderColor: C.chipBorder }]}>
-            <View style={styles.selectInner}>
+            <Pressable
+              onPress={() => setOpen((prev) => !prev)}
+              style={({ pressed }) => [
+                styles.selectInner,
+                pressed && styles.pressed,
+              ]}
+            >
               <Text style={[styles.selectLabel, { color: C.text }]}>
                 {selectedLabel}
               </Text>
-
-              <Picker
-                selectedValue={currency}
-                onValueChange={(v) => setCurrency(v as CurrencyOption["value"])}
-                style={styles.picker}
-                dropdownIconColor={C.text}
-                mode="dropdown"
+              <View
+                style={[
+                  styles.chevron,
+                  open ? styles.chevronOpen : null,
+                ]}
               >
-                {options.map((o) => (
-                  <Picker.Item key={o.value} label={o.label} value={o.value} />
-                ))}
-              </Picker>
-
-              <View style={styles.chevron}>
                 <Feather name="chevron-down" size={18} color={C.text} />
               </View>
-            </View>
+            </Pressable>
+
+            {open ? (
+              <View style={[styles.optionList, { borderColor: C.chipBorder }]}>
+                {options.map((o, index) => {
+                  const selected = currency === o.value;
+                  return (
+                    <Pressable
+                      key={o.value}
+                      onPress={() => {
+                        setCurrency(o.value);
+                        setOpen(false);
+                      }}
+                      style={({ pressed }) => [
+                        styles.optionRow,
+                        index === options.length - 1 ? styles.optionRowLast : null,
+                        selected ? styles.optionRowSelected : null,
+                        pressed && styles.pressed,
+                      ]}
+                    >
+                      <Text style={[styles.optionText, { color: C.text }]}>
+                        {o.label}
+                      </Text>
+                      {selected ? (
+                        <Feather name="check" size={16} color={C.text} />
+                      ) : null}
+                    </Pressable>
+                  );
+                })}
+              </View>
+            ) : null}
           </View>
 
           <View style={[styles.bottom, { paddingTop: buttonTop }]}>
@@ -265,15 +292,6 @@ const styles = StyleSheet.create({
     opacity: 0.78,
   },
 
-  picker: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    top: 0,
-    bottom: 0,
-    opacity: Platform.OS === "android" ? 0.02 : 0.01,
-  },
-
   chevron: {
     position: "absolute",
     right: 12,
@@ -282,6 +300,34 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     opacity: 0.9,
     pointerEvents: "none",
+  },
+  chevronOpen: {
+    transform: [{ rotate: "180deg" }],
+  },
+
+  optionList: {
+    borderTopWidth: 1,
+    borderColor: "rgba(0,0,0,0.12)",
+    backgroundColor: "#EFEFF1",
+  },
+  optionRow: {
+    minHeight: 48,
+    paddingHorizontal: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(0,0,0,0.08)",
+  },
+  optionRowLast: {
+    borderBottomWidth: 0,
+  },
+  optionRowSelected: {
+    backgroundColor: "#E5E5E8",
+  },
+  optionText: {
+    fontFamily: T.font.family,
+    fontSize: 14.5,
   },
 
   bottom: {

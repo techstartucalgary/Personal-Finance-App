@@ -203,7 +203,7 @@ export default function OnboardingProfile() {
               <TextInput
                 value={preferredName}
                 onChangeText={setPreferredName}
-                placeholder="e.g., Aun"
+                placeholder="e.g., Johnny"
                 placeholderTextColor="rgba(17,17,17,0.45)"
                 style={styles.input}
                 returnKeyType="next"
@@ -215,7 +215,7 @@ export default function OnboardingProfile() {
               <TextInput
                 value={username}
                 onChangeText={(v) => setUsername(v)}
-                placeholder="e.g., aun_raza"
+                placeholder="e.g., JohnD300"
                 placeholderTextColor="rgba(17,17,17,0.45)"
                 style={styles.input}
                 autoCapitalize="none"

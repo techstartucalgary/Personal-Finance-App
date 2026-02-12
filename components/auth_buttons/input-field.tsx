@@ -1,6 +1,6 @@
 import { Tokens, getColors } from "@/constants/authTokens";
 import { useColorScheme } from "@/hooks/use-color-scheme";
-import { Feather } from "@expo/vector-icons";
+import { Ionicons } from "@expo/vector-icons";
 import React from "react";
 import {
   Pressable,
@@ -70,7 +70,7 @@ export function InputField({
 
       {showPasswordToggle ? (
         <Pressable onPress={onTogglePassword} style={styles.eyeButton} hitSlop={8}>
-          <Feather name={secureTextEntry ? "eye" : "eye-off"} size={20} color="#707070" />
+          <Ionicons name={secureTextEntry ? "eye" : "eye-off"} size={20} color="#707070" />
         </Pressable>
       ) : null}
     </View>

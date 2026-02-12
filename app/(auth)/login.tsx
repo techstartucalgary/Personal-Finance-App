@@ -2,7 +2,7 @@ import { AuthButton } from "@/components/auth_buttons/auth-button";
 import { InputField } from "@/components/auth_buttons/input-field";
 import { Tokens, getColors } from "@/constants/authTokens";
 import { supabase } from "@/utils/supabase";
-import { Feather, Ionicons } from "@expo/vector-icons";
+import { Ionicons } from "@expo/vector-icons";
 import { Link, router } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import React, { useEffect, useState } from "react";
@@ -11,6 +11,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   useWindowDimensions,
@@ -27,9 +28,12 @@ export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [rememberMe, setRememberMe] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [authError, setAuthError] = useState("");
+  const [errors, setErrors] = useState<{
+    email?: string;
+    password?: string;
+  }>({});
+  const [formError, setFormError] = useState("");
 
   useEffect(() => {
     configureGoogleOnce();
@@ -48,12 +52,22 @@ export default function Login() {
 
   async function handleLogin() {
     if (loading) return;
-    setAuthError("");
+    setFormError("");
 
-    if (!email.trim() || !password.trim()) {
-      setAuthError("We do not recognize the email or password");
-      return;
+    const nextErrors: typeof errors = {};
+    const emailValue = email.trim();
+    const passwordValue = password.trim();
+    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    if (!emailValue) {
+      nextErrors.email = "Please enter your email.";
+    } else if (!emailPattern.test(emailValue)) {
+      nextErrors.email = "Please enter a valid email address.";
     }
+    if (!passwordValue) nextErrors.password = "Please enter your password.";
+
+    setErrors(nextErrors);
+    if (Object.keys(nextErrors).length > 0) return;
 
     setLoading(true);
     try {
@@ -63,7 +77,10 @@ export default function Login() {
       });
 
       if (error) {
-        setAuthError("We do not recognize the email or password");
+        setErrors({
+          email: "Email or password is incorrect.",
+          password: "Email or password is incorrect.",
+        });
         return;
       }
 
@@ -76,7 +93,7 @@ export default function Login() {
   async function handleGoogle() {
     const result = await signInWithGoogle();
     if (!result.ok) {
-      setAuthError(result.message ?? "Google sign-in failed");
+      setFormError(result.message ?? "Google sign-in failed");
       return;
     }
 
@@ -115,54 +132,66 @@ export default function Login() {
             behavior={Platform.OS === "ios" ? "padding" : undefined}
             keyboardVerticalOffset={topPadding + 12}
           >
+            <ScrollView
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={styles.formScroll}
+            >
             <Text style={[styles.title, { color: "#000000", marginBottom: titleBottom }]}>
               Glad to see you again!
             </Text>
-            {!!authError ? (
-              <Text style={[styles.errorText, { color: C.danger }]}>{authError}</Text>
+            {formError ? (
+              <Text style={[styles.errorText, { color: C.danger }]}>{formError}</Text>
             ) : null}
 
             <View style={[styles.form, { gap: formGap }]}>
-              <InputField
-                value={email}
-                onChangeText={(text) => {
-                  setEmail(text);
-                  if (authError) setAuthError("");
-                }}
-                placeholder="Email"
-                hasError={!!authError}
-                inputProps={{ keyboardType: "email-address", autoCapitalize: "none" }}
-                forceScheme="light"
-                inputStyle={styles.inputText}
-                containerStyle={styles.inputBox}
-              />
+              <View style={styles.fieldBlock}>
+                <InputField
+                  value={email}
+                  onChangeText={(text) => {
+                    setEmail(text);
+                    if (errors.email) setErrors((prev) => ({ ...prev, email: undefined }));
+                  }}
+                  placeholder="Email"
+                  hasError={!!errors.email}
+                  inputProps={{ keyboardType: "email-address", autoCapitalize: "none" }}
+                  forceScheme="light"
+                  inputStyle={styles.inputText}
+                  containerStyle={styles.inputBox}
+                />
+                {errors.email ? (
+                  <Text style={[styles.fieldError, { color: C.danger }]}>{errors.email}</Text>
+                ) : null}
+              </View>
 
-              <InputField
-                value={password}
-                onChangeText={(text) => {
-                  setPassword(text);
-                  if (authError) setAuthError("");
-                }}
-                placeholder="Password"
-                secureTextEntry={!showPassword}
-                showPasswordToggle
-                onTogglePassword={() => setShowPassword((v) => !v)}
-                hasError={!!authError}
-                forceScheme="light"
-                inputStyle={styles.inputText}
-                containerStyle={styles.inputBox}
-              />
+              <View style={styles.fieldBlock}>
+                <InputField
+                  value={password}
+                  onChangeText={(text) => {
+                    setPassword(text);
+                    if (errors.password) {
+                      setErrors((prev) => ({ ...prev, password: undefined }));
+                    }
+                  }}
+                  placeholder="Password"
+                  secureTextEntry={!showPassword}
+                  showPasswordToggle
+                  onTogglePassword={() => setShowPassword((v) => !v)}
+                  hasError={!!errors.password}
+                  forceScheme="light"
+                  inputStyle={styles.inputText}
+                  containerStyle={styles.inputBox}
+                />
+                {errors.password ? (
+                  <Text style={[styles.fieldError, { color: C.danger }]}>
+                    {errors.password}
+                  </Text>
+                ) : null}
+              </View>
             </View>
 
             <View style={[styles.metaRow, { marginBottom: metaBottom }]}>
-              <Pressable style={styles.rememberWrap} onPress={() => setRememberMe((v) => !v)}>
-                <Feather
-                  name={rememberMe ? "check-square" : "square"}
-                  size={20}
-                  color={C.text}
-                />
-                <Text style={[styles.helperText, { color: C.text }]}>Remember Me</Text>
-              </Pressable>
+              <View />
               <Pressable>
                 <Text style={[styles.helperText, { color: C.text }]}>Forgot Password?</Text>
               </Pressable>
@@ -201,12 +230,13 @@ export default function Login() {
                 </Pressable>
               </View>
             </View>
+            </ScrollView>
           </KeyboardAvoidingView>
 
           <View style={[styles.footerSpacer, { minHeight: footerMin }]} />
           <View style={styles.footerRow}>
             <Text style={[styles.footerText, { color: C.text }]}>Do not have an account? </Text>
-            <Link href="/signup" style={[styles.footerLink, { color: C.text }]}>
+            <Link href="/(auth)/signup" style={[styles.footerLink, { color: C.text }]}>
               Sign Up Here
             </Link>
           </View>
@@ -256,6 +286,13 @@ const styles = StyleSheet.create({
     fontSize: 15.5,
     paddingVertical: 8,
   },
+  fieldBlock: {
+    gap: 4,
+  },
+  fieldError: {
+    fontFamily: T.font.family,
+    fontSize: 13,
+  },
   errorText: {
     fontFamily: T.font.family,
     fontSize: 14.5,
@@ -264,6 +301,9 @@ const styles = StyleSheet.create({
   form: {},
   formSection: {
     flex: 1,
+  },
+  formScroll: {
+    flexGrow: 1,
     justifyContent: "center",
   },
   metaRow: {
@@ -271,11 +311,6 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     paddingHorizontal: 4,
-  },
-  rememberWrap: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
   },
   helperText: {
     fontFamily: T.font.family,

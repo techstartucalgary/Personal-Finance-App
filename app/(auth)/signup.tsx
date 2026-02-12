@@ -11,6 +11,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   useWindowDimensions,
@@ -32,6 +33,12 @@ export default function SignUp() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [errors, setErrors] = useState<{
+    name?: string;
+    email?: string;
+    password?: string;
+    confirmPassword?: string;
+  }>({});
 
   const [dialogVisible, setDialogVisible] = useState(false);
   const [dialogTitle, setDialogTitle] = useState("Notice");
@@ -60,15 +67,33 @@ export default function SignUp() {
   const handleSignUp = async () => {
     if (loading) return;
 
-    if (!name.trim() || !email.trim() || !password.trim() || !confirmPassword.trim()) {
-      showDialog("Missing fields", "Please complete all fields before continuing.");
-      return;
+    const nextErrors: typeof errors = {};
+    const emailValue = email.trim();
+    const passwordValue = password.trim();
+    const confirmValue = confirmPassword.trim();
+    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    if (!name.trim()) nextErrors.name = "Please enter your name.";
+    if (!emailValue) {
+      nextErrors.email = "Please enter your email.";
+    } else if (!emailPattern.test(emailValue)) {
+      nextErrors.email = "Please enter a valid email address.";
     }
 
-    if (password !== confirmPassword) {
-      showDialog("Passwords don't match", "Please re-enter your password.");
-      return;
+    if (!passwordValue) {
+      nextErrors.password = "Please enter a password.";
+    } else if (passwordValue.length < 8) {
+      nextErrors.password = "Password must be at least 8 characters.";
     }
+
+    if (!confirmValue) {
+      nextErrors.confirmPassword = "Please confirm your password.";
+    } else if (confirmValue !== passwordValue) {
+      nextErrors.confirmPassword = "Passwords do not match.";
+    }
+
+    setErrors(nextErrors);
+    if (Object.keys(nextErrors).length > 0) return;
 
     setLoading(true);
     try {
@@ -83,7 +108,17 @@ export default function SignUp() {
       });
 
       if (error) {
-        showDialog("Sign Up Failed", error.message);
+        const message = error.message ?? "Sign up failed.";
+        const lower = message.toLowerCase();
+        const fieldErrors: typeof errors = {};
+        if (lower.includes("email")) fieldErrors.email = "That email does not look right.";
+        if (lower.includes("password"))
+          fieldErrors.password = "That password does not meet the requirements.";
+        if (Object.keys(fieldErrors).length > 0) {
+          setErrors(fieldErrors);
+        } else {
+          showDialog("Sign Up Failed", message);
+        }
         return;
       }
 
@@ -140,90 +175,136 @@ export default function SignUp() {
             behavior={Platform.OS === "ios" ? "padding" : undefined}
             keyboardVerticalOffset={topPadding + 12}
           >
-            <Text style={[styles.title, { color: "#000000", marginBottom: titleBottom }]}>
-              Let's get you set up
-            </Text>
-            <View style={[styles.form, { gap: formGap }]}>
-              <InputField
-                value={name}
-                onChangeText={setName}
-                placeholder="Name"
-                forceScheme="light"
-                inputStyle={styles.inputText}
-                containerStyle={styles.inputBox}
-              />
-              <InputField
-                value={email}
-                onChangeText={setEmail}
-                placeholder="Email"
-                inputProps={{ keyboardType: "email-address", autoCapitalize: "none" }}
-                forceScheme="light"
-                inputStyle={styles.inputText}
-                containerStyle={styles.inputBox}
-              />
-              <InputField
-                value={password}
-                onChangeText={setPassword}
-                placeholder="Password"
-                secureTextEntry={!showPassword}
-                showPasswordToggle
-                onTogglePassword={() => setShowPassword((v) => !v)}
-                forceScheme="light"
-                inputStyle={styles.inputText}
-                containerStyle={styles.inputBox}
-              />
-              <InputField
-                value={confirmPassword}
-                onChangeText={setConfirmPassword}
-                placeholder="Confirm Password"
-                secureTextEntry={!showConfirm}
-                showPasswordToggle
-                onTogglePassword={() => setShowConfirm((v) => !v)}
-                forceScheme="light"
-                inputStyle={styles.inputText}
-                containerStyle={styles.inputBox}
-              />
-            </View>
-
-            <AuthButton
-              label={loading ? "Creating..." : "Sign Up"}
-              variant="primary"
-              onPress={handleSignUp}
-              disabled={loading}
-              style={[styles.signUpBtn, { marginTop: signTop }]}
-              labelStyle={styles.actionLabel}
-            />
-
-            <View style={[styles.socialBlock, { marginTop: socialTop }]}>
-              <View style={styles.dividerRow}>
-                <View style={[styles.line, { backgroundColor: C.line }]} />
-                <Text style={[styles.orText, { color: C.text }]}>Or Continue With</Text>
-                <View style={[styles.line, { backgroundColor: C.line }]} />
+            <ScrollView
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={styles.formScroll}
+            >
+              <Text style={[styles.title, { color: "#000000", marginBottom: titleBottom }]}>
+                Let's get you set up
+              </Text>
+              <View style={[styles.form, { gap: formGap }]}>
+                <View style={styles.fieldBlock}>
+                  <InputField
+                    value={name}
+                    onChangeText={(text) => {
+                      setName(text);
+                      if (errors.name) setErrors((prev) => ({ ...prev, name: undefined }));
+                    }}
+                    placeholder="Name"
+                    forceScheme="light"
+                    inputStyle={styles.inputText}
+                    containerStyle={styles.inputBox}
+                    hasError={!!errors.name}
+                  />
+                  {errors.name ? (
+                    <Text style={[styles.fieldError, { color: C.danger }]}>{errors.name}</Text>
+                  ) : null}
+                </View>
+                <View style={styles.fieldBlock}>
+                  <InputField
+                    value={email}
+                    onChangeText={(text) => {
+                      setEmail(text);
+                      if (errors.email) setErrors((prev) => ({ ...prev, email: undefined }));
+                    }}
+                    placeholder="Email"
+                    inputProps={{ keyboardType: "email-address", autoCapitalize: "none" }}
+                    forceScheme="light"
+                    inputStyle={styles.inputText}
+                    containerStyle={styles.inputBox}
+                    hasError={!!errors.email}
+                  />
+                  {errors.email ? (
+                    <Text style={[styles.fieldError, { color: C.danger }]}>{errors.email}</Text>
+                  ) : null}
+                </View>
+                <View style={styles.fieldBlock}>
+                  <InputField
+                    value={password}
+                    onChangeText={(text) => {
+                      setPassword(text);
+                      if (errors.password) setErrors((prev) => ({ ...prev, password: undefined }));
+                    }}
+                    placeholder="Password"
+                    secureTextEntry={!showPassword}
+                    showPasswordToggle
+                    onTogglePassword={() => setShowPassword((v) => !v)}
+                    forceScheme="light"
+                    inputStyle={styles.inputText}
+                    containerStyle={styles.inputBox}
+                    hasError={!!errors.password}
+                  />
+                  {errors.password ? (
+                    <Text style={[styles.fieldError, { color: C.danger }]}>{errors.password}</Text>
+                  ) : null}
+                </View>
+                <View style={styles.fieldBlock}>
+                  <InputField
+                    value={confirmPassword}
+                    onChangeText={(text) => {
+                      setConfirmPassword(text);
+                      if (errors.confirmPassword) {
+                        setErrors((prev) => ({ ...prev, confirmPassword: undefined }));
+                      }
+                    }}
+                    placeholder="Confirm Password"
+                    secureTextEntry={!showConfirm}
+                    showPasswordToggle
+                    onTogglePassword={() => setShowConfirm((v) => !v)}
+                    forceScheme="light"
+                    inputStyle={styles.inputText}
+                    containerStyle={styles.inputBox}
+                    hasError={!!errors.confirmPassword}
+                  />
+                  {errors.confirmPassword ? (
+                    <Text style={[styles.fieldError, { color: C.danger }]}>
+                      {errors.confirmPassword}
+                    </Text>
+                  ) : null}
+                </View>
               </View>
 
-              <View style={styles.socialRow}>
-                <Pressable style={styles.socialIconBtn} hitSlop={8} onPress={handleGoogle}>
-                  <Image
-                    source={require("../../assets/images/google.png")}
-                    style={styles.socialIconImage}
-                    resizeMode="contain"
-                  />
-                </Pressable>
-                <Pressable style={styles.socialIconBtn} hitSlop={8}>
-                  <Image
-                    source={require("../../assets/images/apple.png")}
-                    style={styles.socialIconImage}
-                    resizeMode="contain"
-                  />
-                </Pressable>
+              <AuthButton
+                label={loading ? "Creating..." : "Sign Up"}
+                variant="primary"
+                onPress={handleSignUp}
+                disabled={loading}
+                style={[styles.signUpBtn, { marginTop: signTop }]}
+                labelStyle={styles.actionLabel}
+              />
+
+              <View style={[styles.socialBlock, { marginTop: socialTop }]}>
+                <View style={styles.dividerRow}>
+                  <View style={[styles.line, { backgroundColor: C.line }]} />
+                  <Text style={[styles.orText, { color: C.text }]}>Or Continue With</Text>
+                  <View style={[styles.line, { backgroundColor: C.line }]} />
+                </View>
+
+                <View style={styles.socialRow}>
+                  <Pressable style={styles.socialIconBtn} hitSlop={8} onPress={handleGoogle}>
+                    <Image
+                      source={require("../../assets/images/google.png")}
+                      style={styles.socialIconImage}
+                      resizeMode="contain"
+                    />
+                  </Pressable>
+                  <Pressable style={styles.socialIconBtn} hitSlop={8}>
+                    <Image
+                      source={require("../../assets/images/apple.png")}
+                      style={styles.socialIconImage}
+                      resizeMode="contain"
+                    />
+                  </Pressable>
+                </View>
               </View>
-            </View>
+            </ScrollView>
           </KeyboardAvoidingView>
 
           <View style={[styles.footerSpacer, { minHeight: footerMin }]} />
           <View style={styles.footerRow}>
             <Text style={[styles.footerText, { color: C.text }]}>Already have an account? </Text>
-            <Link href="/login" style={[styles.footerLink, { color: C.text }]}>
+            <Link href="/(auth)/login" style={[styles.footerLink, { color: C.text }]}>
               Log In Here
             </Link>
           </View>
@@ -285,11 +366,21 @@ const styles = StyleSheet.create({
     fontSize: 15.5,
     paddingVertical: 8,
   },
+  fieldBlock: {
+    gap: 4,
+  },
+  fieldError: {
+    fontFamily: T.font.family,
+    fontSize: 13,
+  },
   form: {
     gap: 14,
   },
   formSection: {
     flex: 1,
+  },
+  formScroll: {
+    flexGrow: 1,
     justifyContent: "center",
   },
   signUpBtn: {

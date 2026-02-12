@@ -1,5 +1,7 @@
-import { addExpense } from "./expenses";
+import { addExpense, hasRecurringExpense } from "./expenses";
 import { listDueRecurringRules, updateRecurringRule } from "./recurring-rules";
+
+
 function toYMD(date: Date) {
     return date.toISOString().slice(0, 10);
   }
@@ -43,6 +45,15 @@ export async function processDueRecurringRules(params: {
   const createdTransactions = [];
 
   for (const rule of dueRules) {
+
+    // check if transaction already exists in case recurring process runs more than once
+
+    const exists = await hasRecurringExpense({
+        profile_id: params.profile_id,
+        recurring_rule_id: rule.id,
+        transaction_date: rule.next_run_date
+    })
+    
     //  create the expense transaction
     const txn = await addExpense({
       profile_id: params.profile_id,
@@ -50,7 +61,7 @@ export async function processDueRecurringRules(params: {
       account_id: rule.account_id,
       amount: rule.amount,
       transaction_date: rule.next_run_date,
-      expense_categoryid: rule.category_id ?? null,
+      expense_categoryid: rule.expense_categoryid ?? null,
       subcategory_id: rule.subcategory_id ?? null,
     });
 

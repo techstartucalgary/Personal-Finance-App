@@ -66,7 +66,7 @@ export async function updateRecurringRule(params: {
 
   export async function listDueRecurringRules(params: {
     profile_id: string;
-    today: string; // "YYYY-MM-DD"
+    today: string; 
   }) {
     const { profile_id, today } = params;
   

@@ -85,3 +85,24 @@ export async function listExpenses(params: { profile_id: string }) {
   if (error) throw error;
   return data;  // data returned will be an array
 }
+
+
+
+export async function hasRecurringExpense(params: {
+  profile_id: string;
+  recurring_rule_id: string | number;
+  transaction_date: string; 
+}) {
+  const { profile_id, recurring_rule_id, transaction_date } = params;
+
+  const { data, error } = await supabase
+    .from("Expense")
+    .select("id")
+    .eq("profile_id", profile_id)
+    .eq("recurring_rule_id", recurring_rule_id)
+    .eq("transaction_date", transaction_date)
+    .maybeSingle();
+
+  if (error) throw error;
+  return !!data;
+}

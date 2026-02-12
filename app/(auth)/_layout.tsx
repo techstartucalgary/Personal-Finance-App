@@ -1,35 +1,40 @@
-import { Stack, Tabs } from "expo-router";
+import { CardStyleInterpolators } from "@react-navigation/stack";
+import { Stack } from "expo-router/stack";
 import React from "react";
+import { Easing } from "react-native";
 
-import { HapticTab } from "@/components/haptic-tab";
-import { Colors } from "@/constants/theme";
-import { useColorScheme } from "@/hooks/use-color-scheme";
-
-export default function TabLayout() {
-  const colorScheme = useColorScheme();
-
-  return (
-    <Tabs
-      screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme ?? "light"].tint,
-        headerShown: false,
-        tabBarButton: HapticTab,
-        tabBarStyle: {
-          display: "none",
-        },
-      }}
-    ></Tabs>
-  );
-}
-
-export function AuthLayout() {
+export default function AuthLayout() {
   return (
     <Stack
       screenOptions={{
         headerShown: false,
-        animation: "slide_from_right",
-        animationDuration: 260,
+        gestureEnabled: true,
+        gestureDirection: "horizontal",
+        cardStyle: { backgroundColor: "#ECECF1" },
+        cardStyleInterpolator: CardStyleInterpolators.forHorizontalIOS,
+        transitionSpec: {
+          open: {
+            animation: "timing",
+            config: {
+              duration: 360,
+              easing: Easing.out(Easing.cubic),
+              useNativeDriver: true,
+            },
+          },
+          close: {
+            animation: "timing",
+            config: {
+              duration: 320,
+              easing: Easing.out(Easing.cubic),
+              useNativeDriver: true,
+            },
+          },
+        },
       }}
-    />
+    >
+      <Stack.Screen name="onboarding-start" />
+      <Stack.Screen name="login" />
+      <Stack.Screen name="signup" />
+    </Stack>
   );
 }

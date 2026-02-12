@@ -72,7 +72,7 @@ export default function OnboardingStart() {
 
   return (
     <SafeAreaView style={[styles.screen, { backgroundColor: C.bg }]}>
-      <StatusBar style="dark" />
+      <StatusBar style="dark" backgroundColor={C.bg} />
       <KeyboardAvoidingView
         style={styles.screen}
         behavior={Platform.OS === "ios" ? "padding" : undefined}

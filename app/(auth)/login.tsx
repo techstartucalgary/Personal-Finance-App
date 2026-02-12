@@ -102,8 +102,8 @@ export default function Login() {
 
   return (
     <SafeAreaView style={[styles.screen, { backgroundColor: C.bg }]}>
-      <StatusBar style="dark" />
-      <View style={styles.screen}>
+      <StatusBar style="dark" backgroundColor={C.bg} />
+      <View style={[styles.screen, { backgroundColor: C.bg }]}>
         <View
           style={[
             styles.container,
@@ -120,7 +120,11 @@ export default function Login() {
               { top: topPadding - 4, left: horizontalPad - 2 },
             ]}
           >
-            <Pressable onPress={() => router.back()} style={styles.backBtn} hitSlop={10}>
+            <Pressable
+              onPress={() => router.back()}
+              style={styles.backBtn}
+              hitSlop={10}
+            >
               <Ionicons name="arrow-back" size={24} color={C.text} />
             </Pressable>
           </View>

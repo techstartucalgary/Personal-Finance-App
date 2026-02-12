@@ -1,19 +1,33 @@
-import React, { useMemo, useState } from "react";
+import { AuthButton } from "@/components/auth_buttons/auth-button";
+import { Tokens, getColors } from "@/constants/authTokens";
 import { Feather } from "@expo/vector-icons";
 import { Picker } from "@react-native-picker/picker";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
+import { StatusBar } from "expo-status-bar";
+import React, { useMemo, useState } from "react";
 import {
-  SafeAreaView,
+  Platform,
+  Pressable,
   StyleSheet,
   Text,
   View,
-  Pressable,
-  Platform,
+  useWindowDimensions,
 } from "react-native";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
 type CurrencyOption = { label: string; value: "CAD" | "USD" };
 
-export default function Onboarding() {
+export default function OnboardingCurrency() {
+  const C = getColors("light");
+  const { height } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+  const compact = height < 760;
+  const horizontalPad = compact ? 20 : 26;
+  const topPadding = (compact ? 0 : 4) + insets.top;
+  const bottomPad = 0;
+  const copyBottom = compact ? 16 : 20;
+  const buttonTop = compact ? 16 : 20;
+
   const options: CurrencyOption[] = useMemo(
     () => [
       { label: "CAD - Canadian Dollar", value: "CAD" },
@@ -23,51 +37,61 @@ export default function Onboarding() {
   );
 
   const [currency, setCurrency] = useState<CurrencyOption["value"]>("CAD");
+  const params = useLocalSearchParams<{ needsEmailConfirm?: string }>();
 
   const selectedLabel =
     options.find((o) => o.value === currency)?.label ?? options[0].label;
 
-  const onBack = () => {
-    router.back();
-  };
+  const onBack = () => router.back();
 
   const onConfirm = () => {
     // TODO later: persist currency (AsyncStorage / Supabase profile)
-    router.push("/(auth)/onboarding-consent");
+    const needsEmailConfirm = params.needsEmailConfirm === "1" ? "1" : "0";
+    router.push({
+      pathname: "/(auth)/onboarding-consent",
+      params: { needsEmailConfirm },
+    });
   };
 
   return (
-    <SafeAreaView style={styles.safe}>
-      <View style={styles.screen}>
-        <View style={styles.shell}>
-          {/* Progress label */}
-          <Text style={styles.progressText}>Setting Up 2/3</Text>
+    <SafeAreaView style={[styles.screen, { backgroundColor: C.bg }]}>
+      <StatusBar style="dark" backgroundColor={C.bg} />
+      <View style={[styles.screen, { backgroundColor: C.bg }]}>
+        <View
+          style={[
+            styles.container,
+            {
+              paddingTop: topPadding,
+              paddingBottom: bottomPad,
+              paddingHorizontal: horizontalPad,
+            },
+          ]}
+        >
+          <Text style={[styles.progressText, { color: C.text }]}>
+            Setting Up 2/3
+          </Text>
 
-          {/* Header */}
           <View style={styles.headerRow}>
             <Pressable
               onPress={onBack}
               hitSlop={10}
               style={({ pressed }) => [styles.backBtn, pressed && styles.pressed]}
             >
-              <Feather name="arrow-left" size={22} color="#111" />
+              <Feather name="arrow-left" size={22} color={C.text} />
             </Pressable>
 
-            <Text style={styles.headerTitle}>Setting up</Text>
+            <Text style={[styles.headerTitle, { color: C.text }]}>Setting up</Text>
 
-            {/* spacer for symmetry */}
             <View style={{ width: 34 }} />
           </View>
 
-          <View style={styles.divider} />
+          <View style={[styles.divider, { backgroundColor: C.line }]} />
 
-          {/* Intro */}
-          <Text style={styles.topBody}>
-            Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do
-            eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut
+          <Text style={[styles.topBody, { color: C.muted }]}>
+            Choose the currency you want Sterling to use for budgets, balances, and
+            spending totals. You can change this later in settings.
           </Text>
 
-          {/* Placeholder circle */}
           <View style={styles.circleWrap}>
             <View style={styles.circle}>
               <View style={[styles.diag, styles.diagA]} />
@@ -75,24 +99,29 @@ export default function Onboarding() {
             </View>
           </View>
 
-          {/* Section */}
-          <Text style={styles.sectionTitle}>Select base currency</Text>
-          <Text style={styles.sectionBody}>
-            Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed
+          <Text style={[styles.sectionTitle, { color: C.text }]}>
+            Select your base currency
+          </Text>
+          <Text
+            style={[
+              styles.sectionBody,
+              { color: C.muted, marginBottom: copyBottom },
+            ]}
+          >
+            This helps format all of your numbers in the app.
           </Text>
 
-          {/* Select */}
-          <View style={styles.selectWrap}>
+          <View style={[styles.selectWrap, { borderColor: C.chipBorder }]}>
             <View style={styles.selectInner}>
-              {/* Visible selected label (THIS is what updates) */}
-              <Text style={styles.selectLabel}>{selectedLabel}</Text>
+              <Text style={[styles.selectLabel, { color: C.text }]}>
+                {selectedLabel}
+              </Text>
 
-              {/* Picker overlay */}
               <Picker
                 selectedValue={currency}
                 onValueChange={(v) => setCurrency(v as CurrencyOption["value"])}
                 style={styles.picker}
-                dropdownIconColor="#111"
+                dropdownIconColor={C.text}
                 mode="dropdown"
               >
                 {options.map((o) => (
@@ -100,21 +129,20 @@ export default function Onboarding() {
                 ))}
               </Picker>
 
-              {/* Chevron for iOS/Web aesthetic (Android shows its own in dropdown) */}
               <View style={styles.chevron}>
-                <Feather name="chevron-down" size={18} color="#111" />
+                <Feather name="chevron-down" size={18} color={C.text} />
               </View>
             </View>
           </View>
 
-          {/* Bottom button */}
-          <View style={styles.bottom}>
-            <Pressable
+          <View style={[styles.bottom, { paddingTop: buttonTop }]}>
+            <AuthButton
+              label="Confirm"
+              variant="primary"
               onPress={onConfirm}
-              style={({ pressed }) => [styles.cta, pressed && styles.ctaPressed]}
-            >
-              <Text style={styles.ctaText}>CONFIRM</Text>
-            </Pressable>
+              style={styles.cta}
+              labelStyle={styles.ctaText}
+            />
           </View>
         </View>
       </View>
@@ -122,29 +150,22 @@ export default function Onboarding() {
   );
 }
 
+const T = Tokens;
+
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: "#F4F5F7" },
-
-  screen: {
+  screen: { flex: 1 },
+  container: {
     flex: 1,
-    backgroundColor: "#F4F5F7",
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    alignItems: "center",
-  },
-
-  // responsive width constraint (doesn’t stretch on web/tablets)
-  shell: {
     width: "100%",
-    maxWidth: 420,
-    flex: 1,
+    maxWidth: 520,
+    alignSelf: "center",
   },
 
   progressText: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: "#2B2B2B",
-    marginBottom: 10,
+    fontFamily: T.font.semiFamily ?? T.font.family,
+    fontSize: 13,
+    letterSpacing: 0.4,
+    marginBottom: 12,
   },
 
   headerRow: {
@@ -163,37 +184,35 @@ const styles = StyleSheet.create({
   },
 
   headerTitle: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#111",
+    fontFamily: T.font.boldFamily ?? T.font.headingFamily,
+    fontSize: 17,
+    letterSpacing: -0.2,
   },
 
   divider: {
     height: 2,
-    backgroundColor: "#111",
-    opacity: 0.25,
-    marginBottom: 14,
+    opacity: 0.2,
+    marginBottom: 16,
   },
 
   topBody: {
-    fontSize: 12,
-    lineHeight: 16,
+    fontFamily: T.font.family,
+    fontSize: 15,
+    lineHeight: 21,
     textAlign: "center",
-    color: "#111",
-    opacity: 0.6,
     paddingHorizontal: 18,
-    marginBottom: 18,
+    marginBottom: 20,
   },
 
   circleWrap: { alignItems: "center", marginBottom: 18 },
 
   circle: {
-    width: 160,
-    height: 160,
+    width: 170,
+    height: 170,
     borderRadius: 999,
     borderWidth: 1.5,
     borderColor: "#111",
-    opacity: 0.45,
+    opacity: 0.35,
     alignItems: "center",
     justifyContent: "center",
     overflow: "hidden",
@@ -210,46 +229,42 @@ const styles = StyleSheet.create({
   diagB: { transform: [{ rotate: "-45deg" }] },
 
   sectionTitle: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: "#111",
+    fontFamily: T.font.boldFamily ?? T.font.headingFamily,
+    fontSize: 16,
+    letterSpacing: -0.2,
     textAlign: "center",
     marginTop: 2,
   },
 
   sectionBody: {
-    fontSize: 12,
-    lineHeight: 16,
+    fontFamily: T.font.family,
+    fontSize: 14.5,
+    lineHeight: 20,
     textAlign: "center",
-    color: "#111",
-    opacity: 0.6,
     marginTop: 6,
-    marginBottom: 16,
     paddingHorizontal: 22,
   },
 
   selectWrap: {
     borderWidth: 1.25,
-    borderColor: "#B8B8B8",
-    borderRadius: 8,
-    backgroundColor: "#F6F6F6",
+    borderRadius: 10,
+    backgroundColor: "#E1E1E1",
     overflow: "hidden",
   },
 
   selectInner: {
-    minHeight: 44,
-    paddingHorizontal: 12,
+    minHeight: 52,
+    paddingHorizontal: 14,
     justifyContent: "center",
   },
 
   selectLabel: {
-    fontSize: 12,
-    color: "#111",
-    opacity: 0.65,
-    paddingRight: 28, // room for chevron
+    fontFamily: T.font.family,
+    fontSize: 15,
+    paddingRight: 28,
+    opacity: 0.78,
   },
 
-  // Keep picker invisible but clickable; label above shows selection.
   picker: {
     position: "absolute",
     left: 0,
@@ -261,7 +276,7 @@ const styles = StyleSheet.create({
 
   chevron: {
     position: "absolute",
-    right: 10,
+    right: 12,
     top: 0,
     bottom: 0,
     justifyContent: "center",
@@ -271,22 +286,15 @@ const styles = StyleSheet.create({
 
   bottom: {
     marginTop: "auto",
-    paddingTop: 18,
     paddingBottom: 10,
   },
 
   cta: {
-    backgroundColor: "#111",
-    borderRadius: 999,
-    paddingVertical: 14,
-    alignItems: "center",
+    height: 50,
   },
-  ctaPressed: { opacity: 0.85 },
   ctaText: {
-    color: "#FFF",
-    fontWeight: "800",
+    fontSize: 18,
     letterSpacing: 0.6,
-    fontSize: 12,
   },
 
   pressed: { opacity: 0.6 },

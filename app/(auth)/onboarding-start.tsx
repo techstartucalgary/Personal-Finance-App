@@ -18,6 +18,7 @@ import {
 
 import { AuthButton } from "@/components/auth_buttons/auth-button";
 import { getColors, Tokens } from "@/constants/authTokens";
+import { supabase } from "@/utils/supabase";
 
 export default function OnboardingStart() {
   const C = getColors("light");
@@ -171,14 +172,20 @@ export default function OnboardingStart() {
               variant="outline"
               style={{ height: buttonHeight }}
               labelStyle={styles.actionLabel}
-              onPress={() => router.push("/(auth)/signup")}
+              onPress={async () => {
+                await supabase.auth.signOut();
+                router.push("/(auth)/signup");
+              }}
             />
             <AuthButton
               label="Log In"
               variant="primary"
               style={{ height: buttonHeight }}
               labelStyle={styles.actionLabel}
-              onPress={() => router.push("/(auth)/login")}
+              onPress={async () => {
+                await supabase.auth.signOut();
+                router.push("/(auth)/login");
+              }}
             />
           </View>
         </View>

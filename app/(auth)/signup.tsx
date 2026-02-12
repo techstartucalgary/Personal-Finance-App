@@ -103,6 +103,7 @@ export default function SignUp() {
         options: {
           data: {
             full_name: name.trim(),
+            onboarding_complete: false,
           },
         },
       });
@@ -123,7 +124,7 @@ export default function SignUp() {
       }
 
       if (data.session) {
-        router.replace("/(tabs)");
+        router.replace("/(auth)/onboarding-profile");
         return;
       }
 

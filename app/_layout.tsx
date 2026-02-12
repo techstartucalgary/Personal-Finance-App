@@ -24,10 +24,33 @@ function ProtectedLayout() {
     if (isLoading) return;
 
     const inAuthGroup = segments[0] === "(auth)";
+    const authRoute = segments[1] ?? "";
+    const inOnboardingFlow = authRoute.startsWith("onboarding-");
 
-    if (session && inAuthGroup) {
-      router.replace("/(tabs)/accounts");
-    } else if (!session && !inAuthGroup) {
+    const metadata = session?.user?.user_metadata as
+      | Record<string, any>
+      | undefined;
+    const onboardingComplete =
+      metadata?.onboarding_complete ??
+      metadata?.onboardingComplete ??
+      true;
+    const needsOnboarding = onboardingComplete === false;
+
+    if (session) {
+      if (needsOnboarding) {
+        if (!inAuthGroup || !inOnboardingFlow) {
+          router.replace("/(auth)/onboarding-profile");
+        }
+        return;
+      }
+
+      if (inAuthGroup) {
+        router.replace("/(tabs)/accounts");
+      }
+      return;
+    }
+
+    if (!inAuthGroup) {
       router.replace("/(auth)/onboarding-start");
     }
   }, [session, isLoading, segments, router]);

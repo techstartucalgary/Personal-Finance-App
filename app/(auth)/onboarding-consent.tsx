@@ -1,17 +1,34 @@
-import React, { useMemo, useState } from "react";
+import { AuthButton } from "@/components/auth_buttons/auth-button";
+import { Tokens, getColors } from "@/constants/authTokens";
 import { Feather } from "@expo/vector-icons";
 import Checkbox from "expo-checkbox";
+import { router, useLocalSearchParams } from "expo-router";
+import { StatusBar } from "expo-status-bar";
+import React, { useMemo, useState } from "react";
+import { supabase } from "@/utils/supabase";
 import {
-  SafeAreaView,
+  Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   View,
-  Pressable,
-  ScrollView,
+  useWindowDimensions,
 } from "react-native";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function OnboardingConsent() {
+  const C = getColors("light");
+  const { height } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+  const compact = height < 760;
+  const horizontalPad = compact ? 20 : 26;
+  const topPadding = (compact ? 0 : 4) + insets.top;
+  const bottomPad = 0;
+  const consentTop = compact ? 12 : 16;
+  const buttonTop = compact ? 12 : 16;
   const [agreed, setAgreed] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const params = useLocalSearchParams<{ needsEmailConfirm?: string }>();
 
   const policyText = useMemo(
     () => ({
@@ -27,22 +44,44 @@ export default function OnboardingConsent() {
     []
   );
 
-  const onBack = () => {
-    // TODO: hook into your onboarding nav
-    console.log("back");
-  };
+  const onBack = () => router.back();
 
-  const onContinue = () => {
-    if (!agreed) return;
-    // TODO: persist consent + go to next step
-    console.log("continue");
+  const onContinue = async () => {
+    if (!agreed || saving) return;
+    setSaving(true);
+    try {
+      const { error } = await supabase.auth.updateUser({
+        data: { onboarding_complete: true },
+      });
+      if (error) {
+        console.log("Failed to update onboarding flag:", error.message);
+      }
+    } finally {
+      setSaving(false);
+    }
+
+    if (params.needsEmailConfirm === "1") {
+      router.replace("/(auth)/login");
+      return;
+    }
+    router.replace("/(tabs)");
   };
 
   return (
-    <SafeAreaView style={styles.safe}>
-      <View style={styles.screen}>
-        <View style={styles.shell}>
-          <Text style={styles.progressText}>Setting Up (Consent Required)</Text>
+    <SafeAreaView style={[styles.screen, { backgroundColor: C.bg }]}>
+      <StatusBar style="dark" backgroundColor={C.bg} />
+      <View style={[styles.screen, { backgroundColor: C.bg }]}>
+        <View
+          style={[
+            styles.container,
+            {
+              paddingTop: topPadding,
+              paddingBottom: bottomPad,
+              paddingHorizontal: horizontalPad,
+            },
+          ]}
+        >
+          <Text style={[styles.progressText, { color: C.text }]}>Setting Up 3/3</Text>
 
           <View style={styles.headerRow}>
             <Pressable
@@ -50,57 +89,59 @@ export default function OnboardingConsent() {
               hitSlop={10}
               style={({ pressed }) => [styles.backBtn, pressed && styles.pressed]}
             >
-              <Feather name="arrow-left" size={22} color="#111" />
+              <Feather name="arrow-left" size={22} color={C.text} />
             </Pressable>
 
-            <Text style={styles.headerTitle}>Setting up</Text>
+            <Text style={[styles.headerTitle, { color: C.text }]}>Setting up</Text>
             <View style={{ width: 34 }} />
           </View>
 
-          <View style={styles.divider} />
+          <View style={[styles.divider, { backgroundColor: C.line }]} />
 
           {/* Scrollable policy area */}
-          <View style={styles.policyCard}>
+          <View style={[styles.policyCard, { backgroundColor: C.inputBg }]}>
             <ScrollView
               showsVerticalScrollIndicator
               contentContainerStyle={styles.policyContent}
             >
-              <Text style={styles.policyTitle}>{policyText.title}</Text>
+              <Text style={[styles.policyTitle, { color: C.text }]}>
+                {policyText.title}
+              </Text>
 
               {policyText.paragraphs.map((p, i) => (
-                <Text key={i} style={styles.policyBody}>
-                  {i === 0 ? p : `\n${i}. ${p}`}
+                <Text
+                  key={i}
+                  style={[styles.policyBody, { color: C.text }, i > 0 && styles.policySpacing]}
+                >
+                  {p}
                 </Text>
               ))}
             </ScrollView>
           </View>
 
           {/* Consent row */}
-          <View style={styles.consentRow}>
+          <View style={[styles.consentRow, { marginTop: consentTop }]}>
             <Checkbox
               value={agreed}
               onValueChange={setAgreed}
-              color={agreed ? "#111" : undefined}
+              color={agreed ? C.text : undefined}
               style={styles.checkbox}
             />
-            <Text style={styles.consentText}>
-              I AGREE TO THE PRIVACY POLICY{"\n"}AND TERMS OF SERVICE
+            <Text style={[styles.consentText, { color: C.text }]}>
+              I agree to the Privacy Policy and Terms of Service
             </Text>
           </View>
 
           {/* Bottom button */}
-          <View style={styles.bottom}>
-            <Pressable
+          <View style={[styles.bottom, { paddingTop: buttonTop }]}>
+            <AuthButton
+              label="Continue"
+              variant="primary"
               onPress={onContinue}
-              disabled={!agreed}
-              style={({ pressed }) => [
-                styles.cta,
-                !agreed && styles.ctaDisabled,
-                pressed && agreed && styles.ctaPressed,
-              ]}
-            >
-              <Text style={styles.ctaText}>CONTINUE</Text>
-            </Pressable>
+              disabled={!agreed || saving}
+              style={styles.cta}
+              labelStyle={styles.ctaText}
+            />
           </View>
         </View>
       </View>
@@ -108,28 +149,23 @@ export default function OnboardingConsent() {
   );
 }
 
+const T = Tokens;
+
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: "#F4F5F7" },
+  screen: { flex: 1 },
 
-  screen: {
+  container: {
     flex: 1,
-    backgroundColor: "#F4F5F7",
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    alignItems: "center",
-  },
-
-  shell: {
     width: "100%",
-    maxWidth: 420,
-    flex: 1,
+    maxWidth: 520,
+    alignSelf: "center",
   },
 
   progressText: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: "#2B2B2B",
-    marginBottom: 10,
+    fontFamily: T.font.semiFamily ?? T.font.family,
+    fontSize: 13,
+    letterSpacing: 0.4,
+    marginBottom: 12,
   },
 
   headerRow: {
@@ -148,90 +184,79 @@ const styles = StyleSheet.create({
   },
 
   headerTitle: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#111",
+    fontFamily: T.font.boldFamily ?? T.font.headingFamily,
+    fontSize: 17,
+    letterSpacing: -0.2,
   },
 
   divider: {
     height: 2,
-    backgroundColor: "#111",
-    opacity: 0.25,
-    marginBottom: 12,
+    opacity: 0.2,
+    marginBottom: 14,
   },
 
   policyCard: {
     borderRadius: 12,
-    backgroundColor: "#F7F7F7",
-    borderWidth: 1,
-    borderColor: "#D4D4D4",
+    borderWidth: 1.25,
+    borderColor: "rgba(2,2,2,0.18)",
     flex: 1,
     overflow: "hidden",
   },
 
   policyContent: {
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
   },
 
   policyTitle: {
-    fontSize: 14,
-    fontWeight: "800",
+    fontFamily: T.font.boldFamily ?? T.font.headingFamily,
+    fontSize: 15,
     textAlign: "center",
     marginBottom: 10,
-    color: "#111",
   },
 
   policyBody: {
-    fontSize: 12,
-    lineHeight: 16,
-    color: "#111",
-    opacity: 0.7,
+    fontFamily: T.font.family,
+    fontSize: 14,
+    lineHeight: 20,
+    opacity: 0.72,
+  },
+  policySpacing: {
+    marginTop: 10,
   },
 
   consentRow: {
     flexDirection: "row",
-    alignItems: "center",
-    marginTop: 14,
-    gap: 10,
+    alignItems: "flex-start",
+    gap: 12,
   },
 
   checkbox: {
     width: 18,
     height: 18,
     borderRadius: 4,
+    marginTop: 2,
   },
 
   consentText: {
-    fontSize: 10,
-    fontWeight: "700",
-    color: "#111",
-    opacity: 0.75,
-    lineHeight: 14,
+    fontFamily: T.font.semiFamily ?? T.font.family,
+    fontSize: 13,
+    lineHeight: 18,
+    opacity: 0.78,
+    flex: 1,
   },
 
   bottom: {
-    paddingTop: 14,
-    paddingBottom: 10,
+    paddingBottom: 6,
   },
 
   cta: {
-    backgroundColor: "#111",
-    borderRadius: 999,
-    paddingVertical: 14,
-    alignItems: "center",
+    height: 50,
   },
-  ctaDisabled: {
-    backgroundColor: "#111",
-    opacity: 0.55,
-  },
-  ctaPressed: { opacity: 0.85 },
 
   ctaText: {
-    color: "#FFF",
-    fontWeight: "800",
+    fontSize: 18,
     letterSpacing: 0.6,
-    fontSize: 12,
   },
 
   pressed: { opacity: 0.6 },

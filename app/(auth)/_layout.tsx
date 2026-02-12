@@ -15,6 +15,9 @@ export default function AuthLayout() {
       }}
     >
       <Stack.Screen name="onboarding-start" />
+      <Stack.Screen name="onboarding-profile" />
+      <Stack.Screen name="onboarding-currency" />
+      <Stack.Screen name="onboarding-consent" />
       <Stack.Screen name="login" />
       <Stack.Screen name="signup" />
     </Stack>

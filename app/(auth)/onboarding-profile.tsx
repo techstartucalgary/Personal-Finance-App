@@ -1,19 +1,23 @@
-import React, { useMemo, useState } from "react";
+import { AuthButton } from "@/components/auth_buttons/auth-button";
+import { InputField } from "@/components/auth_buttons/input-field";
+import { Tokens, getColors } from "@/constants/authTokens";
 import { Feather } from "@expo/vector-icons";
-import * as ImagePicker from "expo-image-picker";
 import { router, useLocalSearchParams } from "expo-router";
+import { StatusBar } from "expo-status-bar";
+import React, { useMemo, useState } from "react";
 import {
-  SafeAreaView,
+  Alert,
+  Image,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   View,
-  Pressable,
-  TextInput,
-  Image,
-  Platform,
-  Alert,
-  ScrollView,
+  useWindowDimensions,
 } from "react-native";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
 type GoalId = "debt" | "big_purchase" | "net_worth" | "spending" | "invest";
 
@@ -25,6 +29,15 @@ type GoalOption = {
 };
 
 export default function OnboardingProfile() {
+  const C = getColors("light");
+  const { height } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+  const compact = height < 760;
+  const horizontalPad = compact ? 20 : 26;
+  const topPadding = (compact ? 0 : 4) + insets.top;
+  const bottomPad = 0;
+  const hintTop = compact ? 6 : 8;
+
   const params = useLocalSearchParams<{ needsEmailConfirm?: string }>();
 
   const [photoUri, setPhotoUri] = useState<string | null>(null);
@@ -85,9 +98,9 @@ export default function OnboardingProfile() {
 
   const pickPhoto = async () => {
     try {
+      const ImagePicker = await import("expo-image-picker");
       if (Platform.OS !== "web") {
-        const { status } =
-          await ImagePicker.requestMediaLibraryPermissionsAsync();
+        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
         if (status !== "granted") {
           Alert.alert(
             "Permission needed",
@@ -110,7 +123,10 @@ export default function OnboardingProfile() {
       if (uri) setPhotoUri(uri);
     } catch (e) {
       console.log(e);
-      Alert.alert("Photo pick failed", "Please try again.");
+      Alert.alert(
+        "Photo pick unavailable",
+        "Update Expo Go to the latest version or use a dev build to enable photo access."
+      );
     }
   };
 
@@ -128,11 +144,22 @@ export default function OnboardingProfile() {
   };
 
   return (
-    <SafeAreaView style={styles.safe}>
-      <View style={styles.screen}>
-        <View style={styles.shell}>
-          {/* Header stays above scroll */}
-          <Text style={styles.progressText}>Setting Up 1/3</Text>
+    <SafeAreaView style={[styles.screen, { backgroundColor: C.bg }]}>
+      <StatusBar style="dark" backgroundColor={C.bg} />
+      <View style={[styles.screen, { backgroundColor: C.bg }]}>
+        <View
+          style={[
+            styles.container,
+            {
+              paddingTop: topPadding,
+              paddingBottom: bottomPad,
+              paddingHorizontal: horizontalPad,
+            },
+          ]}
+        >
+          <Text style={[styles.progressText, { color: C.text }]}>
+            Setting Up 1/3
+          </Text>
 
           <View style={styles.headerRow}>
             <Pressable
@@ -140,163 +167,174 @@ export default function OnboardingProfile() {
               hitSlop={10}
               style={({ pressed }) => [styles.backBtn, pressed && styles.pressed]}
             >
-              <Feather name="arrow-left" size={22} color="#111" />
+              <Feather name="arrow-left" size={22} color={C.text} />
             </Pressable>
 
-            <Text style={styles.headerTitle}>Setting up</Text>
+            <Text style={[styles.headerTitle, { color: C.text }]}>Setting up</Text>
             <View style={{ width: 34 }} />
           </View>
 
-          <View style={styles.divider} />
+          <View style={[styles.divider, { backgroundColor: C.line }]} />
 
-          {/* Scrollable content */}
-          <ScrollView
-            style={styles.scroll}
-            contentContainerStyle={styles.scrollContent}
-            showsVerticalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled"
+          <KeyboardAvoidingView
+            style={styles.content}
+            behavior={Platform.OS === "ios" ? "padding" : undefined}
+            keyboardVerticalOffset={topPadding + 12}
           >
-            <Text style={styles.topBody}>
-              Add a profile so your settings sync cleanly across devices.
-            </Text>
+            <ScrollView
+              style={styles.scroll}
+              contentContainerStyle={styles.scrollContent}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+            >
+              <Text style={[styles.topBody, { color: C.muted }]}>
+                Add a profile so your settings sync cleanly across devices.
+              </Text>
 
-            <View style={styles.photoBlock}>
-              <Pressable
-                onPress={pickPhoto}
-                style={({ pressed }) => [
-                  styles.photoCircle,
-                  pressed && styles.pressed,
-                ]}
-              >
-                {photoUri ? (
-                  <Image source={{ uri: photoUri }} style={styles.photoImg} />
-                ) : (
-                  <View style={styles.photoPlaceholder}>
-                    <Feather name="user" size={26} color="#111" />
-                  </View>
-                )}
-              </Pressable>
-
-              <View style={styles.photoActions}>
+              <View style={styles.photoBlock}>
                 <Pressable
                   onPress={pickPhoto}
                   style={({ pressed }) => [
-                    styles.smallActionBtn,
+                    styles.photoCircle,
                     pressed && styles.pressed,
                   ]}
                 >
-                  <Text style={styles.smallActionText}>
-                    {photoUri ? "Change photo" : "Add photo"}
-                  </Text>
+                  {photoUri ? (
+                    <Image source={{ uri: photoUri }} style={styles.photoImg} />
+                  ) : (
+                    <View style={styles.photoPlaceholder}>
+                      <Feather name="user" size={26} color={C.text} />
+                    </View>
+                  )}
                 </Pressable>
 
-                {photoUri && (
+                <View style={styles.photoActions}>
                   <Pressable
-                    onPress={removePhoto}
+                    onPress={pickPhoto}
                     style={({ pressed }) => [
                       styles.smallActionBtn,
                       pressed && styles.pressed,
                     ]}
                   >
-                    <Text style={[styles.smallActionText, { opacity: 0.65 }]}>
-                      Remove
+                    <Text style={[styles.smallActionText, { color: C.text }]}>
+                      {photoUri ? "Change photo" : "Add photo"}
                     </Text>
                   </Pressable>
-                )}
-              </View>
-            </View>
 
-            <View style={{ marginTop: 8 }}>
-              <Text style={styles.label}>Preferred name</Text>
-              <View style={styles.inputWrap}>
-                <TextInput
+                  {photoUri ? (
+                    <Pressable
+                      onPress={removePhoto}
+                      style={({ pressed }) => [
+                        styles.smallActionBtn,
+                        pressed && styles.pressed,
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.smallActionText,
+                          { color: C.text, opacity: 0.65 },
+                        ]}
+                      >
+                        Remove
+                      </Text>
+                    </Pressable>
+                  ) : null}
+                </View>
+              </View>
+
+              <View style={styles.formBlock}>
+                <Text style={[styles.label, { color: C.text }]}>Preferred name</Text>
+                <InputField
                   value={preferredName}
                   onChangeText={setPreferredName}
                   placeholder="e.g., Johnny"
-                  placeholderTextColor="rgba(17,17,17,0.45)"
-                  style={styles.input}
-                  returnKeyType="next"
+                  forceScheme="light"
+                  inputStyle={styles.inputText}
+                  containerStyle={[styles.inputBox, { borderColor: C.chipBorder }]}
                 />
-              </View>
 
-              <Text style={[styles.label, { marginTop: 12 }]}>Username</Text>
-              <View style={styles.inputWrap}>
-                <TextInput
+                <Text style={[styles.label, { color: C.text, marginTop: 12 }]}>
+                  Username
+                </Text>
+                <InputField
                   value={username}
                   onChangeText={setUsername}
                   placeholder="e.g., JohnD300"
-                  placeholderTextColor="rgba(17,17,17,0.45)"
-                  style={styles.input}
-                  autoCapitalize="none"
+                  forceScheme="light"
+                  inputStyle={styles.inputText}
+                  containerStyle={[styles.inputBox, { borderColor: C.chipBorder }]}
+                  inputProps={{ autoCapitalize: "none" }}
                 />
+
+                {normalizedUsername !== cleanedUsername.toLowerCase() &&
+                cleanedUsername.length > 0 ? (
+                  <Text style={[styles.hint, { color: C.muted, marginTop: hintTop }]}>
+                    Will be saved as{" "}
+                    <Text style={[styles.mono, { color: C.text }]}>
+                      @{normalizedUsername}
+                    </Text>
+                  </Text>
+                ) : null}
+
+                <Text style={[styles.hint, { color: C.muted, marginTop: hintTop }]}>
+                  Username must be at least 3 characters. Letters, numbers, and
+                  underscores only.
+                </Text>
               </View>
 
-              {normalizedUsername !== cleanedUsername.toLowerCase() &&
-                cleanedUsername.length > 0 && (
-                  <Text style={styles.hint}>
-                    Will be saved as:{" "}
-                    <Text style={styles.mono}>@{normalizedUsername}</Text>
-                  </Text>
-                )}
-
-              <Text style={[styles.hint, { marginTop: 6 }]}>
-                Username must be at least 3 characters. Letters, numbers, and
-                underscores only.
+              <Text style={[styles.sectionTitle, { color: C.text }]}>
+                Primary goal
               </Text>
-            </View>
+              <Text style={[styles.sectionBody, { color: C.muted }]}>
+                Pick one to personalize your setup.
+              </Text>
 
-            <Text style={styles.sectionTitle}>Primary goal</Text>
-            <Text style={styles.sectionBody}>
-              Pick one to personalize your setup.
-            </Text>
+              <View style={styles.goalGrid}>
+                {goals.map((g) => {
+                  const selected = goal === g.id;
+                  return (
+                    <Pressable
+                      key={g.id}
+                      onPress={() => setGoal(g.id)}
+                      style={({ pressed }) => [
+                        styles.goalCard,
+                        { borderColor: C.chipBorder, backgroundColor: "#E1E1E1" },
+                        selected && styles.goalCardSelected,
+                        pressed && styles.pressed,
+                      ]}
+                    >
+                      <View style={styles.goalIcon}>
+                        <Feather name={g.icon} size={18} color={C.text} />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={[styles.goalTitle, { color: C.text }]}>
+                          {g.title}
+                        </Text>
+                        <Text style={[styles.goalSubtitle, { color: C.muted }]}>
+                          {g.subtitle}
+                        </Text>
+                      </View>
+                      {selected ? (
+                        <Feather name="check" size={18} color={C.text} />
+                      ) : (
+                        <View style={styles.goalCheckGhost} />
+                      )}
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </ScrollView>
+          </KeyboardAvoidingView>
 
-            <View style={styles.goalGrid}>
-              {goals.map((g) => {
-                const selected = goal === g.id;
-                return (
-                  <Pressable
-                    key={g.id}
-                    onPress={() => setGoal(g.id)}
-                    style={({ pressed }) => [
-                      styles.goalCard,
-                      selected && styles.goalCardSelected,
-                      pressed && styles.pressed,
-                    ]}
-                  >
-                    <View style={styles.goalIcon}>
-                      <Feather name={g.icon} size={18} color="#111" />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.goalTitle}>{g.title}</Text>
-                      <Text style={styles.goalSubtitle}>{g.subtitle}</Text>
-                    </View>
-                    {selected ? (
-                      <Feather name="check" size={18} color="#111" />
-                    ) : (
-                      <View style={styles.goalCheckGhost} />
-                    )}
-                  </Pressable>
-                );
-              })}
-            </View>
-
-            {/* Spacer so last goal isn’t hidden behind footer */}
-            <View style={{ height: 110 }} />
-          </ScrollView>
-
-          {/* Fixed footer CTA */}
-          <View style={styles.footer}>
-            <Pressable
+          <View style={[styles.footer, { backgroundColor: C.bg }]}>
+            <AuthButton
+              label="Next"
+              variant="primary"
               onPress={onContinue}
               disabled={!canContinue}
-              style={({ pressed }) => [
-                styles.cta,
-                !canContinue && styles.ctaDisabled,
-                pressed && canContinue && styles.ctaPressed,
-              ]}
-            >
-              <Text style={styles.ctaText}>NEXT</Text>
-            </Pressable>
+              style={styles.cta}
+              labelStyle={styles.ctaText}
+            />
           </View>
         </View>
       </View>
@@ -304,22 +342,22 @@ export default function OnboardingProfile() {
   );
 }
 
+const T = Tokens;
+
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: "#F4F5F7" },
-  screen: {
+  screen: { flex: 1 },
+  container: {
     flex: 1,
-    backgroundColor: "#F4F5F7",
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    alignItems: "center",
+    width: "100%",
+    maxWidth: 520,
+    alignSelf: "center",
   },
-  shell: { width: "100%", maxWidth: 520, flex: 1 },
 
   progressText: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: "#2B2B2B",
-    marginBottom: 10,
+    fontFamily: T.font.semiFamily ?? T.font.family,
+    fontSize: 13,
+    letterSpacing: 0.4,
+    marginBottom: 12,
   },
 
   headerRow: {
@@ -335,31 +373,34 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  headerTitle: { fontSize: 16, fontWeight: "700", color: "#111" },
+  headerTitle: {
+    fontFamily: T.font.boldFamily ?? T.font.headingFamily,
+    fontSize: 17,
+    letterSpacing: -0.2,
+  },
   divider: {
     height: 2,
-    backgroundColor: "#111",
-    opacity: 0.25,
-    marginBottom: 6,
+    opacity: 0.2,
+    marginBottom: 8,
   },
 
+  content: { flex: 1 },
   scroll: { flex: 1 },
-  scrollContent: { paddingTop: 10 },
+  scrollContent: { paddingTop: 10, paddingBottom: 140 },
 
   topBody: {
-    fontSize: 12,
-    lineHeight: 16,
+    fontFamily: T.font.family,
+    fontSize: 15,
+    lineHeight: 21,
     textAlign: "center",
-    color: "#111",
-    opacity: 0.6,
     paddingHorizontal: 18,
-    marginBottom: 12,
+    marginBottom: 14,
   },
 
-  photoBlock: { alignItems: "center", marginBottom: 10 },
+  photoBlock: { alignItems: "center", marginBottom: 12 },
   photoCircle: {
-    width: 92,
-    height: 92,
+    width: 96,
+    height: 96,
     borderRadius: 999,
     borderWidth: 1.5,
     borderColor: "rgba(17,17,17,0.35)",
@@ -370,7 +411,7 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    opacity: 0.7,
+    opacity: 0.8,
   },
   photoImg: { width: "100%", height: "100%" },
 
@@ -384,48 +425,53 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     borderRadius: 10,
   },
-  smallActionText: { fontSize: 12, fontWeight: "700", color: "#111" },
+  smallActionText: {
+    fontFamily: T.font.semiFamily ?? T.font.family,
+    fontSize: 13,
+  },
+
+  formBlock: {
+    marginTop: 4,
+  },
 
   label: {
-    fontSize: 12,
-    fontWeight: "800",
-    color: "#111",
-    opacity: 0.75,
+    fontFamily: T.font.semiFamily ?? T.font.family,
+    fontSize: 14,
+    letterSpacing: 0.2,
     marginBottom: 6,
   },
-  inputWrap: {
-    borderWidth: 1.25,
-    borderColor: "#B8B8B8",
-    borderRadius: 8,
-    backgroundColor: "#F6F6F6",
-    paddingHorizontal: 12,
-    minHeight: 44,
-    justifyContent: "center",
+  inputBox: {
+    backgroundColor: "#E1E1E1",
+    minHeight: 56,
+    borderWidth: 1,
+    borderRadius: 10,
   },
-  input: { fontSize: 13, color: "#111", paddingVertical: 10 },
+  inputText: {
+    fontFamily: T.font.family,
+    fontSize: 15.5,
+    paddingVertical: 8,
+  },
   hint: {
-    marginTop: 6,
-    fontSize: 11,
-    lineHeight: 14,
-    color: "#111",
-    opacity: 0.55,
-    textAlign: "center",
+    fontFamily: T.font.family,
+    fontSize: 12.5,
+    lineHeight: 17,
   },
-  mono: { fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace" },
+  mono: {
+    fontFamily: T.font.semiFamily ?? T.font.family,
+  },
 
   sectionTitle: {
-    marginTop: 14,
-    fontSize: 14,
-    fontWeight: "800",
-    color: "#111",
+    marginTop: 16,
+    fontFamily: T.font.boldFamily ?? T.font.headingFamily,
+    fontSize: 16,
+    letterSpacing: -0.2,
     textAlign: "center",
   },
   sectionBody: {
     marginTop: 6,
-    fontSize: 12,
-    lineHeight: 16,
-    color: "#111",
-    opacity: 0.6,
+    fontFamily: T.font.family,
+    fontSize: 14.5,
+    lineHeight: 20,
     textAlign: "center",
     paddingHorizontal: 18,
     marginBottom: 12,
@@ -437,15 +483,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 10,
     borderWidth: 1.25,
-    borderColor: "#B8B8B8",
-    borderRadius: 10,
-    backgroundColor: "#F6F6F6",
+    borderRadius: 12,
     paddingHorizontal: 12,
     paddingVertical: 12,
   },
   goalCardSelected: {
     borderColor: "#111",
-    backgroundColor: "#F2F2F2",
+    backgroundColor: "#E8E8EA",
   },
   goalIcon: {
     width: 34,
@@ -455,28 +499,20 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  goalTitle: { fontSize: 13, fontWeight: "800", color: "#111" },
-  goalSubtitle: { fontSize: 11, color: "#111", opacity: 0.6, marginTop: 2 },
+  goalTitle: { fontFamily: T.font.boldFamily ?? T.font.headingFamily, fontSize: 14 },
+  goalSubtitle: { fontFamily: T.font.family, fontSize: 12, marginTop: 2 },
   goalCheckGhost: { width: 18, height: 18, borderRadius: 9, opacity: 0 },
 
   footer: {
     paddingTop: 10,
     paddingBottom: 6,
-    backgroundColor: "#F4F5F7",
   },
   cta: {
-    backgroundColor: "#111",
-    borderRadius: 999,
-    paddingVertical: 14,
-    alignItems: "center",
+    height: 50,
   },
-  ctaDisabled: { backgroundColor: "#111", opacity: 0.55 },
-  ctaPressed: { opacity: 0.85 },
   ctaText: {
-    color: "#FFF",
-    fontWeight: "800",
+    fontSize: 18,
     letterSpacing: 0.6,
-    fontSize: 12,
   },
 
   pressed: { opacity: 0.6 },

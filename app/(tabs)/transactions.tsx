@@ -102,6 +102,7 @@ export default function HomeScreen() {
     account_id?: number | null;
     expense_categoryid?: number | null;
     subcategory_id?: number | null;
+    transaction_date?: string | null;
   };
 
   const [categories, setCategories] = useState<CategoryRow[]>([]);
@@ -538,10 +539,7 @@ export default function HomeScreen() {
         description: description.trim().length ? description.trim() : null,
         expense_categoryid: selectedCategory.id,
         subcategory_id: selectedSubcategory ? selectedSubcategory.id : null,
-        is_recurring: false,
-        reccurence_freq: null,
-        next_occurence: null,
-        end_date: null,
+        transaction_date: new Date().toISOString(),
       });
 
       const latestAccount = await getAccountById({

@@ -42,11 +42,11 @@ function ProtectedLayout() {
 
 export default function RootLayout() {
   const [loaded] = useFonts({
-    "Avenir LT Std 55 Roman": require("../assets/fonts/Avenir LT Std/Avenir LT Std 55 Roman/Avenir LT Std 55 Roman.otf"),
-    "Avenir LT Std 55 Oblique": require("../assets/fonts/Avenir LT Std/Avenir LT Std 55 Oblique/Avenir LT Std 55 Oblique.otf"),
-    "Avenir LT Std 65 Medium": require("../assets/fonts/Avenir LT Std/Avenir LT Std 65 Medium/Avenir LT Std 65 Medium.otf"),
-    "Avenir LT Std 85 Heavy": require("../assets/fonts/Avenir LT Std/Avenir LT Std 85 Heavy/Avenir LT Std 85 Heavy.otf"),
-    "Avenir LT Std 95 Black": require("../assets/fonts/Avenir LT Std/Avenir LT Std 95 Black/Avenir LT Std 95 Black.otf"),
+    "Avenir LT Std 55 Roman": require("../assets/fonts/AvenirLTStd-Roman.otf"),
+    "Avenir LT Std 55 Oblique": require("../assets/fonts/AvenirLTStd-Oblique.otf"),
+    "Avenir LT Std 65 Medium": require("../assets/fonts/AvenirLTStd-Medium.otf"),
+    "Avenir LT Std 85 Heavy": require("../assets/fonts/AvenirLTStd-Heavy.otf"),
+    "Avenir LT Std 95 Black": require("../assets/fonts/AvenirLTStd-Black.otf"),
   });
   const colorScheme = useColorScheme() ?? "light";
 

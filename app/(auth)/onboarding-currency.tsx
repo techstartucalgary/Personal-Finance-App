@@ -41,7 +41,7 @@ export default function Onboarding() {
       <View style={styles.screen}>
         <View style={styles.shell}>
           {/* Progress label */}
-          <Text style={styles.progressText}>Setting Up 1/5</Text>
+          <Text style={styles.progressText}>Setting Up 2/3</Text>
 
           {/* Header */}
           <View style={styles.headerRow}>

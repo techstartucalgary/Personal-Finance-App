@@ -12,6 +12,7 @@ import {
   Image,
   Platform,
   Alert,
+  ScrollView,
 } from "react-native";
 
 type GoalId = "debt" | "big_purchase" | "net_worth" | "spending" | "invest";
@@ -115,22 +116,23 @@ export default function OnboardingProfile() {
 
   const removePhoto = () => setPhotoUri(null);
 
-  const onContinue = async () => {
+  const onContinue = () => {
     if (!canContinue) return;
 
-    // TODO later:
-    // - store: preferredName, normalizedUsername, goal
-    // - upload photo if provided
-    // TEMP: pass through needsEmailConfirm so consent screen can route properly
     const needsEmailConfirm = params.needsEmailConfirm === "1" ? "1" : "0";
-    router.push;
+
+    router.push({
+      pathname: "/(auth)/onboarding-currency",
+      params: { needsEmailConfirm },
+    });
   };
 
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.screen}>
         <View style={styles.shell}>
-          <Text style={styles.progressText}>Setting Up 1/5</Text>
+          {/* Header stays above scroll */}
+          <Text style={styles.progressText}>Setting Up 1/3</Text>
 
           <View style={styles.headerRow}>
             <Pressable
@@ -147,128 +149,143 @@ export default function OnboardingProfile() {
 
           <View style={styles.divider} />
 
-          <Text style={styles.topBody}>
-            Add a profile so your settings sync cleanly across devices.
-          </Text>
+          {/* Scrollable content */}
+          <ScrollView
+            style={styles.scroll}
+            contentContainerStyle={styles.scrollContent}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+          >
+            <Text style={styles.topBody}>
+              Add a profile so your settings sync cleanly across devices.
+            </Text>
 
-          <View style={styles.photoBlock}>
-            <Pressable
-              onPress={pickPhoto}
-              style={({ pressed }) => [
-                styles.photoCircle,
-                pressed && styles.pressed,
-              ]}
-            >
-              {photoUri ? (
-                <Image source={{ uri: photoUri }} style={styles.photoImg} />
-              ) : (
-                <View style={styles.photoPlaceholder}>
-                  <Feather name="user" size={26} color="#111" />
-                </View>
-              )}
-            </Pressable>
-
-            <View style={styles.photoActions}>
+            <View style={styles.photoBlock}>
               <Pressable
                 onPress={pickPhoto}
                 style={({ pressed }) => [
-                  styles.smallActionBtn,
+                  styles.photoCircle,
                   pressed && styles.pressed,
                 ]}
               >
-                <Text style={styles.smallActionText}>
-                  {photoUri ? "Change photo" : "Add photo"}
-                </Text>
+                {photoUri ? (
+                  <Image source={{ uri: photoUri }} style={styles.photoImg} />
+                ) : (
+                  <View style={styles.photoPlaceholder}>
+                    <Feather name="user" size={26} color="#111" />
+                  </View>
+                )}
               </Pressable>
 
-              {photoUri && (
+              <View style={styles.photoActions}>
                 <Pressable
-                  onPress={removePhoto}
+                  onPress={pickPhoto}
                   style={({ pressed }) => [
                     styles.smallActionBtn,
                     pressed && styles.pressed,
                   ]}
                 >
-                  <Text style={[styles.smallActionText, { opacity: 0.65 }]}>
-                    Remove
+                  <Text style={styles.smallActionText}>
+                    {photoUri ? "Change photo" : "Add photo"}
                   </Text>
                 </Pressable>
-              )}
-            </View>
-          </View>
 
-          <View style={{ marginTop: 8 }}>
-            <Text style={styles.label}>Preferred name</Text>
-            <View style={styles.inputWrap}>
-              <TextInput
-                value={preferredName}
-                onChangeText={setPreferredName}
-                placeholder="e.g., Johnny"
-                placeholderTextColor="rgba(17,17,17,0.45)"
-                style={styles.input}
-                returnKeyType="next"
-              />
-            </View>
-
-            <Text style={[styles.label, { marginTop: 12 }]}>Username</Text>
-            <View style={styles.inputWrap}>
-              <TextInput
-                value={username}
-                onChangeText={(v) => setUsername(v)}
-                placeholder="e.g., JohnD300"
-                placeholderTextColor="rgba(17,17,17,0.45)"
-                style={styles.input}
-                autoCapitalize="none"
-              />
+                {photoUri && (
+                  <Pressable
+                    onPress={removePhoto}
+                    style={({ pressed }) => [
+                      styles.smallActionBtn,
+                      pressed && styles.pressed,
+                    ]}
+                  >
+                    <Text style={[styles.smallActionText, { opacity: 0.65 }]}>
+                      Remove
+                    </Text>
+                  </Pressable>
+                )}
+              </View>
             </View>
 
-            {normalizedUsername !== cleanedUsername.toLowerCase() &&
-              cleanedUsername.length > 0 && (
-                <Text style={styles.hint}>
-                  Will be saved as: <Text style={styles.mono}>@{normalizedUsername}</Text>
-                </Text>
-              )}
+            <View style={{ marginTop: 8 }}>
+              <Text style={styles.label}>Preferred name</Text>
+              <View style={styles.inputWrap}>
+                <TextInput
+                  value={preferredName}
+                  onChangeText={setPreferredName}
+                  placeholder="e.g., Johnny"
+                  placeholderTextColor="rgba(17,17,17,0.45)"
+                  style={styles.input}
+                  returnKeyType="next"
+                />
+              </View>
 
-            <Text style={[styles.hint, { marginTop: 6 }]}>
-              Username must be at least 3 characters. Letters, numbers, and
-              underscores only.
+              <Text style={[styles.label, { marginTop: 12 }]}>Username</Text>
+              <View style={styles.inputWrap}>
+                <TextInput
+                  value={username}
+                  onChangeText={setUsername}
+                  placeholder="e.g., JohnD300"
+                  placeholderTextColor="rgba(17,17,17,0.45)"
+                  style={styles.input}
+                  autoCapitalize="none"
+                />
+              </View>
+
+              {normalizedUsername !== cleanedUsername.toLowerCase() &&
+                cleanedUsername.length > 0 && (
+                  <Text style={styles.hint}>
+                    Will be saved as:{" "}
+                    <Text style={styles.mono}>@{normalizedUsername}</Text>
+                  </Text>
+                )}
+
+              <Text style={[styles.hint, { marginTop: 6 }]}>
+                Username must be at least 3 characters. Letters, numbers, and
+                underscores only.
+              </Text>
+            </View>
+
+            <Text style={styles.sectionTitle}>Primary goal</Text>
+            <Text style={styles.sectionBody}>
+              Pick one to personalize your setup.
             </Text>
-          </View>
 
-          <Text style={styles.sectionTitle}>Primary goal</Text>
-          <Text style={styles.sectionBody}>Pick one to personalize your setup.</Text>
+            <View style={styles.goalGrid}>
+              {goals.map((g) => {
+                const selected = goal === g.id;
+                return (
+                  <Pressable
+                    key={g.id}
+                    onPress={() => setGoal(g.id)}
+                    style={({ pressed }) => [
+                      styles.goalCard,
+                      selected && styles.goalCardSelected,
+                      pressed && styles.pressed,
+                    ]}
+                  >
+                    <View style={styles.goalIcon}>
+                      <Feather name={g.icon} size={18} color="#111" />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.goalTitle}>{g.title}</Text>
+                      <Text style={styles.goalSubtitle}>{g.subtitle}</Text>
+                    </View>
+                    {selected ? (
+                      <Feather name="check" size={18} color="#111" />
+                    ) : (
+                      <View style={styles.goalCheckGhost} />
+                    )}
+                  </Pressable>
+                );
+              })}
+            </View>
 
-          <View style={styles.goalGrid}>
-            {goals.map((g) => {
-              const selected = goal === g.id;
-              return (
-                <Pressable
-                  key={g.id}
-                  onPress={() => setGoal(g.id)}
-                  style={({ pressed }) => [
-                    styles.goalCard,
-                    selected && styles.goalCardSelected,
-                    pressed && styles.pressed,
-                  ]}
-                >
-                  <View style={styles.goalIcon}>
-                    <Feather name={g.icon} size={18} color="#111" />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.goalTitle}>{g.title}</Text>
-                    <Text style={styles.goalSubtitle}>{g.subtitle}</Text>
-                  </View>
-                  {selected ? (
-                    <Feather name="check" size={18} color="#111" />
-                  ) : (
-                    <View style={styles.goalCheckGhost} />
-                  )}
-                </Pressable>
-              );
-            })}
-          </View>
+            {/* Spacer so last goal isn’t hidden behind footer */}
+            <View style={{ height: 110 }} />
+          </ScrollView>
 
-          <View style={styles.bottom}>
+          {/* Fixed footer CTA */}
+          <View style={styles.footer}>
             <Pressable
               onPress={onContinue}
               disabled={!canContinue}
@@ -278,7 +295,7 @@ export default function OnboardingProfile() {
                 pressed && canContinue && styles.ctaPressed,
               ]}
             >
-              <Text style={styles.ctaText}>CONTINUE</Text>
+              <Text style={styles.ctaText}>NEXT</Text>
             </Pressable>
           </View>
         </View>
@@ -296,7 +313,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     alignItems: "center",
   },
-  shell: { width: "100%", maxWidth: 420, flex: 1 },
+  shell: { width: "100%", maxWidth: 520, flex: 1 },
 
   progressText: {
     fontSize: 12,
@@ -323,8 +340,11 @@ const styles = StyleSheet.create({
     height: 2,
     backgroundColor: "#111",
     opacity: 0.25,
-    marginBottom: 14,
+    marginBottom: 6,
   },
+
+  scroll: { flex: 1 },
+  scrollContent: { paddingTop: 10 },
 
   topBody: {
     fontSize: 12,
@@ -411,7 +431,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
 
-  goalGrid: { gap: 10 },
+  goalGrid: { gap: 10, paddingHorizontal: 2 },
   goalCard: {
     flexDirection: "row",
     alignItems: "center",
@@ -439,7 +459,11 @@ const styles = StyleSheet.create({
   goalSubtitle: { fontSize: 11, color: "#111", opacity: 0.6, marginTop: 2 },
   goalCheckGhost: { width: 18, height: 18, borderRadius: 9, opacity: 0 },
 
-  bottom: { marginTop: "auto", paddingTop: 14, paddingBottom: 10 },
+  footer: {
+    paddingTop: 10,
+    paddingBottom: 6,
+    backgroundColor: "#F4F5F7",
+  },
   cta: {
     backgroundColor: "#111",
     borderRadius: 999,

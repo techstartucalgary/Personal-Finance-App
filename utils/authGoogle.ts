@@ -1,18 +1,26 @@
 import { supabase } from "@/utils/supabase";
-import {
-    GoogleSignin,
-    isSuccessResponse,
-    statusCodes,
-} from "@react-native-google-signin/google-signin";
 import { Platform } from "react-native";
 
 let configured = false;
+
+function getGoogleModule() {
+  try {
+    // Lazy import to avoid crashing in Expo Go (native module missing).
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    return require("@react-native-google-signin/google-signin");
+  } catch (error) {
+    return null;
+  }
+}
 
 export function configureGoogleOnce() {
   if (configured) return;
   if (Platform.OS === "web") return;
 
-  GoogleSignin.configure({
+  const GoogleModule = getGoogleModule();
+  if (!GoogleModule) return;
+
+  GoogleModule.GoogleSignin.configure({
     webClientId:
       "801083441538-qdj0ai72fhs80t56379l3eo9tnlad2go.apps.googleusercontent.com",
     iosClientId:
@@ -30,10 +38,19 @@ export async function signInWithGoogle() {
     };
   }
 
+  const GoogleModule = getGoogleModule();
+  if (!GoogleModule) {
+    return {
+      ok: false as const,
+      message:
+        "Google Sign-in is unavailable in Expo Go. Use a dev client build to enable it.",
+    };
+  }
+
   try {
-    await GoogleSignin.hasPlayServices();
-    const response = await GoogleSignin.signIn();
-    if (!isSuccessResponse(response)) {
+    await GoogleModule.GoogleSignin.hasPlayServices();
+    const response = await GoogleModule.GoogleSignin.signIn();
+    if (!GoogleModule.isSuccessResponse(response)) {
       return { ok: false as const, message: "Google sign-in was cancelled." };
     }
 
@@ -51,14 +68,14 @@ export async function signInWithGoogle() {
 
     return { ok: true as const };
   } catch (error: any) {
-    if (error?.code === statusCodes.IN_PROGRESS) {
+    if (error?.code === GoogleModule.statusCodes.IN_PROGRESS) {
       return {
         ok: false as const,
         message: "Google sign-in already in progress.",
       };
     }
 
-    if (error?.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
+    if (error?.code === GoogleModule.statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
       return {
         ok: false as const,
         message: "Google Play Services is not available or is outdated.",

@@ -9,7 +9,7 @@ export type RecurringRuleInsert = {
     next_run_date: string;      // "YYYY-MM-DD"
     end_date?: string | null;
     is_active?: boolean | null;
-    category_id?: string | number | null;
+    expense_categoryid?: string | number | null;
     subcategory_id?: string | number | null;
   };
   
@@ -62,4 +62,23 @@ export async function updateRecurringRule(params: {
   
     if (error) throw error;
     return true;
+  }
+
+  export async function listDueRecurringRules(params: {
+    profile_id: string;
+    today: string; // "YYYY-MM-DD"
+  }) {
+    const { profile_id, today } = params;
+  
+    const { data, error } = await supabase
+      .from("recurring_expense_rules")
+      .select("*")
+      .eq("profile_id", profile_id)
+      .eq("is_active", true)
+      .lte("next_run_date", today)
+      .or(`end_date.is.null,end_date.gte.${today}`)
+      .order("next_run_date", { ascending: true });
+  
+    if (error) throw error;
+    return data; // array
   }

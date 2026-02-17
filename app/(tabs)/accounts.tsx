@@ -17,6 +17,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useFocusEffect, useRouter } from "expo-router";
 
+import { Tokens } from "@/constants/authTokens";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { useAuthContext } from "@/hooks/use-auth-context";
@@ -87,6 +88,10 @@ export default function AccountsScreen() {
       text: isDark ? "#ffffff" : "#111111",
       mutedText: isDark ? "rgba(255,255,255,0.6)" : "rgba(0,0,0,0.5)",
       backdrop: "rgba(0,0,0,0.45)",
+      accent: isDark ? "#8CF2D1" : "#1F6F5B",
+      accentSoft: isDark ? "rgba(140,242,209,0.2)" : "rgba(31,111,91,0.12)",
+      hero: isDark ? "#1C2027" : "#F9F4EC",
+      heroAlt: isDark ? "#262B34" : "#FFFFFF",
     }),
     [isDark],
   );
@@ -396,6 +401,28 @@ export default function AccountsScreen() {
     [accounts],
   );
 
+  const totalAvailable = useMemo(
+    () =>
+      accounts.reduce((sum, account) => sum + calculateAvailable(account), 0),
+    [accounts, calculateAvailable],
+  );
+
+  const creditCount = useMemo(
+    () =>
+      accounts.filter(
+        (account) => (account.account_type ?? "").toLowerCase() === "credit",
+      ).length,
+    [accounts],
+  );
+
+  const debitCount = useMemo(
+    () =>
+      accounts.filter(
+        (account) => (account.account_type ?? "").toLowerCase() === "debit",
+      ).length,
+    [accounts],
+  );
+
   const filteredAccounts = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
     if (!q) return accounts;
@@ -437,6 +464,27 @@ export default function AccountsScreen() {
         },
       ]}
     >
+      <View pointerEvents="none" style={styles.bgDecor}>
+        <View
+          style={[
+            styles.bgOrb,
+            styles.bgOrbTop,
+            { backgroundColor: ui.accentSoft },
+          ]}
+        />
+        <View
+          style={[
+            styles.bgOrb,
+            styles.bgOrbBottom,
+            {
+              backgroundColor: isDark
+                ? "rgba(255,255,255,0.08)"
+                : "rgba(255,255,255,0.65)",
+            },
+          ]}
+        />
+        <View style={[styles.bgRing, { borderColor: ui.accentSoft }]} />
+      </View>
       <ScrollView
         contentContainerStyle={[
           styles.scrollContent,
@@ -460,12 +508,17 @@ export default function AccountsScreen() {
               <Feather name="bell" size={24} color={ui.text} />
             </Pressable>
           </View>
-          <ThemedText style={[styles.headerTitle, { color: ui.text }]}>
-            Accounts
-          </ThemedText>
           <Pressable onPress={() => router.push("/profile")}>
             <Feather name="user" size={24} color={ui.text} />
           </Pressable>
+        </View>
+        <View style={styles.headerTitleWrap}>
+          <ThemedText style={[styles.headerTitle, { color: ui.text }]}>
+            Accounts
+          </ThemedText>
+          <ThemedText style={[styles.headerSubtitle, { color: ui.mutedText }]}>
+            Track balances, due dates, and goals in one place.
+          </ThemedText>
         </View>
 
         <View
@@ -484,223 +537,81 @@ export default function AccountsScreen() {
               {isLoading ? "Loading…" : "No accounts yet. Add one below."}
             </ThemedText>
           ) : (
-            accounts.map((item) => (
-              <Pressable
-                key={item.id}
-                onPress={() => setEditingAccount(item)}
-                style={({ pressed }) => [
-                  styles.row,
-                  {
-                    borderColor: ui.border,
-                    backgroundColor: ui.surface2,
-                    opacity: pressed ? 0.7 : 1,
-                  },
-                ]}
-              >
-                <View style={{ flex: 1 }}>
-                  <ThemedText type="defaultSemiBold">
-                    {item.account_name ?? "Unnamed account"}
-                  </ThemedText>
-                  <ThemedText type="default">
-                    {item.account_type
-                      ? item.account_type.charAt(0).toUpperCase() +
-                        item.account_type.slice(1)
-                      : "—"}
-                  </ThemedText>
-                  <ThemedText>
-                    Balance: {formatMoney(item.balance ?? 0)}
-                  </ThemedText>
-                  <ThemedText style={{ opacity: 0.7, fontSize: 13 }}>
-                    Available: {formatMoney(calculateAvailable(item))}
-                  </ThemedText>
-                  <ThemedText>{item.currency}</ThemedText>
-                </View>
-              </Pressable>
-            ))
-          )}
-        </View>
-        <View style={styles.balanceWrap}>
-          <ThemedText style={[styles.balanceLabel, { color: ui.mutedText }]}>
-            Total Balance
-          </ThemedText>
-          <ThemedText style={[styles.balanceValue, { color: ui.text }]}>
-            {formatMoney(totalBalance)}
-          </ThemedText>
-        </View>
-
-        <View
-          style={[
-            styles.chartCard,
-            { borderColor: ui.border, backgroundColor: ui.surface2 },
-          ]}
-        >
-          <View style={styles.chartRow}>
-            <View style={styles.yAxis}>
-              <ThemedText style={[styles.yLabel, { color: ui.mutedText }]}>
-                50k
-              </ThemedText>
-              <ThemedText style={[styles.yLabel, { color: ui.mutedText }]}>
-                20k
-              </ThemedText>
-              <ThemedText style={[styles.yLabel, { color: ui.mutedText }]}>
-                10k
-              </ThemedText>
-              <ThemedText style={[styles.yLabel, { color: ui.mutedText }]}>
-                0
-              </ThemedText>
-            </View>
-
-            <View style={styles.chartArea}>
-              <View
-                style={[
-                  styles.chartGuide,
-                  { borderColor: ui.border, top: "8%" },
-                ]}
-              />
-              <View
-                style={[
-                  styles.chartGuide,
-                  { borderColor: ui.border, top: "34%" },
-                ]}
-              />
-              <View
-                style={[
-                  styles.chartGuide,
-                  { borderColor: ui.border, top: "58%" },
-                ]}
-              />
-              <View
-                style={[
-                  styles.chartGuide,
-                  { borderColor: ui.border, top: "82%" },
-                ]}
-              />
-              <Image
-                source={{
-                  uri: "https://api.builder.io/api/v1/image/assets/TEMP/94870884-619f-436a-b553-127d9ef92e88?placeholderIfAbsent=true&apiKey=342743ad2e264936acee3aea8d83ec5e",
-                }}
-                style={styles.chartImage}
-                resizeMode="contain"
-              />
-            </View>
-          </View>
-
-          <View style={styles.monthRow}>
-            <ThemedText style={[styles.monthLabel, { color: ui.mutedText }]}>
-              Jan
-            </ThemedText>
-            <ThemedText style={[styles.monthLabel, { color: ui.mutedText }]}>
-              Feb
-            </ThemedText>
-            <ThemedText style={[styles.monthLabel, { color: ui.text }]}>
-              Mar
-            </ThemedText>
-            <ThemedText style={[styles.monthLabel, { color: ui.mutedText }]}>
-              Apr
-            </ThemedText>
-          </View>
-        </View>
-
-        <View style={styles.toolbarRow}>
-          <Pressable
-            onPress={() => setCreateModalOpen(true)}
-            style={[
-              styles.smallActionBtn,
-              { borderColor: ui.border, backgroundColor: ui.surface2 },
-            ]}
-          >
-            <Feather name="plus" size={18} color={ui.text} />
-            <Feather name="credit-card" size={18} color={ui.text} />
-          </Pressable>
-
-          <View
-            style={[
-              styles.viewPill,
-              {
-                borderColor: ui.border,
-                backgroundColor: isDark ? "#2A2D33" : "#D8D8DA",
-              },
-            ]}
-          >
-            <Feather name="grid" size={18} color={ui.text} />
-            <View
-              style={[styles.viewDivider, { backgroundColor: ui.border }]}
-            />
-            <Feather name="list" size={18} color={ui.text} />
-          </View>
-        </View>
-
-        <View
-          style={[
-            styles.searchWrap,
-            { borderColor: ui.border, backgroundColor: ui.surface2 },
-          ]}
-        >
-          <Feather name="search" size={18} color={ui.mutedText} />
-          <TextInput
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            placeholder="Search"
-            placeholderTextColor={ui.mutedText}
-            style={[styles.searchInput, { color: ui.text }]}
-          />
-          <Feather name="sliders" size={18} color={ui.mutedText} />
-        </View>
-
-        {filteredAccounts.length === 0 ? (
-          <View
-            style={[
-              styles.emptyState,
-              { borderColor: ui.border, backgroundColor: ui.surface2 },
-            ]}
-          >
-            <ThemedText style={{ color: ui.text }}>
-              {isLoading
-                ? "Loading..."
-                : "No accounts found. Tap + to add your first account."}
-            </ThemedText>
-          </View>
-        ) : (
-          filteredAccounts.map((item) => {
-            const isCredit =
-              (item.account_type ?? "").toLowerCase() === "credit";
-            const cardColor = isDark
-              ? isCredit
-                ? "#B24E4E"
-                : "#61202A"
-              : isCredit
-                ? "#D86666"
-                : "#701D26";
-
-            return (
-              <Pressable
+            accounts.map((item) => (              <Pressable
                 key={item.id}
                 onPress={() => setEditingAccount(item)}
                 style={({ pressed }) => [
                   styles.accountCard,
-                  { backgroundColor: cardColor, opacity: pressed ? 0.88 : 1 },
+                  {
+                    backgroundColor: cardColor,
+                    opacity: pressed ? 0.88 : 1,
+                    borderColor: "rgba(255,255,255,0.28)",
+                  },
                 ]}
               >
-                <ThemedText style={styles.cardTitle}>
-                  {item.account_name ?? "Unnamed account"}
-                </ThemedText>
+                <View
+                  pointerEvents="none"
+                  style={[
+                    styles.cardGlow,
+                    {
+                      backgroundColor: isCredit
+                        ? "rgba(255,255,255,0.26)"
+                        : "rgba(255,255,255,0.18)",
+                    },
+                  ]}
+                />
+                <View pointerEvents="none" style={styles.cardRing} />
+                <View style={styles.cardTopRow}>
+                  <View style={styles.cardTitleGroup}>
+                    <ThemedText style={styles.cardTitle}>
+                      {item.account_name ?? "Unnamed account"}
+                    </ThemedText>
+                    <View style={styles.cardTag}>
+                      <ThemedText style={styles.cardTagText}>
+                        {item.account_type
+                          ? item.account_type.charAt(0).toUpperCase() +
+                            item.account_type.slice(1)
+                          : "Account"}
+                      </ThemedText>
+                    </View>
+                  </View>
+                  <View style={styles.cardIcon}>
+                    <Feather
+                      name={isCredit ? "credit-card" : "dollar-sign"}
+                      size={18}
+                      color="#FFFFFF"
+                    />
+                  </View>
+                </View>
                 <ThemedText style={styles.cardBalance}>
                   {formatMoney(item.balance ?? 0)}
                 </ThemedText>
                 <View style={styles.cardMetaRow}>
-                  <ThemedText style={styles.cardMetaText}>
-                    {item.account_type
-                      ? item.account_type.charAt(0).toUpperCase() +
-                        item.account_type.slice(1)
-                      : "Account"}
-                  </ThemedText>
-                  <ThemedText style={styles.cardMetaText}>
-                    {formatCardDate(item.payment_duedate)}
-                  </ThemedText>
+                  <View style={styles.cardMetaPill}>
+                    <Feather
+                      name="calendar"
+                      size={12}
+                      color="rgba(255,255,255,0.9)"
+                    />
+                    <ThemedText style={styles.cardMetaText}>
+                      {formatCardDate(item.payment_duedate)}
+                    </ThemedText>
+                  </View>
+                  {item.currency ? (
+                    <View style={styles.cardMetaPill}>
+                      <Feather
+                        name="globe"
+                        size={12}
+                        color="rgba(255,255,255,0.9)"
+                      />
+                      <ThemedText style={styles.cardMetaText}>
+                        {item.currency}
+                      </ThemedText>
+                    </View>
+                  ) : null}
                 </View>
                 <ThemedText style={styles.cardSubText}>
                   Available: {formatMoney(calculateAvailable(item))}
-                  {item.currency ? ` • ${item.currency}` : ""}
                 </ThemedText>
               </Pressable>
             );
@@ -1425,3 +1336,4 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
   },
 });
+

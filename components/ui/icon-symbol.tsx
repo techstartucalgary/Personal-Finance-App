@@ -27,6 +27,7 @@ const MAPPING = {
   person: "person-outline",
   "chevron.left.forwardslash.chevron.right": "code",
   "chevron.right": "chevron-right",
+  "arrow.triangle.2.circlepath": "repeat",
 } as IconMapping;
 
 const FEATHER_MAPPING: FeatherMapping = {

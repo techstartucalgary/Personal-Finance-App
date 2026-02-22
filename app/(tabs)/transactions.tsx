@@ -163,6 +163,8 @@ export default function HomeScreen() {
   const [editTransactionIsRecurring, setEditTransactionIsRecurring] = useState(false);
   const [editTransactionRecurringFrequency, setEditTransactionRecurringFrequency] = useState("Monthly");
   const [editTransactionRuleEndsOn, setEditTransactionRuleEndsOn] = useState("");
+  const [addRuleNextRunDate, setAddRuleNextRunDate] = useState("");
+  const [editTransactionRuleNextRunDate, setEditTransactionRuleNextRunDate] = useState("");
 
   // Edit Subscription State
   const [editRuleName, setEditRuleName] = useState("");
@@ -170,6 +172,7 @@ export default function HomeScreen() {
   const [editRuleFrequency, setEditRuleFrequency] = useState("Monthly");
   const [isEditEndsOnEnabled, setIsEditEndsOnEnabled] = useState(false);
   const [editRuleEndsOn, setEditRuleEndsOn] = useState("");
+  const [editRuleNextRunDate, setEditRuleNextRunDate] = useState("");
   const [editRuleSelectedCategory, setEditRuleSelectedCategory] = useState<CategoryRow | null>(null);
   const [editRuleSelectedSubcategory, setEditRuleSelectedSubcategory] = useState<SubcategoryRow | null>(null);
   const [editRuleFrequencyModalOpen, setEditRuleFrequencyModalOpen] = useState(false);
@@ -230,6 +233,33 @@ export default function HomeScreen() {
   useEffect(() => {
     loadCategories();
   }, [loadCategories]);
+
+  // Recalculate default Next Run Date when Frequency or IsRecurring changes (Add Modal)
+  useEffect(() => {
+    if (isRecurring) {
+      const nextDate = new Date();
+      if (recurringFrequency === "Daily") nextDate.setDate(nextDate.getDate() + 1);
+      else if (recurringFrequency === "Weekly") nextDate.setDate(nextDate.getDate() + 7);
+      else if (recurringFrequency === "Monthly") nextDate.setMonth(nextDate.getMonth() + 1);
+      else if (recurringFrequency === "Yearly") nextDate.setFullYear(nextDate.getFullYear() + 1);
+      setAddRuleNextRunDate(nextDate.toISOString().split("T")[0]);
+    } else {
+      setAddRuleNextRunDate("");
+    }
+  }, [isRecurring, recurringFrequency]);
+
+  // Recalculate default Next Run Date when Frequency changes (Edit Modal)
+  // We only run this if toggling it newly on, or if changing frequency.
+  useEffect(() => {
+    if (editTransactionIsRecurring && !editingExpense?.recurring_rule_id) {
+      const nextDate = new Date();
+      if (editTransactionRecurringFrequency === "Daily") nextDate.setDate(nextDate.getDate() + 1);
+      else if (editTransactionRecurringFrequency === "Weekly") nextDate.setDate(nextDate.getDate() + 7);
+      else if (editTransactionRecurringFrequency === "Monthly") nextDate.setMonth(nextDate.getMonth() + 1);
+      else if (editTransactionRecurringFrequency === "Yearly") nextDate.setFullYear(nextDate.getFullYear() + 1);
+      setEditTransactionRuleNextRunDate(nextDate.toISOString().split("T")[0]);
+    }
+  }, [editTransactionIsRecurring, editTransactionRecurringFrequency, editingExpense]);
 
   // Load subcategories when selectedCategory changes in Add Modal
   useEffect(() => {
@@ -318,10 +348,12 @@ export default function HomeScreen() {
         setEditTransactionIsRecurring(true);
         setEditTransactionRecurringFrequency(rule.frequency || "Monthly");
         setEditTransactionRuleEndsOn(rule.end_date || "");
+        setEditTransactionRuleNextRunDate(rule.next_run_date || "");
       } else {
         setEditTransactionIsRecurring(false);
         setEditTransactionRecurringFrequency("Monthly");
         setEditTransactionRuleEndsOn("");
+        setEditTransactionRuleNextRunDate("");
       }
     }
   }, [editingExpense, recurringRules]);
@@ -363,6 +395,7 @@ export default function HomeScreen() {
     setEditRuleFrequency(editingRule.frequency || "Monthly");
     setIsEditEndsOnEnabled(!!editingRule.end_date);
     setEditRuleEndsOn(editingRule.end_date || "");
+    setEditRuleNextRunDate(editingRule.next_run_date || "");
 
     const categoryMatch = categories.find((c) => c.id === editingRule.expense_categoryid);
     setEditRuleSelectedCategory(categoryMatch ?? null);
@@ -621,11 +654,16 @@ export default function HomeScreen() {
     try {
       let recurring_rule_id: number | null = null;
       if (isRecurring) {
-        const nextDate = new Date();
-        if (recurringFrequency === "Daily") nextDate.setDate(nextDate.getDate() + 1);
-        else if (recurringFrequency === "Weekly") nextDate.setDate(nextDate.getDate() + 7);
-        else if (recurringFrequency === "Monthly") nextDate.setMonth(nextDate.getMonth() + 1);
-        else if (recurringFrequency === "Yearly") nextDate.setFullYear(nextDate.getFullYear() + 1);
+        let finalNextRunDate = addRuleNextRunDate.trim();
+        // Fallback to calculation if field improperly formatted or empty
+        if (!finalNextRunDate) {
+          const fallbackDate = new Date();
+          if (recurringFrequency === "Daily") fallbackDate.setDate(fallbackDate.getDate() + 1);
+          else if (recurringFrequency === "Weekly") fallbackDate.setDate(fallbackDate.getDate() + 7);
+          else if (recurringFrequency === "Monthly") fallbackDate.setMonth(fallbackDate.getMonth() + 1);
+          else if (recurringFrequency === "Yearly") fallbackDate.setFullYear(fallbackDate.getFullYear() + 1);
+          finalNextRunDate = fallbackDate.toISOString().split("T")[0];
+        }
 
         const ruleName = description.trim() || `${selectedCategory.category_name} expense`;
         const rule = await createRecurringRule({
@@ -634,7 +672,7 @@ export default function HomeScreen() {
           amount: parsed,
           frequency: recurringFrequency,
           end_date: addRuleEndsOn.trim() ? addRuleEndsOn.trim() : null,
-          next_run_date: nextDate.toISOString().split("T")[0],
+          next_run_date: finalNextRunDate,
           is_active: true,
           account_id: selectedAccount.id,
           expense_categoryid: selectedCategory.id,
@@ -731,11 +769,15 @@ export default function HomeScreen() {
 
       if (editTransactionIsRecurring && !editingExpense.recurring_rule_id) {
         // Create new rule
-        const nextDate = new Date();
-        if (editTransactionRecurringFrequency === "Daily") nextDate.setDate(nextDate.getDate() + 1);
-        else if (editTransactionRecurringFrequency === "Weekly") nextDate.setDate(nextDate.getDate() + 7);
-        else if (editTransactionRecurringFrequency === "Monthly") nextDate.setMonth(nextDate.getMonth() + 1);
-        else if (editTransactionRecurringFrequency === "Yearly") nextDate.setFullYear(nextDate.getFullYear() + 1);
+        let finalNextRunDate = editTransactionRuleNextRunDate.trim();
+        if (!finalNextRunDate) {
+          const fallbackDate = new Date();
+          if (editTransactionRecurringFrequency === "Daily") fallbackDate.setDate(fallbackDate.getDate() + 1);
+          else if (editTransactionRecurringFrequency === "Weekly") fallbackDate.setDate(fallbackDate.getDate() + 7);
+          else if (editTransactionRecurringFrequency === "Monthly") fallbackDate.setMonth(fallbackDate.getMonth() + 1);
+          else if (editTransactionRecurringFrequency === "Yearly") fallbackDate.setFullYear(fallbackDate.getFullYear() + 1);
+          finalNextRunDate = fallbackDate.toISOString().split("T")[0];
+        }
 
         const ruleName = editDescription.trim() || `${editSelectedCategory.category_name} expense`;
         const rule = await createRecurringRule({
@@ -744,7 +786,7 @@ export default function HomeScreen() {
           amount: parsed,
           frequency: editTransactionRecurringFrequency,
           end_date: editTransactionRuleEndsOn.trim() ? editTransactionRuleEndsOn.trim() : null,
-          next_run_date: nextDate.toISOString().split("T")[0],
+          next_run_date: finalNextRunDate,
           is_active: true,
           account_id: editSelectedAccount.id,
           expense_categoryid: editSelectedCategory.id,
@@ -1035,6 +1077,7 @@ export default function HomeScreen() {
           amount: parseFloat(editRuleAmount),
           frequency: editRuleFrequency as any,
           end_date: editRuleEndsOn.trim() ? editRuleEndsOn.trim() : null,
+          next_run_date: editRuleNextRunDate.trim() ? editRuleNextRunDate.trim() : undefined,
           expense_categoryid: editRuleSelectedCategory?.id || undefined,
           subcategory_id: editRuleSelectedSubcategory?.id || undefined,
         }
@@ -1486,6 +1529,26 @@ export default function HomeScreen() {
               </View>
             )}
 
+            {isRecurring && (
+              <View style={styles.fieldGroup}>
+                <ThemedText type="defaultSemiBold">Next Run Date</ThemedText>
+                <TextInput
+                  value={addRuleNextRunDate}
+                  onChangeText={setAddRuleNextRunDate}
+                  placeholder="YYYY-MM-DD"
+                  placeholderTextColor={ui.mutedText}
+                  style={[
+                    styles.input,
+                    {
+                      borderColor: ui.border,
+                      backgroundColor: ui.surface,
+                      color: ui.text,
+                    },
+                  ]}
+                />
+              </View>
+            )}
+
             <Pressable
               onPress={createTransaction}
               disabled={!canCreate || isLoading}
@@ -1851,7 +1914,7 @@ export default function HomeScreen() {
             </Pressable>
           </View>
 
-          <View style={{ gap: 16 }}>
+          <ScrollView contentContainerStyle={{ gap: 16, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
             <View style={{ gap: 6 }}>
               <ThemedText type="defaultSemiBold">Account</ThemedText>
               <Pressable
@@ -1959,6 +2022,26 @@ export default function HomeScreen() {
 
             {editTransactionIsRecurring && (
               <View style={{ gap: 6 }}>
+                <ThemedText type="defaultSemiBold">Next Run Date</ThemedText>
+                <TextInput
+                  value={editTransactionRuleNextRunDate}
+                  onChangeText={setEditTransactionRuleNextRunDate}
+                  placeholder="YYYY-MM-DD"
+                  placeholderTextColor={ui.mutedText}
+                  style={[
+                    styles.input,
+                    {
+                      borderColor: ui.border,
+                      backgroundColor: ui.surface,
+                      color: ui.text,
+                    },
+                  ]}
+                />
+              </View>
+            )}
+
+            {editTransactionIsRecurring && (
+              <View style={{ gap: 6 }}>
                 <ThemedText type="defaultSemiBold">Ends On (Optional)</ThemedText>
                 <TextInput
                   value={editTransactionRuleEndsOn}
@@ -2010,7 +2093,7 @@ export default function HomeScreen() {
                 Delete Transaction
               </ThemedText>
             </Pressable>
-          </View>
+          </ScrollView>
 
           {/* Subcategory Picker Overlay (Edit) */}
           {editSubcategoryModalOpen && (
@@ -2389,6 +2472,24 @@ export default function HomeScreen() {
               <TextInput
                 value={editRuleEndsOn}
                 onChangeText={setEditRuleEndsOn}
+                placeholder="YYYY-MM-DD"
+                placeholderTextColor={ui.mutedText}
+                style={[
+                  styles.input,
+                  {
+                    borderColor: ui.border,
+                    backgroundColor: ui.surface2,
+                    color: ui.text,
+                  },
+                ]}
+              />
+            </View>
+
+            <View style={{ gap: 6 }}>
+              <ThemedText type="defaultSemiBold">Next Run Date</ThemedText>
+              <TextInput
+                value={editRuleNextRunDate}
+                onChangeText={setEditRuleNextRunDate}
                 placeholder="YYYY-MM-DD"
                 placeholderTextColor={ui.mutedText}
                 style={[

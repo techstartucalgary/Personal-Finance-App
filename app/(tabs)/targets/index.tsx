@@ -1,12 +1,11 @@
 import React, { useMemo, useState } from "react";
-import { Pressable, RefreshControl, ScrollView, StyleSheet, View, useColorScheme } from "react-native";
+import { Pressable, RefreshControl, ScrollView, StyleSheet, useColorScheme } from "react-native";
 
 import SegmentedControl from "@react-native-segmented-control/segmented-control";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { ThemedText } from "@/components/themed-text";
-import { ThemedView } from "@/components/themed-view";
 
 import { IconSymbol } from "@/components/ui/icon-symbol";
 
@@ -92,16 +91,11 @@ export default function TargetsScreen() {
   }, [loadAccounts, loadPlaidAccounts]);
 
   return (
-    <ThemedView
-      style={[
-        styles.container,
-        {
-          paddingTop: 16 + insets.top,
-        },
-      ]}
-    >
+    <>
       <ScrollView
-        contentContainerStyle={styles.scrollContent}
+        style={[styles.container, { backgroundColor: "transparent" }]}
+        contentInsetAdjustmentBehavior="automatic"
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: tabBarHeight + 120, paddingTop: 16 }]}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
@@ -111,13 +105,6 @@ export default function TargetsScreen() {
           />
         }
       >
-        <View style={styles.headerRow}>
-          <ThemedText type="title">Targets</ThemedText>
-          <Pressable onPress={() => router.push("/profile")}>
-            <IconSymbol size={28} name="person" color={ui.text} />
-          </Pressable>
-        </View>
-
         {/* Native Segmented Control */}
         <SegmentedControl
           values={["Goals", "Budgets"]}
@@ -236,7 +223,7 @@ export default function TargetsScreen() {
       >
         <IconSymbol name="plus" size={32} color={ui.surface} />
       </Pressable>
-    </ThemedView>
+    </>
   );
 }
 

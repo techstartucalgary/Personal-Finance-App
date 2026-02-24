@@ -81,11 +81,21 @@ export default function RootLayout() {
 
   if (!loaded) return null;
 
+  const CustomDefaultTheme = {
+    ...DefaultTheme,
+    colors: { ...DefaultTheme.colors, background: "#ffffff" },
+  };
+
+  const CustomDarkTheme = {
+    ...DarkTheme,
+    colors: { ...DarkTheme.colors, background: "#000000" },
+  };
+
   return (
     <PaperProvider
       theme={colorScheme === "dark" ? MD3DarkTheme : MD3LightTheme}
     >
-      <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
+      <ThemeProvider value={colorScheme === "dark" ? CustomDarkTheme : CustomDefaultTheme}>
         <AuthProvider>
           <SplashScreenController />
           <ProtectedLayout />

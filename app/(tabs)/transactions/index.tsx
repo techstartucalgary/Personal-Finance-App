@@ -1,5 +1,5 @@
 import Feather from "@expo/vector-icons/Feather";
-import React, { useCallback, useEffect, useLayoutEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -80,17 +80,6 @@ export default function HomeScreen() {
   );
 
   const userId = session?.user.id;
-
-  // Set native header right button
-  useLayoutEffect(() => {
-    navigation.setOptions({
-      headerRight: () => (
-        <Pressable onPress={() => router.push("/profile")} hitSlop={10}>
-          <IconSymbol size={24} name="person" color={ui.text} />
-        </Pressable>
-      ),
-    });
-  }, [navigation, router, ui.text]);
 
   type AccountRow = {
     id: number;
@@ -1154,16 +1143,11 @@ export default function HomeScreen() {
   ]);
 
   return (
-    <ThemedView
-      style={[
-        styles.container,
-        {
-          paddingTop: 16 + insets.top,
-        },
-      ]}
-    >
+    <>
       <ScrollView
-        contentContainerStyle={[styles.scrollContent, { paddingBottom: tabBarHeight + 120 }]}
+        style={[styles.container, { backgroundColor: "transparent" }]}
+        contentInsetAdjustmentBehavior="automatic"
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: tabBarHeight + 120, paddingTop: 16 }]}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
@@ -1178,13 +1162,6 @@ export default function HomeScreen() {
           />
         }
       >
-
-        <View style={styles.headerRow}>
-          <ThemedText type="title">Transactions</ThemedText>
-          <Pressable onPress={() => router.push("/profile")}>
-            <IconSymbol size={28} name="person" color={ui.text} />
-          </Pressable>
-        </View>
 
         {/* Native Segmented Control */}
         <SegmentedControl
@@ -2983,7 +2960,7 @@ export default function HomeScreen() {
 
         </ThemedView>
       </Modal>
-    </ThemedView>
+    </>
   );
 }
 
@@ -2991,8 +2968,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     paddingHorizontal: 16,
-    paddingBottom: 16,
-    gap: 12,
   },
   scrollContent: {
     gap: 12,

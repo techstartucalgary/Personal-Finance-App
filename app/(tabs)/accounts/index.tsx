@@ -583,37 +583,10 @@ export default function AccountsScreen() {
   }
 
   return (
-    <ThemedView
-      style={[
-        styles.container,
-        {
-          paddingTop: 12 + insets.top,
-          backgroundColor: isDark ? "#16181C" : "#ECECF1",
-        },
-      ]}
-    >
-      <View pointerEvents="none" style={styles.bgDecor}>
-        <View
-          style={[
-            styles.bgOrb,
-            styles.bgOrbTop,
-            { backgroundColor: ui.accentSoft },
-          ]}
-        />
-        <View
-          style={[
-            styles.bgOrb,
-            styles.bgOrbBottom,
-            {
-              backgroundColor: isDark
-                ? "rgba(255,255,255,0.08)"
-                : "rgba(255,255,255,0.65)",
-            },
-          ]}
-        />
-        <View style={[styles.bgRing, { borderColor: ui.accentSoft }]} />
-      </View>
+    <>
       <ScrollView
+        style={[styles.container, { backgroundColor: "transparent" }]}
+        contentInsetAdjustmentBehavior="automatic"
         contentContainerStyle={[
           styles.scrollContent,
           { paddingBottom: tabBarHeight + 88 },
@@ -627,27 +600,6 @@ export default function AccountsScreen() {
           />
         }
       >
-        <View style={styles.headerRow}>
-          <View style={styles.headerLeft}>
-            <Pressable style={styles.iconBtn} hitSlop={8}>
-              <Feather name="menu" size={28} color={ui.text} />
-            </Pressable>
-            <Pressable style={styles.iconBtn} hitSlop={8}>
-              <Feather name="bell" size={24} color={ui.text} />
-            </Pressable>
-          </View>
-          <Pressable onPress={() => router.push("/profile")}>
-            <Feather name="user" size={24} color={ui.text} />
-          </Pressable>
-        </View>
-        <View style={styles.headerTitleWrap}>
-          <ThemedText style={[styles.headerTitle, { color: ui.text }]}>
-            Accounts
-          </ThemedText>
-          <ThemedText style={[styles.headerSubtitle, { color: ui.mutedText }]}>
-            Track balances, due dates, and goals in one place.
-          </ThemedText>
-        </View>
 
         <View
           style={[
@@ -1657,7 +1609,38 @@ export default function AccountsScreen() {
           </ScrollView>
         </ThemedView>
       </Modal>
-    </ThemedView>
+      <View
+        pointerEvents="none"
+        style={[
+          styles.bgDecor,
+          {
+            backgroundColor: isDark ? "#16181C" : "#ECECF1",
+            zIndex: -1,
+            elevation: -1,
+          },
+        ]}
+      >
+        <View
+          style={[
+            styles.bgOrb,
+            styles.bgOrbTop,
+            { backgroundColor: ui.accentSoft },
+          ]}
+        />
+        <View
+          style={[
+            styles.bgOrb,
+            styles.bgOrbBottom,
+            {
+              backgroundColor: isDark
+                ? "rgba(255,255,255,0.08)"
+                : "rgba(255,255,255,0.65)",
+            },
+          ]}
+        />
+        <View style={[styles.bgRing, { borderColor: ui.accentSoft }]} />
+      </View>
+    </>
   );
 }
 

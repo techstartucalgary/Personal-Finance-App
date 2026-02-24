@@ -1,12 +1,10 @@
 import React, { useMemo } from "react";
-import { Pressable, StyleSheet, View, useColorScheme } from "react-native";
+import { StyleSheet, useColorScheme } from "react-native";
 
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 
-import { IconSymbol } from "@/components/ui/icon-symbol";
 
 import { useRouter } from "expo-router";
 
@@ -31,17 +29,8 @@ export default function HomeScreen() {
     <ThemedView
       style={[
         styles.container,
-        {
-          paddingTop: 16 + insets.top,
-        },
       ]}
     >
-      <View style={styles.headerRow}>
-        <ThemedText type="title">Dashboard</ThemedText>
-        <Pressable onPress={() => router.push("/profile")}>
-          <IconSymbol size={28} name="person" color={ui.text} />
-        </Pressable>
-      </View>
     </ThemedView>
   );
 }

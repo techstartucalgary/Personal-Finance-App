@@ -3,8 +3,9 @@ import { ThemedView } from "@/components/themed-view";
 import { DateTimePickerField } from "@/components/ui/DateTimePickerField";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useAuthContext } from "@/hooks/use-auth-context";
-import { listAccounts } from "@/utils/accounts";
+import { listAccounts, type AccountRow } from "@/utils/accounts";
 import { createGoal, deleteGoal, editGoal, listGoals } from "@/utils/goals";
+import { getPlaidAccounts } from "@/utils/plaid";
 import Feather from "@expo/vector-icons/Feather";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { useFocusEffect } from "expo-router";
@@ -29,15 +30,16 @@ type GoalRow = {
     current_amount: number | null;
     target_date: string | null;
     linked_account: number | null;
+    linked_plaid_account: string | null;
     created_at?: string;
 };
 
-type AccountRow = {
-    id: number;
-    account_name: string | null;
-    account_type: string | null;
+type SelectableAccount = {
+    id: string | number;
+    isPlaid: boolean;
+    name: string;
+    type: string | null;
     balance: number | null;
-    currency: string | null;
 };
 
 type GoalsViewProps = {
@@ -85,8 +87,8 @@ export function GoalsView({ filterAccountId = null, refreshKey = 0, createReques
     const [targetAmount, setTargetAmount] = useState("");
     const [currentAmount, setCurrentAmount] = useState("");
     const [targetDate, setTargetDate] = useState("");
-    const [accounts, setAccounts] = useState<AccountRow[]>([]);
-    const [selectedAccount, setSelectedAccount] = useState<AccountRow | null>(null);
+    const [accounts, setAccounts] = useState<SelectableAccount[]>([]);
+    const [selectedAccount, setSelectedAccount] = useState<SelectableAccount | null>(null);
     const [accountModalOpen, setAccountModalOpen] = useState(false);
     const [allocationModalOpen, setAllocationModalOpen] = useState(false);
     const [allocationAmount, setAllocationAmount] = useState("");
@@ -102,6 +104,7 @@ export function GoalsView({ filterAccountId = null, refreshKey = 0, createReques
                 id: item.id,
                 name: item.name,
                 linked_account: item.linked_account,
+                linked_plaid_account: item.linked_plaid_account,
                 target_amount: item.target_amount,
                 current_amount: item.current_amount,
                 target_date: item.target_date,
@@ -119,8 +122,25 @@ export function GoalsView({ filterAccountId = null, refreshKey = 0, createReques
     const loadAccounts = useCallback(async () => {
         if (!userId) return;
         try {
-            const data = await listAccounts({ profile_id: userId });
-            setAccounts(data as AccountRow[]);
+            const manualData = await listAccounts({ profile_id: userId }) as AccountRow[];
+            const selectableManual: SelectableAccount[] = manualData.map(a => ({
+                id: a.id,
+                isPlaid: false,
+                name: a.account_name || "Unnamed",
+                type: a.account_type,
+                balance: a.balance
+            }));
+
+            const plaidData = await getPlaidAccounts();
+            const selectablePlaid: SelectableAccount[] = plaidData.map(pa => ({
+                id: pa.account_id,
+                isPlaid: true,
+                name: `${pa.name} (${pa.institution_name})`,
+                type: pa.type,
+                balance: pa.balances.current
+            }));
+
+            setAccounts([...selectableManual, ...selectablePlaid]);
         } catch (error) {
             console.error("Error loading accounts:", error);
         }
@@ -150,9 +170,12 @@ export function GoalsView({ filterAccountId = null, refreshKey = 0, createReques
         if (!userId) return;
         const trimmedName = name.trim();
         const parsedTarget = parseFloat(targetAmount);
-        const linkedAccount = selectedAccount?.id;
 
-        if (!trimmedName || isNaN(parsedTarget) || !linkedAccount) {
+        const isPlaid = selectedAccount?.isPlaid;
+        const linkedAccount = !isPlaid && selectedAccount ? (selectedAccount.id as number) : null;
+        const linkedPlaidAccount = isPlaid && selectedAccount ? (selectedAccount.id as string) : null;
+
+        if (!trimmedName || isNaN(parsedTarget) || (!linkedAccount && !linkedPlaidAccount)) {
             Alert.alert("Invalid Input", "Please enter a valid name, target amount, and select an account.");
             return;
         }
@@ -168,6 +191,7 @@ export function GoalsView({ filterAccountId = null, refreshKey = 0, createReques
                         current_amount: currentAmount ? parseFloat(currentAmount) : 0,
                         target_date: targetDate.trim() || null,
                         linked_account: linkedAccount,
+                        linked_plaid_account: linkedPlaidAccount,
                     },
                 });
             } else {
@@ -178,6 +202,7 @@ export function GoalsView({ filterAccountId = null, refreshKey = 0, createReques
                     current_amount: currentAmount ? parseFloat(currentAmount) : 0,
                     target_date: targetDate.trim() || null,
                     linked_account: linkedAccount,
+                    linked_plaid_account: linkedPlaidAccount,
                 });
             }
             closeModal();
@@ -226,7 +251,10 @@ export function GoalsView({ filterAccountId = null, refreshKey = 0, createReques
         setCurrentAmount(goal.current_amount ? goal.current_amount.toString() : "");
         setTargetDate(goal.target_date || "");
 
-        const accountMatch = accounts.find(a => a.id === goal.linked_account);
+        const accountMatch = accounts.find(a => {
+            if (a.isPlaid) return a.id === goal.linked_plaid_account;
+            return a.id === goal.linked_account;
+        });
         setSelectedAccount(accountMatch || null);
 
         setCreateModalOpen(true);
@@ -257,7 +285,10 @@ export function GoalsView({ filterAccountId = null, refreshKey = 0, createReques
 
     const filteredGoals = useMemo(() => {
         if (filterAccountId === null) return goals;
-        return goals.filter((g) => g.linked_account === filterAccountId);
+        return goals.filter((g) => {
+            // Check against both manual ID (number) or Plaid ID (string)
+            return g.linked_account === filterAccountId || g.linked_plaid_account === filterAccountId;
+        });
     }, [goals, filterAccountId]);
 
     return (
@@ -293,9 +324,9 @@ export function GoalsView({ filterAccountId = null, refreshKey = 0, createReques
                                         Target: {goal.target_date}
                                     </ThemedText>
                                 )}
-                                {goal.linked_account && (
-                                    <ThemedText style={{ opacity: 0.6, fontSize: 12 }}>
-                                        Account: {accounts.find(a => a.id === goal.linked_account)?.account_name || 'Unknown'}
+                                {(goal.linked_account || goal.linked_plaid_account) && (
+                                    <ThemedText style={{ opacity: 0.6, fontSize: 12, flexWrap: 'wrap', flex: 1, textAlign: 'right', marginLeft: 16 }}>
+                                        Account: {accounts.find(a => a.isPlaid ? a.id === goal.linked_plaid_account : a.id === goal.linked_account)?.name || 'Unknown'}
                                     </ThemedText>
                                 )}
                             </View>
@@ -424,8 +455,8 @@ export function GoalsView({ filterAccountId = null, refreshKey = 0, createReques
                                     },
                                 ]}
                             >
-                                <ThemedText style={{ color: selectedAccount ? ui.text : ui.mutedText }}>
-                                    {selectedAccount ? selectedAccount.account_name : "Select an account"}
+                                <ThemedText style={{ color: selectedAccount ? ui.text : ui.mutedText, flexWrap: 'wrap', flex: 1 }}>
+                                    {selectedAccount ? selectedAccount.name : "Select an account"}
                                 </ThemedText>
                                 <IconSymbol name="chevron.right" size={16} color={ui.mutedText} />
                             </Pressable>
@@ -507,9 +538,11 @@ export function GoalsView({ filterAccountId = null, refreshKey = 0, createReques
                                                 },
                                             ]}
                                         >
-                                            <ThemedText>{account.account_name}</ThemedText>
+                                            <ThemedText style={{ flexWrap: 'wrap', marginBottom: 2 }}>
+                                                {account.name}{account.isPlaid ? " (Plaid)" : ""}
+                                            </ThemedText>
                                             <ThemedText style={{ fontSize: 12, opacity: 0.6 }}>
-                                                {account.account_type} • ${account.balance}
+                                                {account.type} • ${account.balance}
                                             </ThemedText>
                                         </Pressable>
                                     ))}
@@ -544,7 +577,7 @@ export function GoalsView({ filterAccountId = null, refreshKey = 0, createReques
                                 <ThemedText type="subtitle" style={{ marginBottom: 8 }}>Allocate Funds</ThemedText>
                                 <ThemedText style={{ marginBottom: 16, opacity: 0.7 }}>
                                     Allocation will increase the goal's current amount.
-                                    {selectedAccount ? `\nFrom: ${selectedAccount.account_name}` : ""}
+                                    {selectedAccount ? `\nFrom: ${selectedAccount.name}` : ""}
                                 </ThemedText>
 
                                 <TextInput

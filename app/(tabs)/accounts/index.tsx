@@ -65,6 +65,7 @@ type GoalRow = {
   current_amount: number | null;
   target_date: string | null;
   linked_account: number | null;
+  linked_plaid_account: string | null;
 };
 
 export default function AccountsScreen() {
@@ -196,6 +197,7 @@ export default function AccountsScreen() {
             current_amount: g.current_amount,
             target_date: g.target_date,
             linked_account: g.linked_account,
+            linked_plaid_account: g.linked_plaid_account,
           })) ?? [],
         );
       } catch (err) {
@@ -458,6 +460,21 @@ export default function AccountsScreen() {
     [goals],
   );
 
+  const calculatePlaidAvailable = useCallback(
+    (pa: PlaidAccount) => {
+      const totalBalance = pa.balances.current ?? 0;
+      const accountGoals = goals.filter(
+        (g) => g.linked_plaid_account === pa.account_id,
+      );
+      const allocated = accountGoals.reduce(
+        (sum, g) => sum + (g.current_amount ?? 0),
+        0,
+      );
+      return totalBalance - allocated;
+    },
+    [goals],
+  );
+
   const formatMoney = (amount: number) => {
     return new Intl.NumberFormat("en-CA", {
       style: "currency",
@@ -498,11 +515,11 @@ export default function AccountsScreen() {
     const plaidAvail = plaidAccounts.reduce((sum, pa) => {
       const type = (pa.type ?? "").toLowerCase();
       const isLiability = type === "credit" || type === "loan";
-      const bal = pa.balances.available ?? pa.balances.current ?? 0;
-      return isLiability ? sum - bal : sum + bal;
+      const avail = calculatePlaidAvailable(pa);
+      return isLiability ? sum - avail : sum + avail;
     }, 0);
     return manualAvail + plaidAvail;
-  }, [accounts, plaidAccounts, calculateAvailable]);
+  }, [accounts, plaidAccounts, calculateAvailable, calculatePlaidAvailable]);
 
   const assetsCount = useMemo(() => {
     const manualAssets = accounts.filter(a => (a.account_type ?? "").toLowerCase() !== "credit").length;
@@ -1131,14 +1148,7 @@ export default function AccountsScreen() {
                           </ThemedText>
                         </View>
                       )}
-                      {pa.balances.available != null && (
-                        <View style={styles.cardMetaPill}>
-                          <Feather name="check-circle" size={12} color="rgba(255,255,255,0.9)" />
-                          <ThemedText style={styles.cardMetaText}>
-                            Avail: {formatMoney(pa.balances.available)}
-                          </ThemedText>
-                        </View>
-                      )}
+
                       {pa.balances.iso_currency_code && (
                         <View style={styles.cardMetaPill}>
                           <Feather name="globe" size={12} color="rgba(255,255,255,0.9)" />
@@ -1149,7 +1159,7 @@ export default function AccountsScreen() {
                       )}
                     </View>
                     <ThemedText style={styles.cardSubText}>
-                      Available: {formatMoney(pa.balances.available ?? pa.balances.current ?? 0)}
+                      Available: {formatMoney(calculatePlaidAvailable(pa))}
                     </ThemedText>
                     <Pressable
                       onPress={() => {

@@ -2,7 +2,7 @@ import { IconSymbol } from "@/components/ui/icon-symbol";
 import Feather from "@expo/vector-icons/Feather";
 import { Stack, useRouter } from "expo-router";
 import React from "react";
-import { Pressable, useColorScheme, View } from "react-native";
+import { Platform, Pressable, useColorScheme, View } from "react-native";
 
 export default function AccountsLayout() {
     const colorScheme = useColorScheme();
@@ -13,8 +13,9 @@ export default function AccountsLayout() {
         <Stack
             screenOptions={{
                 headerLargeTitle: true,
-                headerTransparent: true,
+                headerTransparent: Platform.OS === "ios",
                 headerShadowVisible: false,
+                headerStyle: Platform.OS === "android" ? { backgroundColor: isDark ? "#16181C" : "#ECECF1" } : undefined,
                 headerLargeStyle: {
                     backgroundColor: "transparent",
                 },

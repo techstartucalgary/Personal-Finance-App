@@ -1,7 +1,7 @@
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { Stack, useRouter } from "expo-router";
 import React from "react";
-import { Pressable, useColorScheme } from "react-native";
+import { Platform, Pressable, useColorScheme } from "react-native";
 
 export default function IndexLayout() {
     const colorScheme = useColorScheme();
@@ -12,8 +12,9 @@ export default function IndexLayout() {
         <Stack
             screenOptions={{
                 headerLargeTitle: true,
-                headerTransparent: true,
+                headerTransparent: Platform.OS === "ios",
                 headerShadowVisible: false,
+                headerStyle: Platform.OS === "android" ? { backgroundColor: isDark ? "#121212" : "#ffffff" } : undefined,
                 headerLargeStyle: {
                     backgroundColor: "transparent",
                 },

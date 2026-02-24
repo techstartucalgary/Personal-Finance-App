@@ -722,14 +722,14 @@ const styles = StyleSheet.create({
     },
     input: {
         borderWidth: StyleSheet.hairlineWidth,
-        borderRadius: 8,
+        borderRadius: 20,
         padding: 12,
         fontSize: 16,
     },
     button: {
         paddingHorizontal: 14,
         paddingVertical: 10,
-        borderRadius: 10,
+        borderRadius: 30,
         borderWidth: StyleSheet.hairlineWidth,
     },
     deleteAction: {
@@ -738,7 +738,7 @@ const styles = StyleSheet.create({
         alignItems: "center",
         paddingHorizontal: 14,
         paddingVertical: 12,
-        borderRadius: 10,
+        borderRadius: 20,
         borderWidth: StyleSheet.hairlineWidth,
     },
     draftRow: {
@@ -746,13 +746,13 @@ const styles = StyleSheet.create({
         alignItems: "center",
         justifyContent: "space-between",
         padding: 12,
-        borderRadius: 10,
+        borderRadius: 20,
         borderWidth: StyleSheet.hairlineWidth,
         marginBottom: 8,
     },
     addSection: {
         padding: 12,
-        borderRadius: 12,
+        borderRadius: 20,
         borderWidth: StyleSheet.hairlineWidth,
         borderStyle: "dashed",
         marginTop: 8,
@@ -772,7 +772,7 @@ const styles = StyleSheet.create({
     },
     pickerOption: {
         padding: 16,
-        borderRadius: 10,
+        borderRadius: 20,
         marginBottom: 8,
         borderWidth: StyleSheet.hairlineWidth,
     },

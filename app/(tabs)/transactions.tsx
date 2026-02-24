@@ -36,6 +36,8 @@ import {
   listExpenses,
   updateExpense,
 } from "@/utils/expenses";
+import type { PlaidTransaction } from "@/utils/plaid";
+import { getPlaidTransactions } from "@/utils/plaid";
 import {
   createRecurringRule,
   deleteRecurringRule,
@@ -152,6 +154,7 @@ export default function HomeScreen() {
   const [addRuleEndsOn, setAddRuleEndsOn] = useState("");
   const [transactionDate, setTransactionDate] = useState(new Date().toISOString().split("T")[0]);
   const [expenses, setExpenses] = useState<ExpenseRow[]>([]);
+  const [plaidTransactions, setPlaidTransactions] = useState<PlaidTransaction[]>([]);
 
   // Tabs and Rules State
   const [activeTab, setActiveTab] = useState<"transactions" | "recurrences">("transactions");
@@ -431,7 +434,13 @@ export default function HomeScreen() {
       loadCategories();
       loadExpenses();
       loadRecurringRules();
-    }, [loadAccounts, loadCategories, loadExpenses, loadRecurringRules]),
+      // Also load Plaid transactions
+      if (userId) {
+        getPlaidTransactions()
+          .then(setPlaidTransactions)
+          .catch((err) => console.error("Error loading Plaid transactions:", err));
+      }
+    }, [loadAccounts, loadCategories, loadExpenses, loadRecurringRules, userId]),
   );
 
   const createSubcategory = useCallback(async () => {
@@ -1307,6 +1316,75 @@ export default function HomeScreen() {
                     </ThemedText>
                   </Pressable>
                 ))
+            )}
+
+            {/* Plaid Bank Transactions */}
+            {plaidTransactions.length > 0 && filterAccountId === null && (
+              <>
+                <View style={{ marginTop: 16, marginBottom: 8 }}>
+                  <ThemedText type="defaultSemiBold" style={{ color: ui.mutedText, fontSize: 13, letterSpacing: 0.5 }}>
+                    BANK TRANSACTIONS
+                  </ThemedText>
+                </View>
+                {plaidTransactions.map((tx) => (
+                  <View
+                    key={tx.transaction_id}
+                    style={[
+                      styles.row,
+                      {
+                        borderColor: isDark ? "rgba(140,242,209,0.2)" : "rgba(31,111,91,0.15)",
+                        backgroundColor: ui.surface,
+                      },
+                    ]}
+                  >
+                    <View style={{ flex: 1 }}>
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                        <ThemedText type="defaultSemiBold">
+                          {tx.merchant_name || tx.name}
+                        </ThemedText>
+                        {tx.pending && (
+                          <View style={{
+                            backgroundColor: isDark ? "rgba(255,165,0,0.2)" : "rgba(255,165,0,0.15)",
+                            paddingHorizontal: 6,
+                            paddingVertical: 2,
+                            borderRadius: 4,
+                          }}>
+                            <ThemedText style={{ fontSize: 10, color: "#FF9500", fontWeight: "600" }}>
+                              PENDING
+                            </ThemedText>
+                          </View>
+                        )}
+                      </View>
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 2 }}>
+                        <ThemedText type="default" style={{ color: ui.mutedText, fontSize: 13 }}>
+                          {formatDate(tx.date)}
+                        </ThemedText>
+                        {tx.institution_name && (
+                          <ThemedText style={{
+                            fontSize: 11,
+                            color: isDark ? "#8CF2D1" : "#1F6F5B",
+                            fontWeight: "500",
+                          }}>
+                            {tx.institution_name}
+                          </ThemedText>
+                        )}
+                      </View>
+                      {tx.category && tx.category.length > 0 && (
+                        <ThemedText style={{ color: ui.mutedText, fontSize: 12, marginTop: 2 }}>
+                          {tx.category.join(" › ")}
+                        </ThemedText>
+                      )}
+                    </View>
+                    <ThemedText type="defaultSemiBold" style={{
+                      color: tx.amount > 0
+                        ? (isDark ? "#FF6B6B" : "#D32F2F")
+                        : (isDark ? "#69F0AE" : "#2E7D32"),
+                    }}>
+                      {tx.amount > 0 ? "-" : "+"}{formatMoney(Math.abs(tx.amount))}
+                    </ThemedText>
+                  </View>
+                ))}
+              </>
             )}
           </>
         ) : (
@@ -2871,7 +2949,7 @@ const styles = StyleSheet.create({
     alignSelf: "flex-start",
     paddingHorizontal: 14,
     paddingVertical: 10,
-    borderRadius: 20,
+    borderRadius: 30,
     borderWidth: StyleSheet.hairlineWidth,
   },
   buttonDisabled: { opacity: 0.5 },

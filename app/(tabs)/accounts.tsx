@@ -2,6 +2,7 @@ import Feather from "@expo/vector-icons/Feather";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  ActivityIndicator,
   Alert,
   Animated,
   Image,
@@ -14,13 +15,15 @@ import {
   View,
   useColorScheme,
 } from "react-native";
+import type { LinkExit, LinkSuccess } from "react-native-plaid-link-sdk";
+import { create as plaidCreate, destroy as plaidDestroy, open as plaidOpen } from "react-native-plaid-link-sdk";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useFocusEffect, useRouter } from "expo-router";
 
-import { Tokens } from "@/constants/authTokens";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
+import { Tokens } from "@/constants/authTokens";
 import { useAuthContext } from "@/hooks/use-auth-context";
 import {
   createAccount as createAccountApi,
@@ -28,6 +31,8 @@ import {
   updateAccount as updateAccountApi,
 } from "@/utils/accounts";
 import { listGoals } from "@/utils/goals";
+import type { PlaidAccount } from "@/utils/plaid";
+import { exchangePublicToken, getLinkToken, getPlaidAccounts, removePlaidItem } from "@/utils/plaid";
 import { supabase } from "@/utils/supabase";
 
 type AccountType = "credit" | "debit";
@@ -121,6 +126,7 @@ export default function AccountsScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const [accounts, setAccounts] = useState<AccountRow[]>([]);
   const [goals, setGoals] = useState<GoalRow[]>([]);
+  const [plaidAccounts, setPlaidAccounts] = useState<PlaidAccount[]>([]);
 
   // create form
   const [name, setName] = useState("");
@@ -145,6 +151,8 @@ export default function AccountsScreen() {
   const [editCurrency, setEditCurrency] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
 
+  // Plaid Link state
+  const [isConnecting, setIsConnecting] = useState(false);
   const canCreate = useMemo(
     () => !!userId && name.trim().length > 0,
     [userId, name],
@@ -197,10 +205,60 @@ export default function AccountsScreen() {
     [userId],
   );
 
+  // Plaid: connect bank handler (must be after loadAccounts)
+  const handleConnectBank = useCallback(async () => {
+    try {
+      setIsConnecting(true);
+      const token = await getLinkToken();
+
+      // Android requires destroy() before create() to clear stale sessions
+      await plaidDestroy();
+
+      // create() initializes the SDK; open() must wait for onLoad
+      plaidCreate({
+        token,
+        noLoadingState: false,
+        onLoad: () => {
+          plaidOpen({
+            onSuccess: async (success: LinkSuccess) => {
+              try {
+                setIsConnecting(true);
+                const institutionName = success.metadata?.institution?.name;
+                await exchangePublicToken(success.publicToken, institutionName);
+                Alert.alert("Success!", `${institutionName || "Bank"} connected successfully.`);
+                await loadAccounts();
+                getPlaidAccounts().then(setPlaidAccounts).catch(console.error);
+              } catch (err) {
+                console.error("Error exchanging token:", err);
+                Alert.alert("Connection Error", "Bank connection failed. Please try again.");
+              } finally {
+                setIsConnecting(false);
+              }
+            },
+            onExit: (exit: LinkExit) => {
+              console.log("Plaid Link exited:", exit);
+              setIsConnecting(false);
+            },
+          });
+        },
+      });
+    } catch (err) {
+      console.error("Error getting link token:", err);
+      Alert.alert("Connection Error", "Could not start bank connection. Please try again.");
+      setIsConnecting(false);
+    }
+  }, [loadAccounts]);
+
   useFocusEffect(
     useCallback(() => {
       loadAccounts(true);
-    }, [loadAccounts]),
+      // Also load Plaid accounts
+      if (userId) {
+        getPlaidAccounts()
+          .then(setPlaidAccounts)
+          .catch((err) => console.error("Error loading Plaid accounts:", err));
+      }
+    }, [loadAccounts, userId]),
   );
 
   // Sync edit state when editingAccount changes
@@ -535,7 +593,7 @@ export default function AccountsScreen() {
         />
         <View style={[styles.bgRing, { borderColor: ui.accentSoft }]} />
       </View>
-            <ScrollView
+      <ScrollView
         contentContainerStyle={[
           styles.scrollContent,
           { paddingBottom: tabBarHeight + 88 },
@@ -607,7 +665,7 @@ export default function AccountsScreen() {
                   <ThemedText type="default">
                     {item.account_type
                       ? item.account_type.charAt(0).toUpperCase() +
-                        item.account_type.slice(1)
+                      item.account_type.slice(1)
                       : "-"}
                   </ThemedText>
                   <ThemedText>
@@ -801,18 +859,39 @@ export default function AccountsScreen() {
           </View>
 
           <View style={styles.toolbarRow}>
-            <Pressable
-              onPress={() => setCreateModalOpen(true)}
-              style={[
-                styles.smallActionBtn,
-                { borderColor: ui.border, backgroundColor: ui.surface2 },
-              ]}
-            >
-              <Feather name="plus" size={18} color={ui.text} />
-              <ThemedText style={[styles.actionText, { color: ui.text }]}>
-                Add
-              </ThemedText>
-            </Pressable>
+            <View style={{ flexDirection: "row", gap: 8 }}>
+              <Pressable
+                onPress={() => setCreateModalOpen(true)}
+                style={[
+                  styles.smallActionBtn,
+                  { borderColor: ui.border, backgroundColor: ui.surface2 },
+                ]}
+              >
+                <Feather name="plus" size={18} color={ui.text} />
+                <ThemedText style={[styles.actionText, { color: ui.text }]}>
+                  Add
+                </ThemedText>
+              </Pressable>
+
+              <Pressable
+                onPress={handleConnectBank}
+                disabled={isConnecting}
+                style={[
+                  styles.smallActionBtn,
+                  { borderColor: ui.accent, backgroundColor: ui.accentSoft },
+                  isConnecting && { opacity: 0.5 },
+                ]}
+              >
+                {isConnecting ? (
+                  <ActivityIndicator size="small" color={ui.accent} />
+                ) : (
+                  <Feather name="link" size={18} color={ui.accent} />
+                )}
+                <ThemedText style={[styles.actionText, { color: ui.accent }]}>
+                  {isConnecting ? "Connecting..." : "Connect Bank"}
+                </ThemedText>
+              </Pressable>
+            </View>
 
             <View
               style={[
@@ -846,7 +925,7 @@ export default function AccountsScreen() {
               style={[styles.searchInput, { color: ui.text }]}
             />
             <Pressable
-              onPress={() => {}}
+              onPress={() => { }}
               style={[
                 styles.searchFilter,
                 { borderColor: ui.border, backgroundColor: ui.surface },
@@ -927,7 +1006,7 @@ export default function AccountsScreen() {
                         <ThemedText style={styles.cardTagText}>
                           {item.account_type
                             ? item.account_type.charAt(0).toUpperCase() +
-                              item.account_type.slice(1)
+                            item.account_type.slice(1)
                             : "Account"}
                         </ThemedText>
                       </View>
@@ -973,6 +1052,150 @@ export default function AccountsScreen() {
                 </Pressable>
               );
             })
+          )}
+
+          {/* Linked Banks (Plaid) */}
+          {plaidAccounts.length > 0 && (
+            <View style={{ marginTop: 20 }}>
+              <View style={styles.sectionHeader}>
+                <ThemedText style={[styles.sectionTitle, { color: ui.text }]}>
+                  Linked Banks
+                </ThemedText>
+                <ThemedText
+                  style={[styles.sectionSubtitle, { color: ui.mutedText }]}
+                >
+                  {plaidAccounts.length} account{plaidAccounts.length !== 1 ? "s" : ""}
+                </ThemedText>
+              </View>
+
+              {plaidAccounts.map((pa) => {
+                const isCredit = pa.type === "credit";
+                const cardColor = isDark
+                  ? isCredit ? "#4E6AB2" : "#1F6F5B"
+                  : isCredit ? "#5A7FD4" : "#2A8A6E";
+
+                return (
+                  <View
+                    key={pa.account_id}
+                    style={[
+                      styles.accountCard,
+                      {
+                        backgroundColor: cardColor,
+                        borderColor: "rgba(255,255,255,0.28)",
+                        marginBottom: 12,
+                      },
+                    ]}
+                  >
+                    <View
+                      pointerEvents="none"
+                      style={[
+                        styles.cardGlow,
+                        { backgroundColor: "rgba(255,255,255,0.18)" },
+                      ]}
+                    />
+                    <View pointerEvents="none" style={styles.cardRing} />
+                    <View style={styles.cardTopRow}>
+                      <View style={styles.cardTitleGroup}>
+                        <ThemedText style={styles.cardTitle}>
+                          {pa.name}
+                        </ThemedText>
+                        <View style={styles.cardTag}>
+                          <ThemedText style={styles.cardTagText}>
+                            {pa.institution_name || "Bank"}
+                          </ThemedText>
+                        </View>
+                      </View>
+                      <View style={styles.cardIcon}>
+                        <Feather
+                          name={isCredit ? "credit-card" : "briefcase"}
+                          size={18}
+                          color="#FFFFFF"
+                        />
+                      </View>
+                    </View>
+                    <ThemedText style={styles.cardBalance}>
+                      {formatMoney(pa.balances.current ?? 0)}
+                    </ThemedText>
+                    <View style={styles.cardMetaRow}>
+                      {pa.subtype && (
+                        <View style={styles.cardMetaPill}>
+                          <Feather name="tag" size={12} color="rgba(255,255,255,0.9)" />
+                          <ThemedText style={styles.cardMetaText}>
+                            {pa.subtype.charAt(0).toUpperCase() + pa.subtype.slice(1)}
+                          </ThemedText>
+                        </View>
+                      )}
+                      {pa.mask && (
+                        <View style={styles.cardMetaPill}>
+                          <Feather name="hash" size={12} color="rgba(255,255,255,0.9)" />
+                          <ThemedText style={styles.cardMetaText}>
+                            ••{pa.mask}
+                          </ThemedText>
+                        </View>
+                      )}
+                      {pa.balances.available != null && (
+                        <View style={styles.cardMetaPill}>
+                          <Feather name="check-circle" size={12} color="rgba(255,255,255,0.9)" />
+                          <ThemedText style={styles.cardMetaText}>
+                            Avail: {formatMoney(pa.balances.available)}
+                          </ThemedText>
+                        </View>
+                      )}
+                      {pa.balances.iso_currency_code && (
+                        <View style={styles.cardMetaPill}>
+                          <Feather name="globe" size={12} color="rgba(255,255,255,0.9)" />
+                          <ThemedText style={styles.cardMetaText}>
+                            {pa.balances.iso_currency_code}
+                          </ThemedText>
+                        </View>
+                      )}
+                    </View>
+                    <ThemedText style={styles.cardSubText}>
+                      Available: {formatMoney(pa.balances.available ?? pa.balances.current ?? 0)}
+                    </ThemedText>
+                    <Pressable
+                      onPress={() => {
+                        Alert.alert(
+                          "Unlink Account",
+                          `Remove ${pa.institution_name || pa.name} from your connected banks?`,
+                          [
+                            { text: "Cancel", style: "cancel" },
+                            {
+                              text: "Unlink",
+                              style: "destructive",
+                              onPress: async () => {
+                                try {
+                                  await removePlaidItem(pa.plaid_item_id);
+                                  setPlaidAccounts((prev) =>
+                                    prev.filter((a) => a.plaid_item_id !== pa.plaid_item_id)
+                                  );
+                                  Alert.alert("Unlinked", `${pa.institution_name || "Bank"} has been removed.`);
+                                } catch (err) {
+                                  console.error("Error unlinking:", err);
+                                  Alert.alert("Error", "Could not unlink account. Please try again.");
+                                }
+                              },
+                            },
+                          ]
+                        );
+                      }}
+                      style={{
+                        alignSelf: "flex-end",
+                        marginTop: 8,
+                        paddingHorizontal: 12,
+                        paddingVertical: 6,
+                        borderRadius: 6,
+                        backgroundColor: "rgba(255,255,255,0.15)",
+                      }}
+                    >
+                      <ThemedText style={{ color: "rgba(255,255,255,0.85)", fontSize: 12, fontWeight: "600" }}>
+                        Unlink
+                      </ThemedText>
+                    </Pressable>
+                  </View>
+                );
+              })}
+            </View>
           )}
         </Animated.View>
       </ScrollView>
@@ -1180,7 +1403,7 @@ export default function AccountsScreen() {
                   styles.modalCard,
                   { backgroundColor: ui.surface2, borderColor: ui.border },
                 ]}
-                onPress={() => {}}
+                onPress={() => { }}
               >
                 <ThemedText type="defaultSemiBold">
                   Select account type

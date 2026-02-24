@@ -123,12 +123,13 @@ export async function getCategorySpending(params: {
   expense_category_id: number;
   start_date: string;
   end_date: string;
+  account_id?: number | null;
 }): Promise<number> {
-  const { profile_id, expense_category_id, start_date, end_date } = params;
+  const { profile_id, expense_category_id, start_date, end_date, account_id } = params;
 
   const { data, error } = await supabase
     .from("Expense")
-    .select("amount, transaction_date, created_at")
+    .select("amount, transaction_date, created_at, account_id")
     .eq("profile_id", profile_id)
     .eq("expense_categoryid", expense_category_id);
 
@@ -142,7 +143,10 @@ export async function getCategorySpending(params: {
 
     if (!dateToUse) return false;
 
-    return dateToUse >= start_date && dateToUse <= end_date;
+    const inDateRange = dateToUse >= start_date && dateToUse <= end_date;
+    const matchesAccount = account_id === undefined || account_id === null || row.account_id === account_id;
+
+    return inDateRange && matchesAccount;
   });
 
   return filtered.reduce((sum, row: any) => sum + (row.amount ?? 0), 0);

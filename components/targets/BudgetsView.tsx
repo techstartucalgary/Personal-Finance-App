@@ -12,19 +12,20 @@ import {
     getCategorySpending,
     listCategoryBudgets,
 } from "@/utils/categoryBudgets";
+import Feather from "@expo/vector-icons/Feather";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { useFocusEffect } from "expo-router";
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
     Alert,
     Modal,
+    Platform,
     Pressable,
-    RefreshControl,
     ScrollView,
     StyleSheet,
     TextInput,
     View,
-    useColorScheme,
+    useColorScheme
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -77,12 +78,14 @@ const PERIOD_LABEL: Record<BudgetPeriod, string> = {
 
 
 type BudgetsViewProps = {
-    filterAccountId?: number | null;
+    filterAccountId?: string | number | null;
+    refreshKey?: number;
+    createRequested?: number;
 };
 
 // ── Component ──────────────────────────────────────
 
-export function BudgetsView({ filterAccountId = null }: BudgetsViewProps) {
+export function BudgetsView({ filterAccountId = null, refreshKey = 0, createRequested = 0 }: BudgetsViewProps) {
     const { session } = useAuthContext();
     const userId = session?.user.id;
     const insets = useSafeAreaInsets();
@@ -100,8 +103,8 @@ export function BudgetsView({ filterAccountId = null }: BudgetsViewProps) {
     const ui = useMemo(
         () => ({
             surface: isDark ? "#121212" : "#ffffff",
-            surface2: isDark ? "#1a1a1a" : "#ffffff",
-            border: isDark ? "rgba(255,255,255,0.18)" : "rgba(0,0,0,0.12)",
+            surface2: isDark ? "#1e1e1e" : "#f5f5f5",
+            border: isDark ? "rgba(255,255,255,0.18)" : "rgba(0,0,0,0.18)",
             text: isDark ? "#ffffff" : "#111111",
             mutedText: isDark ? "rgba(255,255,255,0.6)" : "rgba(0,0,0,0.5)",
             backdrop: "rgba(0,0,0,0.45)",
@@ -188,6 +191,18 @@ export function BudgetsView({ filterAccountId = null }: BudgetsViewProps) {
             loadData();
         }, [loadData]),
     );
+
+    useEffect(() => {
+        if (refreshKey > 0) {
+            loadData();
+        }
+    }, [refreshKey]);
+
+    useEffect(() => {
+        if (createRequested > 0) {
+            openCreateModal();
+        }
+    }, [createRequested]);
 
     // ── Modal helpers ──────────────────────────────
     const openCreateModal = () => {
@@ -344,12 +359,7 @@ export function BudgetsView({ filterAccountId = null }: BudgetsViewProps) {
     // ── Render ──────────────────────────────────────
     return (
         <View style={styles.container}>
-            <ScrollView
-                contentContainerStyle={styles.scrollContent}
-                refreshControl={
-                    <RefreshControl refreshing={isLoading} onRefresh={loadData} tintColor={ui.text} />
-                }
-            >
+            <View style={styles.scrollContent}>
                 {budgets.length === 0 ? (
                     <ThemedText style={{ textAlign: "center", marginTop: 24, opacity: 0.6 }}>
                         No budgets yet. Create one below!
@@ -427,22 +437,7 @@ export function BudgetsView({ filterAccountId = null }: BudgetsViewProps) {
                         </Pressable>
                     ))
                 )}
-            </ScrollView>
-
-            {/* FAB */}
-            <Pressable
-                onPress={openCreateModal}
-                style={({ pressed }) => [
-                    styles.fab,
-                    {
-                        backgroundColor: ui.text,
-                        opacity: pressed ? 0.8 : 1,
-                        bottom: fabBottom,
-                    },
-                ]}
-            >
-                <IconSymbol name="plus" size={32} color={ui.surface} />
-            </Pressable>
+            </View>
 
             {/* ── Create / Edit Modal ───────────────── */}
             <Modal
@@ -455,17 +450,24 @@ export function BudgetsView({ filterAccountId = null }: BudgetsViewProps) {
                     style={{
                         flex: 1,
                         padding: 16,
-                        paddingTop: 16 + insets.top,
+                        paddingTop: Platform.OS === 'ios' ? 8 : (16 + insets.top),
                         paddingBottom: 16 + insets.bottom,
                         backgroundColor: ui.surface,
                     }}
                 >
                     {/* Header */}
-                    <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-                        <ThemedText type="title">{editingBudget ? "Edit Budget" : "New Budget"}</ThemedText>
-                        <Pressable onPress={closeModal}>
-                            <ThemedText style={{ color: "#007AFF" }}>Cancel</ThemedText>
-                        </Pressable>
+                    <View style={styles.modalHeader}>
+                        <View style={styles.modalHeaderLeft} />
+                        <ThemedText type="defaultSemiBold" style={styles.modalHeaderTitle}>{editingBudget ? "Edit Budget" : "New Budget"}</ThemedText>
+                        <View style={styles.modalHeaderRight}>
+                            <Pressable
+                                onPress={closeModal}
+                                hitSlop={20}
+                                style={[styles.modalCloseButton, { backgroundColor: isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.05)" }]}
+                            >
+                                <Feather name="x" size={18} color={ui.text} />
+                            </Pressable>
+                        </View>
                     </View>
 
                     <ScrollView contentContainerStyle={styles.formContent} keyboardShouldPersistTaps="handled">
@@ -696,7 +698,7 @@ const styles = StyleSheet.create({
     },
     card: {
         padding: 12,
-        borderRadius: 20,
+        borderRadius: 12,
         borderWidth: StyleSheet.hairlineWidth,
     },
     fab: {
@@ -722,14 +724,14 @@ const styles = StyleSheet.create({
     },
     input: {
         borderWidth: StyleSheet.hairlineWidth,
-        borderRadius: 20,
+        borderRadius: 12,
         padding: 12,
         fontSize: 16,
     },
     button: {
         paddingHorizontal: 14,
         paddingVertical: 10,
-        borderRadius: 30,
+        borderRadius: 12,
         borderWidth: StyleSheet.hairlineWidth,
     },
     deleteAction: {
@@ -738,7 +740,7 @@ const styles = StyleSheet.create({
         alignItems: "center",
         paddingHorizontal: 14,
         paddingVertical: 12,
-        borderRadius: 20,
+        borderRadius: 12,
         borderWidth: StyleSheet.hairlineWidth,
     },
     draftRow: {
@@ -746,20 +748,20 @@ const styles = StyleSheet.create({
         alignItems: "center",
         justifyContent: "space-between",
         padding: 12,
-        borderRadius: 20,
+        borderRadius: 12,
         borderWidth: StyleSheet.hairlineWidth,
         marginBottom: 8,
     },
     addSection: {
         padding: 12,
-        borderRadius: 20,
+        borderRadius: 24,
         borderWidth: StyleSheet.hairlineWidth,
         borderStyle: "dashed",
         marginTop: 8,
     },
     pickerContent: {
-        borderTopLeftRadius: 20,
-        borderTopRightRadius: 20,
+        borderTopLeftRadius: 24,
+        borderTopRightRadius: 24,
         padding: 20,
         borderTopWidth: 1,
         paddingBottom: 40,
@@ -772,8 +774,32 @@ const styles = StyleSheet.create({
     },
     pickerOption: {
         padding: 16,
-        borderRadius: 20,
+        borderRadius: 12,
         marginBottom: 8,
         borderWidth: StyleSheet.hairlineWidth,
+    },
+    modalHeader: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
+        paddingVertical: 8,
+    },
+    modalHeaderTitle: {
+        flex: 1,
+        textAlign: "center",
+    },
+    modalHeaderLeft: {
+        width: 44,
+    },
+    modalHeaderRight: {
+        width: 44,
+        alignItems: "flex-end",
+    },
+    modalCloseButton: {
+        width: 30,
+        height: 30,
+        borderRadius: 15,
+        alignItems: "center",
+        justifyContent: "center",
     },
 });

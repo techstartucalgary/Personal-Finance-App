@@ -18,8 +18,8 @@ export default function HomeScreen() {
   const ui = useMemo(
     () => ({
       surface: isDark ? "#121212" : "#ffffff",
-      surface2: isDark ? "#1a1a1a" : "#ffffff",
-      border: isDark ? "rgba(255,255,255,0.18)" : "rgba(0,0,0,0.12)",
+      surface2: isDark ? "#1e1e1e" : "#f5f5f5",
+      border: isDark ? "rgba(255,255,255,0.18)" : "rgba(0,0,0,0.18)",
       text: isDark ? "#ffffff" : "#111111",
       mutedText: isDark ? "rgba(255,255,255,0.6)" : "rgba(0,0,0,0.5)",
       backdrop: "rgba(0,0,0,0.45)",

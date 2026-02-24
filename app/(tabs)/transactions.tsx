@@ -1,8 +1,10 @@
+import Feather from "@expo/vector-icons/Feather";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
   Modal,
+  Platform,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -19,6 +21,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 
+import { TransactionDetailModal } from "@/components/TransactionDetailModal";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useAuthContext } from "@/hooks/use-auth-context";
 import { getAccountById, listAccounts, updateAccount } from "@/utils/accounts";
@@ -65,8 +68,8 @@ export default function HomeScreen() {
   const ui = useMemo(
     () => ({
       surface: isDark ? "#121212" : "#ffffff",
-      surface2: isDark ? "#1a1a1a" : "#ffffff",
-      border: isDark ? "rgba(255,255,255,0.18)" : "rgba(0,0,0,0.12)",
+      surface2: isDark ? "#1e1e1e" : "#f5f5f5",
+      border: isDark ? "rgba(255,255,255,0.18)" : "rgba(0,0,0,0.18)",
       text: isDark ? "#ffffff" : "#111111",
       mutedText: isDark ? "rgba(255,255,255,0.6)" : "rgba(0,0,0,0.5)",
       backdrop: "rgba(0,0,0,0.45)",
@@ -172,6 +175,9 @@ export default function HomeScreen() {
   const [addRuleNextRunDate, setAddRuleNextRunDate] = useState("");
   const [editTransactionRuleNextRunDate, setEditTransactionRuleNextRunDate] = useState("");
   const [editTransactionDate, setEditTransactionDate] = useState("");
+
+  const [selectedDetailTransaction, setSelectedDetailTransaction] = useState<ExpenseRow | PlaidTransaction | null>(null);
+  const [isDetailModalVisible, setIsDetailModalVisible] = useState(false);
 
   // Edit Recurrence State
   const [editRuleName, setEditRuleName] = useState("");
@@ -1140,7 +1146,7 @@ export default function HomeScreen() {
       ]}
     >
       <ScrollView
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: tabBarHeight + 120 }]}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
@@ -1307,12 +1313,15 @@ export default function HomeScreen() {
                 .map((expense) => (
                   <Pressable
                     key={expense.id}
-                    onPress={() => setEditingExpense(expense)}
+                    onPress={() => {
+                      setSelectedDetailTransaction(expense);
+                      setIsDetailModalVisible(true);
+                    }}
                     style={({ pressed }) => [
                       styles.row,
                       {
                         borderColor: ui.border,
-                        backgroundColor: ui.surface,
+                        backgroundColor: ui.surface2,
                         opacity: pressed ? 0.7 : 1,
                       },
                     ]}
@@ -1370,13 +1379,18 @@ export default function HomeScreen() {
                     return false;
                   })
                   .map((tx) => (
-                    <View
+                    <Pressable
                       key={tx.transaction_id}
-                      style={[
+                      onPress={() => {
+                        setSelectedDetailTransaction(tx);
+                        setIsDetailModalVisible(true);
+                      }}
+                      style={({ pressed }) => [
                         styles.row,
                         {
                           borderColor: isDark ? "rgba(140,242,209,0.2)" : "rgba(31,111,91,0.15)",
-                          backgroundColor: ui.surface,
+                          backgroundColor: ui.surface2,
+                          opacity: pressed ? 0.7 : 1,
                         },
                       ]}
                     >
@@ -1439,7 +1453,7 @@ export default function HomeScreen() {
                       }}>
                         {tx.amount > 0 ? "-" : "+"}{formatMoney(Math.abs(tx.amount))}
                       </ThemedText>
-                    </View>
+                    </Pressable>
                   ))}
               </>
             )}
@@ -1464,7 +1478,7 @@ export default function HomeScreen() {
                     styles.row,
                     {
                       borderColor: ui.border,
-                      backgroundColor: ui.surface,
+                      backgroundColor: ui.surface2,
                       opacity: pressed ? 0.7 : (rule.is_active ? 1 : 0.6),
                     },
                   ]}
@@ -1519,22 +1533,22 @@ export default function HomeScreen() {
           style={{
             flex: 1,
             padding: 16,
-            paddingTop: 16 + insets.top,
+            paddingTop: Platform.OS === "ios" ? 8 : (16 + insets.top),
             paddingBottom: 16 + insets.bottom,
           }}
         >
-          <View
-            style={{
-              flexDirection: "row",
-              justifyContent: "space-between",
-              alignItems: "center",
-              marginBottom: 16,
-            }}
-          >
-            <ThemedText type="title">Add Transaction</ThemedText>
-            <Pressable onPress={() => setAddModalOpen(false)}>
-              <ThemedText style={{ color: "#007AFF" }}>Cancel</ThemedText>
-            </Pressable>
+          <View style={styles.modalHeader}>
+            <View style={styles.modalHeaderLeft} />
+            <ThemedText type="defaultSemiBold" style={styles.modalHeaderTitle}>Add Transaction</ThemedText>
+            <View style={styles.modalHeaderRight}>
+              <Pressable
+                onPress={() => setAddModalOpen(false)}
+                hitSlop={20}
+                style={[styles.modalCloseButton, { backgroundColor: isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.05)" }]}
+              >
+                <Feather name="x" size={18} color={ui.text} />
+              </Pressable>
+            </View>
           </View>
 
           <ScrollView contentContainerStyle={{ gap: 12, paddingBottom: 24 }}>
@@ -1544,7 +1558,7 @@ export default function HomeScreen() {
                 onPress={() => setAccountModalOpen(true)}
                 style={[
                   styles.dropdownButton,
-                  { borderColor: ui.border, backgroundColor: ui.surface },
+                  { borderColor: ui.border, backgroundColor: ui.surface2 },
                 ]}
               >
                 <ThemedText>
@@ -1564,7 +1578,7 @@ export default function HomeScreen() {
                   styles.input,
                   {
                     borderColor: ui.border,
-                    backgroundColor: ui.surface,
+                    backgroundColor: ui.surface2,
                     color: ui.text,
                   },
                 ]}
@@ -1577,7 +1591,7 @@ export default function HomeScreen() {
                 onPress={() => setCategoryModalOpen(true)}
                 style={[
                   styles.dropdownButton,
-                  { borderColor: ui.border, backgroundColor: ui.surface },
+                  { borderColor: ui.border, backgroundColor: ui.surface2 },
                 ]}
               >
                 <ThemedText>
@@ -1594,7 +1608,7 @@ export default function HomeScreen() {
                   onPress={() => setSubcategoryModalOpen(true)}
                   style={[
                     styles.dropdownButton,
-                    { borderColor: ui.border, backgroundColor: ui.surface },
+                    { borderColor: ui.border, backgroundColor: ui.surface2 },
                   ]}
                 >
                   <ThemedText>
@@ -1616,7 +1630,7 @@ export default function HomeScreen() {
                   styles.input,
                   {
                     borderColor: ui.border,
-                    backgroundColor: ui.surface,
+                    backgroundColor: ui.surface2,
                     color: ui.text,
                   },
                 ]}
@@ -1634,7 +1648,7 @@ export default function HomeScreen() {
                   styles.input,
                   {
                     borderColor: ui.border,
-                    backgroundColor: ui.surface,
+                    backgroundColor: ui.surface2,
                     color: ui.text,
                   },
                 ]}
@@ -1657,7 +1671,7 @@ export default function HomeScreen() {
                   onPress={() => setAddFrequencyModalOpen(true)}
                   style={[
                     styles.dropdownButton,
-                    { borderColor: ui.border, backgroundColor: ui.surface },
+                    { borderColor: ui.border, backgroundColor: ui.surface2 },
                   ]}
                 >
                   <ThemedText>{recurringFrequency}</ThemedText>
@@ -1677,7 +1691,7 @@ export default function HomeScreen() {
                     styles.input,
                     {
                       borderColor: ui.border,
-                      backgroundColor: ui.surface,
+                      backgroundColor: ui.surface2,
                       color: ui.text,
                     },
                   ]}
@@ -1697,7 +1711,7 @@ export default function HomeScreen() {
                     styles.input,
                     {
                       borderColor: ui.border,
-                      backgroundColor: ui.surface,
+                      backgroundColor: ui.surface2,
                       color: ui.text,
                     },
                   ]}
@@ -2047,22 +2061,22 @@ export default function HomeScreen() {
           style={{
             flex: 1,
             padding: 16,
-            paddingTop: 16 + insets.top,
+            paddingTop: Platform.OS === "ios" ? 8 : (16 + insets.top),
             paddingBottom: 16 + insets.bottom,
           }}
         >
-          <View
-            style={{
-              flexDirection: "row",
-              justifyContent: "space-between",
-              alignItems: "center",
-              marginBottom: 16,
-            }}
-          >
-            <ThemedText type="title">Edit Transaction</ThemedText>
-            <Pressable onPress={() => setEditingExpense(null)}>
-              <ThemedText style={{ color: "#007AFF" }}>Cancel</ThemedText>
-            </Pressable>
+          <View style={styles.modalHeader}>
+            <View style={styles.modalHeaderLeft} />
+            <ThemedText type="title" style={styles.modalHeaderTitle}>Edit Transaction</ThemedText>
+            <View style={styles.modalHeaderRight}>
+              <Pressable
+                onPress={() => setEditingExpense(null)}
+                hitSlop={20}
+                style={[styles.modalCloseButton, { backgroundColor: isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.05)" }]}
+              >
+                <Feather name="x" size={18} color={ui.text} />
+              </Pressable>
+            </View>
           </View>
 
           <ScrollView contentContainerStyle={{ gap: 16, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
@@ -2072,7 +2086,7 @@ export default function HomeScreen() {
                 onPress={() => setEditAccountModalOpen(true)}
                 style={[
                   styles.dropdownButton,
-                  { borderColor: ui.border, backgroundColor: ui.surface },
+                  { borderColor: ui.border, backgroundColor: ui.surface2 },
                 ]}
               >
                 <ThemedText>
@@ -2092,7 +2106,7 @@ export default function HomeScreen() {
                   styles.input,
                   {
                     borderColor: ui.border,
-                    backgroundColor: ui.surface,
+                    backgroundColor: ui.surface2,
                     color: ui.text,
                   },
                 ]}
@@ -2105,7 +2119,7 @@ export default function HomeScreen() {
                 onPress={() => setEditCategoryModalOpen(true)}
                 style={[
                   styles.dropdownButton,
-                  { borderColor: ui.border, backgroundColor: ui.surface },
+                  { borderColor: ui.border, backgroundColor: ui.surface2 },
                 ]}
               >
                 <ThemedText>
@@ -2121,7 +2135,7 @@ export default function HomeScreen() {
                   onPress={() => setEditSubcategoryModalOpen(true)}
                   style={[
                     styles.dropdownButton,
-                    { borderColor: ui.border, backgroundColor: ui.surface },
+                    { borderColor: ui.border, backgroundColor: ui.surface2 },
                   ]}
                 >
                   <ThemedText>
@@ -2142,7 +2156,7 @@ export default function HomeScreen() {
                   styles.input,
                   {
                     borderColor: ui.border,
-                    backgroundColor: ui.surface,
+                    backgroundColor: ui.surface2,
                     color: ui.text,
                   },
                 ]}
@@ -2158,7 +2172,7 @@ export default function HomeScreen() {
                   styles.input,
                   {
                     borderColor: ui.border,
-                    backgroundColor: ui.surface,
+                    backgroundColor: ui.surface2,
                     color: ui.text,
                   },
                 ]}
@@ -2181,7 +2195,7 @@ export default function HomeScreen() {
                   onPress={() => setEditFrequencyModalOpen(true)}
                   style={[
                     styles.dropdownButton,
-                    { borderColor: ui.border, backgroundColor: ui.surface },
+                    { borderColor: ui.border, backgroundColor: ui.surface2 },
                   ]}
                 >
                   <ThemedText>{editTransactionRecurringFrequency}</ThemedText>
@@ -2201,7 +2215,7 @@ export default function HomeScreen() {
                     styles.input,
                     {
                       borderColor: ui.border,
-                      backgroundColor: ui.surface,
+                      backgroundColor: ui.surface2,
                       color: ui.text,
                     },
                   ]}
@@ -2221,7 +2235,7 @@ export default function HomeScreen() {
                     styles.input,
                     {
                       borderColor: ui.border,
-                      backgroundColor: ui.surface,
+                      backgroundColor: ui.surface2,
                       color: ui.text,
                     },
                   ]}
@@ -2579,6 +2593,25 @@ export default function HomeScreen() {
         </ThemedView>
       </Modal>
 
+      {/* Transaction Detail Modal */}
+      <TransactionDetailModal
+        visible={isDetailModalVisible}
+        onClose={() => {
+          setIsDetailModalVisible(false);
+          setSelectedDetailTransaction(null);
+        }}
+        transaction={selectedDetailTransaction}
+        accounts={accounts}
+        onEdit={(expense) => {
+          setIsDetailModalVisible(false);
+          setEditingExpense(expense);
+          // Sync edit state (this is normally done in the setEditingExpense useEffect but let's be safe)
+          setEditAmount(expense.amount?.toString() || "");
+          setEditDescription(expense.description || "");
+          setEditTransactionDate(expense.transaction_date || expense.created_at || "");
+        }}
+      />
+
       {/* Edit Recurrance Modal */}
       <Modal
         visible={!!editingRule}
@@ -2590,22 +2623,22 @@ export default function HomeScreen() {
           style={{
             flex: 1,
             padding: 16,
-            paddingTop: 16 + insets.top,
+            paddingTop: Platform.OS === "ios" ? 8 : (16 + insets.top),
             paddingBottom: 16 + insets.bottom,
           }}
         >
-          <View
-            style={{
-              flexDirection: "row",
-              justifyContent: "space-between",
-              alignItems: "center",
-              marginBottom: 16,
-            }}
-          >
-            <ThemedText type="title">Edit Recurrance</ThemedText>
-            <Pressable onPress={() => setEditingRule(null)}>
-              <ThemedText style={{ color: "#007AFF" }}>Cancel</ThemedText>
-            </Pressable>
+          <View style={styles.modalHeader}>
+            <View style={styles.modalHeaderLeft} />
+            <ThemedText type="title" style={styles.modalHeaderTitle}>Edit Recurrance</ThemedText>
+            <View style={styles.modalHeaderRight}>
+              <Pressable
+                onPress={() => setEditingRule(null)}
+                hitSlop={20}
+                style={[styles.modalCloseButton, { backgroundColor: isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.05)" }]}
+              >
+                <Feather name="x" size={18} color={ui.text} />
+              </Pressable>
+            </View>
           </View>
 
           <ScrollView contentContainerStyle={{ gap: 16, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
@@ -2992,13 +3025,13 @@ const styles = StyleSheet.create({
   },
   input: {
     borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: 20,
+    borderRadius: 12,
     paddingHorizontal: 12,
     paddingVertical: 10,
   },
   dropdownButton: {
     borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: 20,
+    borderRadius: 12,
     paddingHorizontal: 12,
     paddingVertical: 10,
   },
@@ -3006,7 +3039,7 @@ const styles = StyleSheet.create({
     alignSelf: "flex-start",
     paddingHorizontal: 14,
     paddingVertical: 10,
-    borderRadius: 30,
+    borderRadius: 12,
     borderWidth: StyleSheet.hairlineWidth,
   },
   buttonDisabled: { opacity: 0.5 },
@@ -3016,7 +3049,7 @@ const styles = StyleSheet.create({
     padding: 18,
   },
   modalCard: {
-    borderRadius: 20,
+    borderRadius: 24,
     padding: 14,
     gap: 10,
     borderWidth: StyleSheet.hairlineWidth,
@@ -3024,7 +3057,7 @@ const styles = StyleSheet.create({
   modalOption: {
     paddingVertical: 12,
     paddingHorizontal: 10,
-    borderRadius: 20,
+    borderRadius: 12,
     borderWidth: StyleSheet.hairlineWidth,
     gap: 2,
   },
@@ -3047,7 +3080,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 14,
     paddingVertical: 12,
-    borderRadius: 10,
+    borderRadius: 12,
     borderWidth: StyleSheet.hairlineWidth,
   },
   fab: {
@@ -3088,22 +3121,42 @@ const styles = StyleSheet.create({
   },
   tabsContainer: {
     flexDirection: "row",
-    borderRadius: 12,
+    borderRadius: 24,
     padding: 4,
     borderWidth: StyleSheet.hairlineWidth,
   },
   tab: {
     flex: 1,
     alignItems: "center",
-    paddingVertical: 8,
-    borderRadius: 8,
+    paddingVertical: 6,
+    borderRadius: 20,
   },
   activeTab: {
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
     borderWidth: StyleSheet.hairlineWidth,
-  }
+  },
+  modalHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 8,
+  },
+  modalHeaderTitle: {
+    fontSize: 17,
+    flex: 1,
+    textAlign: "center",
+  },
+  modalHeaderLeft: {
+    width: 44,
+  },
+  modalHeaderRight: {
+    width: 44,
+    alignItems: "flex-end",
+  },
+  modalCloseButton: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    alignItems: "center",
+    justifyContent: "center",
+  },
 });

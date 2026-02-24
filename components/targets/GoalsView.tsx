@@ -4,14 +4,15 @@ import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useAuthContext } from "@/hooks/use-auth-context";
 import { listAccounts } from "@/utils/accounts";
 import { createGoal, deleteGoal, editGoal, listGoals } from "@/utils/goals";
+import Feather from "@expo/vector-icons/Feather";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { useFocusEffect } from "expo-router";
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
     Alert,
     Modal,
+    Platform,
     Pressable,
-    RefreshControl,
     ScrollView,
     StyleSheet,
     TextInput,
@@ -39,10 +40,12 @@ type AccountRow = {
 };
 
 type GoalsViewProps = {
-    filterAccountId?: number | null;
+    filterAccountId?: string | number | null;
+    refreshKey?: number;
+    createRequested?: number;
 };
 
-export function GoalsView({ filterAccountId = null }: GoalsViewProps) {
+export function GoalsView({ filterAccountId = null, refreshKey = 0, createRequested = 0 }: GoalsViewProps) {
     const { session } = useAuthContext();
     const userId = session?.user.id;
     const insets = useSafeAreaInsets();
@@ -61,8 +64,8 @@ export function GoalsView({ filterAccountId = null }: GoalsViewProps) {
     const ui = useMemo(
         () => ({
             surface: isDark ? "#121212" : "#ffffff",
-            surface2: isDark ? "#1a1a1a" : "#ffffff",
-            border: isDark ? "rgba(255,255,255,0.18)" : "rgba(0,0,0,0.12)",
+            surface2: isDark ? "#1e1e1e" : "#f5f5f5",
+            border: isDark ? "rgba(255,255,255,0.18)" : "rgba(0,0,0,0.18)",
             text: isDark ? "#ffffff" : "#111111",
             mutedText: isDark ? "rgba(255,255,255,0.6)" : "rgba(0,0,0,0.5)",
             backdrop: "rgba(0,0,0,0.45)",
@@ -128,6 +131,19 @@ export function GoalsView({ filterAccountId = null }: GoalsViewProps) {
             loadAccounts();
         }, [loadGoals, loadAccounts])
     );
+
+    useEffect(() => {
+        if (refreshKey > 0) {
+            loadGoals();
+            loadAccounts();
+        }
+    }, [refreshKey]);
+
+    useEffect(() => {
+        if (createRequested > 0) {
+            openCreateModal();
+        }
+    }, [createRequested]);
 
     const handleSaveGoal = useCallback(async () => {
         if (!userId) return;
@@ -245,16 +261,7 @@ export function GoalsView({ filterAccountId = null }: GoalsViewProps) {
 
     return (
         <View style={styles.container}>
-            <ScrollView
-                contentContainerStyle={styles.scrollContent}
-                refreshControl={
-                    <RefreshControl
-                        refreshing={isLoading}
-                        onRefresh={loadGoals}
-                        tintColor={ui.text}
-                    />
-                }
-            >
+            <View style={styles.scrollContent}>
                 {filteredGoals.length === 0 ? (
                     <ThemedText style={{ textAlign: "center", marginTop: 24, opacity: 0.6 }}>
                         {filterAccountId ? "No goals for this account." : "No goals yet. Create one below!"}
@@ -315,21 +322,7 @@ export function GoalsView({ filterAccountId = null }: GoalsViewProps) {
                         </Pressable>
                     ))
                 )}
-            </ScrollView>
-
-            <Pressable
-                onPress={openCreateModal}
-                style={({ pressed }) => [
-                    styles.fab,
-                    {
-                        backgroundColor: ui.text,
-                        opacity: pressed ? 0.8 : 1,
-                        bottom: fabBottom,
-                    },
-                ]}
-            >
-                <IconSymbol name="plus" size={32} color={ui.surface} />
-            </Pressable>
+            </View>
 
             <Modal
                 visible={createModalOpen}
@@ -341,23 +334,23 @@ export function GoalsView({ filterAccountId = null }: GoalsViewProps) {
                     style={{
                         flex: 1,
                         padding: 16,
-                        paddingTop: 16 + insets.top,
+                        paddingTop: Platform.OS === 'ios' ? 8 : (16 + insets.top),
                         paddingBottom: 16 + insets.bottom,
                         backgroundColor: ui.surface,
                     }}
                 >
-                    <View
-                        style={{
-                            flexDirection: "row",
-                            justifyContent: "space-between",
-                            alignItems: "center",
-                            marginBottom: 16,
-                        }}
-                    >
-                        <ThemedText type="title">{editingGoal ? "Edit Goal" : "New Goal"}</ThemedText>
-                        <Pressable onPress={closeModal}>
-                            <ThemedText style={{ color: "#007AFF" }}>Cancel</ThemedText>
-                        </Pressable>
+                    <View style={styles.modalHeader}>
+                        <View style={styles.modalHeaderLeft} />
+                        <ThemedText type="defaultSemiBold" style={styles.modalHeaderTitle}>{editingGoal ? "Edit Goal" : "New Goal"}</ThemedText>
+                        <View style={styles.modalHeaderRight}>
+                            <Pressable
+                                onPress={closeModal}
+                                hitSlop={20}
+                                style={[styles.modalCloseButton, { backgroundColor: isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.05)" }]}
+                            >
+                                <Feather name="x" size={18} color={ui.text} />
+                            </Pressable>
+                        </View>
                     </View>
 
                     <ScrollView contentContainerStyle={styles.formContent}>
@@ -644,7 +637,7 @@ const styles = StyleSheet.create({
     },
     input: {
         borderWidth: StyleSheet.hairlineWidth,
-        borderRadius: 20,
+        borderRadius: 12,
         padding: 12,
         fontSize: 16,
     },
@@ -652,7 +645,7 @@ const styles = StyleSheet.create({
         alignSelf: "flex-start",
         paddingHorizontal: 14,
         paddingVertical: 10,
-        borderRadius: 30,
+        borderRadius: 12,
         borderWidth: StyleSheet.hairlineWidth,
     },
     deleteAction: {
@@ -661,7 +654,7 @@ const styles = StyleSheet.create({
         alignItems: "center",
         paddingHorizontal: 14,
         paddingVertical: 12,
-        borderRadius: 20,
+        borderRadius: 12,
         borderWidth: StyleSheet.hairlineWidth,
     },
     modalBackdrop: {
@@ -670,8 +663,8 @@ const styles = StyleSheet.create({
         justifyContent: "flex-end",
     },
     accountPickerContent: {
-        borderTopLeftRadius: 20,
-        borderTopRightRadius: 20,
+        borderTopLeftRadius: 24,
+        borderTopRightRadius: 24,
         padding: 20,
         borderTopWidth: 1,
         paddingBottom: 40,
@@ -684,15 +677,39 @@ const styles = StyleSheet.create({
     },
     accountOption: {
         padding: 16,
-        borderRadius: 20,
+        borderRadius: 12,
         marginBottom: 8,
         borderWidth: StyleSheet.hairlineWidth,
     },
     chip: {
         paddingHorizontal: 14,
         paddingVertical: 6,
-        borderRadius: 20,
+        borderRadius: 12,
         borderWidth: StyleSheet.hairlineWidth,
+    },
+    modalHeader: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
+        paddingVertical: 8,
+    },
+    modalHeaderTitle: {
+        flex: 1,
+        textAlign: "center",
+    },
+    modalHeaderLeft: {
+        width: 44,
+    },
+    modalHeaderRight: {
+        width: 44,
+        alignItems: "flex-end",
+    },
+    modalCloseButton: {
+        width: 30,
+        height: 30,
+        borderRadius: 15,
+        alignItems: "center",
+        justifyContent: "center",
     },
 });
 

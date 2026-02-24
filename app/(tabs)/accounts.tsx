@@ -7,6 +7,7 @@ import {
   Animated,
   Image,
   Modal,
+  Platform,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -89,8 +90,8 @@ export default function AccountsScreen() {
   const ui = useMemo(
     () => ({
       surface: isDark ? "#121212" : "#ffffff",
-      surface2: isDark ? "#1a1a1a" : "#ffffff",
-      border: isDark ? "rgba(255,255,255,0.18)" : "rgba(0,0,0,0.12)",
+      surface2: isDark ? "#1e1e1e" : "#f5f5f5",
+      border: isDark ? "rgba(255,255,255,0.18)" : "rgba(0,0,0,0.18)",
       text: isDark ? "#ffffff" : "#111111",
       mutedText: isDark ? "rgba(255,255,255,0.6)" : "rgba(0,0,0,0.5)",
       backdrop: "rgba(0,0,0,0.45)",
@@ -1244,22 +1245,22 @@ export default function AccountsScreen() {
           style={{
             flex: 1,
             padding: 16,
-            paddingTop: 16 + insets.top,
+            paddingTop: Platform.OS === "ios" ? 8 : (16 + insets.top),
             paddingBottom: 16 + insets.bottom,
           }}
         >
-          <View
-            style={{
-              flexDirection: "row",
-              justifyContent: "space-between",
-              alignItems: "center",
-              marginBottom: 16,
-            }}
-          >
-            <ThemedText type="title">Add Account</ThemedText>
-            <Pressable onPress={() => setCreateModalOpen(false)}>
-              <ThemedText style={{ color: "#007AFF" }}>Cancel</ThemedText>
-            </Pressable>
+          <View style={styles.modalHeader}>
+            <View style={styles.modalHeaderLeft} />
+            <ThemedText type="defaultSemiBold" style={styles.modalHeaderTitle}>Add Account</ThemedText>
+            <View style={styles.modalHeaderRight}>
+              <Pressable
+                onPress={() => setCreateModalOpen(false)}
+                hitSlop={20}
+                style={[styles.modalCloseButton, { backgroundColor: isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.05)" }]}
+              >
+                <Feather name="x" size={18} color={ui.text} />
+              </Pressable>
+            </View>
           </View>
 
           <ScrollView contentContainerStyle={{ gap: 12, paddingBottom: 24 }}>
@@ -1274,7 +1275,7 @@ export default function AccountsScreen() {
                 styles.input,
                 {
                   borderColor: ui.border,
-                  backgroundColor: ui.surface,
+                  backgroundColor: ui.surface2,
                   color: ui.text,
                 },
               ]}
@@ -1309,7 +1310,7 @@ export default function AccountsScreen() {
                 styles.input,
                 {
                   borderColor: ui.border,
-                  backgroundColor: ui.surface,
+                  backgroundColor: ui.surface2,
                   color: ui.text,
                 },
               ]}
@@ -1324,7 +1325,7 @@ export default function AccountsScreen() {
                 styles.input,
                 {
                   borderColor: ui.border,
-                  backgroundColor: ui.surface,
+                  backgroundColor: ui.surface2,
                   color: ui.text,
                 },
               ]}
@@ -1339,7 +1340,7 @@ export default function AccountsScreen() {
                 styles.input,
                 {
                   borderColor: ui.border,
-                  backgroundColor: ui.surface,
+                  backgroundColor: ui.surface2,
                   color: ui.text,
                 },
               ]}
@@ -1354,7 +1355,7 @@ export default function AccountsScreen() {
                 styles.input,
                 {
                   borderColor: ui.border,
-                  backgroundColor: ui.surface,
+                  backgroundColor: ui.surface2,
                   color: ui.text,
                 },
               ]}
@@ -1370,7 +1371,7 @@ export default function AccountsScreen() {
                 styles.input,
                 {
                   borderColor: ui.border,
-                  backgroundColor: ui.surface,
+                  backgroundColor: ui.surface2,
                   color: ui.text,
                 },
               ]}
@@ -1386,7 +1387,7 @@ export default function AccountsScreen() {
                 styles.input,
                 {
                   borderColor: ui.border,
-                  backgroundColor: ui.surface,
+                  backgroundColor: ui.surface2,
                   color: ui.text,
                 },
               ]}
@@ -1478,22 +1479,22 @@ export default function AccountsScreen() {
           style={{
             flex: 1,
             padding: 16,
-            paddingTop: 16 + insets.top,
+            paddingTop: Platform.OS === "ios" ? 8 : (16 + insets.top),
             paddingBottom: 16 + insets.bottom,
           }}
         >
-          <View
-            style={{
-              flexDirection: "row",
-              justifyContent: "space-between",
-              alignItems: "center",
-              marginBottom: 16,
-            }}
-          >
-            <ThemedText type="title">Edit Account</ThemedText>
-            <Pressable onPress={() => setEditingAccount(null)}>
-              <ThemedText style={{ color: "#007AFF" }}>Cancel</ThemedText>
-            </Pressable>
+          <View style={styles.modalHeader}>
+            <View style={styles.modalHeaderLeft} />
+            <ThemedText type="defaultSemiBold" style={styles.modalHeaderTitle}>Edit Account</ThemedText>
+            <View style={styles.modalHeaderRight}>
+              <Pressable
+                onPress={() => setEditingAccount(null)}
+                hitSlop={20}
+                style={[styles.modalCloseButton, { backgroundColor: isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.05)" }]}
+              >
+                <Feather name="x" size={18} color={ui.text} />
+              </Pressable>
+            </View>
           </View>
 
           <ScrollView contentContainerStyle={{ gap: 16, paddingBottom: 40 }}>
@@ -1506,7 +1507,7 @@ export default function AccountsScreen() {
                   styles.input,
                   {
                     borderColor: ui.border,
-                    backgroundColor: ui.surface,
+                    backgroundColor: ui.surface2,
                     color: ui.text,
                   },
                 ]}
@@ -1523,7 +1524,7 @@ export default function AccountsScreen() {
                   styles.input,
                   {
                     borderColor: ui.border,
-                    backgroundColor: ui.surface,
+                    backgroundColor: ui.surface2,
                     color: ui.text,
                   },
                 ]}
@@ -1540,7 +1541,7 @@ export default function AccountsScreen() {
                   styles.input,
                   {
                     borderColor: ui.border,
-                    backgroundColor: ui.surface,
+                    backgroundColor: ui.surface2,
                     color: ui.text,
                   },
                 ]}
@@ -1557,7 +1558,7 @@ export default function AccountsScreen() {
                   styles.input,
                   {
                     borderColor: ui.border,
-                    backgroundColor: ui.surface,
+                    backgroundColor: ui.surface2,
                     color: ui.text,
                   },
                 ]}
@@ -1574,7 +1575,7 @@ export default function AccountsScreen() {
                   styles.input,
                   {
                     borderColor: ui.border,
-                    backgroundColor: ui.surface,
+                    backgroundColor: ui.surface2,
                     color: ui.text,
                   },
                 ]}
@@ -1593,7 +1594,7 @@ export default function AccountsScreen() {
                   styles.input,
                   {
                     borderColor: ui.border,
-                    backgroundColor: ui.surface,
+                    backgroundColor: ui.surface2,
                     color: ui.text,
                   },
                 ]}
@@ -1611,7 +1612,7 @@ export default function AccountsScreen() {
                   styles.input,
                   {
                     borderColor: ui.border,
-                    backgroundColor: ui.surface,
+                    backgroundColor: ui.surface2,
                     color: ui.text,
                   },
                 ]}
@@ -2092,7 +2093,7 @@ const styles = StyleSheet.create({
   },
   dropdownButton: {
     borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: 10,
+    borderRadius: 12,
     paddingHorizontal: 12,
     paddingVertical: 10,
   },
@@ -2102,7 +2103,7 @@ const styles = StyleSheet.create({
     padding: 18,
   },
   modalCard: {
-    borderRadius: 14,
+    borderRadius: 24,
     padding: 14,
     gap: 10,
     borderWidth: StyleSheet.hairlineWidth,
@@ -2110,7 +2111,7 @@ const styles = StyleSheet.create({
   modalOption: {
     paddingVertical: 12,
     paddingHorizontal: 10,
-    borderRadius: 10,
+    borderRadius: 12,
     borderWidth: StyleSheet.hairlineWidth,
   },
   modalCancel: {
@@ -2120,7 +2121,7 @@ const styles = StyleSheet.create({
     alignSelf: "flex-start",
     paddingHorizontal: 14,
     paddingVertical: 10,
-    borderRadius: 10,
+    borderRadius: 12,
     borderWidth: StyleSheet.hairlineWidth,
   },
   buttonDisabled: { opacity: 0.5 },
@@ -2150,7 +2151,7 @@ const styles = StyleSheet.create({
   deleteButton: {
     paddingHorizontal: 10,
     paddingVertical: 8,
-    borderRadius: 10,
+    borderRadius: 12,
     borderWidth: StyleSheet.hairlineWidth,
   },
   deleteAction: {
@@ -2159,8 +2160,32 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 14,
     paddingVertical: 12,
-    borderRadius: 10,
+    borderRadius: 12,
     borderWidth: StyleSheet.hairlineWidth,
+  },
+  modalHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 8,
+  },
+  modalHeaderTitle: {
+    flex: 1,
+    textAlign: "center",
+  },
+  modalHeaderLeft: {
+    width: 44,
+  },
+  modalHeaderRight: {
+    width: 44,
+    alignItems: "flex-end",
+  },
+  modalCloseButton: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    alignItems: "center",
+    justifyContent: "center",
   },
 });
 

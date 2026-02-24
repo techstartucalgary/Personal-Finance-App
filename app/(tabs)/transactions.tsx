@@ -936,6 +936,8 @@ export default function HomeScreen() {
       }
 
       setEditingExpense(null);
+      setIsDetailModalVisible(false);
+      setSelectedDetailTransaction(null);
       await loadExpenses();
       await loadAccounts();
       await loadRecurringRules();
@@ -1047,6 +1049,8 @@ export default function HomeScreen() {
         }
 
         setEditingExpense(null);
+        setIsDetailModalVisible(false);
+        setSelectedDetailTransaction(null);
         await loadExpenses();
         await loadAccounts();
       } catch (error) {
@@ -2051,547 +2055,7 @@ export default function HomeScreen() {
 
       {/* Frequency Picker Overlay removed — now inline inside each modal */}
 
-      <Modal
-        visible={!!editingExpense}
-        animationType="slide"
-        presentationStyle="pageSheet"
-        onRequestClose={() => setEditingExpense(null)}
-      >
-        <ThemedView
-          style={{
-            flex: 1,
-            padding: 16,
-            paddingTop: Platform.OS === "ios" ? 8 : (16 + insets.top),
-            paddingBottom: 16 + insets.bottom,
-          }}
-        >
-          <View style={styles.modalHeader}>
-            <View style={styles.modalHeaderLeft} />
-            <ThemedText type="title" style={styles.modalHeaderTitle}>Edit Transaction</ThemedText>
-            <View style={styles.modalHeaderRight}>
-              <Pressable
-                onPress={() => setEditingExpense(null)}
-                hitSlop={20}
-                style={[styles.modalCloseButton, { backgroundColor: isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.05)" }]}
-              >
-                <Feather name="x" size={18} color={ui.text} />
-              </Pressable>
-            </View>
-          </View>
-
-          <ScrollView contentContainerStyle={{ gap: 16, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
-            <View style={{ gap: 6 }}>
-              <ThemedText type="defaultSemiBold">Account</ThemedText>
-              <Pressable
-                onPress={() => setEditAccountModalOpen(true)}
-                style={[
-                  styles.dropdownButton,
-                  { borderColor: ui.border, backgroundColor: ui.surface2 },
-                ]}
-              >
-                <ThemedText>
-                  {editSelectedAccount?.account_name ?? "Select an account"}
-                </ThemedText>
-              </Pressable>
-            </View>
-
-            <View style={{ gap: 6 }}>
-              <ThemedText type="defaultSemiBold">Transaction Date</ThemedText>
-              <TextInput
-                value={editTransactionDate}
-                onChangeText={setEditTransactionDate}
-                placeholder="YYYY-MM-DD"
-                placeholderTextColor={ui.mutedText}
-                style={[
-                  styles.input,
-                  {
-                    borderColor: ui.border,
-                    backgroundColor: ui.surface2,
-                    color: ui.text,
-                  },
-                ]}
-              />
-            </View>
-
-            <View style={{ gap: 6 }}>
-              <ThemedText type="defaultSemiBold">Category</ThemedText>
-              <Pressable
-                onPress={() => setEditCategoryModalOpen(true)}
-                style={[
-                  styles.dropdownButton,
-                  { borderColor: ui.border, backgroundColor: ui.surface2 },
-                ]}
-              >
-                <ThemedText>
-                  {editSelectedCategory?.category_name ?? "Select a category"}
-                </ThemedText>
-              </Pressable>
-            </View>
-
-            {editSelectedCategory && (
-              <View style={{ gap: 6 }}>
-                <ThemedText type="defaultSemiBold">Subcategory</ThemedText>
-                <Pressable
-                  onPress={() => setEditSubcategoryModalOpen(true)}
-                  style={[
-                    styles.dropdownButton,
-                    { borderColor: ui.border, backgroundColor: ui.surface2 },
-                  ]}
-                >
-                  <ThemedText>
-                    {editSelectedSubcategory?.category_name ??
-                      "Select subcategory"}
-                  </ThemedText>
-                </Pressable>
-              </View>
-            )}
-
-            <View style={{ gap: 6 }}>
-              <ThemedText type="defaultSemiBold">Amount</ThemedText>
-              <TextInput
-                value={editAmount}
-                onChangeText={setEditAmount}
-                keyboardType="numeric"
-                style={[
-                  styles.input,
-                  {
-                    borderColor: ui.border,
-                    backgroundColor: ui.surface2,
-                    color: ui.text,
-                  },
-                ]}
-              />
-            </View>
-
-            <View style={{ gap: 6 }}>
-              <ThemedText type="defaultSemiBold">Description</ThemedText>
-              <TextInput
-                value={editDescription}
-                onChangeText={setEditDescription}
-                style={[
-                  styles.input,
-                  {
-                    borderColor: ui.border,
-                    backgroundColor: ui.surface2,
-                    color: ui.text,
-                  },
-                ]}
-              />
-            </View>
-
-            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-              <ThemedText type="defaultSemiBold">Make Recurring</ThemedText>
-              <Switch
-                value={editTransactionIsRecurring}
-                onValueChange={setEditTransactionIsRecurring}
-                trackColor={{ false: ui.border, true: "#34C759" }}
-              />
-            </View>
-
-            {editTransactionIsRecurring && (
-              <View style={{ gap: 6 }}>
-                <ThemedText type="defaultSemiBold">Frequency</ThemedText>
-                <Pressable
-                  onPress={() => setEditFrequencyModalOpen(true)}
-                  style={[
-                    styles.dropdownButton,
-                    { borderColor: ui.border, backgroundColor: ui.surface2 },
-                  ]}
-                >
-                  <ThemedText>{editTransactionRecurringFrequency}</ThemedText>
-                </Pressable>
-              </View>
-            )}
-
-            {editTransactionIsRecurring && (
-              <View style={{ gap: 6 }}>
-                <ThemedText type="defaultSemiBold">Next Run Date</ThemedText>
-                <TextInput
-                  value={editTransactionRuleNextRunDate}
-                  onChangeText={setEditTransactionRuleNextRunDate}
-                  placeholder="YYYY-MM-DD"
-                  placeholderTextColor={ui.mutedText}
-                  style={[
-                    styles.input,
-                    {
-                      borderColor: ui.border,
-                      backgroundColor: ui.surface2,
-                      color: ui.text,
-                    },
-                  ]}
-                />
-              </View>
-            )}
-
-            {editTransactionIsRecurring && (
-              <View style={{ gap: 6 }}>
-                <ThemedText type="defaultSemiBold">Ends On (Optional)</ThemedText>
-                <TextInput
-                  value={editTransactionRuleEndsOn}
-                  onChangeText={setEditTransactionRuleEndsOn}
-                  placeholder="YYYY-MM-DD"
-                  placeholderTextColor={ui.mutedText}
-                  style={[
-                    styles.input,
-                    {
-                      borderColor: ui.border,
-                      backgroundColor: ui.surface2,
-                      color: ui.text,
-                    },
-                  ]}
-                />
-              </View>
-            )}
-
-            <Pressable
-              onPress={updateTransaction}
-              disabled={isLoading}
-              style={[
-                styles.button,
-                {
-                  backgroundColor: ui.text,
-                  borderColor: ui.border,
-                  alignSelf: "center",
-                  width: "100%",
-                  alignItems: "center",
-                },
-                isLoading && styles.buttonDisabled,
-              ]}
-            >
-              <ThemedText type="defaultSemiBold" style={{ color: ui.surface }}>
-                Save Changes
-              </ThemedText>
-            </Pressable>
-
-            <Pressable
-              onPress={deleteTransaction}
-              disabled={isLoading}
-              style={[
-                styles.deleteAction,
-                { borderColor: ui.border, backgroundColor: ui.surface },
-                isLoading && styles.buttonDisabled,
-              ]}
-            >
-              <ThemedText style={{ color: "#FF3B30" }}>
-                Delete Transaction
-              </ThemedText>
-            </Pressable>
-          </ScrollView>
-
-          {/* Frequency Picker Overlay (Edit Transaction) */}
-          {editFrequencyModalOpen && (
-            <Pressable
-              style={[
-                styles.modalBackdrop,
-                StyleSheet.absoluteFill,
-                { backgroundColor: ui.backdrop, zIndex: 100 },
-              ]}
-              onPress={() => setEditFrequencyModalOpen(false)}
-            >
-              <Pressable
-                style={[
-                  styles.modalCard,
-                  { backgroundColor: ui.surface2, borderColor: ui.border },
-                ]}
-                onPress={() => { }}
-              >
-                <ThemedText type="defaultSemiBold">Select Frequency</ThemedText>
-                {["Daily", "Weekly", "Monthly", "Yearly"].map((freq) => (
-                  <Pressable
-                    key={freq}
-                    style={[
-                      styles.modalOption,
-                      { borderColor: ui.border, backgroundColor: ui.surface },
-                    ]}
-                    onPress={() => {
-                      setEditTransactionRecurringFrequency(freq);
-                      setEditFrequencyModalOpen(false);
-                    }}
-                  >
-                    <ThemedText>{freq}</ThemedText>
-                  </Pressable>
-                ))}
-                <Pressable
-                  style={[
-                    styles.modalOption,
-                    styles.modalCancel,
-                    { borderColor: ui.border, backgroundColor: ui.surface },
-                  ]}
-                  onPress={() => setEditFrequencyModalOpen(false)}
-                >
-                  <ThemedText>Cancel</ThemedText>
-                </Pressable>
-              </Pressable>
-            </Pressable>
-          )}
-
-          {/* Subcategory Picker Overlay (Edit) */}
-          {editSubcategoryModalOpen && (
-            <Pressable
-              style={[
-                styles.modalBackdrop,
-                StyleSheet.absoluteFill,
-                { backgroundColor: ui.backdrop, zIndex: 100 },
-              ]}
-              onPress={() => setEditSubcategoryModalOpen(false)}
-            >
-              <Pressable
-                style={[
-                  styles.modalCard,
-                  { backgroundColor: ui.surface2, borderColor: ui.border },
-                ]}
-                onPress={() => { }}
-              >
-                <ThemedText type="defaultSemiBold">
-                  Select subcategory
-                </ThemedText>
-
-                {editSubcategories.length === 0 ? (
-                  <ThemedText>No subcategories found.</ThemedText>
-                ) : (
-                  editSubcategories.map((sub) => (
-                    <View
-                      key={sub.id}
-                      style={{
-                        flexDirection: "row",
-                        alignItems: "center",
-                        gap: 8,
-                      }}
-                    >
-                      <Pressable
-                        style={[
-                          styles.modalOption,
-                          {
-                            borderColor: ui.border,
-                            backgroundColor: ui.surface,
-                            flex: 1,
-                          },
-                        ]}
-                        onPress={() => {
-                          setEditSelectedSubcategory(sub);
-                          setEditSubcategoryModalOpen(false);
-                        }}
-                      >
-                        <ThemedText>
-                          {sub.category_name ?? "Unnamed subcategory"}
-                        </ThemedText>
-                      </Pressable>
-                      <Pressable
-                        onPress={() => handleDeleteSubcategory(sub.id)}
-                        style={{ padding: 8 }}
-                      >
-                        <IconSymbol name="trash" size={20} color="#FF3B30" />
-                      </Pressable>
-                    </View>
-                  ))
-                )}
-
-                <View style={styles.fieldGroup}>
-                  <TextInput
-                    value={newSubcategoryName}
-                    onChangeText={setNewSubcategoryName}
-                    placeholder="New subcategory name"
-                    placeholderTextColor={ui.mutedText}
-                    style={[
-                      styles.input,
-                      {
-                        borderColor: ui.border,
-                        backgroundColor: ui.surface,
-                        color: ui.text,
-                      },
-                    ]}
-                  />
-                  <Pressable
-                    onPress={createEditSubcategory}
-                    style={[
-                      styles.button,
-                      { borderColor: ui.border, backgroundColor: ui.surface },
-                    ]}
-                  >
-                    <ThemedText type="defaultSemiBold">
-                      Add subcategory
-                    </ThemedText>
-                  </Pressable>
-                </View>
-
-                <Pressable
-                  style={[
-                    styles.modalOption,
-                    styles.modalCancel,
-                    { borderColor: ui.border, backgroundColor: ui.surface },
-                  ]}
-                  onPress={() => setEditSubcategoryModalOpen(false)}
-                >
-                  <ThemedText>Cancel</ThemedText>
-                </Pressable>
-              </Pressable>
-            </Pressable>
-          )}
-
-          {/* Account Picker Overlay (Edit) */}
-          {editAccountModalOpen && (
-            <Pressable
-              style={[
-                styles.modalBackdrop,
-                StyleSheet.absoluteFill,
-                { backgroundColor: ui.backdrop, zIndex: 100 },
-              ]}
-              onPress={() => setEditAccountModalOpen(false)}
-            >
-              <Pressable
-                style={[
-                  styles.modalCard,
-                  { backgroundColor: ui.surface2, borderColor: ui.border },
-                ]}
-                onPress={() => { }}
-              >
-                <ThemedText type="defaultSemiBold">Select account</ThemedText>
-
-                {accounts.length === 0 ? (
-                  <ThemedText>
-                    {isLoading ? "Loading…" : "No accounts yet."}
-                  </ThemedText>
-                ) : (
-                  accounts.map((account) => (
-                    <Pressable
-                      key={account.id}
-                      style={[
-                        styles.modalOption,
-                        { borderColor: ui.border, backgroundColor: ui.surface },
-                      ]}
-                      onPress={() => {
-                        setEditSelectedAccount(account);
-                        setEditAccountModalOpen(false);
-                      }}
-                    >
-                      <ThemedText>
-                        {account.account_name ?? "Unnamed account"}
-                      </ThemedText>
-                      <ThemedText type="default">
-                        {account.account_type
-                          ? account.account_type.charAt(0).toUpperCase() +
-                          account.account_type.slice(1)
-                          : "—"}{" "}
-                        {account.currency ?? ""}
-                      </ThemedText>
-                    </Pressable>
-                  ))
-                )}
-
-                <Pressable
-                  style={[
-                    styles.modalOption,
-                    styles.modalCancel,
-                    { borderColor: ui.border, backgroundColor: ui.surface },
-                  ]}
-                  onPress={() => setEditAccountModalOpen(false)}
-                >
-                  <ThemedText>Cancel</ThemedText>
-                </Pressable>
-              </Pressable>
-            </Pressable>
-          )}
-
-          {/* Category Picker Overlay (Edit) */}
-          {editCategoryModalOpen && (
-            <Pressable
-              style={[
-                styles.modalBackdrop,
-                StyleSheet.absoluteFill,
-                { backgroundColor: ui.backdrop, zIndex: 100 },
-              ]}
-              onPress={() => setEditCategoryModalOpen(false)}
-            >
-              <Pressable
-                style={[
-                  styles.modalCard,
-                  { backgroundColor: ui.surface2, borderColor: ui.border },
-                ]}
-                onPress={() => { }}
-              >
-                <ThemedText type="defaultSemiBold">Select category</ThemedText>
-
-                {categories.length === 0 ? (
-                  <ThemedText>No categories yet.</ThemedText>
-                ) : (
-                  categories.map((category) => (
-                    <View
-                      key={category.id}
-                      style={{
-                        flexDirection: "row",
-                        alignItems: "center",
-                        gap: 8,
-                      }}
-                    >
-                      <Pressable
-                        style={[
-                          styles.modalOption,
-                          {
-                            borderColor: ui.border,
-                            backgroundColor: ui.surface,
-                            flex: 1,
-                          },
-                        ]}
-                        onPress={() => {
-                          setEditSelectedCategory(category);
-                          setEditCategoryModalOpen(false);
-                        }}
-                      >
-                        <ThemedText>
-                          {category.category_name ?? "Unnamed category"}
-                        </ThemedText>
-                      </Pressable>
-                      <Pressable
-                        onPress={() => handleDeleteCategory(category.id)}
-                        style={{ padding: 8 }}
-                      >
-                        <IconSymbol name="trash" size={20} color="#FF3B30" />
-                      </Pressable>
-                    </View>
-                  ))
-                )}
-
-                <View style={styles.fieldGroup}>
-                  <TextInput
-                    value={newCategoryName}
-                    onChangeText={setNewCategoryName}
-                    placeholder="New category name"
-                    placeholderTextColor={ui.mutedText}
-                    style={[
-                      styles.input,
-                      {
-                        borderColor: ui.border,
-                        backgroundColor: ui.surface,
-                        color: ui.text,
-                      },
-                    ]}
-                  />
-                  <Pressable
-                    onPress={createEditCategory}
-                    style={[
-                      styles.button,
-                      { borderColor: ui.border, backgroundColor: ui.surface },
-                    ]}
-                  >
-                    <ThemedText type="defaultSemiBold">Add category</ThemedText>
-                  </Pressable>
-                </View>
-
-                <Pressable
-                  style={[
-                    styles.modalOption,
-                    styles.modalCancel,
-                    { borderColor: ui.border, backgroundColor: ui.surface },
-                  ]}
-                  onPress={() => setEditCategoryModalOpen(false)}
-                >
-                  <ThemedText>Cancel</ThemedText>
-                </Pressable>
-              </Pressable>
-            </Pressable>
-          )}
-        </ThemedView>
-      </Modal>
+      {/* Frequency Picker Overlay removed — now inline inside each modal */}
 
       {/* Transaction Detail Modal */}
       <TransactionDetailModal
@@ -2603,14 +2067,557 @@ export default function HomeScreen() {
         transaction={selectedDetailTransaction}
         accounts={accounts}
         onEdit={(expense) => {
-          setIsDetailModalVisible(false);
           setEditingExpense(expense);
           // Sync edit state (this is normally done in the setEditingExpense useEffect but let's be safe)
           setEditAmount(expense.amount?.toString() || "");
           setEditDescription(expense.description || "");
           setEditTransactionDate(expense.transaction_date || expense.created_at || "");
         }}
-      />
+      >
+        {/* iOS-specific: Edit Modal MUST be nested inside Detail Modal to stack properly as sibling pageSheets are often restricted */}
+        <Modal
+          visible={!!editingExpense}
+          animationType="slide"
+          presentationStyle="pageSheet"
+          onRequestClose={() => setEditingExpense(null)}
+        >
+          <ThemedView
+            style={{
+              flex: 1,
+              padding: 16,
+              paddingTop: Platform.OS === "ios" ? 8 : (16 + insets.top),
+              paddingBottom: 16 + insets.bottom,
+            }}
+          >
+            <View style={styles.modalHeader}>
+              <View style={styles.modalHeaderLeft} />
+              <ThemedText type="title" style={styles.modalHeaderTitle}>Edit Transaction</ThemedText>
+              <View style={styles.modalHeaderRight}>
+                <Pressable
+                  onPress={() => setEditingExpense(null)}
+                  hitSlop={20}
+                  style={[styles.modalCloseButton, { backgroundColor: isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.05)" }]}
+                >
+                  <Feather name="x" size={18} color={ui.text} />
+                </Pressable>
+              </View>
+            </View>
+
+            <ScrollView contentContainerStyle={{ gap: 16, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
+              <View style={{ gap: 6 }}>
+                <ThemedText type="defaultSemiBold">Account</ThemedText>
+                <Pressable
+                  onPress={() => setEditAccountModalOpen(true)}
+                  style={[
+                    styles.dropdownButton,
+                    { borderColor: ui.border, backgroundColor: ui.surface2 },
+                  ]}
+                >
+                  <ThemedText>
+                    {editSelectedAccount?.account_name ?? "Select an account"}
+                  </ThemedText>
+                </Pressable>
+              </View>
+
+              <View style={{ gap: 6 }}>
+                <ThemedText type="defaultSemiBold">Transaction Date</ThemedText>
+                <TextInput
+                  value={editTransactionDate}
+                  onChangeText={setEditTransactionDate}
+                  placeholder="YYYY-MM-DD"
+                  placeholderTextColor={ui.mutedText}
+                  style={[
+                    styles.input,
+                    {
+                      borderColor: ui.border,
+                      backgroundColor: ui.surface2,
+                      color: ui.text,
+                    },
+                  ]}
+                />
+              </View>
+
+              <View style={{ gap: 6 }}>
+                <ThemedText type="defaultSemiBold">Category</ThemedText>
+                <Pressable
+                  onPress={() => setEditCategoryModalOpen(true)}
+                  style={[
+                    styles.dropdownButton,
+                    { borderColor: ui.border, backgroundColor: ui.surface2 },
+                  ]}
+                >
+                  <ThemedText>
+                    {editSelectedCategory?.category_name ?? "Select a category"}
+                  </ThemedText>
+                </Pressable>
+              </View>
+
+              {editSelectedCategory && (
+                <View style={{ gap: 6 }}>
+                  <ThemedText type="defaultSemiBold">Subcategory</ThemedText>
+                  <Pressable
+                    onPress={() => setEditSubcategoryModalOpen(true)}
+                    style={[
+                      styles.dropdownButton,
+                      { borderColor: ui.border, backgroundColor: ui.surface2 },
+                    ]}
+                  >
+                    <ThemedText>
+                      {editSelectedSubcategory?.category_name ??
+                        "Select subcategory"}
+                    </ThemedText>
+                  </Pressable>
+                </View>
+              )}
+
+              <View style={{ gap: 6 }}>
+                <ThemedText type="defaultSemiBold">Amount</ThemedText>
+                <TextInput
+                  value={editAmount}
+                  onChangeText={setEditAmount}
+                  keyboardType="numeric"
+                  style={[
+                    styles.input,
+                    {
+                      borderColor: ui.border,
+                      backgroundColor: ui.surface2,
+                      color: ui.text,
+                    },
+                  ]}
+                />
+              </View>
+
+              <View style={{ gap: 6 }}>
+                <ThemedText type="defaultSemiBold">Description</ThemedText>
+                <TextInput
+                  value={editDescription}
+                  onChangeText={setEditDescription}
+                  style={[
+                    styles.input,
+                    {
+                      borderColor: ui.border,
+                      backgroundColor: ui.surface2,
+                      color: ui.text,
+                    },
+                  ]}
+                />
+              </View>
+
+              <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+                <ThemedText type="defaultSemiBold">Make Recurring</ThemedText>
+                <Switch
+                  value={editTransactionIsRecurring}
+                  onValueChange={setEditTransactionIsRecurring}
+                  trackColor={{ false: ui.border, true: "#34C759" }}
+                />
+              </View>
+
+              {editTransactionIsRecurring && (
+                <View style={{ gap: 6 }}>
+                  <ThemedText type="defaultSemiBold">Frequency</ThemedText>
+                  <Pressable
+                    onPress={() => setEditFrequencyModalOpen(true)}
+                    style={[
+                      styles.dropdownButton,
+                      { borderColor: ui.border, backgroundColor: ui.surface2 },
+                    ]}
+                  >
+                    <ThemedText>{editTransactionRecurringFrequency}</ThemedText>
+                  </Pressable>
+                </View>
+              )}
+
+              {editTransactionIsRecurring && (
+                <View style={{ gap: 6 }}>
+                  <ThemedText type="defaultSemiBold">Next Run Date</ThemedText>
+                  <TextInput
+                    value={editTransactionRuleNextRunDate}
+                    onChangeText={setEditTransactionRuleNextRunDate}
+                    placeholder="YYYY-MM-DD"
+                    placeholderTextColor={ui.mutedText}
+                    style={[
+                      styles.input,
+                      {
+                        borderColor: ui.border,
+                        backgroundColor: ui.surface2,
+                        color: ui.text,
+                      },
+                    ]}
+                  />
+                </View>
+              )}
+
+              {editTransactionIsRecurring && (
+                <View style={{ gap: 6 }}>
+                  <ThemedText type="defaultSemiBold">Ends On (Optional)</ThemedText>
+                  <TextInput
+                    value={editTransactionRuleEndsOn}
+                    onChangeText={setEditTransactionRuleEndsOn}
+                    placeholder="YYYY-MM-DD"
+                    placeholderTextColor={ui.mutedText}
+                    style={[
+                      styles.input,
+                      {
+                        borderColor: ui.border,
+                        backgroundColor: ui.surface2,
+                        color: ui.text,
+                      },
+                    ]}
+                  />
+                </View>
+              )}
+
+              <Pressable
+                onPress={updateTransaction}
+                disabled={isLoading}
+                style={[
+                  styles.button,
+                  {
+                    backgroundColor: ui.text,
+                    borderColor: ui.border,
+                    alignSelf: "center",
+                    width: "100%",
+                    alignItems: "center",
+                  },
+                  isLoading && styles.buttonDisabled,
+                ]}
+              >
+                <ThemedText type="defaultSemiBold" style={{ color: ui.surface }}>
+                  Save Changes
+                </ThemedText>
+              </Pressable>
+
+              <Pressable
+                onPress={deleteTransaction}
+                disabled={isLoading}
+                style={[
+                  styles.deleteAction,
+                  { borderColor: ui.border, backgroundColor: ui.surface },
+                  isLoading && styles.buttonDisabled,
+                ]}
+              >
+                <ThemedText style={{ color: "#FF3B30" }}>
+                  Delete Transaction
+                </ThemedText>
+              </Pressable>
+            </ScrollView>
+
+            {/* Frequency Picker Overlay (Edit Transaction) */}
+            {editFrequencyModalOpen && (
+              <Pressable
+                style={[
+                  styles.modalBackdrop,
+                  StyleSheet.absoluteFill,
+                  { backgroundColor: ui.backdrop, zIndex: 100 },
+                ]}
+                onPress={() => setEditFrequencyModalOpen(false)}
+              >
+                <Pressable
+                  style={[
+                    styles.modalCard,
+                    { backgroundColor: ui.surface2, borderColor: ui.border },
+                  ]}
+                  onPress={() => { }}
+                >
+                  <ThemedText type="defaultSemiBold">Select Frequency</ThemedText>
+                  {["Daily", "Weekly", "Monthly", "Yearly"].map((freq) => (
+                    <Pressable
+                      key={freq}
+                      style={[
+                        styles.modalOption,
+                        { borderColor: ui.border, backgroundColor: ui.surface },
+                      ]}
+                      onPress={() => {
+                        setEditTransactionRecurringFrequency(freq);
+                        setEditFrequencyModalOpen(false);
+                      }}
+                    >
+                      <ThemedText>{freq}</ThemedText>
+                    </Pressable>
+                  ))}
+                  <Pressable
+                    style={[
+                      styles.modalOption,
+                      styles.modalCancel,
+                      { borderColor: ui.border, backgroundColor: ui.surface },
+                    ]}
+                    onPress={() => setEditFrequencyModalOpen(false)}
+                  >
+                    <ThemedText>Cancel</ThemedText>
+                  </Pressable>
+                </Pressable>
+              </Pressable>
+            )}
+
+            {/* Subcategory Picker Overlay (Edit) */}
+            {editSubcategoryModalOpen && (
+              <Pressable
+                style={[
+                  styles.modalBackdrop,
+                  StyleSheet.absoluteFill,
+                  { backgroundColor: ui.backdrop, zIndex: 100 },
+                ]}
+                onPress={() => setEditSubcategoryModalOpen(false)}
+              >
+                <Pressable
+                  style={[
+                    styles.modalCard,
+                    { backgroundColor: ui.surface2, borderColor: ui.border },
+                  ]}
+                  onPress={() => { }}
+                >
+                  <ThemedText type="defaultSemiBold">
+                    Select subcategory
+                  </ThemedText>
+
+                  {editSubcategories.length === 0 ? (
+                    <ThemedText>No subcategories found.</ThemedText>
+                  ) : (
+                    editSubcategories.map((sub) => (
+                      <View
+                        key={sub.id}
+                        style={{
+                          flexDirection: "row",
+                          alignItems: "center",
+                          gap: 8,
+                        }}
+                      >
+                        <Pressable
+                          style={[
+                            styles.modalOption,
+                            {
+                              borderColor: ui.border,
+                              backgroundColor: ui.surface,
+                              flex: 1,
+                            },
+                          ]}
+                          onPress={() => {
+                            setEditSelectedSubcategory(sub);
+                            setEditSubcategoryModalOpen(false);
+                          }}
+                        >
+                          <ThemedText>
+                            {sub.category_name ?? "Unnamed subcategory"}
+                          </ThemedText>
+                        </Pressable>
+                        <Pressable
+                          onPress={() => handleDeleteSubcategory(sub.id)}
+                          style={{ padding: 8 }}
+                        >
+                          <IconSymbol name="trash" size={20} color="#FF3B30" />
+                        </Pressable>
+                      </View>
+                    ))
+                  )}
+
+                  <View style={styles.fieldGroup}>
+                    <TextInput
+                      value={newSubcategoryName}
+                      onChangeText={setNewSubcategoryName}
+                      placeholder="New subcategory name"
+                      placeholderTextColor={ui.mutedText}
+                      style={[
+                        styles.input,
+                        {
+                          borderColor: ui.border,
+                          backgroundColor: ui.surface,
+                          color: ui.text,
+                        },
+                      ]}
+                    />
+                    <Pressable
+                      onPress={createEditSubcategory}
+                      style={[
+                        styles.button,
+                        { borderColor: ui.border, backgroundColor: ui.surface },
+                      ]}
+                    >
+                      <ThemedText type="defaultSemiBold">
+                        Add subcategory
+                      </ThemedText>
+                    </Pressable>
+                  </View>
+
+                  <Pressable
+                    style={[
+                      styles.modalOption,
+                      styles.modalCancel,
+                      { borderColor: ui.border, backgroundColor: ui.surface },
+                    ]}
+                    onPress={() => setEditSubcategoryModalOpen(false)}
+                  >
+                    <ThemedText>Cancel</ThemedText>
+                  </Pressable>
+                </Pressable>
+              </Pressable>
+            )}
+
+            {/* Account Picker Overlay (Edit) */}
+            {editAccountModalOpen && (
+              <Pressable
+                style={[
+                  styles.modalBackdrop,
+                  StyleSheet.absoluteFill,
+                  { backgroundColor: ui.backdrop, zIndex: 100 },
+                ]}
+                onPress={() => setEditAccountModalOpen(false)}
+              >
+                <Pressable
+                  style={[
+                    styles.modalCard,
+                    { backgroundColor: ui.surface2, borderColor: ui.border },
+                  ]}
+                  onPress={() => { }}
+                >
+                  <ThemedText type="defaultSemiBold">Select account</ThemedText>
+
+                  {accounts.length === 0 ? (
+                    <ThemedText>
+                      {isLoading ? "Loading…" : "No accounts yet."}
+                    </ThemedText>
+                  ) : (
+                    accounts.map((account) => (
+                      <Pressable
+                        key={account.id}
+                        style={[
+                          styles.modalOption,
+                          { borderColor: ui.border, backgroundColor: ui.surface },
+                        ]}
+                        onPress={() => {
+                          setEditSelectedAccount(account);
+                          setEditAccountModalOpen(false);
+                        }}
+                      >
+                        <ThemedText>
+                          {account.account_name ?? "Unnamed account"}
+                        </ThemedText>
+                        <ThemedText type="default">
+                          {account.account_type
+                            ? account.account_type.charAt(0).toUpperCase() +
+                            account.account_type.slice(1)
+                            : "—"}{" "}
+                          {account.currency ?? ""}
+                        </ThemedText>
+                      </Pressable>
+                    ))
+                  )}
+
+                  <Pressable
+                    style={[
+                      styles.modalOption,
+                      styles.modalCancel,
+                      { borderColor: ui.border, backgroundColor: ui.surface },
+                    ]}
+                    onPress={() => setEditAccountModalOpen(false)}
+                  >
+                    <ThemedText>Cancel</ThemedText>
+                  </Pressable>
+                </Pressable>
+              </Pressable>
+            )}
+
+            {/* Category Picker Overlay (Edit) */}
+            {editCategoryModalOpen && (
+              <Pressable
+                style={[
+                  styles.modalBackdrop,
+                  StyleSheet.absoluteFill,
+                  { backgroundColor: ui.backdrop, zIndex: 100 },
+                ]}
+                onPress={() => setEditCategoryModalOpen(false)}
+              >
+                <Pressable
+                  style={[
+                    styles.modalCard,
+                    { backgroundColor: ui.surface2, borderColor: ui.border },
+                  ]}
+                  onPress={() => { }}
+                >
+                  <ThemedText type="defaultSemiBold">Select category</ThemedText>
+
+                  {categories.length === 0 ? (
+                    <ThemedText>No categories yet.</ThemedText>
+                  ) : (
+                    categories.map((category) => (
+                      <View
+                        key={category.id}
+                        style={{
+                          flexDirection: "row",
+                          alignItems: "center",
+                          gap: 8,
+                        }}
+                      >
+                        <Pressable
+                          style={[
+                            styles.modalOption,
+                            {
+                              borderColor: ui.border,
+                              backgroundColor: ui.surface,
+                              flex: 1,
+                            },
+                          ]}
+                          onPress={() => {
+                            setEditSelectedCategory(category);
+                            setEditCategoryModalOpen(false);
+                          }}
+                        >
+                          <ThemedText>
+                            {category.category_name ?? "Unnamed category"}
+                          </ThemedText>
+                        </Pressable>
+                        <Pressable
+                          onPress={() => handleDeleteCategory(category.id)}
+                          style={{ padding: 8 }}
+                        >
+                          <IconSymbol name="trash" size={20} color="#FF3B30" />
+                        </Pressable>
+                      </View>
+                    ))
+                  )}
+
+                  <View style={styles.fieldGroup}>
+                    <TextInput
+                      value={newCategoryName}
+                      onChangeText={setNewCategoryName}
+                      placeholder="New category name"
+                      placeholderTextColor={ui.mutedText}
+                      style={[
+                        styles.input,
+                        {
+                          borderColor: ui.border,
+                          backgroundColor: ui.surface,
+                          color: ui.text,
+                        },
+                      ]}
+                    />
+                    <Pressable
+                      onPress={createEditCategory}
+                      style={[
+                        styles.button,
+                        { borderColor: ui.border, backgroundColor: ui.surface },
+                      ]}
+                    >
+                      <ThemedText type="defaultSemiBold">Add category</ThemedText>
+                    </Pressable>
+                  </View>
+
+                  <Pressable
+                    style={[
+                      styles.modalOption,
+                      styles.modalCancel,
+                      { borderColor: ui.border, backgroundColor: ui.surface },
+                    ]}
+                    onPress={() => setEditCategoryModalOpen(false)}
+                  >
+                    <ThemedText>Cancel</ThemedText>
+                  </Pressable>
+                </Pressable>
+              </Pressable>
+            )}
+          </ThemedView>
+        </Modal>
+      </TransactionDetailModal>
+
 
       {/* Edit Recurrance Modal */}
       <Modal

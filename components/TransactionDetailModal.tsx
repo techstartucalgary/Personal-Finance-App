@@ -40,6 +40,7 @@ interface TransactionDetailModalProps {
     transaction: ExpenseRow | PlaidTransaction | null;
     accounts?: AccountRow[];
     onEdit?: (expense: ExpenseRow) => void;
+    children?: React.ReactNode;
 }
 
 export function TransactionDetailModal({
@@ -48,6 +49,7 @@ export function TransactionDetailModal({
     transaction,
     accounts = [],
     onEdit,
+    children,
 }: TransactionDetailModalProps) {
     const insets = useSafeAreaInsets();
     const colorScheme = useColorScheme();
@@ -170,7 +172,6 @@ export function TransactionDetailModal({
                     {!isPlaid && onEdit && (
                         <Pressable
                             onPress={() => {
-                                onClose();
                                 onEdit(transaction as ExpenseRow);
                             }}
                             style={[styles.editButton, { backgroundColor: ui.accent }]}
@@ -181,6 +182,7 @@ export function TransactionDetailModal({
                     )}
                 </ScrollView>
             </ThemedView>
+            {children}
         </Modal>
     );
 }

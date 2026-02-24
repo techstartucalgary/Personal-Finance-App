@@ -600,6 +600,30 @@ export default function AccountsScreen() {
           />
         }
       >
+        <View
+          pointerEvents="none"
+          style={StyleSheet.absoluteFill}
+        >
+          <View
+            style={[
+              styles.bgOrb,
+              styles.bgOrbTop,
+              { backgroundColor: ui.accentSoft },
+            ]}
+          />
+          <View
+            style={[
+              styles.bgOrb,
+              styles.bgOrbBottom,
+              {
+                backgroundColor: isDark
+                  ? "rgba(255,255,255,0.08)"
+                  : "rgba(255,255,255,0.65)",
+              },
+            ]}
+          />
+          <View style={[styles.bgRing, { borderColor: ui.accentSoft }]} />
+        </View>
 
 
         <View
@@ -1626,6 +1650,33 @@ const styles = StyleSheet.create({
   scrollContent: {
     gap: 14,
     paddingBottom: 16,
+  },
+  bgOrb: {
+    position: "absolute",
+    borderRadius: 999,
+    opacity: 0.7,
+  },
+  bgOrbTop: {
+    width: 260,
+    height: 260,
+    top: -160,
+    right: -90,
+  },
+  bgOrbBottom: {
+    width: 220,
+    height: 220,
+    bottom: -80,
+    left: -70,
+  },
+  bgRing: {
+    position: "absolute",
+    width: 260,
+    height: 260,
+    borderRadius: 130,
+    borderWidth: 1,
+    top: 180,
+    right: -130,
+    opacity: 0.35,
   },
   headerRow: {
     flexDirection: "row",

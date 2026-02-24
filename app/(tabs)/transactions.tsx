@@ -146,7 +146,8 @@ export default function HomeScreen() {
   const [description, setDescription] = useState("");
   const [isRecurring, setIsRecurring] = useState(false);
   const [recurringFrequency, setRecurringFrequency] = useState("Monthly");
-  const [frequencyModalOpen, setFrequencyModalOpen] = useState(false);
+  const [addFrequencyModalOpen, setAddFrequencyModalOpen] = useState(false);
+  const [editFrequencyModalOpen, setEditFrequencyModalOpen] = useState(false);
   const [isAddEndsOnEnabled, setIsAddEndsOnEnabled] = useState(false);
   const [addRuleEndsOn, setAddRuleEndsOn] = useState("");
   const [expenses, setExpenses] = useState<ExpenseRow[]>([]);
@@ -182,6 +183,13 @@ export default function HomeScreen() {
 
   const formatDate = useCallback((value?: string | null) => {
     if (!value) return "";
+    // Parse YYYY-MM-DD as local time to avoid UTC midnight timezone shift
+    const parts = value.split("-");
+    if (parts.length === 3) {
+      const [y, m, d] = parts.map(Number);
+      const local = new Date(y, m - 1, d);
+      if (!Number.isNaN(local.getTime())) return local.toLocaleDateString();
+    }
     const parsed = new Date(value);
     if (Number.isNaN(parsed.getTime())) return value;
     return parsed.toLocaleDateString();
@@ -816,6 +824,17 @@ export default function HomeScreen() {
           profile_id: userId,
         });
         finalRecurringRuleId = null;
+      } else if (editTransactionIsRecurring && editingExpense.recurring_rule_id) {
+        // Update existing rule properties (frequency, next_run_date, end_date)
+        await updateRecurringRule({
+          id: editingExpense.recurring_rule_id,
+          profile_id: userId,
+          update: {
+            frequency: editTransactionRecurringFrequency as any,
+            next_run_date: editTransactionRuleNextRunDate.trim() || undefined,
+            end_date: editTransactionRuleEndsOn.trim() ? editTransactionRuleEndsOn.trim() : null,
+          },
+        });
       }
 
       await updateExpense({
@@ -895,6 +914,7 @@ export default function HomeScreen() {
       setEditingExpense(null);
       await loadExpenses();
       await loadAccounts();
+      await loadRecurringRules();
     } catch (error) {
       console.error("Error updating transaction:", error);
       Alert.alert("Could not update transaction", "Please try again.");
@@ -912,9 +932,11 @@ export default function HomeScreen() {
     editTransactionIsRecurring,
     editTransactionRecurringFrequency,
     editTransactionRuleEndsOn,
+    editTransactionRuleNextRunDate,
     applyTransactionToBalance,
     loadExpenses,
     loadAccounts,
+    loadRecurringRules,
   ]);
 
   const deleteTransaction = useCallback(async () => {
@@ -1096,9 +1118,11 @@ export default function HomeScreen() {
     editRuleName,
     editRuleAmount,
     editRuleFrequency,
+    editRuleEndsOn,
+    editRuleNextRunDate,
     editRuleSelectedCategory,
     editRuleSelectedSubcategory,
-    loadRecurringRules
+    loadRecurringRules,
   ]);
 
   return (
@@ -1498,7 +1522,7 @@ export default function HomeScreen() {
               <View style={styles.fieldGroup}>
                 <ThemedText type="defaultSemiBold">Frequency</ThemedText>
                 <Pressable
-                  onPress={() => setFrequencyModalOpen(true)}
+                  onPress={() => setAddFrequencyModalOpen(true)}
                   style={[
                     styles.dropdownButton,
                     { borderColor: ui.border, backgroundColor: ui.surface },
@@ -1829,62 +1853,57 @@ export default function HomeScreen() {
               </Pressable>
             </Pressable>
           )}
+
+          {/* Frequency Picker Overlay (Add) */}
+          {addFrequencyModalOpen && (
+            <Pressable
+              style={[
+                styles.modalBackdrop,
+                StyleSheet.absoluteFill,
+                { backgroundColor: ui.backdrop, zIndex: 100 },
+              ]}
+              onPress={() => setAddFrequencyModalOpen(false)}
+            >
+              <Pressable
+                style={[
+                  styles.modalCard,
+                  { backgroundColor: ui.surface2, borderColor: ui.border },
+                ]}
+                onPress={() => { }}
+              >
+                <ThemedText type="defaultSemiBold">Select Frequency</ThemedText>
+                {["Daily", "Weekly", "Monthly", "Yearly"].map((freq) => (
+                  <Pressable
+                    key={freq}
+                    style={[
+                      styles.modalOption,
+                      { borderColor: ui.border, backgroundColor: ui.surface },
+                    ]}
+                    onPress={() => {
+                      setRecurringFrequency(freq);
+                      setAddFrequencyModalOpen(false);
+                    }}
+                  >
+                    <ThemedText>{freq}</ThemedText>
+                  </Pressable>
+                ))}
+                <Pressable
+                  style={[
+                    styles.modalOption,
+                    styles.modalCancel,
+                    { borderColor: ui.border, backgroundColor: ui.surface },
+                  ]}
+                  onPress={() => setAddFrequencyModalOpen(false)}
+                >
+                  <ThemedText>Cancel</ThemedText>
+                </Pressable>
+              </Pressable>
+            </Pressable>
+          )}
         </ThemedView>
       </Modal>
 
-      {/* Frequency Picker Overlay (Add) */}
-      {frequencyModalOpen && (
-        <Modal
-          visible={frequencyModalOpen}
-          animationType="fade"
-          transparent
-          onRequestClose={() => setFrequencyModalOpen(false)}
-        >
-          <Pressable
-            style={[
-              styles.modalBackdrop,
-              StyleSheet.absoluteFill,
-              { backgroundColor: ui.backdrop, zIndex: 100 },
-            ]}
-            onPress={() => setFrequencyModalOpen(false)}
-          >
-            <Pressable
-              style={[
-                styles.modalCard,
-                { backgroundColor: ui.surface2, borderColor: ui.border },
-              ]}
-              onPress={() => { }}
-            >
-              <ThemedText type="defaultSemiBold">Select Frequency</ThemedText>
-              {["Daily", "Weekly", "Monthly", "Yearly"].map((freq) => (
-                <Pressable
-                  key={freq}
-                  style={[
-                    styles.modalOption,
-                    { borderColor: ui.border, backgroundColor: ui.surface },
-                  ]}
-                  onPress={() => {
-                    setRecurringFrequency(freq);
-                    setFrequencyModalOpen(false);
-                  }}
-                >
-                  <ThemedText>{freq}</ThemedText>
-                </Pressable>
-              ))}
-              <Pressable
-                style={[
-                  styles.modalOption,
-                  styles.modalCancel,
-                  { borderColor: ui.border, backgroundColor: ui.surface },
-                ]}
-                onPress={() => setFrequencyModalOpen(false)}
-              >
-                <ThemedText>Cancel</ThemedText>
-              </Pressable>
-            </Pressable>
-          </Pressable>
-        </Modal>
-      )}
+      {/* Frequency Picker Overlay removed — now inline inside each modal */}
 
       <Modal
         visible={!!editingExpense}
@@ -2009,7 +2028,7 @@ export default function HomeScreen() {
               <View style={{ gap: 6 }}>
                 <ThemedText type="defaultSemiBold">Frequency</ThemedText>
                 <Pressable
-                  onPress={() => setFrequencyModalOpen(true)}
+                  onPress={() => setEditFrequencyModalOpen(true)}
                   style={[
                     styles.dropdownButton,
                     { borderColor: ui.border, backgroundColor: ui.surface },
@@ -2094,6 +2113,53 @@ export default function HomeScreen() {
               </ThemedText>
             </Pressable>
           </ScrollView>
+
+          {/* Frequency Picker Overlay (Edit Transaction) */}
+          {editFrequencyModalOpen && (
+            <Pressable
+              style={[
+                styles.modalBackdrop,
+                StyleSheet.absoluteFill,
+                { backgroundColor: ui.backdrop, zIndex: 100 },
+              ]}
+              onPress={() => setEditFrequencyModalOpen(false)}
+            >
+              <Pressable
+                style={[
+                  styles.modalCard,
+                  { backgroundColor: ui.surface2, borderColor: ui.border },
+                ]}
+                onPress={() => { }}
+              >
+                <ThemedText type="defaultSemiBold">Select Frequency</ThemedText>
+                {["Daily", "Weekly", "Monthly", "Yearly"].map((freq) => (
+                  <Pressable
+                    key={freq}
+                    style={[
+                      styles.modalOption,
+                      { borderColor: ui.border, backgroundColor: ui.surface },
+                    ]}
+                    onPress={() => {
+                      setEditTransactionRecurringFrequency(freq);
+                      setEditFrequencyModalOpen(false);
+                    }}
+                  >
+                    <ThemedText>{freq}</ThemedText>
+                  </Pressable>
+                ))}
+                <Pressable
+                  style={[
+                    styles.modalOption,
+                    styles.modalCancel,
+                    { borderColor: ui.border, backgroundColor: ui.surface },
+                  ]}
+                  onPress={() => setEditFrequencyModalOpen(false)}
+                >
+                  <ThemedText>Cancel</ThemedText>
+                </Pressable>
+              </Pressable>
+            </Pressable>
+          )}
 
           {/* Subcategory Picker Overlay (Edit) */}
           {editSubcategoryModalOpen && (

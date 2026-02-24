@@ -1,23 +1,25 @@
-import { Tabs } from 'expo-router';
-import React from 'react';
+import { CardStyleInterpolators } from "@react-navigation/stack";
+import { Stack } from "expo-router/stack";
+import React from "react";
 
-import { HapticTab } from '@/components/haptic-tab';
-import { Colors } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
 
-export default function TabLayout() {
-  const colorScheme = useColorScheme();
-
+export default function AuthLayout() {
   return (
-    <Tabs
+    <Stack
       screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
         headerShown: false,
-        tabBarButton: HapticTab,
-        tabBarStyle: {
-          display: 'none',
-        }
-      }}>
-    </Tabs>
+        gestureEnabled: true,
+        gestureDirection: "horizontal",
+        cardStyle: { backgroundColor: "#ECECF1" },
+        cardStyleInterpolator: CardStyleInterpolators.forHorizontalIOS,
+      }}
+    >
+      <Stack.Screen name="onboarding-start" />
+      <Stack.Screen name="onboarding-profile" />
+      <Stack.Screen name="onboarding-currency" />
+      <Stack.Screen name="onboarding-consent" />
+      <Stack.Screen name="login" />
+      <Stack.Screen name="signup" />
+    </Stack>
   );
 }

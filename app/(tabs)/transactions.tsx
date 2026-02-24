@@ -1,14 +1,16 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  ActivityIndicator,
   Alert,
   Modal,
   Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
+  Switch,
   TextInput,
-  View,
   useColorScheme,
+  View
 } from "react-native";
 
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
@@ -34,6 +36,12 @@ import {
   listExpenses,
   updateExpense,
 } from "@/utils/expenses";
+import {
+  createRecurringRule,
+  deleteRecurringRule,
+  getRecurringRules,
+  updateRecurringRule
+} from "@/utils/recurring";
 
 import { useFocusEffect, useRouter } from "expo-router";
 
@@ -102,6 +110,8 @@ export default function HomeScreen() {
     account_id?: number | null;
     expense_categoryid?: number | null;
     subcategory_id?: number | null;
+    transaction_date?: string | null;
+    recurring_rule_id?: number | null;
   };
 
   const [categories, setCategories] = useState<CategoryRow[]>([]);
@@ -134,14 +144,54 @@ export default function HomeScreen() {
   const [newCategoryName, setNewCategoryName] = useState("");
   const [amount, setAmount] = useState("");
   const [description, setDescription] = useState("");
+  const [isRecurring, setIsRecurring] = useState(false);
+  const [recurringFrequency, setRecurringFrequency] = useState("Monthly");
+  const [addFrequencyModalOpen, setAddFrequencyModalOpen] = useState(false);
+  const [editFrequencyModalOpen, setEditFrequencyModalOpen] = useState(false);
+  const [isAddEndsOnEnabled, setIsAddEndsOnEnabled] = useState(false);
+  const [addRuleEndsOn, setAddRuleEndsOn] = useState("");
+  const [transactionDate, setTransactionDate] = useState(new Date().toISOString().split("T")[0]);
   const [expenses, setExpenses] = useState<ExpenseRow[]>([]);
+
+  // Tabs and Rules State
+  const [activeTab, setActiveTab] = useState<"transactions" | "recurrences">("transactions");
+  const [recurringRules, setRecurringRules] = useState<any[]>([]); // Adjust type to RecurringExpenseRule if you import it
+  const [editingRule, setEditingRule] = useState<any | null>(null);
+
   const [filterAccountId, setFilterAccountId] = useState<number | null>(null);
   const [editingExpense, setEditingExpense] = useState<ExpenseRow | null>(null);
   const [editAmount, setEditAmount] = useState("");
   const [editDescription, setEditDescription] = useState("");
+  const [editTransactionIsRecurring, setEditTransactionIsRecurring] = useState(false);
+  const [editTransactionRecurringFrequency, setEditTransactionRecurringFrequency] = useState("Monthly");
+  const [editTransactionRuleEndsOn, setEditTransactionRuleEndsOn] = useState("");
+  const [addRuleNextRunDate, setAddRuleNextRunDate] = useState("");
+  const [editTransactionRuleNextRunDate, setEditTransactionRuleNextRunDate] = useState("");
+  const [editTransactionDate, setEditTransactionDate] = useState("");
+
+  // Edit Recurrence State
+  const [editRuleName, setEditRuleName] = useState("");
+  const [editRuleAmount, setEditRuleAmount] = useState("");
+  const [editRuleFrequency, setEditRuleFrequency] = useState("Monthly");
+  const [isEditEndsOnEnabled, setIsEditEndsOnEnabled] = useState(false);
+  const [editRuleEndsOn, setEditRuleEndsOn] = useState("");
+  const [editRuleNextRunDate, setEditRuleNextRunDate] = useState("");
+  const [editRuleSelectedCategory, setEditRuleSelectedCategory] = useState<CategoryRow | null>(null);
+  const [editRuleSelectedSubcategory, setEditRuleSelectedSubcategory] = useState<SubcategoryRow | null>(null);
+  const [editRuleFrequencyModalOpen, setEditRuleFrequencyModalOpen] = useState(false);
+  const [editRuleCategoryModalOpen, setEditRuleCategoryModalOpen] = useState(false);
+  const [editRuleSubcategoryModalOpen, setEditRuleSubcategoryModalOpen] = useState(false);
+  const [editRuleSubcategories, setEditRuleSubcategories] = useState<SubcategoryRow[]>([]);
 
   const formatDate = useCallback((value?: string | null) => {
     if (!value) return "";
+    // Parse YYYY-MM-DD as local time to avoid UTC midnight timezone shift
+    const parts = value.split("-");
+    if (parts.length === 3) {
+      const [y, m, d] = parts.map(Number);
+      const local = new Date(y, m - 1, d);
+      if (!Number.isNaN(local.getTime())) return local.toLocaleDateString();
+    }
     const parsed = new Date(value);
     if (Number.isNaN(parsed.getTime())) return value;
     return parsed.toLocaleDateString();
@@ -193,6 +243,33 @@ export default function HomeScreen() {
   useEffect(() => {
     loadCategories();
   }, [loadCategories]);
+
+  // Recalculate default Next Run Date when Frequency or IsRecurring changes (Add Modal)
+  useEffect(() => {
+    if (isRecurring) {
+      const nextDate = new Date();
+      if (recurringFrequency === "Daily") nextDate.setDate(nextDate.getDate() + 1);
+      else if (recurringFrequency === "Weekly") nextDate.setDate(nextDate.getDate() + 7);
+      else if (recurringFrequency === "Monthly") nextDate.setMonth(nextDate.getMonth() + 1);
+      else if (recurringFrequency === "Yearly") nextDate.setFullYear(nextDate.getFullYear() + 1);
+      setAddRuleNextRunDate(nextDate.toISOString().split("T")[0]);
+    } else {
+      setAddRuleNextRunDate("");
+    }
+  }, [isRecurring, recurringFrequency]);
+
+  // Recalculate default Next Run Date when Frequency changes (Edit Modal)
+  // We only run this if toggling it newly on, or if changing frequency.
+  useEffect(() => {
+    if (editTransactionIsRecurring && !editingExpense?.recurring_rule_id) {
+      const nextDate = new Date();
+      if (editTransactionRecurringFrequency === "Daily") nextDate.setDate(nextDate.getDate() + 1);
+      else if (editTransactionRecurringFrequency === "Weekly") nextDate.setDate(nextDate.getDate() + 7);
+      else if (editTransactionRecurringFrequency === "Monthly") nextDate.setMonth(nextDate.getMonth() + 1);
+      else if (editTransactionRecurringFrequency === "Yearly") nextDate.setFullYear(nextDate.getFullYear() + 1);
+      setEditTransactionRuleNextRunDate(nextDate.toISOString().split("T")[0]);
+    }
+  }, [editTransactionIsRecurring, editTransactionRecurringFrequency, editingExpense]);
 
   // Load subcategories when selectedCategory changes in Add Modal
   useEffect(() => {
@@ -253,16 +330,44 @@ export default function HomeScreen() {
     }
   }, [userId]);
 
+  const loadRecurringRules = useCallback(async () => {
+    if (!userId) {
+      setRecurringRules([]);
+      return;
+    }
+    try {
+      const data = await getRecurringRules({ profile_id: userId });
+      setRecurringRules(data ?? []);
+    } catch (error) {
+      console.error("Error loading recurring rules:", error);
+    }
+  }, [userId]);
+
   useEffect(() => {
     loadExpenses();
-  }, [loadExpenses]);
+    loadRecurringRules();
+  }, [loadExpenses, loadRecurringRules]);
 
   useEffect(() => {
     if (editingExpense) {
       setEditAmount(editingExpense.amount?.toString() ?? "");
       setEditDescription(editingExpense.description ?? "");
+      setEditTransactionDate(editingExpense.transaction_date || "");
+
+      const rule = editingExpense.recurring_rule_id ? recurringRules.find((r) => r.id === editingExpense.recurring_rule_id) : null;
+      if (rule) {
+        setEditTransactionIsRecurring(true);
+        setEditTransactionRecurringFrequency(rule.frequency || "Monthly");
+        setEditTransactionRuleEndsOn(rule.end_date || "");
+        setEditTransactionRuleNextRunDate(rule.next_run_date || "");
+      } else {
+        setEditTransactionIsRecurring(false);
+        setEditTransactionRecurringFrequency("Monthly");
+        setEditTransactionRuleEndsOn("");
+        setEditTransactionRuleNextRunDate("");
+      }
     }
-  }, [editingExpense]);
+  }, [editingExpense, recurringRules]);
 
   useEffect(() => {
     // Populate initial edit state from expense
@@ -294,12 +399,39 @@ export default function HomeScreen() {
     }
   }, [editingExpense, accounts, categories, session]);
 
+  useEffect(() => {
+    if (!editingRule) return;
+    setEditRuleName(editingRule.name || "");
+    setEditRuleAmount(editingRule.amount?.toString() || "");
+    setEditRuleFrequency(editingRule.frequency || "Monthly");
+    setIsEditEndsOnEnabled(!!editingRule.end_date);
+    setEditRuleEndsOn(editingRule.end_date || "");
+    setEditRuleNextRunDate(editingRule.next_run_date || "");
+
+    const categoryMatch = categories.find((c) => c.id === editingRule.expense_categoryid);
+    setEditRuleSelectedCategory(categoryMatch ?? null);
+
+    if (categoryMatch && editingRule.subcategory_id) {
+      listSubcategories({
+        profile_id: session?.user.id ?? "",
+        category_id: categoryMatch.id,
+      }).then((subs) => {
+        setEditRuleSubcategories((subs as SubcategoryRow[]) ?? []);
+        const subMatch = (subs as SubcategoryRow[]).find((s) => s.id === editingRule.subcategory_id);
+        setEditRuleSelectedSubcategory(subMatch ?? null);
+      });
+    } else {
+      setEditRuleSelectedSubcategory(null);
+    }
+  }, [editingRule, categories, session]);
+
   useFocusEffect(
     useCallback(() => {
       loadAccounts(true);
       loadCategories();
       loadExpenses();
-    }, [loadAccounts, loadCategories, loadExpenses]),
+      loadRecurringRules();
+    }, [loadAccounts, loadCategories, loadExpenses, loadRecurringRules]),
   );
 
   const createSubcategory = useCallback(async () => {
@@ -531,6 +663,35 @@ export default function HomeScreen() {
     setIsLoading(true);
 
     try {
+      let recurring_rule_id: number | null = null;
+      if (isRecurring) {
+        let finalNextRunDate = addRuleNextRunDate.trim();
+        // Fallback to calculation if field improperly formatted or empty
+        if (!finalNextRunDate) {
+          const fallbackDate = new Date();
+          if (recurringFrequency === "Daily") fallbackDate.setDate(fallbackDate.getDate() + 1);
+          else if (recurringFrequency === "Weekly") fallbackDate.setDate(fallbackDate.getDate() + 7);
+          else if (recurringFrequency === "Monthly") fallbackDate.setMonth(fallbackDate.getMonth() + 1);
+          else if (recurringFrequency === "Yearly") fallbackDate.setFullYear(fallbackDate.getFullYear() + 1);
+          finalNextRunDate = fallbackDate.toISOString().split("T")[0];
+        }
+
+        const ruleName = description.trim() || `${selectedCategory.category_name} expense`;
+        const rule = await createRecurringRule({
+          profile_id: userId,
+          name: ruleName,
+          amount: parsed,
+          frequency: recurringFrequency,
+          end_date: addRuleEndsOn.trim() ? addRuleEndsOn.trim() : null,
+          next_run_date: finalNextRunDate,
+          is_active: true,
+          account_id: selectedAccount.id,
+          expense_categoryid: selectedCategory.id,
+          subcategory_id: selectedSubcategory ? selectedSubcategory.id : null,
+        });
+        recurring_rule_id = rule.id;
+      }
+
       await addExpense({
         profile_id: userId,
         account_id: selectedAccount.id,
@@ -538,10 +699,8 @@ export default function HomeScreen() {
         description: description.trim().length ? description.trim() : null,
         expense_categoryid: selectedCategory.id,
         subcategory_id: selectedSubcategory ? selectedSubcategory.id : null,
-        is_recurring: false,
-        reccurence_freq: null,
-        next_occurence: null,
-        end_date: null,
+        transaction_date: transactionDate || new Date().toISOString().split("T")[0],
+        recurring_rule_id,
       });
 
       const latestAccount = await getAccountById({
@@ -564,6 +723,10 @@ export default function HomeScreen() {
       setAmount("");
       setDescription("");
       setSelectedSubcategory(null);
+      setIsRecurring(false);
+      setRecurringFrequency("Monthly");
+      setAddRuleEndsOn("");
+      setTransactionDate(new Date().toISOString().split("T")[0]);
       setAddModalOpen(false);
       await loadExpenses();
       await loadAccounts();
@@ -580,6 +743,8 @@ export default function HomeScreen() {
     selectedSubcategory,
     selectedCategory,
     description,
+    isRecurring,
+    recurringFrequency,
     loadExpenses,
     loadAccounts,
   ]);
@@ -612,6 +777,70 @@ export default function HomeScreen() {
     setIsLoading(true);
 
     try {
+      let finalRecurringRuleId = editingExpense.recurring_rule_id;
+
+      if (editTransactionIsRecurring && !editingExpense.recurring_rule_id) {
+        // Create new rule
+        let finalNextRunDate = editTransactionRuleNextRunDate.trim();
+        if (!finalNextRunDate) {
+          const fallbackDate = new Date();
+          if (editTransactionRecurringFrequency === "Daily") fallbackDate.setDate(fallbackDate.getDate() + 1);
+          else if (editTransactionRecurringFrequency === "Weekly") fallbackDate.setDate(fallbackDate.getDate() + 7);
+          else if (editTransactionRecurringFrequency === "Monthly") fallbackDate.setMonth(fallbackDate.getMonth() + 1);
+          else if (editTransactionRecurringFrequency === "Yearly") fallbackDate.setFullYear(fallbackDate.getFullYear() + 1);
+          finalNextRunDate = fallbackDate.toISOString().split("T")[0];
+        }
+
+        const ruleName = editDescription.trim() || `${editSelectedCategory.category_name} expense`;
+        const rule = await createRecurringRule({
+          profile_id: userId,
+          name: ruleName,
+          amount: parsed,
+          frequency: editTransactionRecurringFrequency,
+          end_date: editTransactionRuleEndsOn.trim() ? editTransactionRuleEndsOn.trim() : null,
+          next_run_date: finalNextRunDate,
+          is_active: true,
+          account_id: editSelectedAccount.id,
+          expense_categoryid: editSelectedCategory.id,
+          subcategory_id: editSelectedSubcategory ? editSelectedSubcategory.id : null,
+        });
+        finalRecurringRuleId = rule.id;
+      } else if (!editTransactionIsRecurring && editingExpense.recurring_rule_id) {
+        // Need to delete the existing rule
+        const confirmed = await new Promise<boolean>((resolve) => {
+          Alert.alert(
+            "Remove recurring transaction?",
+            "This will stop this transaction from recurring. Are you sure?",
+            [
+              { text: "Cancel", style: "cancel", onPress: () => resolve(false) },
+              { text: "Remove", style: "destructive", onPress: () => resolve(true) }
+            ]
+          );
+        });
+
+        if (!confirmed) {
+          setIsLoading(false);
+          return;
+        }
+
+        await deleteRecurringRule({
+          id: editingExpense.recurring_rule_id,
+          profile_id: userId,
+        });
+        finalRecurringRuleId = null;
+      } else if (editTransactionIsRecurring && editingExpense.recurring_rule_id) {
+        // Update existing rule properties (frequency, next_run_date, end_date)
+        await updateRecurringRule({
+          id: editingExpense.recurring_rule_id,
+          profile_id: userId,
+          update: {
+            frequency: editTransactionRecurringFrequency as any,
+            next_run_date: editTransactionRuleNextRunDate.trim() || undefined,
+            end_date: editTransactionRuleEndsOn.trim() ? editTransactionRuleEndsOn.trim() : null,
+          },
+        });
+      }
+
       await updateExpense({
         id: editingExpense.id,
         profile_id: userId,
@@ -622,9 +851,11 @@ export default function HomeScreen() {
             ? editSelectedSubcategory.id
             : null,
           amount: parsed,
+          recurring_rule_id: finalRecurringRuleId,
           description: editDescription.trim().length
             ? editDescription.trim()
             : null,
+          transaction_date: editTransactionDate || undefined,
         },
       });
 
@@ -688,6 +919,7 @@ export default function HomeScreen() {
       setEditingExpense(null);
       await loadExpenses();
       await loadAccounts();
+      await loadRecurringRules();
     } catch (error) {
       console.error("Error updating transaction:", error);
       Alert.alert("Could not update transaction", "Please try again.");
@@ -702,15 +934,121 @@ export default function HomeScreen() {
     editSelectedAccount,
     editSelectedCategory,
     editSelectedSubcategory,
+    editTransactionIsRecurring,
+    editTransactionRecurringFrequency,
+    editTransactionRuleEndsOn,
+    editTransactionRuleNextRunDate,
+    editTransactionDate,
     applyTransactionToBalance,
     loadExpenses,
     loadAccounts,
+    loadRecurringRules,
   ]);
 
   const deleteTransaction = useCallback(async () => {
     if (!userId || !editingExpense) return;
 
-    Alert.alert("Delete transaction?", "This action cannot be undone.", [
+    if (editingExpense.recurring_rule_id) {
+      Alert.alert(
+        "Recurring Transaction",
+        "This transaction is part of a recurring series. What would you like to do?",
+        [
+          { text: "Cancel", style: "cancel" },
+          {
+            text: "Delete and Cancel Future Recurring",
+            style: "destructive",
+            onPress: async () => {
+              setIsLoading(true);
+              try {
+                await deleteRecurringRule({
+                  id: editingExpense.recurring_rule_id!,
+                  profile_id: userId,
+                });
+                await executeDelete();
+              } catch (error) {
+                console.error("Error updating rule:", error);
+                Alert.alert("Error", "Could not cancel future recurring transactions.");
+                setIsLoading(false);
+              }
+            },
+          },
+          {
+            text: "Delete This Transaction Only",
+            style: "default",
+            onPress: async () => {
+              setIsLoading(true);
+              await executeDelete();
+            },
+          },
+        ],
+      );
+    } else {
+      Alert.alert("Delete transaction?", "This action cannot be undone.", [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            setIsLoading(true);
+            await executeDelete();
+          },
+        },
+      ]);
+    }
+
+    async function executeDelete() {
+      if (!userId) return;
+      try {
+        const originalAmount = editingExpense?.amount ?? 0;
+        const originalAccountId = editingExpense?.account_id;
+
+        if (editingExpense) {
+          await deleteExpense({
+            id: editingExpense.id,
+            profile_id: userId,
+          });
+        }
+
+        if (originalAccountId != null) {
+          const originalAccount = await getAccountById({
+            id: originalAccountId,
+            profile_id: userId,
+          });
+          if (originalAccount) {
+            const revertedBalance = applyTransactionToBalance(
+              originalAccount,
+              -originalAmount,
+            );
+            await updateAccount({
+              id: String(originalAccount.id),
+              profile_id: userId,
+              update: { balance: revertedBalance },
+            });
+          }
+        }
+
+        setEditingExpense(null);
+        await loadExpenses();
+        await loadAccounts();
+      } catch (error) {
+        console.error("Error deleting transaction:", error);
+        Alert.alert("Could not delete transaction", "Please try again.");
+      } finally {
+        setIsLoading(false);
+      }
+    }
+  }, [
+    userId,
+    editingExpense,
+    applyTransactionToBalance,
+    loadExpenses,
+    loadAccounts,
+  ]);
+
+  const handleDeleteRule = useCallback((ruleId: number) => {
+    if (!userId) return;
+
+    Alert.alert("Delete Recurrence?", "This action will permanently delete this recurring rule.", [
       { text: "Cancel", style: "cancel" },
       {
         text: "Delete",
@@ -718,50 +1056,65 @@ export default function HomeScreen() {
         onPress: async () => {
           setIsLoading(true);
           try {
-            const originalAmount = editingExpense.amount ?? 0;
-            const originalAccountId = editingExpense.account_id;
-
-            await deleteExpense({
-              id: editingExpense.id,
-              profile_id: userId,
-            });
-
-            if (originalAccountId != null) {
-              const originalAccount = await getAccountById({
-                id: originalAccountId,
-                profile_id: userId,
-              });
-              if (originalAccount) {
-                const revertedBalance = applyTransactionToBalance(
-                  originalAccount,
-                  -originalAmount,
-                );
-                await updateAccount({
-                  id: String(originalAccount.id),
-                  profile_id: userId,
-                  update: { balance: revertedBalance },
-                });
-              }
-            }
-
-            setEditingExpense(null);
-            await loadExpenses();
-            await loadAccounts();
+            await deleteRecurringRule({ id: ruleId, profile_id: userId });
+            await loadRecurringRules();
+            setEditingRule(null);
           } catch (error) {
-            console.error("Error deleting transaction:", error);
-            Alert.alert("Could not delete transaction", "Please try again.");
+            console.error("Error deleting rule:", error);
+            Alert.alert("Error", "Could not delete this recurrence.");
           } finally {
             setIsLoading(false);
           }
         },
       },
     ]);
+  }, [userId, loadRecurringRules]);
+
+
+
+  const handleSaveRuleEdit = useCallback(async (statusOverride?: boolean) => {
+    if (!userId || !editingRule) return;
+
+    if (!editRuleAmount || isNaN(parseFloat(editRuleAmount))) {
+      Alert.alert("Invalid Amount", "Please enter a valid amount.");
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      await updateRecurringRule({
+        id: editingRule.id,
+        profile_id: userId,
+        update: {
+          name: editRuleName || undefined,
+          amount: parseFloat(editRuleAmount),
+          frequency: editRuleFrequency as any,
+          end_date: editRuleEndsOn.trim() ? editRuleEndsOn.trim() : null,
+          next_run_date: editRuleNextRunDate.trim() ? editRuleNextRunDate.trim() : undefined,
+          expense_categoryid: editRuleSelectedCategory?.id || undefined,
+          subcategory_id: editRuleSelectedSubcategory?.id || undefined,
+          is_active: statusOverride !== undefined ? statusOverride : editingRule.is_active,
+        }
+      });
+      setEditingRule(null);
+      await loadRecurringRules();
+    } catch (error) {
+      console.error("Error updating rule:", error);
+      Alert.alert("Error", "Could not update the recurrence.");
+    } finally {
+      setIsLoading(false);
+    }
   }, [
     userId,
-    editingExpense,
-    applyTransactionToBalance,
-    loadExpenses,
-    loadAccounts,
+    editingRule,
+    editRuleName,
+    editRuleAmount,
+    editRuleFrequency,
+    editRuleEndsOn,
+    editRuleNextRunDate,
+    editRuleSelectedCategory,
+    editRuleSelectedSubcategory,
+    loadRecurringRules,
   ]);
 
   return (
@@ -783,6 +1136,7 @@ export default function HomeScreen() {
               loadAccounts();
               loadCategories();
               loadExpenses();
+              loadRecurringRules();
             }}
             tintColor={ui.text}
           />
@@ -795,7 +1149,51 @@ export default function HomeScreen() {
           </Pressable>
         </View>
 
-        {/* Account filter chips */}
+        {/* Custom Segmented Control */}
+        <View
+          style={[
+            styles.tabsContainer,
+            { backgroundColor: ui.surface2, borderColor: ui.border },
+          ]}
+        >
+          <Pressable
+            onPress={() => setActiveTab("transactions")}
+            style={[
+              styles.tab,
+              activeTab === "transactions" && {
+                backgroundColor: ui.surface,
+                borderColor: ui.border,
+              },
+              activeTab === "transactions" && styles.activeTab,
+            ]}
+          >
+            <ThemedText
+              type="defaultSemiBold"
+              style={{ opacity: activeTab === "transactions" ? 1 : 0.6 }}
+            >
+              Transactions
+            </ThemedText>
+          </Pressable>
+          <Pressable
+            onPress={() => setActiveTab("recurrences")}
+            style={[
+              styles.tab,
+              activeTab === "recurrences" && {
+                backgroundColor: ui.surface,
+                borderColor: ui.border,
+              },
+              activeTab === "recurrences" && styles.activeTab,
+            ]}
+          >
+            <ThemedText
+              type="defaultSemiBold"
+              style={{ opacity: activeTab === "recurrences" ? 1 : 0.6 }}
+            >
+              Recurring
+            </ThemedText>
+          </Pressable>
+        </View>
+
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -803,75 +1201,163 @@ export default function HomeScreen() {
         >
           <Pressable
             onPress={() => setFilterAccountId(null)}
-            style={[styles.chip, {
-              backgroundColor: filterAccountId === null ? ui.text : ui.surface2,
-              borderColor: ui.border,
-            }]}
+            style={[
+              styles.chip,
+              {
+                backgroundColor:
+                  filterAccountId === null ? ui.text : ui.surface2,
+                borderColor: ui.border,
+              },
+            ]}
           >
-            <ThemedText style={{
-              fontSize: 13,
-              fontWeight: "600",
-              color: filterAccountId === null ? ui.surface : ui.text,
-            }}>All</ThemedText>
+            <ThemedText
+              style={{
+                fontSize: 13,
+                fontWeight: "600",
+                color: filterAccountId === null ? ui.surface : ui.text,
+              }}
+            >
+              All
+            </ThemedText>
           </Pressable>
           {accounts.map((acct) => (
             <Pressable
               key={acct.id}
               onPress={() => setFilterAccountId(acct.id)}
-              style={[styles.chip, {
-                backgroundColor: filterAccountId === acct.id ? ui.text : ui.surface2,
-                borderColor: ui.border,
-              }]}
+              style={[
+                styles.chip,
+                {
+                  backgroundColor:
+                    filterAccountId === acct.id ? ui.text : ui.surface2,
+                  borderColor: ui.border,
+                },
+              ]}
             >
-              <ThemedText style={{
-                fontSize: 13,
-                fontWeight: "600",
-                color: filterAccountId === acct.id ? ui.surface : ui.text,
-              }}>{acct.account_name ?? "Account"}</ThemedText>
+              <ThemedText
+                style={{
+                  fontSize: 13,
+                  fontWeight: "600",
+                  color: filterAccountId === acct.id ? ui.surface : ui.text,
+                }}
+              >
+                {acct.account_name ?? "Account"}
+              </ThemedText>
             </Pressable>
           ))}
         </ScrollView>
 
-        <View
-          style={[
-            styles.card,
-            { borderColor: ui.border, backgroundColor: ui.surface2 },
-          ]}
-        >
-          <ThemedText type="defaultSemiBold">Recent transactions</ThemedText>
-          {expenses.filter((e) => filterAccountId === null || e.account_id === filterAccountId).length === 0 ? (
-            <ThemedText>
-              {isLoading ? "Loading…" : "No transactions found."}
+        {activeTab === "transactions" ? (
+          <>
+
+
+            {expenses.filter(
+              (e) => filterAccountId === null || e.account_id === filterAccountId,
+            ).length === 0 ? (
+              <ThemedText>
+                {isLoading ? "Loading…" : "No transactions found."}
+              </ThemedText>
+            ) : (
+              expenses
+                .filter(
+                  (e) =>
+                    filterAccountId === null || e.account_id === filterAccountId,
+                )
+                .map((expense) => (
+                  <Pressable
+                    key={expense.id}
+                    onPress={() => setEditingExpense(expense)}
+                    style={({ pressed }) => [
+                      styles.row,
+                      {
+                        borderColor: ui.border,
+                        backgroundColor: ui.surface,
+                        opacity: pressed ? 0.7 : 1,
+                      },
+                    ]}
+                  >
+                    <View style={{ flex: 1 }}>
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                        <ThemedText type="defaultSemiBold">
+                          {expense.description ?? "Transaction"}
+                        </ThemedText>
+                        {expense.recurring_rule_id && (() => {
+                          const linkedRule = recurringRules.find((r) => r.id === expense.recurring_rule_id);
+                          if (!linkedRule) return null;
+                          const color = linkedRule.is_active ? "#FF9500" : ui.mutedText;
+                          return (
+                            <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+                              <IconSymbol
+                                name="arrow.triangle.2.circlepath"
+                                size={12}
+                                color={color}
+                              />
+                              <ThemedText style={{ color, fontSize: 12, fontWeight: "500" }}>
+                                {linkedRule.is_active ? "Active" : "Inactive"}
+                              </ThemedText>
+                            </View>
+                          );
+                        })()}
+                      </View>
+                      <ThemedText type="default">
+                        {formatDate(expense.created_at)}
+                      </ThemedText>
+                    </View>
+                    <ThemedText type="defaultSemiBold">
+                      {formatMoney(expense.amount ?? 0)}
+                    </ThemedText>
+                  </Pressable>
+                ))
+            )}
+          </>
+        ) : (
+          recurringRules
+            .filter((r) => filterAccountId === null || r.account_id === filterAccountId)
+            .sort((a, b) => (a.is_active === b.is_active ? 0 : a.is_active ? -1 : 1))
+            .length === 0 ? (
+            <ThemedText style={{ padding: 16 }}>
+              {isLoading ? "Loading…" : "No recurrences found."}
             </ThemedText>
           ) : (
-            expenses.filter((e) => filterAccountId === null || e.account_id === filterAccountId).map((expense) => (
-              <Pressable
-                key={expense.id}
-                onPress={() => setEditingExpense(expense)}
-                style={({ pressed }) => [
-                  styles.row,
-                  {
-                    borderColor: ui.border,
-                    backgroundColor: ui.surface,
-                    opacity: pressed ? 0.7 : 1,
-                  },
-                ]}
-              >
-                <View style={{ flex: 1 }}>
-                  <ThemedText type="defaultSemiBold">
-                    {expense.description ?? "Transaction"}
-                  </ThemedText>
-                  <ThemedText type="default">
-                    {formatDate(expense.created_at)}
-                  </ThemedText>
-                </View>
-                <ThemedText type="defaultSemiBold">
-                  {formatMoney(expense.amount ?? 0)}
-                </ThemedText>
-              </Pressable>
-            ))
-          )}
-        </View>
+            recurringRules
+              .filter((r) => filterAccountId === null || r.account_id === filterAccountId)
+              .sort((a, b) => (a.is_active === b.is_active ? 0 : a.is_active ? -1 : 1))
+              .map((rule) => (
+                <Pressable
+                  key={rule.id}
+                  onPress={() => setEditingRule(rule)}
+                  style={({ pressed }) => [
+                    styles.row,
+                    {
+                      borderColor: ui.border,
+                      backgroundColor: ui.surface,
+                      opacity: pressed ? 0.7 : (rule.is_active ? 1 : 0.6),
+                    },
+                  ]}
+                >
+                  <View style={{ flex: 1 }}>
+                    <ThemedText type="defaultSemiBold">
+                      {rule.name ?? "Subscription"}
+                    </ThemedText>
+                    <ThemedText type="default" style={{ color: ui.mutedText, fontSize: 13 }}>
+                      {rule.frequency} • {rule.is_active ? "Active" : "Paused"}
+                    </ThemedText>
+                    {(rule.is_active || rule.end_date) && (
+                      <ThemedText type="default" style={{ color: ui.mutedText, fontSize: 13 }}>
+                        {rule.is_active ? `Next: ${formatDate(rule.next_run_date)}` : ""}
+                        {rule.is_active && rule.end_date ? " • " : ""}
+                        {rule.end_date ? `Ends: ${formatDate(rule.end_date)}` : ""}
+                      </ThemedText>
+                    )}
+                  </View>
+                  <View style={{ alignItems: "flex-end", gap: 8 }}>
+                    <ThemedText type="defaultSemiBold">
+                      {formatMoney(rule.amount ?? 0)}
+                    </ThemedText>
+                  </View>
+                </Pressable>
+              ))
+          )
+        )}
       </ScrollView>
 
       <Pressable
@@ -930,6 +1416,24 @@ export default function HomeScreen() {
                   {selectedAccount?.account_name ?? "Select an account"}
                 </ThemedText>
               </Pressable>
+            </View>
+
+            <View style={styles.fieldGroup}>
+              <ThemedText type="defaultSemiBold">Transaction Date</ThemedText>
+              <TextInput
+                value={transactionDate}
+                onChangeText={setTransactionDate}
+                placeholder="YYYY-MM-DD"
+                placeholderTextColor={ui.mutedText}
+                style={[
+                  styles.input,
+                  {
+                    borderColor: ui.border,
+                    backgroundColor: ui.surface,
+                    color: ui.text,
+                  },
+                ]}
+              />
             </View>
 
             <View style={styles.fieldGroup}>
@@ -1002,23 +1506,69 @@ export default function HomeScreen() {
               />
             </View>
 
-            <View style={styles.fieldGroup}>
-              <ThemedText type="defaultSemiBold">Description</ThemedText>
-              <TextInput
-                value={description}
-                onChangeText={setDescription}
-                placeholder="e.g. Grocery run"
-                placeholderTextColor={ui.mutedText}
-                style={[
-                  styles.input,
-                  {
-                    borderColor: ui.border,
-                    backgroundColor: ui.surface,
-                    color: ui.text,
-                  },
-                ]}
+            <View style={[styles.fieldGroup, { flexDirection: "row", alignItems: "center", justifyContent: "space-between" }]}>
+              <ThemedText type="defaultSemiBold">Make Recurring</ThemedText>
+              <Switch
+                value={isRecurring}
+                onValueChange={setIsRecurring}
+                trackColor={{ false: ui.border, true: "#34C759" }}
               />
             </View>
+
+            {isRecurring && (
+              <View style={styles.fieldGroup}>
+                <ThemedText type="defaultSemiBold">Frequency</ThemedText>
+                <Pressable
+                  onPress={() => setAddFrequencyModalOpen(true)}
+                  style={[
+                    styles.dropdownButton,
+                    { borderColor: ui.border, backgroundColor: ui.surface },
+                  ]}
+                >
+                  <ThemedText>{recurringFrequency}</ThemedText>
+                </Pressable>
+              </View>
+            )}
+
+            {isRecurring && (
+              <View style={styles.fieldGroup}>
+                <ThemedText type="defaultSemiBold">Ends On (Optional)</ThemedText>
+                <TextInput
+                  value={addRuleEndsOn}
+                  onChangeText={setAddRuleEndsOn}
+                  placeholder="YYYY-MM-DD"
+                  placeholderTextColor={ui.mutedText}
+                  style={[
+                    styles.input,
+                    {
+                      borderColor: ui.border,
+                      backgroundColor: ui.surface,
+                      color: ui.text,
+                    },
+                  ]}
+                />
+              </View>
+            )}
+
+            {isRecurring && (
+              <View style={styles.fieldGroup}>
+                <ThemedText type="defaultSemiBold">Next Run Date</ThemedText>
+                <TextInput
+                  value={addRuleNextRunDate}
+                  onChangeText={setAddRuleNextRunDate}
+                  placeholder="YYYY-MM-DD"
+                  placeholderTextColor={ui.mutedText}
+                  style={[
+                    styles.input,
+                    {
+                      borderColor: ui.border,
+                      backgroundColor: ui.surface,
+                      color: ui.text,
+                    },
+                  ]}
+                />
+              </View>
+            )}
 
             <Pressable
               onPress={createTransaction}
@@ -1300,8 +1850,57 @@ export default function HomeScreen() {
               </Pressable>
             </Pressable>
           )}
+
+          {/* Frequency Picker Overlay (Add) */}
+          {addFrequencyModalOpen && (
+            <Pressable
+              style={[
+                styles.modalBackdrop,
+                StyleSheet.absoluteFill,
+                { backgroundColor: ui.backdrop, zIndex: 100 },
+              ]}
+              onPress={() => setAddFrequencyModalOpen(false)}
+            >
+              <Pressable
+                style={[
+                  styles.modalCard,
+                  { backgroundColor: ui.surface2, borderColor: ui.border },
+                ]}
+                onPress={() => { }}
+              >
+                <ThemedText type="defaultSemiBold">Select Frequency</ThemedText>
+                {["Daily", "Weekly", "Monthly", "Yearly"].map((freq) => (
+                  <Pressable
+                    key={freq}
+                    style={[
+                      styles.modalOption,
+                      { borderColor: ui.border, backgroundColor: ui.surface },
+                    ]}
+                    onPress={() => {
+                      setRecurringFrequency(freq);
+                      setAddFrequencyModalOpen(false);
+                    }}
+                  >
+                    <ThemedText>{freq}</ThemedText>
+                  </Pressable>
+                ))}
+                <Pressable
+                  style={[
+                    styles.modalOption,
+                    styles.modalCancel,
+                    { borderColor: ui.border, backgroundColor: ui.surface },
+                  ]}
+                  onPress={() => setAddFrequencyModalOpen(false)}
+                >
+                  <ThemedText>Cancel</ThemedText>
+                </Pressable>
+              </Pressable>
+            </Pressable>
+          )}
         </ThemedView>
       </Modal>
+
+      {/* Frequency Picker Overlay removed — now inline inside each modal */}
 
       <Modal
         visible={!!editingExpense}
@@ -1331,7 +1930,7 @@ export default function HomeScreen() {
             </Pressable>
           </View>
 
-          <View style={{ gap: 16 }}>
+          <ScrollView contentContainerStyle={{ gap: 16, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
             <View style={{ gap: 6 }}>
               <ThemedText type="defaultSemiBold">Account</ThemedText>
               <Pressable
@@ -1345,6 +1944,24 @@ export default function HomeScreen() {
                   {editSelectedAccount?.account_name ?? "Select an account"}
                 </ThemedText>
               </Pressable>
+            </View>
+
+            <View style={{ gap: 6 }}>
+              <ThemedText type="defaultSemiBold">Transaction Date</ThemedText>
+              <TextInput
+                value={editTransactionDate}
+                onChangeText={setEditTransactionDate}
+                placeholder="YYYY-MM-DD"
+                placeholderTextColor={ui.mutedText}
+                style={[
+                  styles.input,
+                  {
+                    borderColor: ui.border,
+                    backgroundColor: ui.surface,
+                    color: ui.text,
+                  },
+                ]}
+              />
             </View>
 
             <View style={{ gap: 6 }}>
@@ -1413,6 +2030,70 @@ export default function HomeScreen() {
               />
             </View>
 
+            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+              <ThemedText type="defaultSemiBold">Make Recurring</ThemedText>
+              <Switch
+                value={editTransactionIsRecurring}
+                onValueChange={setEditTransactionIsRecurring}
+                trackColor={{ false: ui.border, true: "#34C759" }}
+              />
+            </View>
+
+            {editTransactionIsRecurring && (
+              <View style={{ gap: 6 }}>
+                <ThemedText type="defaultSemiBold">Frequency</ThemedText>
+                <Pressable
+                  onPress={() => setEditFrequencyModalOpen(true)}
+                  style={[
+                    styles.dropdownButton,
+                    { borderColor: ui.border, backgroundColor: ui.surface },
+                  ]}
+                >
+                  <ThemedText>{editTransactionRecurringFrequency}</ThemedText>
+                </Pressable>
+              </View>
+            )}
+
+            {editTransactionIsRecurring && (
+              <View style={{ gap: 6 }}>
+                <ThemedText type="defaultSemiBold">Next Run Date</ThemedText>
+                <TextInput
+                  value={editTransactionRuleNextRunDate}
+                  onChangeText={setEditTransactionRuleNextRunDate}
+                  placeholder="YYYY-MM-DD"
+                  placeholderTextColor={ui.mutedText}
+                  style={[
+                    styles.input,
+                    {
+                      borderColor: ui.border,
+                      backgroundColor: ui.surface,
+                      color: ui.text,
+                    },
+                  ]}
+                />
+              </View>
+            )}
+
+            {editTransactionIsRecurring && (
+              <View style={{ gap: 6 }}>
+                <ThemedText type="defaultSemiBold">Ends On (Optional)</ThemedText>
+                <TextInput
+                  value={editTransactionRuleEndsOn}
+                  onChangeText={setEditTransactionRuleEndsOn}
+                  placeholder="YYYY-MM-DD"
+                  placeholderTextColor={ui.mutedText}
+                  style={[
+                    styles.input,
+                    {
+                      borderColor: ui.border,
+                      backgroundColor: ui.surface,
+                      color: ui.text,
+                    },
+                  ]}
+                />
+              </View>
+            )}
+
             <Pressable
               onPress={updateTransaction}
               disabled={isLoading}
@@ -1446,7 +2127,54 @@ export default function HomeScreen() {
                 Delete Transaction
               </ThemedText>
             </Pressable>
-          </View>
+          </ScrollView>
+
+          {/* Frequency Picker Overlay (Edit Transaction) */}
+          {editFrequencyModalOpen && (
+            <Pressable
+              style={[
+                styles.modalBackdrop,
+                StyleSheet.absoluteFill,
+                { backgroundColor: ui.backdrop, zIndex: 100 },
+              ]}
+              onPress={() => setEditFrequencyModalOpen(false)}
+            >
+              <Pressable
+                style={[
+                  styles.modalCard,
+                  { backgroundColor: ui.surface2, borderColor: ui.border },
+                ]}
+                onPress={() => { }}
+              >
+                <ThemedText type="defaultSemiBold">Select Frequency</ThemedText>
+                {["Daily", "Weekly", "Monthly", "Yearly"].map((freq) => (
+                  <Pressable
+                    key={freq}
+                    style={[
+                      styles.modalOption,
+                      { borderColor: ui.border, backgroundColor: ui.surface },
+                    ]}
+                    onPress={() => {
+                      setEditTransactionRecurringFrequency(freq);
+                      setEditFrequencyModalOpen(false);
+                    }}
+                  >
+                    <ThemedText>{freq}</ThemedText>
+                  </Pressable>
+                ))}
+                <Pressable
+                  style={[
+                    styles.modalOption,
+                    styles.modalCancel,
+                    { borderColor: ui.border, backgroundColor: ui.surface },
+                  ]}
+                  onPress={() => setEditFrequencyModalOpen(false)}
+                >
+                  <ThemedText>Cancel</ThemedText>
+                </Pressable>
+              </Pressable>
+            </Pressable>
+          )}
 
           {/* Subcategory Picker Overlay (Edit) */}
           {editSubcategoryModalOpen && (
@@ -1715,6 +2443,389 @@ export default function HomeScreen() {
           )}
         </ThemedView>
       </Modal>
+
+      {/* Edit Recurrance Modal */}
+      <Modal
+        visible={!!editingRule}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setEditingRule(null)}
+      >
+        <ThemedView
+          style={{
+            flex: 1,
+            padding: 16,
+            paddingTop: 16 + insets.top,
+            paddingBottom: 16 + insets.bottom,
+          }}
+        >
+          <View
+            style={{
+              flexDirection: "row",
+              justifyContent: "space-between",
+              alignItems: "center",
+              marginBottom: 16,
+            }}
+          >
+            <ThemedText type="title">Edit Recurrance</ThemedText>
+            <Pressable onPress={() => setEditingRule(null)}>
+              <ThemedText style={{ color: "#007AFF" }}>Cancel</ThemedText>
+            </Pressable>
+          </View>
+
+          <ScrollView contentContainerStyle={{ gap: 16, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
+            <View style={{ gap: 16 }}>
+              <View style={{ gap: 6 }}>
+                <ThemedText type="defaultSemiBold">Description</ThemedText>
+                <TextInput
+                  style={[
+                    styles.input,
+                    { borderColor: ui.border, color: ui.text, backgroundColor: ui.surface2 },
+                  ]}
+                  value={editRuleName}
+                  onChangeText={setEditRuleName}
+                  placeholder="ex. Netflix"
+                  placeholderTextColor={ui.mutedText}
+                />
+              </View>
+
+              <View style={{ gap: 6 }}>
+                <ThemedText type="defaultSemiBold">Amount</ThemedText>
+                <TextInput
+                  style={[
+                    styles.input,
+                    { borderColor: ui.border, color: ui.text, backgroundColor: ui.surface2 },
+                  ]}
+                  value={editRuleAmount}
+                  onChangeText={setEditRuleAmount}
+                  placeholder="0.00"
+                  keyboardType="decimal-pad"
+                  placeholderTextColor={ui.mutedText}
+                />
+              </View>
+
+              <View style={{ gap: 6 }}>
+                <ThemedText type="defaultSemiBold">Category</ThemedText>
+                <Pressable
+                  onPress={() => setEditRuleCategoryModalOpen(true)}
+                  style={[
+                    styles.dropdownButton,
+                    { borderColor: ui.border, backgroundColor: ui.surface2 },
+                  ]}
+                >
+                  <ThemedText>
+                    {editRuleSelectedCategory?.category_name ?? "Select Category"}
+                  </ThemedText>
+                </Pressable>
+              </View>
+
+              {editRuleSelectedCategory && (
+                <View style={{ gap: 6 }}>
+                  <ThemedText type="defaultSemiBold">Subcategory</ThemedText>
+                  <Pressable
+                    onPress={() => setEditRuleSubcategoryModalOpen(true)}
+                    style={[
+                      styles.dropdownButton,
+                      { borderColor: ui.border, backgroundColor: ui.surface2 },
+                    ]}
+                  >
+                    <ThemedText>
+                      {editRuleSelectedSubcategory?.category_name ?? "None (Optional)"}
+                    </ThemedText>
+                  </Pressable>
+                </View>
+              )}
+
+              <View style={{ gap: 6 }}>
+                <ThemedText type="defaultSemiBold">Frequency</ThemedText>
+                <Pressable
+                  onPress={() => setEditRuleFrequencyModalOpen(true)}
+                  style={[
+                    styles.dropdownButton,
+                    { borderColor: ui.border, backgroundColor: ui.surface2 },
+                  ]}
+                >
+                  <ThemedText>{editRuleFrequency}</ThemedText>
+                </Pressable>
+              </View>
+
+              <View style={{ gap: 6 }}>
+                <ThemedText type="defaultSemiBold">Ends On (Optional)</ThemedText>
+                <TextInput
+                  value={editRuleEndsOn}
+                  onChangeText={setEditRuleEndsOn}
+                  placeholder="YYYY-MM-DD"
+                  placeholderTextColor={ui.mutedText}
+                  style={[
+                    styles.input,
+                    {
+                      borderColor: ui.border,
+                      backgroundColor: ui.surface2,
+                      color: ui.text,
+                    },
+                  ]}
+                />
+              </View>
+
+              <View style={{ gap: 6 }}>
+                <ThemedText type="defaultSemiBold">Next Run Date</ThemedText>
+                <TextInput
+                  value={editRuleNextRunDate}
+                  onChangeText={setEditRuleNextRunDate}
+                  placeholder="YYYY-MM-DD"
+                  placeholderTextColor={ui.mutedText}
+                  style={[
+                    styles.input,
+                    {
+                      borderColor: ui.border,
+                      backgroundColor: ui.surface2,
+                      color: ui.text,
+                    },
+                  ]}
+                />
+              </View>
+            </View>
+
+            <Pressable
+              onPress={() => handleSaveRuleEdit()}
+              disabled={isLoading}
+              style={[
+                styles.button,
+                { backgroundColor: ui.text, width: "100%", alignItems: "center" },
+                isLoading && styles.buttonDisabled,
+              ]}
+            >
+              {isLoading ? (
+                <ActivityIndicator color={ui.surface} />
+              ) : (
+                <ThemedText style={{ color: ui.surface, fontWeight: "600" }}>
+                  Save Changes
+                </ThemedText>
+              )}
+            </Pressable>
+
+            <Pressable
+              onPress={() => handleSaveRuleEdit(!editingRule.is_active)}
+              disabled={isLoading}
+              style={[
+                styles.deleteAction,
+                { borderColor: ui.border, backgroundColor: ui.surface, marginTop: 4 },
+                isLoading && styles.buttonDisabled,
+              ]}
+            >
+              <ThemedText style={{ color: ui.text, fontWeight: "600" }}>
+                {editingRule?.is_active ? "Pause" : "Resume"}
+              </ThemedText>
+            </Pressable>
+
+            <Pressable
+              onPress={() => handleDeleteRule(editingRule?.id)}
+              disabled={isLoading}
+              style={[
+                styles.deleteAction,
+                { borderColor: ui.border, backgroundColor: ui.surface, marginTop: 4 },
+                isLoading && styles.buttonDisabled,
+              ]}
+            >
+              <ThemedText style={{ color: "#FF3B30", fontWeight: "600" }}>
+                Delete Recurrence
+              </ThemedText>
+            </Pressable>
+          </ScrollView>
+
+          {/* Subcategory Picker Overlay (Edit Rule) */}
+          {editRuleSubcategoryModalOpen && (
+            <Pressable
+              style={[
+                styles.modalBackdrop,
+                StyleSheet.absoluteFill,
+                { backgroundColor: ui.backdrop, zIndex: 100 },
+              ]}
+              onPress={() => setEditRuleSubcategoryModalOpen(false)}
+            >
+              <Pressable
+                style={[
+                  styles.modalCard,
+                  { backgroundColor: ui.surface2, borderColor: ui.border },
+                ]}
+                onPress={() => { }}
+              >
+                <ThemedText type="defaultSemiBold">
+                  Select subcategory
+                </ThemedText>
+
+                {editRuleSubcategories.length === 0 ? (
+                  <ThemedText>No subcategories found.</ThemedText>
+                ) : (
+                  editRuleSubcategories.map((sub) => (
+                    <View
+                      key={sub.id}
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        gap: 8,
+                      }}
+                    >
+                      <Pressable
+                        style={[
+                          styles.modalOption,
+                          {
+                            borderColor: ui.border,
+                            backgroundColor: ui.surface,
+                            flex: 1,
+                          },
+                        ]}
+                        onPress={() => {
+                          setEditRuleSelectedSubcategory(sub);
+                          setEditRuleSubcategoryModalOpen(false);
+                        }}
+                      >
+                        <ThemedText>
+                          {sub.category_name ?? "Unnamed subcategory"}
+                        </ThemedText>
+                      </Pressable>
+                    </View>
+                  ))
+                )}
+
+                <Pressable
+                  style={[
+                    styles.modalOption,
+                    styles.modalCancel,
+                    { borderColor: ui.border, backgroundColor: ui.surface },
+                  ]}
+                  onPress={() => setEditRuleSubcategoryModalOpen(false)}
+                >
+                  <ThemedText>Cancel</ThemedText>
+                </Pressable>
+              </Pressable>
+            </Pressable>
+          )}
+
+          {/* Category Picker Overlay (Edit Rule) */}
+          {editRuleCategoryModalOpen && (
+            <Pressable
+              style={[
+                styles.modalBackdrop,
+                StyleSheet.absoluteFill,
+                { backgroundColor: ui.backdrop, zIndex: 100 },
+              ]}
+              onPress={() => setEditRuleCategoryModalOpen(false)}
+            >
+              <Pressable
+                style={[
+                  styles.modalCard,
+                  { backgroundColor: ui.surface2, borderColor: ui.border },
+                ]}
+                onPress={() => { }}
+              >
+                <ThemedText type="defaultSemiBold">Select category</ThemedText>
+
+                {categories.length === 0 ? (
+                  <ThemedText>No categories yet.</ThemedText>
+                ) : (
+                  categories.map((category) => (
+                    <View
+                      key={category.id}
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        gap: 8,
+                      }}
+                    >
+                      <Pressable
+                        style={[
+                          styles.modalOption,
+                          {
+                            borderColor: ui.border,
+                            backgroundColor: ui.surface,
+                            flex: 1,
+                          },
+                        ]}
+                        onPress={() => {
+                          setEditRuleSelectedCategory(category);
+                          setEditRuleSelectedSubcategory(null);
+                          setEditRuleCategoryModalOpen(false);
+                        }}
+                      >
+                        <ThemedText>
+                          {category.category_name ?? "Unnamed category"}
+                        </ThemedText>
+                      </Pressable>
+                    </View>
+                  ))
+                )}
+
+                <Pressable
+                  style={[
+                    styles.modalOption,
+                    styles.modalCancel,
+                    { borderColor: ui.border, backgroundColor: ui.surface },
+                  ]}
+                  onPress={() => setEditRuleCategoryModalOpen(false)}
+                >
+                  <ThemedText>Cancel</ThemedText>
+                </Pressable>
+              </Pressable>
+            </Pressable>
+          )}
+
+          {/* Frequency Picker Overlay (Edit Rule) */}
+          {editRuleFrequencyModalOpen && (
+            <Modal
+              visible={editRuleFrequencyModalOpen}
+              animationType="fade"
+              transparent
+              onRequestClose={() => setEditRuleFrequencyModalOpen(false)}
+            >
+              <Pressable
+                style={[
+                  styles.modalBackdrop,
+                  StyleSheet.absoluteFill,
+                  { backgroundColor: ui.backdrop, zIndex: 100 },
+                ]}
+                onPress={() => setEditRuleFrequencyModalOpen(false)}
+              >
+                <Pressable
+                  style={[
+                    styles.modalCard,
+                    { backgroundColor: ui.surface2, borderColor: ui.border },
+                  ]}
+                  onPress={() => { }}
+                >
+                  <ThemedText type="defaultSemiBold">Select Frequency</ThemedText>
+                  {["Daily", "Weekly", "Monthly", "Yearly"].map((freq) => (
+                    <Pressable
+                      key={freq}
+                      style={[
+                        styles.modalOption,
+                        { borderColor: ui.border, backgroundColor: ui.surface },
+                      ]}
+                      onPress={() => {
+                        setEditRuleFrequency(freq);
+                        setEditRuleFrequencyModalOpen(false);
+                      }}
+                    >
+                      <ThemedText>{freq}</ThemedText>
+                    </Pressable>
+                  ))}
+                  <Pressable
+                    style={[
+                      styles.modalOption,
+                      styles.modalCancel,
+                      { borderColor: ui.border, backgroundColor: ui.surface },
+                    ]}
+                    onPress={() => setEditRuleFrequencyModalOpen(false)}
+                  >
+                    <ThemedText>Cancel</ThemedText>
+                  </Pressable>
+                </Pressable>
+              </Pressable>
+            </Modal>
+          )}
+
+        </ThemedView>
+      </Modal>
     </ThemedView>
   );
 }
@@ -1737,7 +2848,7 @@ const styles = StyleSheet.create({
   },
   card: {
     padding: 12,
-    borderRadius: 12,
+    borderRadius: 20,
     borderWidth: StyleSheet.hairlineWidth,
     gap: 12,
   },
@@ -1746,13 +2857,13 @@ const styles = StyleSheet.create({
   },
   input: {
     borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: 12,
+    borderRadius: 20,
     paddingHorizontal: 12,
     paddingVertical: 10,
   },
   dropdownButton: {
     borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: 10,
+    borderRadius: 20,
     paddingHorizontal: 12,
     paddingVertical: 10,
   },
@@ -1760,7 +2871,7 @@ const styles = StyleSheet.create({
     alignSelf: "flex-start",
     paddingHorizontal: 14,
     paddingVertical: 10,
-    borderRadius: 10,
+    borderRadius: 20,
     borderWidth: StyleSheet.hairlineWidth,
   },
   buttonDisabled: { opacity: 0.5 },
@@ -1770,7 +2881,7 @@ const styles = StyleSheet.create({
     padding: 18,
   },
   modalCard: {
-    borderRadius: 14,
+    borderRadius: 20,
     padding: 14,
     gap: 10,
     borderWidth: StyleSheet.hairlineWidth,
@@ -1778,7 +2889,7 @@ const styles = StyleSheet.create({
   modalOption: {
     paddingVertical: 12,
     paddingHorizontal: 10,
-    borderRadius: 10,
+    borderRadius: 20,
     borderWidth: StyleSheet.hairlineWidth,
     gap: 2,
   },
@@ -1789,7 +2900,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    borderRadius: 10,
+    borderRadius: 20,
     borderWidth: StyleSheet.hairlineWidth,
     paddingHorizontal: 12,
     paddingVertical: 10,
@@ -1840,4 +2951,24 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     borderWidth: StyleSheet.hairlineWidth,
   },
+  tabsContainer: {
+    flexDirection: "row",
+    borderRadius: 12,
+    padding: 4,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  tab: {
+    flex: 1,
+    alignItems: "center",
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  activeTab: {
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+    borderWidth: StyleSheet.hairlineWidth,
+  }
 });

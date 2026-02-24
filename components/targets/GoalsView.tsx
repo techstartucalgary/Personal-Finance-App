@@ -38,7 +38,11 @@ type AccountRow = {
     currency: string | null;
 };
 
-export function GoalsView() {
+type GoalsViewProps = {
+    filterAccountId?: number | null;
+};
+
+export function GoalsView({ filterAccountId = null }: GoalsViewProps) {
     const { session } = useAuthContext();
     const userId = session?.user.id;
     const insets = useSafeAreaInsets();
@@ -234,6 +238,11 @@ export function GoalsView() {
         setAllocationModalOpen(false);
     };
 
+    const filteredGoals = useMemo(() => {
+        if (filterAccountId === null) return goals;
+        return goals.filter((g) => g.linked_account === filterAccountId);
+    }, [goals, filterAccountId]);
+
     return (
         <View style={styles.container}>
             <ScrollView
@@ -246,12 +255,12 @@ export function GoalsView() {
                     />
                 }
             >
-                {goals.length === 0 ? (
+                {filteredGoals.length === 0 ? (
                     <ThemedText style={{ textAlign: "center", marginTop: 24, opacity: 0.6 }}>
-                        No goals yet. Create one below!
+                        {filterAccountId ? "No goals for this account." : "No goals yet. Create one below!"}
                     </ThemedText>
                 ) : (
-                    goals.map((goal) => (
+                    filteredGoals.map((goal) => (
                         <Pressable
                             key={goal.id}
                             onPress={() => openEditModal(goal)}
@@ -282,7 +291,7 @@ export function GoalsView() {
                                     </ThemedText>
                                 )}
                             </View>
-                            {/* Progress Bar Placeholder */}
+                            {/* Progress Bar  */}
                             <View
                                 style={{
                                     height: 6,
@@ -598,13 +607,12 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     scrollContent: {
-        padding: 12,
         gap: 12,
         paddingBottom: 80,
     },
     card: {
         padding: 12,
-        borderRadius: 12,
+        borderRadius: 20,
         borderWidth: StyleSheet.hairlineWidth,
     },
     cardHeader: {
@@ -678,6 +686,12 @@ const styles = StyleSheet.create({
         padding: 16,
         borderRadius: 10,
         marginBottom: 8,
+        borderWidth: StyleSheet.hairlineWidth,
+    },
+    chip: {
+        paddingHorizontal: 14,
+        paddingVertical: 6,
+        borderRadius: 20,
         borderWidth: StyleSheet.hairlineWidth,
     },
 });

@@ -1,7 +1,10 @@
+import Feather from "@expo/vector-icons/Feather";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
+  Animated,
+  Image,
   Modal,
   Pressable,
   RefreshControl,
@@ -15,9 +18,9 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useFocusEffect, useRouter } from "expo-router";
 
+import { Tokens } from "@/constants/authTokens";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
-import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useAuthContext } from "@/hooks/use-auth-context";
 import {
   createAccount as createAccountApi,
@@ -70,6 +73,7 @@ export default function AccountsScreen() {
   // Dynamic tab bar height
   let tabBarHeight = 0;
   try {
+    // eslint-disable-next-line react-hooks/rules-of-hooks
     tabBarHeight = useBottomTabBarHeight();
   } catch (e) {
     // Fallback if hook fails (e.g. not in tab navigator context)
@@ -85,9 +89,32 @@ export default function AccountsScreen() {
       text: isDark ? "#ffffff" : "#111111",
       mutedText: isDark ? "rgba(255,255,255,0.6)" : "rgba(0,0,0,0.5)",
       backdrop: "rgba(0,0,0,0.45)",
+      accent: isDark ? "#8CF2D1" : "#1F6F5B",
+      accentSoft: isDark ? "rgba(140,242,209,0.2)" : "rgba(31,111,91,0.12)",
+      hero: isDark ? "#1C2027" : "#F9F4EC",
+      heroAlt: isDark ? "#262B34" : "#FFFFFF",
     }),
     [isDark],
   );
+
+  const heroAnim = useRef(new Animated.Value(0)).current;
+  const listAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const hero = Animated.timing(heroAnim, {
+      toValue: 1,
+      duration: 520,
+      useNativeDriver: true,
+    });
+    const list = Animated.timing(listAnim, {
+      toValue: 1,
+      duration: 480,
+      delay: 120,
+      useNativeDriver: true,
+    });
+
+    Animated.stagger(120, [hero, list]).start();
+  }, [heroAnim, listAnim]);
 
   const userId = session?.user.id;
 
@@ -116,58 +143,64 @@ export default function AccountsScreen() {
   const [editStatementDate, setEditStatementDate] = useState("");
   const [editPaymentDate, setEditPaymentDate] = useState("");
   const [editCurrency, setEditCurrency] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
 
   const canCreate = useMemo(
     () => !!userId && name.trim().length > 0,
     [userId, name],
   );
 
-  const loadAccounts = useCallback(async (silent = false) => {
-    if (!userId) {
-      setAccounts([]);
-      return;
-    }
+  const loadAccounts = useCallback(
+    async (silent = false) => {
+      if (!userId) {
+        setAccounts([]);
+        return;
+      }
 
-    // load accounts from user, where profile id == current user id
-    if (!silent) setIsLoading(true);
-    const { data, error } = await supabase
-      .from("account")
-      .select(
-        "id, profile_id, created_at, account_name, account_type, balance, credit_limit, statement_duedate, payment_duedate, interest_rate, currency",
-      )
-      .eq("profile_id", userId)
-      .order("created_at", { ascending: false });
+      // load accounts from user, where profile id == current user id
+      if (!silent) setIsLoading(true);
+      const { data, error } = await supabase
+        .from("account")
+        .select(
+          "id, profile_id, created_at, account_name, account_type, balance, credit_limit, statement_duedate, payment_duedate, interest_rate, currency",
+        )
+        .eq("profile_id", userId)
+        .order("created_at", { ascending: false });
 
-    if (error) {
-      console.error("Error loading accounts:", error);
+      if (error) {
+        console.error("Error loading accounts:", error);
+        if (!silent) setIsLoading(false);
+        return;
+      }
+
+      setAccounts((data as AccountRow[]) ?? []);
+
+      // also load goals to calculate available balance
+      try {
+        const goalsData = await listGoals({ profile_id: userId });
+        setGoals(
+          (goalsData as any[])?.map((g) => ({
+            id: g.id,
+            name: g.name,
+            target_amount: g.target_amount,
+            current_amount: g.current_amount,
+            target_date: g.target_date,
+            linked_account: g.linked_account,
+          })) ?? [],
+        );
+      } catch (err) {
+        console.error("Error loading goals for accounts:", err);
+      }
+
       if (!silent) setIsLoading(false);
-      return;
-    }
-
-    setAccounts((data as AccountRow[]) ?? []);
-
-    // also load goals to calculate available balance
-    try {
-      const goalsData = await listGoals({ profile_id: userId });
-      setGoals((goalsData as any[])?.map(g => ({
-        id: g.id,
-        name: g.name,
-        target_amount: g.target_amount,
-        current_amount: g.current_amount,
-        target_date: g.target_date,
-        linked_account: g.linked_account
-      })) ?? []);
-    } catch (err) {
-      console.error("Error loading goals for accounts:", err);
-    }
-
-    if (!silent) setIsLoading(false);
-  }, [userId]);
+    },
+    [userId],
+  );
 
   useFocusEffect(
     useCallback(() => {
       loadAccounts(true);
-    }, [loadAccounts])
+    }, [loadAccounts]),
   );
 
   // Sync edit state when editingAccount changes
@@ -350,16 +383,109 @@ export default function AccountsScreen() {
     [userId, loadAccounts],
   );
 
-  const calculateAvailable = useCallback((account: AccountRow) => {
-    const totalBalance = account.balance ?? 0;
-    const accountGoals = goals.filter(g => g.linked_account === Number(account.id));
-    const allocated = accountGoals.reduce((sum, g) => sum + (g.current_amount ?? 0), 0);
-    return totalBalance - allocated;
-  }, [goals]);
+  const calculateAvailable = useCallback(
+    (account: AccountRow) => {
+      const totalBalance = account.balance ?? 0;
+      const accountGoals = goals.filter(
+        (g) => g.linked_account === Number(account.id),
+      );
+      const allocated = accountGoals.reduce(
+        (sum, g) => sum + (g.current_amount ?? 0),
+        0,
+      );
+      return totalBalance - allocated;
+    },
+    [goals],
+  );
 
   const formatMoney = (amount: number) => {
-    return new Intl.NumberFormat('en-CA', { style: 'currency', currency: 'CAD' }).format(amount);
+    return new Intl.NumberFormat("en-CA", {
+      style: "currency",
+      currency: "CAD",
+    }).format(amount);
   };
+
+  const formatCardDate = (value?: string | null) => {
+    if (!value) return "--/--/--";
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return value;
+    return parsed.toLocaleDateString("en-CA", {
+      month: "2-digit",
+      day: "2-digit",
+      year: "2-digit",
+    });
+  };
+
+  const totalBalance = useMemo(
+    () => accounts.reduce((sum, account) => sum + (account.balance ?? 0), 0),
+    [accounts],
+  );
+
+  const totalAvailable = useMemo(
+    () =>
+      accounts.reduce((sum, account) => sum + calculateAvailable(account), 0),
+    [accounts, calculateAvailable],
+  );
+
+  const creditCount = useMemo(
+    () =>
+      accounts.filter(
+        (account) => (account.account_type ?? "").toLowerCase() === "credit",
+      ).length,
+    [accounts],
+  );
+
+  const debitCount = useMemo(
+    () =>
+      accounts.filter(
+        (account) => (account.account_type ?? "").toLowerCase() === "debit",
+      ).length,
+    [accounts],
+  );
+
+  const filteredAccounts = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return accounts;
+
+    return accounts.filter((account) => {
+      const namePart = account.account_name?.toLowerCase() ?? "";
+      const typePart = account.account_type?.toLowerCase() ?? "";
+      const currencyPart = account.currency?.toLowerCase() ?? "";
+      return (
+        namePart.includes(q) || typePart.includes(q) || currencyPart.includes(q)
+      );
+    });
+  }, [accounts, searchQuery]);
+
+  const heroAnimatedStyle = useMemo(
+    () => ({
+      opacity: heroAnim,
+      transform: [
+        {
+          translateY: heroAnim.interpolate({
+            inputRange: [0, 1],
+            outputRange: [12, 0],
+          }),
+        },
+      ],
+    }),
+    [heroAnim],
+  );
+
+  const listAnimatedStyle = useMemo(
+    () => ({
+      opacity: listAnim,
+      transform: [
+        {
+          translateY: listAnim.interpolate({
+            inputRange: [0, 1],
+            outputRange: [16, 0],
+          }),
+        },
+      ],
+    }),
+    [listAnim],
+  );
 
   if (authLoading && !session) {
     return (
@@ -383,12 +509,37 @@ export default function AccountsScreen() {
       style={[
         styles.container,
         {
-          paddingTop: 16 + insets.top,
+          paddingTop: 12 + insets.top,
+          backgroundColor: isDark ? "#16181C" : "#ECECF1",
         },
       ]}
     >
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
+      <View pointerEvents="none" style={styles.bgDecor}>
+        <View
+          style={[
+            styles.bgOrb,
+            styles.bgOrbTop,
+            { backgroundColor: ui.accentSoft },
+          ]}
+        />
+        <View
+          style={[
+            styles.bgOrb,
+            styles.bgOrbBottom,
+            {
+              backgroundColor: isDark
+                ? "rgba(255,255,255,0.08)"
+                : "rgba(255,255,255,0.65)",
+            },
+          ]}
+        />
+        <View style={[styles.bgRing, { borderColor: ui.accentSoft }]} />
+      </View>
+            <ScrollView
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingBottom: tabBarHeight + 88 },
+        ]}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
@@ -399,22 +550,41 @@ export default function AccountsScreen() {
         }
       >
         <View style={styles.headerRow}>
-          <ThemedText type="title">Accounts</ThemedText>
+          <View style={styles.headerLeft}>
+            <Pressable style={styles.iconBtn} hitSlop={8}>
+              <Feather name="menu" size={28} color={ui.text} />
+            </Pressable>
+            <Pressable style={styles.iconBtn} hitSlop={8}>
+              <Feather name="bell" size={24} color={ui.text} />
+            </Pressable>
+          </View>
           <Pressable onPress={() => router.push("/profile")}>
-            <IconSymbol size={28} name="person" color={ui.text} />
+            <Feather name="user" size={24} color={ui.text} />
           </Pressable>
+        </View>
+        <View style={styles.headerTitleWrap}>
+          <ThemedText style={[styles.headerTitle, { color: ui.text }]}>
+            Accounts
+          </ThemedText>
+          <ThemedText style={[styles.headerSubtitle, { color: ui.mutedText }]}>
+            Track balances, due dates, and goals in one place.
+          </ThemedText>
         </View>
 
         <View
           style={[
             styles.card,
-            { borderColor: ui.border, backgroundColor: ui.surface2 },
+            {
+              borderColor: ui.border,
+              backgroundColor: ui.surface2,
+              display: "none",
+            },
           ]}
         >
           <ThemedText type="defaultSemiBold">Your accounts</ThemedText>
           {accounts.length === 0 ? (
             <ThemedText>
-              {isLoading ? "Loading…" : "No accounts yet. Add one below."}
+              {isLoading ? "Loading..." : "No accounts yet. Add one below."}
             </ThemedText>
           ) : (
             accounts.map((item) => (
@@ -437,10 +607,12 @@ export default function AccountsScreen() {
                   <ThemedText type="default">
                     {item.account_type
                       ? item.account_type.charAt(0).toUpperCase() +
-                      item.account_type.slice(1)
-                      : "—"}
+                        item.account_type.slice(1)
+                      : "-"}
                   </ThemedText>
-                  <ThemedText>Balance: {formatMoney(item.balance ?? 0)}</ThemedText>
+                  <ThemedText>
+                    Balance: {formatMoney(item.balance ?? 0)}
+                  </ThemedText>
                   <ThemedText style={{ opacity: 0.7, fontSize: 13 }}>
                     Available: {formatMoney(calculateAvailable(item))}
                   </ThemedText>
@@ -450,22 +622,374 @@ export default function AccountsScreen() {
             ))
           )}
         </View>
-      </ScrollView >
+
+        <Animated.View style={heroAnimatedStyle}>
+          <View
+            style={[
+              styles.heroCard,
+              { borderColor: ui.border, backgroundColor: ui.hero },
+            ]}
+          >
+            <View style={styles.heroTopRow}>
+              <View>
+                <ThemedText style={[styles.heroLabel, { color: ui.mutedText }]}>
+                  Total Balance
+                </ThemedText>
+                <ThemedText style={[styles.heroValue, { color: ui.text }]}>
+                  {formatMoney(totalBalance)}
+                </ThemedText>
+              </View>
+              <View
+                style={[
+                  styles.heroBadge,
+                  { borderColor: ui.border, backgroundColor: ui.heroAlt },
+                ]}
+              >
+                <Feather name="trending-up" size={14} color={ui.accent} />
+                <ThemedText
+                  style={[styles.heroBadgeText, { color: ui.text }]}
+                >
+                  Overview
+                </ThemedText>
+              </View>
+            </View>
+            <View style={styles.heroStatsRow}>
+              <View
+                style={[
+                  styles.statPill,
+                  { borderColor: ui.border, backgroundColor: ui.heroAlt },
+                ]}
+              >
+                <ThemedText style={[styles.statLabel, { color: ui.mutedText }]}>
+                  Available
+                </ThemedText>
+                <ThemedText style={[styles.statValue, { color: ui.text }]}>
+                  {formatMoney(totalAvailable)}
+                </ThemedText>
+              </View>
+              <View
+                style={[
+                  styles.statPill,
+                  { borderColor: ui.border, backgroundColor: ui.heroAlt },
+                ]}
+              >
+                <ThemedText style={[styles.statLabel, { color: ui.mutedText }]}>
+                  Accounts
+                </ThemedText>
+                <ThemedText style={[styles.statValue, { color: ui.text }]}>
+                  {accounts.length}
+                </ThemedText>
+              </View>
+              <View
+                style={[
+                  styles.statPill,
+                  { borderColor: ui.border, backgroundColor: ui.heroAlt },
+                ]}
+              >
+                <ThemedText style={[styles.statLabel, { color: ui.mutedText }]}>
+                  Credit / Debit
+                </ThemedText>
+                <ThemedText
+                  style={[styles.statValueSmall, { color: ui.text }]}
+                >
+                  {creditCount} / {debitCount}
+                </ThemedText>
+              </View>
+            </View>
+          </View>
+        </Animated.View>
+
+        <Animated.View style={listAnimatedStyle}>
+          <View
+            style={[
+              styles.chartCard,
+              { borderColor: ui.border, backgroundColor: ui.surface2 },
+            ]}
+          >
+            <View
+              pointerEvents="none"
+              style={[styles.chartGlow, { backgroundColor: ui.accentSoft }]}
+            />
+            <View style={styles.chartHeader}>
+              <View>
+                <ThemedText style={[styles.chartTitle, { color: ui.text }]}>
+                  Balance Trend
+                </ThemedText>
+                <ThemedText
+                  style={[styles.chartSubtitle, { color: ui.mutedText }]}
+                >
+                  Last 4 months
+                </ThemedText>
+              </View>
+              <View
+                style={[
+                  styles.chartChip,
+                  { borderColor: ui.border, backgroundColor: ui.surface },
+                ]}
+              >
+                <Feather name="bar-chart-2" size={14} color={ui.accent} />
+                <ThemedText style={[styles.chartChipText, { color: ui.text }]}>
+                  Insights
+                </ThemedText>
+              </View>
+            </View>
+            <View style={styles.chartRow}>
+              <View style={styles.yAxis}>
+                <ThemedText style={[styles.yLabel, { color: ui.mutedText }]}>
+                  50k
+                </ThemedText>
+                <ThemedText style={[styles.yLabel, { color: ui.mutedText }]}>
+                  20k
+                </ThemedText>
+                <ThemedText style={[styles.yLabel, { color: ui.mutedText }]}>
+                  10k
+                </ThemedText>
+                <ThemedText style={[styles.yLabel, { color: ui.mutedText }]}>
+                  0
+                </ThemedText>
+              </View>
+
+              <View style={styles.chartArea}>
+                <View
+                  style={[
+                    styles.chartGuide,
+                    { borderColor: ui.border, top: "8%" },
+                  ]}
+                />
+                <View
+                  style={[
+                    styles.chartGuide,
+                    { borderColor: ui.border, top: "34%" },
+                  ]}
+                />
+                <View
+                  style={[
+                    styles.chartGuide,
+                    { borderColor: ui.border, top: "58%" },
+                  ]}
+                />
+                <View
+                  style={[
+                    styles.chartGuide,
+                    { borderColor: ui.border, top: "82%" },
+                  ]}
+                />
+                <Image
+                  source={{
+                    uri: "https://api.builder.io/api/v1/image/assets/TEMP/94870884-619f-436a-b553-127d9ef92e88?placeholderIfAbsent=true&apiKey=342743ad2e264936acee3aea8d83ec5e",
+                  }}
+                  style={styles.chartImage}
+                  resizeMode="contain"
+                />
+              </View>
+            </View>
+
+            <View style={styles.monthRow}>
+              <ThemedText style={[styles.monthLabel, { color: ui.mutedText }]}>
+                Jan
+              </ThemedText>
+              <ThemedText style={[styles.monthLabel, { color: ui.mutedText }]}>
+                Feb
+              </ThemedText>
+              <ThemedText style={[styles.monthLabel, { color: ui.text }]}>
+                Mar
+              </ThemedText>
+              <ThemedText style={[styles.monthLabel, { color: ui.mutedText }]}>
+                Apr
+              </ThemedText>
+            </View>
+          </View>
+
+          <View style={styles.toolbarRow}>
+            <Pressable
+              onPress={() => setCreateModalOpen(true)}
+              style={[
+                styles.smallActionBtn,
+                { borderColor: ui.border, backgroundColor: ui.surface2 },
+              ]}
+            >
+              <Feather name="plus" size={18} color={ui.text} />
+              <ThemedText style={[styles.actionText, { color: ui.text }]}>
+                Add
+              </ThemedText>
+            </Pressable>
+
+            <View
+              style={[
+                styles.viewPill,
+                {
+                  borderColor: ui.border,
+                  backgroundColor: isDark ? "#2A2D33" : "#D8D8DA",
+                },
+              ]}
+            >
+              <Feather name="grid" size={18} color={ui.text} />
+              <View
+                style={[styles.viewDivider, { backgroundColor: ui.border }]}
+              />
+              <Feather name="list" size={18} color={ui.text} />
+            </View>
+          </View>
+
+          <View
+            style={[
+              styles.searchWrap,
+              { borderColor: ui.border, backgroundColor: ui.surface2 },
+            ]}
+          >
+            <Feather name="search" size={18} color={ui.mutedText} />
+            <TextInput
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              placeholder="Search"
+              placeholderTextColor={ui.mutedText}
+              style={[styles.searchInput, { color: ui.text }]}
+            />
+            <Pressable
+              onPress={() => {}}
+              style={[
+                styles.searchFilter,
+                { borderColor: ui.border, backgroundColor: ui.surface },
+              ]}
+              hitSlop={8}
+            >
+              <Feather name="sliders" size={16} color={ui.mutedText} />
+            </Pressable>
+          </View>
+
+          <View style={styles.sectionHeader}>
+            <ThemedText style={[styles.sectionTitle, { color: ui.text }]}>
+              Your Accounts
+            </ThemedText>
+            <ThemedText
+              style={[styles.sectionSubtitle, { color: ui.mutedText }]}
+            >
+              {filteredAccounts.length} total
+            </ThemedText>
+          </View>
+
+          {filteredAccounts.length === 0 ? (
+            <View
+              style={[
+                styles.emptyState,
+                { borderColor: ui.border, backgroundColor: ui.surface2 },
+              ]}
+            >
+              <ThemedText style={{ color: ui.text }}>
+                {isLoading
+                  ? "Loading..."
+                  : "No accounts found. Tap + to add your first account."}
+              </ThemedText>
+            </View>
+          ) : (
+            filteredAccounts.map((item) => {
+              const isCredit =
+                (item.account_type ?? "").toLowerCase() === "credit";
+              const cardColor = isDark
+                ? isCredit
+                  ? "#B24E4E"
+                  : "#61202A"
+                : isCredit
+                  ? "#D86666"
+                  : "#701D26";
+
+              return (
+                <Pressable
+                  key={item.id}
+                  onPress={() => setEditingAccount(item)}
+                  style={({ pressed }) => [
+                    styles.accountCard,
+                    {
+                      backgroundColor: cardColor,
+                      opacity: pressed ? 0.88 : 1,
+                      borderColor: "rgba(255,255,255,0.28)",
+                    },
+                  ]}
+                >
+                  <View
+                    pointerEvents="none"
+                    style={[
+                      styles.cardGlow,
+                      {
+                        backgroundColor: isCredit
+                          ? "rgba(255,255,255,0.26)"
+                          : "rgba(255,255,255,0.18)",
+                      },
+                    ]}
+                  />
+                  <View pointerEvents="none" style={styles.cardRing} />
+                  <View style={styles.cardTopRow}>
+                    <View style={styles.cardTitleGroup}>
+                      <ThemedText style={styles.cardTitle}>
+                        {item.account_name ?? "Unnamed account"}
+                      </ThemedText>
+                      <View style={styles.cardTag}>
+                        <ThemedText style={styles.cardTagText}>
+                          {item.account_type
+                            ? item.account_type.charAt(0).toUpperCase() +
+                              item.account_type.slice(1)
+                            : "Account"}
+                        </ThemedText>
+                      </View>
+                    </View>
+                    <View style={styles.cardIcon}>
+                      <Feather
+                        name={isCredit ? "credit-card" : "dollar-sign"}
+                        size={18}
+                        color="#FFFFFF"
+                      />
+                    </View>
+                  </View>
+                  <ThemedText style={styles.cardBalance}>
+                    {formatMoney(item.balance ?? 0)}
+                  </ThemedText>
+                  <View style={styles.cardMetaRow}>
+                    <View style={styles.cardMetaPill}>
+                      <Feather
+                        name="calendar"
+                        size={12}
+                        color="rgba(255,255,255,0.9)"
+                      />
+                      <ThemedText style={styles.cardMetaText}>
+                        {formatCardDate(item.payment_duedate)}
+                      </ThemedText>
+                    </View>
+                    {item.currency ? (
+                      <View style={styles.cardMetaPill}>
+                        <Feather
+                          name="globe"
+                          size={12}
+                          color="rgba(255,255,255,0.9)"
+                        />
+                        <ThemedText style={styles.cardMetaText}>
+                          {item.currency}
+                        </ThemedText>
+                      </View>
+                    ) : null}
+                  </View>
+                  <ThemedText style={styles.cardSubText}>
+                    Available: {formatMoney(calculateAvailable(item))}
+                  </ThemedText>
+                </Pressable>
+              );
+            })
+          )}
+        </Animated.View>
+      </ScrollView>
 
       <Pressable
         onPress={() => setCreateModalOpen(true)}
         style={({ pressed }) => [
           styles.fabCenter,
           {
-            backgroundColor: ui.text,
+            backgroundColor: ui.surface2,
             opacity: pressed ? 0.8 : 1,
             bottom: fabBottom,
+            borderColor: ui.border,
           },
         ]}
       >
-        <ThemedText style={{ color: ui.surface, fontSize: 20 }}>
-          Add Account
-        </ThemedText>
+        <Feather name="plus" size={34} color={ui.text} />
       </Pressable>
 
       <Modal
@@ -656,7 +1180,7 @@ export default function AccountsScreen() {
                   styles.modalCard,
                   { backgroundColor: ui.surface2, borderColor: ui.border },
                 ]}
-                onPress={() => { }}
+                onPress={() => {}}
               >
                 <ThemedText type="defaultSemiBold">
                   Select account type
@@ -890,20 +1414,420 @@ export default function AccountsScreen() {
           </ScrollView>
         </ThemedView>
       </Modal>
-    </ThemedView >
+    </ThemedView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, paddingHorizontal: 16, paddingBottom: 16, gap: 12 },
-  scrollContent: {
+  container: {
+    flex: 1,
+    paddingHorizontal: 16,
+    paddingBottom: 16,
     gap: 12,
+    position: "relative",
+    overflow: "hidden",
+  },
+  bgDecor: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
+  bgOrb: {
+    position: "absolute",
+    borderRadius: 999,
+    opacity: 0.7,
+  },
+  bgOrbTop: {
+    width: 260,
+    height: 260,
+    top: -140,
+    right: -90,
+  },
+  bgOrbBottom: {
+    width: 220,
+    height: 220,
+    bottom: -120,
+    left: -70,
+  },
+  bgRing: {
+    position: "absolute",
+    width: 260,
+    height: 260,
+    borderRadius: 130,
+    borderWidth: 1,
+    top: 180,
+    right: -130,
+    opacity: 0.35,
+  },
+  scrollContent: {
+    gap: 14,
     paddingBottom: 16,
   },
   headerRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+  },
+  headerLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+  },
+  iconBtn: {
+    width: 32,
+    height: 32,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 10,
+  },
+  headerTitleWrap: {
+    marginTop: 4,
+    marginBottom: 2,
+  },
+  headerTitle: {
+    fontSize: 30,
+    fontWeight: "700",
+    letterSpacing: 0.3,
+    fontFamily: Tokens.font.headingFamily,
+  },
+  headerSubtitle: {
+    fontSize: 13,
+    lineHeight: 18,
+    fontFamily: Tokens.font.family,
+  },
+  heroCard: {
+    borderWidth: 1,
+    borderRadius: 20,
+    padding: 16,
+    gap: 12,
+    shadowColor: "#000",
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 3,
+  },
+  heroTopRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  heroLabel: {
+    fontFamily: Tokens.font.semiFamily ?? Tokens.font.family,
+    fontSize: 12,
+    letterSpacing: 0.2,
+  },
+  heroValue: {
+    fontFamily: Tokens.font.boldFamily ?? Tokens.font.headingFamily,
+    fontSize: 36,
+    lineHeight: 38,
+  },
+  heroBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  heroBadgeText: {
+    fontFamily: Tokens.font.semiFamily ?? Tokens.font.family,
+    fontSize: 12,
+  },
+  heroStatsRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+  },
+  statPill: {
+    flexGrow: 1,
+    flexBasis: "47%",
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    gap: 4,
+  },
+  statLabel: {
+    fontFamily: Tokens.font.family,
+    fontSize: 12,
+  },
+  statValue: {
+    fontFamily: Tokens.font.boldFamily ?? Tokens.font.headingFamily,
+    fontSize: 16,
+  },
+  statValueSmall: {
+    fontFamily: Tokens.font.semiFamily ?? Tokens.font.family,
+    fontSize: 15,
+  },
+  chartCard: {
+    borderWidth: 1,
+    borderRadius: 18,
+    padding: 14,
+    gap: 10,
+    overflow: "hidden",
+  },
+  chartGlow: {
+    position: "absolute",
+    top: -40,
+    right: -60,
+    width: 160,
+    height: 160,
+    borderRadius: 80,
+    opacity: 0.6,
+  },
+  chartHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  chartTitle: {
+    fontFamily: Tokens.font.semiFamily ?? Tokens.font.family,
+    fontSize: 16,
+  },
+  chartSubtitle: {
+    fontFamily: Tokens.font.family,
+    fontSize: 12,
+    marginTop: 2,
+  },
+  chartChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  chartChipText: {
+    fontFamily: Tokens.font.semiFamily ?? Tokens.font.family,
+    fontSize: 12,
+  },
+  chartRow: {
+    flexDirection: "row",
+    alignItems: "stretch",
+  },
+  yAxis: {
+    width: 36,
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    paddingVertical: 12,
+  },
+  yLabel: {
+    fontSize: 12,
+    fontFamily: Tokens.font.semiFamily ?? Tokens.font.family,
+  },
+  chartArea: {
+    flex: 1,
+    height: 240,
+    position: "relative",
+    justifyContent: "center",
+  },
+  chartGuide: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    borderTopWidth: 1,
+    borderStyle: "dashed",
+    opacity: 0.5,
+  },
+  chartImage: {
+    width: "100%",
+    height: 214,
+    alignSelf: "center",
+  },
+  monthRow: {
+    marginTop: 6,
+    paddingHorizontal: 42,
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  monthLabel: {
+    fontSize: 12,
+    fontFamily: Tokens.font.semiFamily ?? Tokens.font.family,
+  },
+  toolbarRow: {
+    marginTop: 10,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  smallActionBtn: {
+    height: 44,
+    paddingHorizontal: 16,
+    borderRadius: 14,
+    borderWidth: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  actionText: {
+    fontFamily: Tokens.font.semiFamily ?? Tokens.font.family,
+    fontSize: 13,
+  },
+  viewPill: {
+    height: 40,
+    borderRadius: 999,
+    borderWidth: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 14,
+    gap: 10,
+  },
+  viewDivider: {
+    width: StyleSheet.hairlineWidth,
+    height: 16,
+  },
+  searchWrap: {
+    marginTop: 6,
+    borderWidth: 1,
+    borderRadius: 16,
+    paddingHorizontal: 12,
+    height: 52,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 16,
+    paddingVertical: 0,
+    fontFamily: Tokens.font.family,
+  },
+  searchFilter: {
+    width: 34,
+    height: 34,
+    borderRadius: 12,
+    borderWidth: StyleSheet.hairlineWidth,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  sectionHeader: {
+    marginTop: 6,
+    flexDirection: "row",
+    alignItems: "flex-end",
+    justifyContent: "space-between",
+  },
+  sectionTitle: {
+    fontFamily: Tokens.font.semiFamily ?? Tokens.font.family,
+    fontSize: 16,
+  },
+  sectionSubtitle: {
+    fontFamily: Tokens.font.family,
+    fontSize: 12,
+  },
+  emptyState: {
+    borderRadius: 16,
+    borderWidth: StyleSheet.hairlineWidth,
+    paddingHorizontal: 14,
+    paddingVertical: 16,
+    marginTop: 10,
+  },
+  accountCard: {
+    borderRadius: 22,
+    paddingVertical: 18,
+    paddingHorizontal: 18,
+    marginTop: 10,
+    borderWidth: StyleSheet.hairlineWidth,
+    shadowColor: "#000",
+    shadowOpacity: 0.2,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 4,
+    overflow: "hidden",
+    gap: 8,
+  },
+  cardTopRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  cardTitleGroup: {
+    flex: 1,
+    gap: 6,
+  },
+  cardTitle: {
+    color: "#F6F6F6",
+    fontSize: 20,
+    fontFamily: Tokens.font.boldFamily ?? Tokens.font.headingFamily,
+  },
+  cardTag: {
+    alignSelf: "flex-start",
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    backgroundColor: "rgba(255,255,255,0.18)",
+  },
+  cardTagText: {
+    color: "rgba(255,255,255,0.92)",
+    fontSize: 11,
+    fontFamily: Tokens.font.semiFamily ?? Tokens.font.family,
+    letterSpacing: 0.3,
+  },
+  cardIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    backgroundColor: "rgba(255,255,255,0.18)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  cardGlow: {
+    position: "absolute",
+    top: -60,
+    right: -60,
+    width: 160,
+    height: 160,
+    borderRadius: 80,
+    opacity: 0.7,
+  },
+  cardRing: {
+    position: "absolute",
+    bottom: -80,
+    left: -60,
+    width: 200,
+    height: 200,
+    borderRadius: 100,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.18)",
+    opacity: 0.5,
+  },
+  cardBalance: {
+    color: "#FFFFFF",
+    fontSize: 30,
+    fontFamily: Tokens.font.boldFamily ?? Tokens.font.headingFamily,
+  },
+  cardMetaRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  cardMetaPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+    backgroundColor: "rgba(255,255,255,0.16)",
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: "rgba(255,255,255,0.22)",
+  },
+  cardMetaText: {
+    color: "rgba(255,255,255,0.92)",
+    fontSize: 12,
+    fontFamily: Tokens.font.semiFamily ?? Tokens.font.family,
+  },
+  cardSubText: {
+    color: "rgba(255,255,255,0.9)",
+    marginTop: 4,
+    fontSize: 13,
+    fontFamily: Tokens.font.family,
   },
   card: {
     padding: 12,
@@ -969,15 +1893,16 @@ const styles = StyleSheet.create({
   fabCenter: {
     position: "absolute",
     alignSelf: "center",
-    paddingHorizontal: 16,
-    height: 48,
-    borderRadius: 24,
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    borderWidth: 1,
     alignItems: "center",
     justifyContent: "center",
     shadowColor: "#000",
-    shadowOpacity: 0.2,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.22,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 6 },
     elevation: 6,
   },
   deleteButton: {
@@ -996,3 +1921,6 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
   },
 });
+
+
+

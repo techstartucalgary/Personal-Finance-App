@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { Pressable, RefreshControl, ScrollView, StyleSheet, View, useColorScheme } from "react-native";
 
+import SegmentedControl from "@react-native-segmented-control/segmented-control";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -117,49 +118,19 @@ export default function TargetsScreen() {
           </Pressable>
         </View>
 
-        <View
-          style={[
-            styles.tabsContainer,
-            { backgroundColor: ui.surface2, borderColor: ui.border },
-          ]}
-        >
-          <Pressable
-            onPress={() => { setActiveTab("goals"); setCreateRequested(0); }}
-            style={[
-              styles.tab,
-              activeTab === "goals" && {
-                backgroundColor: ui.surface,
-                borderColor: ui.border,
-              },
-              activeTab === "goals" && styles.activeTab,
-            ]}
-          >
-            <ThemedText
-              type="defaultSemiBold"
-              style={{ opacity: activeTab === "goals" ? 1 : 0.6 }}
-            >
-              Goals
-            </ThemedText>
-          </Pressable>
-          <Pressable
-            onPress={() => { setActiveTab("budgets"); setCreateRequested(0); }}
-            style={[
-              styles.tab,
-              activeTab === "budgets" && {
-                backgroundColor: ui.surface,
-                borderColor: ui.border,
-              },
-              activeTab === "budgets" && styles.activeTab,
-            ]}
-          >
-            <ThemedText
-              type="defaultSemiBold"
-              style={{ opacity: activeTab === "budgets" ? 1 : 0.6 }}
-            >
-              Budgets
-            </ThemedText>
-          </Pressable>
-        </View>
+        {/* Native Segmented Control */}
+        <SegmentedControl
+          values={["Goals", "Budgets"]}
+          selectedIndex={activeTab === "goals" ? 0 : 1}
+          onChange={(event) => {
+            const index = event.nativeEvent.selectedSegmentIndex;
+            setActiveTab(index === 0 ? "goals" : "budgets");
+            setCreateRequested(0);
+          }}
+          tintColor={ui.surface}
+          fontStyle={{ color: ui.text, fontWeight: "500" }}
+          activeFontStyle={{ color: ui.text, fontWeight: "600" }}
+        />
 
         <ScrollView
           horizontal
@@ -284,19 +255,6 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   tabsContainer: {
-    flexDirection: "row",
-    borderRadius: 24,
-    padding: 4,
-    borderWidth: StyleSheet.hairlineWidth,
-  },
-  tab: {
-    flex: 1,
-    alignItems: "center",
-    paddingVertical: 6,
-    borderRadius: 20,
-  },
-  activeTab: {
-    borderWidth: StyleSheet.hairlineWidth,
   },
   chip: {
     paddingHorizontal: 14,

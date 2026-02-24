@@ -1,5 +1,5 @@
 import Feather from "@expo/vector-icons/Feather";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -15,6 +15,7 @@ import {
   View
 } from "react-native";
 
+import SegmentedControl from "@react-native-segmented-control/segmented-control";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -48,12 +49,13 @@ import {
   updateRecurringRule
 } from "@/utils/recurring";
 
-import { useFocusEffect, useRouter } from "expo-router";
+import { useFocusEffect, useNavigation, useRouter } from "expo-router";
 
 export default function HomeScreen() {
   const { session } = useAuthContext();
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const navigation = useNavigation();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
 
@@ -78,6 +80,17 @@ export default function HomeScreen() {
   );
 
   const userId = session?.user.id;
+
+  // Set native header right button
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      headerRight: () => (
+        <Pressable onPress={() => router.push("/profile")} hitSlop={10}>
+          <IconSymbol size={24} name="person" color={ui.text} />
+        </Pressable>
+      ),
+    });
+  }, [navigation, router, ui.text]);
 
   type AccountRow = {
     id: number;
@@ -1165,6 +1178,7 @@ export default function HomeScreen() {
           />
         }
       >
+
         <View style={styles.headerRow}>
           <ThemedText type="title">Transactions</ThemedText>
           <Pressable onPress={() => router.push("/profile")}>
@@ -1172,50 +1186,18 @@ export default function HomeScreen() {
           </Pressable>
         </View>
 
-        {/* Custom Segmented Control */}
-        <View
-          style={[
-            styles.tabsContainer,
-            { backgroundColor: ui.surface2, borderColor: ui.border },
-          ]}
-        >
-          <Pressable
-            onPress={() => setActiveTab("transactions")}
-            style={[
-              styles.tab,
-              activeTab === "transactions" && {
-                backgroundColor: ui.surface,
-                borderColor: ui.border,
-              },
-              activeTab === "transactions" && styles.activeTab,
-            ]}
-          >
-            <ThemedText
-              type="defaultSemiBold"
-              style={{ opacity: activeTab === "transactions" ? 1 : 0.6 }}
-            >
-              Transactions
-            </ThemedText>
-          </Pressable>
-          <Pressable
-            onPress={() => setActiveTab("recurrences")}
-            style={[
-              styles.tab,
-              activeTab === "recurrences" && {
-                backgroundColor: ui.surface,
-                borderColor: ui.border,
-              },
-              activeTab === "recurrences" && styles.activeTab,
-            ]}
-          >
-            <ThemedText
-              type="defaultSemiBold"
-              style={{ opacity: activeTab === "recurrences" ? 1 : 0.6 }}
-            >
-              Recurring
-            </ThemedText>
-          </Pressable>
-        </View>
+        {/* Native Segmented Control */}
+        <SegmentedControl
+          values={["Transactions", "Recurring"]}
+          selectedIndex={activeTab === "transactions" ? 0 : 1}
+          onChange={(event) => {
+            const index = event.nativeEvent.selectedSegmentIndex;
+            setActiveTab(index === 0 ? "transactions" : "recurrences");
+          }}
+          tintColor={ui.surface}
+          fontStyle={{ color: ui.text, fontWeight: "500" }}
+          activeFontStyle={{ color: ui.text, fontWeight: "600" }}
+        />
 
         <ScrollView
           horizontal
@@ -3126,20 +3108,8 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     borderWidth: StyleSheet.hairlineWidth,
   },
-  tabsContainer: {
-    flexDirection: "row",
-    borderRadius: 24,
-    padding: 4,
-    borderWidth: StyleSheet.hairlineWidth,
-  },
-  tab: {
-    flex: 1,
-    alignItems: "center",
-    paddingVertical: 6,
-    borderRadius: 20,
-  },
-  activeTab: {
-    borderWidth: StyleSheet.hairlineWidth,
+  loader: {
+    marginVertical: 20,
   },
   modalHeader: {
     flexDirection: "row",

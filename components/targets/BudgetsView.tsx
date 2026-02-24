@@ -1,5 +1,6 @@
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
+import { DateTimePickerField } from "@/components/ui/DateTimePickerField";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useAuthContext } from "@/hooks/use-auth-context";
 import { createBudget, deleteBudget, editBudget, listBudgets } from "@/utils/budgets";
@@ -484,28 +485,20 @@ export function BudgetsView({ filterAccountId = null, refreshKey = 0, createRequ
                         </View>
 
                         {/* Start Date */}
-                        <View style={styles.fieldGroup}>
-                            <ThemedText type="defaultSemiBold">Start Date</ThemedText>
-                            <TextInput
-                                value={startDate}
-                                onChangeText={setStartDate}
-                                placeholder="YYYY-MM-DD"
-                                placeholderTextColor={ui.mutedText}
-                                style={[styles.input, { borderColor: ui.border, backgroundColor: ui.surface2, color: ui.text }]}
-                            />
-                        </View>
+                        <DateTimePickerField
+                            label="Start Date"
+                            value={startDate ? new Date(startDate) : new Date()}
+                            onChange={(date) => setStartDate(date.toISOString().split("T")[0])}
+                            ui={ui}
+                        />
 
                         {/* End Date */}
-                        <View style={styles.fieldGroup}>
-                            <ThemedText type="defaultSemiBold">End Date</ThemedText>
-                            <TextInput
-                                value={endDate}
-                                onChangeText={setEndDate}
-                                placeholder="YYYY-MM-DD"
-                                placeholderTextColor={ui.mutedText}
-                                style={[styles.input, { borderColor: ui.border, backgroundColor: ui.surface2, color: ui.text }]}
-                            />
-                        </View>
+                        <DateTimePickerField
+                            label="End Date"
+                            value={endDate ? new Date(endDate) : new Date()}
+                            onChange={(date) => setEndDate(date.toISOString().split("T")[0])}
+                            ui={ui}
+                        />
 
                         {/* ── Category Limits Section ─────── */}
                         <View style={{ marginTop: 8 }}>

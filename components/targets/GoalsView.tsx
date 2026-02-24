@@ -1,5 +1,6 @@
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
+import { DateTimePickerField } from "@/components/ui/DateTimePickerField";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useAuthContext } from "@/hooks/use-auth-context";
 import { listAccounts } from "@/utils/accounts";
@@ -400,19 +401,12 @@ export function GoalsView({ filterAccountId = null, refreshKey = 0, createReques
                             </View>
                         )}
 
-                        <View style={styles.fieldGroup}>
-                            <ThemedText type="defaultSemiBold">Target Date (Optional)</ThemedText>
-                            <TextInput
-                                value={targetDate}
-                                onChangeText={setTargetDate}
-                                placeholder="YYYY-MM-DD"
-                                placeholderTextColor={ui.mutedText}
-                                style={[
-                                    styles.input,
-                                    { borderColor: ui.border, backgroundColor: ui.surface2, color: ui.text },
-                                ]}
-                            />
-                        </View>
+                        <DateTimePickerField
+                            label="Target Date (Optional)"
+                            value={targetDate ? new Date(targetDate) : new Date()}
+                            onChange={(date) => setTargetDate(date.toISOString().split("T")[0])}
+                            ui={ui}
+                        />
 
                         <View style={styles.fieldGroup}>
                             <ThemedText type="defaultSemiBold">Linked Account</ThemedText>

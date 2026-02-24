@@ -23,6 +23,7 @@ import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 
 import { TransactionDetailModal } from "@/components/TransactionDetailModal";
+import { DateTimePickerField } from "@/components/ui/DateTimePickerField";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useAuthContext } from "@/hooks/use-auth-context";
 import { getAccountById, listAccounts, updateAccount } from "@/utils/accounts";
@@ -1530,23 +1531,12 @@ export default function HomeScreen() {
               </Pressable>
             </View>
 
-            <View style={styles.fieldGroup}>
-              <ThemedText type="defaultSemiBold">Transaction Date</ThemedText>
-              <TextInput
-                value={transactionDate}
-                onChangeText={setTransactionDate}
-                placeholder="YYYY-MM-DD"
-                placeholderTextColor={ui.mutedText}
-                style={[
-                  styles.input,
-                  {
-                    borderColor: ui.border,
-                    backgroundColor: ui.surface2,
-                    color: ui.text,
-                  },
-                ]}
-              />
-            </View>
+            <DateTimePickerField
+              label="Transaction Date"
+              value={new Date(transactionDate)}
+              onChange={(date) => setTransactionDate(date.toISOString().split("T")[0])}
+              ui={ui}
+            />
 
             <View style={styles.fieldGroup}>
               <ThemedText type="defaultSemiBold">Category</ThemedText>
@@ -1643,43 +1633,21 @@ export default function HomeScreen() {
             )}
 
             {isRecurring && (
-              <View style={styles.fieldGroup}>
-                <ThemedText type="defaultSemiBold">Ends On (Optional)</ThemedText>
-                <TextInput
-                  value={addRuleEndsOn}
-                  onChangeText={setAddRuleEndsOn}
-                  placeholder="YYYY-MM-DD"
-                  placeholderTextColor={ui.mutedText}
-                  style={[
-                    styles.input,
-                    {
-                      borderColor: ui.border,
-                      backgroundColor: ui.surface2,
-                      color: ui.text,
-                    },
-                  ]}
-                />
-              </View>
+              <DateTimePickerField
+                label="Ends On (Optional)"
+                value={addRuleEndsOn ? new Date(addRuleEndsOn) : new Date()}
+                onChange={(date) => setAddRuleEndsOn(date.toISOString().split("T")[0])}
+                ui={ui}
+              />
             )}
 
             {isRecurring && (
-              <View style={styles.fieldGroup}>
-                <ThemedText type="defaultSemiBold">Next Run Date</ThemedText>
-                <TextInput
-                  value={addRuleNextRunDate}
-                  onChangeText={setAddRuleNextRunDate}
-                  placeholder="YYYY-MM-DD"
-                  placeholderTextColor={ui.mutedText}
-                  style={[
-                    styles.input,
-                    {
-                      borderColor: ui.border,
-                      backgroundColor: ui.surface2,
-                      color: ui.text,
-                    },
-                  ]}
-                />
-              </View>
+              <DateTimePickerField
+                label="Next Run Date"
+                value={addRuleNextRunDate ? new Date(addRuleNextRunDate) : new Date()}
+                onChange={(date) => setAddRuleNextRunDate(date.toISOString().split("T")[0])}
+                ui={ui}
+              />
             )}
 
             <Pressable
@@ -2078,23 +2046,12 @@ export default function HomeScreen() {
                 </Pressable>
               </View>
 
-              <View style={{ gap: 6 }}>
-                <ThemedText type="defaultSemiBold">Transaction Date</ThemedText>
-                <TextInput
-                  value={editTransactionDate}
-                  onChangeText={setEditTransactionDate}
-                  placeholder="YYYY-MM-DD"
-                  placeholderTextColor={ui.mutedText}
-                  style={[
-                    styles.input,
-                    {
-                      borderColor: ui.border,
-                      backgroundColor: ui.surface2,
-                      color: ui.text,
-                    },
-                  ]}
-                />
-              </View>
+              <DateTimePickerField
+                label="Transaction Date"
+                value={editTransactionDate ? new Date(editTransactionDate) : new Date()}
+                onChange={(date) => setEditTransactionDate(date.toISOString().split("T")[0])}
+                ui={ui}
+              />
 
               <View style={{ gap: 6 }}>
                 <ThemedText type="defaultSemiBold">Category</ThemedText>
@@ -2187,43 +2144,21 @@ export default function HomeScreen() {
               )}
 
               {editTransactionIsRecurring && (
-                <View style={{ gap: 6 }}>
-                  <ThemedText type="defaultSemiBold">Next Run Date</ThemedText>
-                  <TextInput
-                    value={editTransactionRuleNextRunDate}
-                    onChangeText={setEditTransactionRuleNextRunDate}
-                    placeholder="YYYY-MM-DD"
-                    placeholderTextColor={ui.mutedText}
-                    style={[
-                      styles.input,
-                      {
-                        borderColor: ui.border,
-                        backgroundColor: ui.surface2,
-                        color: ui.text,
-                      },
-                    ]}
-                  />
-                </View>
+                <DateTimePickerField
+                  label="Next Run Date"
+                  value={editTransactionRuleNextRunDate ? new Date(editTransactionRuleNextRunDate) : new Date()}
+                  onChange={(date) => setEditTransactionRuleNextRunDate(date.toISOString().split("T")[0])}
+                  ui={ui}
+                />
               )}
 
               {editTransactionIsRecurring && (
-                <View style={{ gap: 6 }}>
-                  <ThemedText type="defaultSemiBold">Ends On (Optional)</ThemedText>
-                  <TextInput
-                    value={editTransactionRuleEndsOn}
-                    onChangeText={setEditTransactionRuleEndsOn}
-                    placeholder="YYYY-MM-DD"
-                    placeholderTextColor={ui.mutedText}
-                    style={[
-                      styles.input,
-                      {
-                        borderColor: ui.border,
-                        backgroundColor: ui.surface2,
-                        color: ui.text,
-                      },
-                    ]}
-                  />
-                </View>
+                <DateTimePickerField
+                  label="Ends On (Optional)"
+                  value={editTransactionRuleEndsOn ? new Date(editTransactionRuleEndsOn) : new Date()}
+                  onChange={(date) => setEditTransactionRuleEndsOn(date.toISOString().split("T")[0])}
+                  ui={ui}
+                />
               )}
 
               <Pressable
@@ -2683,41 +2618,19 @@ export default function HomeScreen() {
                 </Pressable>
               </View>
 
-              <View style={{ gap: 6 }}>
-                <ThemedText type="defaultSemiBold">Ends On (Optional)</ThemedText>
-                <TextInput
-                  value={editRuleEndsOn}
-                  onChangeText={setEditRuleEndsOn}
-                  placeholder="YYYY-MM-DD"
-                  placeholderTextColor={ui.mutedText}
-                  style={[
-                    styles.input,
-                    {
-                      borderColor: ui.border,
-                      backgroundColor: ui.surface2,
-                      color: ui.text,
-                    },
-                  ]}
-                />
-              </View>
+              <DateTimePickerField
+                label="Ends On (Optional)"
+                value={editRuleEndsOn ? new Date(editRuleEndsOn) : new Date()}
+                onChange={(date) => setEditRuleEndsOn(date.toISOString().split("T")[0])}
+                ui={ui}
+              />
 
-              <View style={{ gap: 6 }}>
-                <ThemedText type="defaultSemiBold">Next Run Date</ThemedText>
-                <TextInput
-                  value={editRuleNextRunDate}
-                  onChangeText={setEditRuleNextRunDate}
-                  placeholder="YYYY-MM-DD"
-                  placeholderTextColor={ui.mutedText}
-                  style={[
-                    styles.input,
-                    {
-                      borderColor: ui.border,
-                      backgroundColor: ui.surface2,
-                      color: ui.text,
-                    },
-                  ]}
-                />
-              </View>
+              <DateTimePickerField
+                label="Next Run Date"
+                value={editRuleNextRunDate ? new Date(editRuleNextRunDate) : new Date()}
+                onChange={(date) => setEditRuleNextRunDate(date.toISOString().split("T")[0])}
+                ui={ui}
+              />
             </View>
 
             <Pressable

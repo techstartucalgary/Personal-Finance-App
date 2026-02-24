@@ -24,6 +24,7 @@ import { useFocusEffect, useRouter } from "expo-router";
 
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
+import { DateTimePickerField } from "@/components/ui/DateTimePickerField";
 import { Tokens } from "@/constants/authTokens";
 import { useAuthContext } from "@/hooks/use-auth-context";
 import {
@@ -1338,36 +1339,18 @@ export default function AccountsScreen() {
               ]}
             />
 
-            <ThemedText type="defaultSemiBold">Statement Due Date</ThemedText>
-            <TextInput
-              value={createStatementDate}
-              onChangeText={setCreateStatementDate}
-              placeholder="Day of month or YYYY-MM-DD"
-              placeholderTextColor={ui.mutedText}
-              style={[
-                styles.input,
-                {
-                  borderColor: ui.border,
-                  backgroundColor: ui.surface2,
-                  color: ui.text,
-                },
-              ]}
+            <DateTimePickerField
+              label="Statement Due Date"
+              value={createStatementDate ? new Date(createStatementDate) : new Date()}
+              onChange={(date) => setCreateStatementDate(date.toISOString().split("T")[0])}
+              ui={ui}
             />
 
-            <ThemedText type="defaultSemiBold">Payment Due Date</ThemedText>
-            <TextInput
-              value={createPaymentDate}
-              onChangeText={setCreatePaymentDate}
-              placeholder="Day of month or YYYY-MM-DD"
-              placeholderTextColor={ui.mutedText}
-              style={[
-                styles.input,
-                {
-                  borderColor: ui.border,
-                  backgroundColor: ui.surface2,
-                  color: ui.text,
-                },
-              ]}
+            <DateTimePickerField
+              label="Payment Due Date"
+              value={createPaymentDate ? new Date(createPaymentDate) : new Date()}
+              onChange={(date) => setCreatePaymentDate(date.toISOString().split("T")[0])}
+              ui={ui}
             />
 
             <Pressable
@@ -1559,42 +1542,20 @@ export default function AccountsScreen() {
               />
             </View>
 
-            {/* Simple Text Inputs for Dates for now */}
-            <View style={{ gap: 6 }}>
-              <ThemedText type="defaultSemiBold">Statement Due Date</ThemedText>
-              <TextInput
-                value={editStatementDate}
-                onChangeText={setEditStatementDate}
-                placeholder="Day of month or YYYY-MM-DD"
-                placeholderTextColor={ui.mutedText}
-                style={[
-                  styles.input,
-                  {
-                    borderColor: ui.border,
-                    backgroundColor: ui.surface2,
-                    color: ui.text,
-                  },
-                ]}
-              />
-            </View>
+            {/* Native Date Pickers */}
+            <DateTimePickerField
+              label="Statement Due Date"
+              value={editStatementDate ? new Date(editStatementDate) : new Date()}
+              onChange={(date) => setEditStatementDate(date.toISOString().split("T")[0])}
+              ui={ui}
+            />
 
-            <View style={{ gap: 6 }}>
-              <ThemedText type="defaultSemiBold">Payment Due Date</ThemedText>
-              <TextInput
-                value={editPaymentDate}
-                onChangeText={setEditPaymentDate}
-                placeholder="Day of month or YYYY-MM-DD"
-                placeholderTextColor={ui.mutedText}
-                style={[
-                  styles.input,
-                  {
-                    borderColor: ui.border,
-                    backgroundColor: ui.surface2,
-                    color: ui.text,
-                  },
-                ]}
-              />
-            </View>
+            <DateTimePickerField
+              label="Payment Due Date"
+              value={editPaymentDate ? new Date(editPaymentDate) : new Date()}
+              onChange={(date) => setEditPaymentDate(date.toISOString().split("T")[0])}
+              ui={ui}
+            />
 
             <Pressable
               onPress={updateAccount}

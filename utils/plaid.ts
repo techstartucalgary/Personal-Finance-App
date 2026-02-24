@@ -114,6 +114,9 @@ export type PlaidTransaction = {
     institution_name: string | null;
     transaction_id: string;
     account_id: string;
+    account_name: string | null;
+    account_mask: string | null;
+    account_subtype: string | null;
     name: string;
     merchant_name: string | null;
     amount: number; // positive = money out, negative = money in (Plaid convention)

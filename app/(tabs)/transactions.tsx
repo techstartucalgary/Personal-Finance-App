@@ -36,8 +36,8 @@ import {
   listExpenses,
   updateExpense,
 } from "@/utils/expenses";
-import type { PlaidTransaction } from "@/utils/plaid";
-import { getPlaidTransactions } from "@/utils/plaid";
+import type { PlaidAccount, PlaidTransaction } from "@/utils/plaid";
+import { getPlaidAccounts, getPlaidTransactions } from "@/utils/plaid";
 import {
   createRecurringRule,
   deleteRecurringRule,
@@ -155,13 +155,14 @@ export default function HomeScreen() {
   const [transactionDate, setTransactionDate] = useState(new Date().toISOString().split("T")[0]);
   const [expenses, setExpenses] = useState<ExpenseRow[]>([]);
   const [plaidTransactions, setPlaidTransactions] = useState<PlaidTransaction[]>([]);
+  const [plaidAccounts, setPlaidAccounts] = useState<PlaidAccount[]>([]);
 
   // Tabs and Rules State
   const [activeTab, setActiveTab] = useState<"transactions" | "recurrences">("transactions");
   const [recurringRules, setRecurringRules] = useState<any[]>([]); // Adjust type to RecurringExpenseRule if you import it
   const [editingRule, setEditingRule] = useState<any | null>(null);
 
-  const [filterAccountId, setFilterAccountId] = useState<number | null>(null);
+  const [filterAccountId, setFilterAccountId] = useState<string | number | null>(null);
   const [editingExpense, setEditingExpense] = useState<ExpenseRow | null>(null);
   const [editAmount, setEditAmount] = useState("");
   const [editDescription, setEditDescription] = useState("");
@@ -434,11 +435,14 @@ export default function HomeScreen() {
       loadCategories();
       loadExpenses();
       loadRecurringRules();
-      // Also load Plaid transactions
+      // Also load Plaid transactions and accounts
       if (userId) {
         getPlaidTransactions()
           .then(setPlaidTransactions)
-          .catch((err) => console.error("Error loading Plaid transactions:", err));
+          .catch((err: any) => console.error("Error loading Plaid transactions:", err));
+        getPlaidAccounts()
+          .then(setPlaidAccounts)
+          .catch((err: any) => console.error("Error loading Plaid accounts:", err));
       }
     }, [loadAccounts, loadCategories, loadExpenses, loadRecurringRules, userId]),
   );
@@ -1253,6 +1257,35 @@ export default function HomeScreen() {
               </ThemedText>
             </Pressable>
           ))}
+          {plaidAccounts.map((pa) => {
+            const chipId = `plaid:${pa.account_id}`;
+            const isSelected = filterAccountId === chipId;
+            return (
+              <Pressable
+                key={chipId}
+                onPress={() => setFilterAccountId(chipId)}
+                style={[
+                  styles.chip,
+                  {
+                    backgroundColor: isSelected
+                      ? (isDark ? "#1F6F5B" : "#2A8A6E")
+                      : ui.surface2,
+                    borderColor: isDark ? "rgba(140,242,209,0.3)" : "rgba(31,111,91,0.2)",
+                  },
+                ]}
+              >
+                <ThemedText
+                  style={{
+                    fontSize: 13,
+                    fontWeight: "600",
+                    color: isSelected ? "#FFFFFF" : (isDark ? "#8CF2D1" : "#1F6F5B"),
+                  }}
+                >
+                  {pa.name}{pa.mask ? ` ••${pa.mask}` : ""}
+                </ThemedText>
+              </Pressable>
+            );
+          })}
         </ScrollView>
 
         {activeTab === "transactions" ? (
@@ -1319,71 +1352,95 @@ export default function HomeScreen() {
             )}
 
             {/* Plaid Bank Transactions */}
-            {plaidTransactions.length > 0 && filterAccountId === null && (
+            {plaidTransactions.length > 0 && (filterAccountId === null || (typeof filterAccountId === "string" && filterAccountId.startsWith("plaid:"))) && (
               <>
-                <View style={{ marginTop: 16, marginBottom: 8 }}>
-                  <ThemedText type="defaultSemiBold" style={{ color: ui.mutedText, fontSize: 13, letterSpacing: 0.5 }}>
-                    BANK TRANSACTIONS
-                  </ThemedText>
-                </View>
-                {plaidTransactions.map((tx) => (
-                  <View
-                    key={tx.transaction_id}
-                    style={[
-                      styles.row,
-                      {
-                        borderColor: isDark ? "rgba(140,242,209,0.2)" : "rgba(31,111,91,0.15)",
-                        backgroundColor: ui.surface,
-                      },
-                    ]}
-                  >
-                    <View style={{ flex: 1 }}>
-                      <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-                        <ThemedText type="defaultSemiBold">
-                          {tx.merchant_name || tx.name}
-                        </ThemedText>
-                        {tx.pending && (
-                          <View style={{
-                            backgroundColor: isDark ? "rgba(255,165,0,0.2)" : "rgba(255,165,0,0.15)",
-                            paddingHorizontal: 6,
-                            paddingVertical: 2,
-                            borderRadius: 4,
-                          }}>
-                            <ThemedText style={{ fontSize: 10, color: "#FF9500", fontWeight: "600" }}>
-                              PENDING
-                            </ThemedText>
-                          </View>
-                        )}
-                      </View>
-                      <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 2 }}>
-                        <ThemedText type="default" style={{ color: ui.mutedText, fontSize: 13 }}>
-                          {formatDate(tx.date)}
-                        </ThemedText>
+                {filterAccountId === null && (
+                  <View style={{ marginTop: 16, marginBottom: 8 }}>
+                    <ThemedText type="defaultSemiBold" style={{ color: ui.mutedText, fontSize: 13, letterSpacing: 0.5 }}>
+                      BANK TRANSACTIONS
+                    </ThemedText>
+                  </View>
+                )}
+                {plaidTransactions
+                  .filter((t) => {
+                    if (filterAccountId === null) return true;
+                    if (typeof filterAccountId === "string" && filterAccountId.startsWith("plaid:")) {
+                      return t.account_id === filterAccountId.replace("plaid:", "");
+                    }
+                    return false;
+                  })
+                  .map((tx) => (
+                    <View
+                      key={tx.transaction_id}
+                      style={[
+                        styles.row,
+                        {
+                          borderColor: isDark ? "rgba(140,242,209,0.2)" : "rgba(31,111,91,0.15)",
+                          backgroundColor: ui.surface,
+                        },
+                      ]}
+                    >
+                      <View style={{ flex: 1 }}>
+                        <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                          <ThemedText type="defaultSemiBold">
+                            {tx.merchant_name || tx.name}
+                          </ThemedText>
+                          {tx.pending && (
+                            <View style={{
+                              backgroundColor: isDark ? "rgba(255,165,0,0.2)" : "rgba(255,165,0,0.15)",
+                              paddingHorizontal: 6,
+                              paddingVertical: 2,
+                              borderRadius: 4,
+                            }}>
+                              <ThemedText style={{ fontSize: 10, color: "#FF9500", fontWeight: "600" }}>
+                                PENDING
+                              </ThemedText>
+                            </View>
+                          )}
+                        </View>
+
                         {tx.institution_name && (
                           <ThemedText style={{
-                            fontSize: 11,
+                            fontSize: 10,
                             color: isDark ? "#8CF2D1" : "#1F6F5B",
+                            fontWeight: "700",
+                            letterSpacing: 0.5,
+                            marginTop: 1,
+                          }}>
+                            {tx.institution_name.toUpperCase()}
+                          </ThemedText>
+                        )}
+
+                        <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 2 }}>
+                          <ThemedText type="default" style={{ color: ui.mutedText, fontSize: 13 }}>
+                            {formatDate(tx.date)}
+                          </ThemedText>
+                          <ThemedText style={{
+                            fontSize: 11,
+                            color: ui.mutedText,
                             fontWeight: "500",
                           }}>
-                            {tx.institution_name}
+                            {[
+                              tx.account_name,
+                              tx.account_mask ? `••${tx.account_mask}` : null,
+                            ].filter(Boolean).join(" ")}
+                          </ThemedText>
+                        </View>
+                        {tx.category && tx.category.length > 0 && (
+                          <ThemedText style={{ color: ui.mutedText, fontSize: 12, marginTop: 2 }}>
+                            {tx.category.join(" › ")}
                           </ThemedText>
                         )}
                       </View>
-                      {tx.category && tx.category.length > 0 && (
-                        <ThemedText style={{ color: ui.mutedText, fontSize: 12, marginTop: 2 }}>
-                          {tx.category.join(" › ")}
-                        </ThemedText>
-                      )}
+                      <ThemedText type="defaultSemiBold" style={{
+                        color: tx.amount > 0
+                          ? (isDark ? "#FF6B6B" : "#D32F2F")
+                          : (isDark ? "#69F0AE" : "#2E7D32"),
+                      }}>
+                        {tx.amount > 0 ? "-" : "+"}{formatMoney(Math.abs(tx.amount))}
+                      </ThemedText>
                     </View>
-                    <ThemedText type="defaultSemiBold" style={{
-                      color: tx.amount > 0
-                        ? (isDark ? "#FF6B6B" : "#D32F2F")
-                        : (isDark ? "#69F0AE" : "#2E7D32"),
-                    }}>
-                      {tx.amount > 0 ? "-" : "+"}{formatMoney(Math.abs(tx.amount))}
-                    </ThemedText>
-                  </View>
-                ))}
+                  ))}
               </>
             )}
           </>

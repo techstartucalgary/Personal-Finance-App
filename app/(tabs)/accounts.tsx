@@ -474,32 +474,51 @@ export default function AccountsScreen() {
     });
   };
 
-  const totalBalance = useMemo(
-    () => accounts.reduce((sum, account) => sum + (account.balance ?? 0), 0),
-    [accounts],
-  );
+  const totalBalance = useMemo(() => {
+    const manualTotal = accounts.reduce((sum, account) => {
+      const isLiability = (account.account_type ?? "").toLowerCase() === "credit";
+      const bal = account.balance ?? 0;
+      return isLiability ? sum - bal : sum + bal;
+    }, 0);
 
-  const totalAvailable = useMemo(
-    () =>
-      accounts.reduce((sum, account) => sum + calculateAvailable(account), 0),
-    [accounts, calculateAvailable],
-  );
+    const plaidTotal = plaidAccounts.reduce((sum, pa) => {
+      const type = (pa.type ?? "").toLowerCase();
+      const isLiability = type === "credit" || type === "loan";
+      const bal = pa.balances.current ?? 0;
+      return isLiability ? sum - bal : sum + bal;
+    }, 0);
 
-  const creditCount = useMemo(
-    () =>
-      accounts.filter(
-        (account) => (account.account_type ?? "").toLowerCase() === "credit",
-      ).length,
-    [accounts],
-  );
+    return manualTotal + plaidTotal;
+  }, [accounts, plaidAccounts]);
 
-  const debitCount = useMemo(
-    () =>
-      accounts.filter(
-        (account) => (account.account_type ?? "").toLowerCase() === "debit",
-      ).length,
-    [accounts],
-  );
+  const totalAvailable = useMemo(() => {
+    const manualAvail = accounts.reduce((sum, account) => sum + calculateAvailable(account), 0);
+    const plaidAvail = plaidAccounts.reduce((sum, pa) => {
+      const type = (pa.type ?? "").toLowerCase();
+      const isLiability = type === "credit" || type === "loan";
+      const bal = pa.balances.available ?? pa.balances.current ?? 0;
+      return isLiability ? sum - bal : sum + bal;
+    }, 0);
+    return manualAvail + plaidAvail;
+  }, [accounts, plaidAccounts, calculateAvailable]);
+
+  const assetsCount = useMemo(() => {
+    const manualAssets = accounts.filter(a => (a.account_type ?? "").toLowerCase() !== "credit").length;
+    const plaidAssets = plaidAccounts.filter(pa => {
+      const type = (pa.type ?? "").toLowerCase();
+      return type !== "credit" && type !== "loan";
+    }).length;
+    return manualAssets + plaidAssets;
+  }, [accounts, plaidAccounts]);
+
+  const liabilitiesCount = useMemo(() => {
+    const manualLiabilities = accounts.filter(a => (a.account_type ?? "").toLowerCase() === "credit").length;
+    const plaidLiabilities = plaidAccounts.filter(pa => {
+      const type = (pa.type ?? "").toLowerCase();
+      return type === "credit" || type === "loan";
+    }).length;
+    return manualLiabilities + plaidLiabilities;
+  }, [accounts, plaidAccounts]);
 
   const filteredAccounts = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
@@ -735,7 +754,7 @@ export default function AccountsScreen() {
                   Accounts
                 </ThemedText>
                 <ThemedText style={[styles.statValue, { color: ui.text }]}>
-                  {accounts.length}
+                  {accounts.length + plaidAccounts.length}
                 </ThemedText>
               </View>
               <View
@@ -745,12 +764,12 @@ export default function AccountsScreen() {
                 ]}
               >
                 <ThemedText style={[styles.statLabel, { color: ui.mutedText }]}>
-                  Credit / Debit
+                  Assets / Liabilities
                 </ThemedText>
                 <ThemedText
                   style={[styles.statValueSmall, { color: ui.text }]}
                 >
-                  {creditCount} / {debitCount}
+                  {assetsCount} / {liabilitiesCount}
                 </ThemedText>
               </View>
             </View>

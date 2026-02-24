@@ -33,6 +33,7 @@ import {
   deleteAccount as deleteAccountApi,
   updateAccount as updateAccountApi,
 } from "@/utils/accounts";
+import { parseLocalDate, toLocalISOString } from "@/utils/date";
 import { listGoals } from "@/utils/goals";
 import type { PlaidAccount } from "@/utils/plaid";
 import { exchangePublicToken, getLinkToken, getPlaidAccounts, removePlaidItem } from "@/utils/plaid";
@@ -494,7 +495,9 @@ export default function AccountsScreen() {
     if (!value) return "--/--/--";
     const parsed = new Date(value);
     if (Number.isNaN(parsed.getTime())) return value;
-    return parsed.toLocaleDateString("en-CA", {
+    const userTimezoneOffset = parsed.getTimezoneOffset() * 60000;
+    const adjustedDate = new Date(parsed.getTime() + userTimezoneOffset);
+    return adjustedDate.toLocaleDateString("en-CA", {
       month: "2-digit",
       day: "2-digit",
       year: "2-digit",
@@ -1329,15 +1332,15 @@ export default function AccountsScreen() {
 
             <DateTimePickerField
               label="Statement Due Date"
-              value={createStatementDate ? new Date(createStatementDate) : new Date()}
-              onChange={(date) => setCreateStatementDate(date.toISOString().split("T")[0])}
+              value={parseLocalDate(createStatementDate)}
+              onChange={(date) => setCreateStatementDate(toLocalISOString(date))}
               ui={ui}
             />
 
             <DateTimePickerField
               label="Payment Due Date"
-              value={createPaymentDate ? new Date(createPaymentDate) : new Date()}
-              onChange={(date) => setCreatePaymentDate(date.toISOString().split("T")[0])}
+              value={parseLocalDate(createPaymentDate)}
+              onChange={(date) => setCreatePaymentDate(toLocalISOString(date))}
               ui={ui}
             />
 
@@ -1580,15 +1583,15 @@ export default function AccountsScreen() {
               {/* Native Date Pickers */}
               <DateTimePickerField
                 label="Statement Due Date"
-                value={editStatementDate ? new Date(editStatementDate) : new Date()}
-                onChange={(date) => setEditStatementDate(date.toISOString().split("T")[0])}
+                value={parseLocalDate(editStatementDate)}
+                onChange={(date) => setEditStatementDate(toLocalISOString(date))}
                 ui={ui}
               />
 
               <DateTimePickerField
                 label="Payment Due Date"
-                value={editPaymentDate ? new Date(editPaymentDate) : new Date()}
-                onChange={(date) => setEditPaymentDate(date.toISOString().split("T")[0])}
+                value={parseLocalDate(editPaymentDate)}
+                onChange={(date) => setEditPaymentDate(toLocalISOString(date))}
                 ui={ui}
               />
 

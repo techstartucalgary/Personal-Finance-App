@@ -1,3 +1,4 @@
+import { parseLocalDate } from "@/utils/date";
 import type { PlaidTransaction } from "@/utils/plaid";
 import Feather from "@expo/vector-icons/Feather";
 import React from "react";
@@ -99,7 +100,7 @@ export function TransactionDetailModal({
 
     const formatDate = (val: string | null | undefined) => {
         if (!val) return "";
-        const date = new Date(val);
+        const date = parseLocalDate(val);
         return date.toLocaleDateString("en-US", {
             weekday: "long",
             year: "numeric",

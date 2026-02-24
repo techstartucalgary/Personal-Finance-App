@@ -13,6 +13,7 @@ import {
     getCategorySpending,
     listCategoryBudgets,
 } from "@/utils/categoryBudgets";
+import { parseLocalDate, toLocalISOString } from "@/utils/date";
 import Feather from "@expo/vector-icons/Feather";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { useFocusEffect } from "expo-router";
@@ -487,16 +488,16 @@ export function BudgetsView({ filterAccountId = null, refreshKey = 0, createRequ
                         {/* Start Date */}
                         <DateTimePickerField
                             label="Start Date"
-                            value={startDate ? new Date(startDate) : new Date()}
-                            onChange={(date) => setStartDate(date.toISOString().split("T")[0])}
+                            value={parseLocalDate(startDate)}
+                            onChange={(date) => setStartDate(toLocalISOString(date))}
                             ui={ui}
                         />
 
                         {/* End Date */}
                         <DateTimePickerField
                             label="End Date"
-                            value={endDate ? new Date(endDate) : new Date()}
-                            onChange={(date) => setEndDate(date.toISOString().split("T")[0])}
+                            value={parseLocalDate(endDate)}
+                            onChange={(date) => setEndDate(toLocalISOString(date))}
                             ui={ui}
                         />
 

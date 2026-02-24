@@ -4,6 +4,7 @@ import { DateTimePickerField } from "@/components/ui/DateTimePickerField";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useAuthContext } from "@/hooks/use-auth-context";
 import { listAccounts, type AccountRow } from "@/utils/accounts";
+import { parseLocalDate, toLocalISOString } from "@/utils/date";
 import { createGoal, deleteGoal, editGoal, listGoals } from "@/utils/goals";
 import { getPlaidAccounts } from "@/utils/plaid";
 import Feather from "@expo/vector-icons/Feather";
@@ -434,8 +435,8 @@ export function GoalsView({ filterAccountId = null, refreshKey = 0, createReques
 
                         <DateTimePickerField
                             label="Target Date (Optional)"
-                            value={targetDate ? new Date(targetDate) : new Date()}
-                            onChange={(date) => setTargetDate(date.toISOString().split("T")[0])}
+                            value={parseLocalDate(targetDate)}
+                            onChange={(date) => setTargetDate(toLocalISOString(date))}
                             ui={ui}
                         />
 

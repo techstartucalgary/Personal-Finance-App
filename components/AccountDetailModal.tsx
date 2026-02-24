@@ -1,3 +1,4 @@
+import { parseLocalDate } from "@/utils/date";
 import type { PlaidAccount } from "@/utils/plaid";
 import Feather from "@expo/vector-icons/Feather";
 import React from "react";
@@ -106,11 +107,7 @@ export function AccountDetailModal({
 
     const formatDate = (val: string | null | undefined) => {
         if (!val) return "";
-        const date = new Date(val);
-        // Correct for timezone offset to ensure the selected date is displayed securely
-        const userTimezoneOffset = date.getTimezoneOffset() * 60000;
-        const adjustedDate = new Date(date.getTime() + userTimezoneOffset);
-
+        const adjustedDate = parseLocalDate(val);
         return adjustedDate.toLocaleDateString("en-US", {
             year: "numeric",
             month: "short",

@@ -35,6 +35,7 @@ import {
   listCategories,
   listSubcategories,
 } from "@/utils/categories";
+import { parseLocalDate, toLocalISOString } from "@/utils/date";
 import {
   addExpense,
   deleteExpense,
@@ -158,7 +159,7 @@ export default function HomeScreen() {
   const [editFrequencyModalOpen, setEditFrequencyModalOpen] = useState(false);
   const [isAddEndsOnEnabled, setIsAddEndsOnEnabled] = useState(false);
   const [addRuleEndsOn, setAddRuleEndsOn] = useState("");
-  const [transactionDate, setTransactionDate] = useState(new Date().toISOString().split("T")[0]);
+  const [transactionDate, setTransactionDate] = useState(toLocalISOString(new Date()));
   const [expenses, setExpenses] = useState<ExpenseRow[]>([]);
   const [plaidTransactions, setPlaidTransactions] = useState<PlaidTransaction[]>([]);
   const [plaidAccounts, setPlaidAccounts] = useState<PlaidAccount[]>([]);
@@ -203,11 +204,21 @@ export default function HomeScreen() {
     if (parts.length === 3) {
       const [y, m, d] = parts.map(Number);
       const local = new Date(y, m - 1, d);
-      if (!Number.isNaN(local.getTime())) return local.toLocaleDateString();
+      if (!Number.isNaN(local.getTime())) {
+        return local.toLocaleDateString("en-US", {
+          year: "numeric",
+          month: "short",
+          day: "numeric",
+        });
+      }
     }
     const parsed = new Date(value);
     if (Number.isNaN(parsed.getTime())) return value;
-    return parsed.toLocaleDateString();
+    return parsed.toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
   }, []);
 
   const formatMoney = useCallback((value?: number | null) => {
@@ -265,7 +276,7 @@ export default function HomeScreen() {
       else if (recurringFrequency === "Weekly") nextDate.setDate(nextDate.getDate() + 7);
       else if (recurringFrequency === "Monthly") nextDate.setMonth(nextDate.getMonth() + 1);
       else if (recurringFrequency === "Yearly") nextDate.setFullYear(nextDate.getFullYear() + 1);
-      setAddRuleNextRunDate(nextDate.toISOString().split("T")[0]);
+      setAddRuleNextRunDate(toLocalISOString(nextDate));
     } else {
       setAddRuleNextRunDate("");
     }
@@ -280,7 +291,7 @@ export default function HomeScreen() {
       else if (editTransactionRecurringFrequency === "Weekly") nextDate.setDate(nextDate.getDate() + 7);
       else if (editTransactionRecurringFrequency === "Monthly") nextDate.setMonth(nextDate.getMonth() + 1);
       else if (editTransactionRecurringFrequency === "Yearly") nextDate.setFullYear(nextDate.getFullYear() + 1);
-      setEditTransactionRuleNextRunDate(nextDate.toISOString().split("T")[0]);
+      setEditTransactionRuleNextRunDate(toLocalISOString(nextDate));
     }
   }, [editTransactionIsRecurring, editTransactionRecurringFrequency, editingExpense]);
 
@@ -695,7 +706,7 @@ export default function HomeScreen() {
           else if (recurringFrequency === "Weekly") fallbackDate.setDate(fallbackDate.getDate() + 7);
           else if (recurringFrequency === "Monthly") fallbackDate.setMonth(fallbackDate.getMonth() + 1);
           else if (recurringFrequency === "Yearly") fallbackDate.setFullYear(fallbackDate.getFullYear() + 1);
-          finalNextRunDate = fallbackDate.toISOString().split("T")[0];
+          finalNextRunDate = toLocalISOString(fallbackDate);
         }
 
         const ruleName = description.trim() || `${selectedCategory.category_name} expense`;
@@ -721,7 +732,7 @@ export default function HomeScreen() {
         description: description.trim().length ? description.trim() : null,
         expense_categoryid: selectedCategory.id,
         subcategory_id: selectedSubcategory ? selectedSubcategory.id : null,
-        transaction_date: transactionDate || new Date().toISOString().split("T")[0],
+        transaction_date: transactionDate || toLocalISOString(new Date()),
         recurring_rule_id,
       });
 
@@ -748,7 +759,7 @@ export default function HomeScreen() {
       setIsRecurring(false);
       setRecurringFrequency("Monthly");
       setAddRuleEndsOn("");
-      setTransactionDate(new Date().toISOString().split("T")[0]);
+      setTransactionDate(toLocalISOString(new Date()));
       setAddModalOpen(false);
       await loadExpenses();
       await loadAccounts();
@@ -810,7 +821,7 @@ export default function HomeScreen() {
           else if (editTransactionRecurringFrequency === "Weekly") fallbackDate.setDate(fallbackDate.getDate() + 7);
           else if (editTransactionRecurringFrequency === "Monthly") fallbackDate.setMonth(fallbackDate.getMonth() + 1);
           else if (editTransactionRecurringFrequency === "Yearly") fallbackDate.setFullYear(fallbackDate.getFullYear() + 1);
-          finalNextRunDate = fallbackDate.toISOString().split("T")[0];
+          finalNextRunDate = toLocalISOString(fallbackDate);
         }
 
         const ruleName = editDescription.trim() || `${editSelectedCategory.category_name} expense`;
@@ -1314,7 +1325,7 @@ export default function HomeScreen() {
                         })()}
                       </View>
                       <ThemedText type="default">
-                        {formatDate(expense.created_at)}
+                        {formatDate(expense.transaction_date || expense.created_at)}
                       </ThemedText>
                     </View>
                     <ThemedText type="defaultSemiBold">
@@ -1533,8 +1544,8 @@ export default function HomeScreen() {
 
             <DateTimePickerField
               label="Transaction Date"
-              value={new Date(transactionDate)}
-              onChange={(date) => setTransactionDate(date.toISOString().split("T")[0])}
+              value={parseLocalDate(transactionDate)}
+              onChange={(date) => setTransactionDate(toLocalISOString(date))}
               ui={ui}
             />
 
@@ -1635,8 +1646,8 @@ export default function HomeScreen() {
             {isRecurring && (
               <DateTimePickerField
                 label="Ends On (Optional)"
-                value={addRuleEndsOn ? new Date(addRuleEndsOn) : new Date()}
-                onChange={(date) => setAddRuleEndsOn(date.toISOString().split("T")[0])}
+                value={parseLocalDate(addRuleEndsOn)}
+                onChange={(date) => setAddRuleEndsOn(toLocalISOString(date))}
                 ui={ui}
               />
             )}
@@ -1644,8 +1655,8 @@ export default function HomeScreen() {
             {isRecurring && (
               <DateTimePickerField
                 label="Next Run Date"
-                value={addRuleNextRunDate ? new Date(addRuleNextRunDate) : new Date()}
-                onChange={(date) => setAddRuleNextRunDate(date.toISOString().split("T")[0])}
+                value={parseLocalDate(addRuleNextRunDate)}
+                onChange={(date) => setAddRuleNextRunDate(toLocalISOString(date))}
                 ui={ui}
               />
             )}
@@ -2048,8 +2059,8 @@ export default function HomeScreen() {
 
               <DateTimePickerField
                 label="Transaction Date"
-                value={editTransactionDate ? new Date(editTransactionDate) : new Date()}
-                onChange={(date) => setEditTransactionDate(date.toISOString().split("T")[0])}
+                value={parseLocalDate(editTransactionDate)}
+                onChange={(date) => setEditTransactionDate(toLocalISOString(date))}
                 ui={ui}
               />
 
@@ -2146,8 +2157,8 @@ export default function HomeScreen() {
               {editTransactionIsRecurring && (
                 <DateTimePickerField
                   label="Next Run Date"
-                  value={editTransactionRuleNextRunDate ? new Date(editTransactionRuleNextRunDate) : new Date()}
-                  onChange={(date) => setEditTransactionRuleNextRunDate(date.toISOString().split("T")[0])}
+                  value={parseLocalDate(editTransactionRuleNextRunDate)}
+                  onChange={(date) => setEditTransactionRuleNextRunDate(toLocalISOString(date))}
                   ui={ui}
                 />
               )}
@@ -2155,8 +2166,8 @@ export default function HomeScreen() {
               {editTransactionIsRecurring && (
                 <DateTimePickerField
                   label="Ends On (Optional)"
-                  value={editTransactionRuleEndsOn ? new Date(editTransactionRuleEndsOn) : new Date()}
-                  onChange={(date) => setEditTransactionRuleEndsOn(date.toISOString().split("T")[0])}
+                  value={parseLocalDate(editTransactionRuleEndsOn)}
+                  onChange={(date) => setEditTransactionRuleEndsOn(toLocalISOString(date))}
                   ui={ui}
                 />
               )}
@@ -2620,15 +2631,15 @@ export default function HomeScreen() {
 
               <DateTimePickerField
                 label="Ends On (Optional)"
-                value={editRuleEndsOn ? new Date(editRuleEndsOn) : new Date()}
-                onChange={(date) => setEditRuleEndsOn(date.toISOString().split("T")[0])}
+                value={parseLocalDate(editRuleEndsOn)}
+                onChange={(date) => setEditRuleEndsOn(toLocalISOString(date))}
                 ui={ui}
               />
 
               <DateTimePickerField
                 label="Next Run Date"
-                value={editRuleNextRunDate ? new Date(editRuleNextRunDate) : new Date()}
-                onChange={(date) => setEditRuleNextRunDate(date.toISOString().split("T")[0])}
+                value={parseLocalDate(editRuleNextRunDate)}
+                onChange={(date) => setEditRuleNextRunDate(toLocalISOString(date))}
                 ui={ui}
               />
             </View>

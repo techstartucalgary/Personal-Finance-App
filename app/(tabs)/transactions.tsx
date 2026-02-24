@@ -150,10 +150,11 @@ export default function HomeScreen() {
   const [editFrequencyModalOpen, setEditFrequencyModalOpen] = useState(false);
   const [isAddEndsOnEnabled, setIsAddEndsOnEnabled] = useState(false);
   const [addRuleEndsOn, setAddRuleEndsOn] = useState("");
+  const [transactionDate, setTransactionDate] = useState(new Date().toISOString().split("T")[0]);
   const [expenses, setExpenses] = useState<ExpenseRow[]>([]);
 
   // Tabs and Rules State
-  const [activeTab, setActiveTab] = useState<"transactions" | "subscriptions">("transactions");
+  const [activeTab, setActiveTab] = useState<"transactions" | "recurrences">("transactions");
   const [recurringRules, setRecurringRules] = useState<any[]>([]); // Adjust type to RecurringExpenseRule if you import it
   const [editingRule, setEditingRule] = useState<any | null>(null);
 
@@ -166,6 +167,7 @@ export default function HomeScreen() {
   const [editTransactionRuleEndsOn, setEditTransactionRuleEndsOn] = useState("");
   const [addRuleNextRunDate, setAddRuleNextRunDate] = useState("");
   const [editTransactionRuleNextRunDate, setEditTransactionRuleNextRunDate] = useState("");
+  const [editTransactionDate, setEditTransactionDate] = useState("");
 
   // Edit Subscription State
   const [editRuleName, setEditRuleName] = useState("");
@@ -350,6 +352,7 @@ export default function HomeScreen() {
     if (editingExpense) {
       setEditAmount(editingExpense.amount?.toString() ?? "");
       setEditDescription(editingExpense.description ?? "");
+      setEditTransactionDate(editingExpense.transaction_date || "");
 
       const rule = editingExpense.recurring_rule_id ? recurringRules.find((r) => r.id === editingExpense.recurring_rule_id) : null;
       if (rule) {
@@ -696,7 +699,7 @@ export default function HomeScreen() {
         description: description.trim().length ? description.trim() : null,
         expense_categoryid: selectedCategory.id,
         subcategory_id: selectedSubcategory ? selectedSubcategory.id : null,
-        transaction_date: new Date().toISOString(),
+        transaction_date: transactionDate || new Date().toISOString().split("T")[0],
         recurring_rule_id,
       });
 
@@ -723,6 +726,7 @@ export default function HomeScreen() {
       setIsRecurring(false);
       setRecurringFrequency("Monthly");
       setAddRuleEndsOn("");
+      setTransactionDate(new Date().toISOString().split("T")[0]);
       setAddModalOpen(false);
       await loadExpenses();
       await loadAccounts();
@@ -805,8 +809,8 @@ export default function HomeScreen() {
         // Need to delete the existing rule
         const confirmed = await new Promise<boolean>((resolve) => {
           Alert.alert(
-            "Remove Recurring?",
-            "This will cancel all future transactions for this subscription. Are you sure?",
+            "Remove recurring transaction?",
+            "This will stop this transaction from recurring. Are you sure?",
             [
               { text: "Cancel", style: "cancel", onPress: () => resolve(false) },
               { text: "Remove", style: "destructive", onPress: () => resolve(true) }
@@ -851,6 +855,7 @@ export default function HomeScreen() {
           description: editDescription.trim().length
             ? editDescription.trim()
             : null,
+          transaction_date: editTransactionDate || undefined,
         },
       });
 
@@ -933,6 +938,7 @@ export default function HomeScreen() {
     editTransactionRecurringFrequency,
     editTransactionRuleEndsOn,
     editTransactionRuleNextRunDate,
+    editTransactionDate,
     applyTransactionToBalance,
     loadExpenses,
     loadAccounts,
@@ -1042,7 +1048,7 @@ export default function HomeScreen() {
   const handleDeleteRule = useCallback((ruleId: number) => {
     if (!userId) return;
 
-    Alert.alert("Delete Subscription?", "This action will permanently delete this recurring rule.", [
+    Alert.alert("Delete Recurrence?", "This action will permanently delete this recurring rule.", [
       { text: "Cancel", style: "cancel" },
       {
         text: "Delete",
@@ -1054,7 +1060,7 @@ export default function HomeScreen() {
             await loadRecurringRules();
           } catch (error) {
             console.error("Error deleting rule:", error);
-            Alert.alert("Error", "Could not delete this subscription.");
+            Alert.alert("Error", "Could not delete this recurrence.");
           } finally {
             setIsLoading(false);
           }
@@ -1108,7 +1114,7 @@ export default function HomeScreen() {
       await loadRecurringRules();
     } catch (error) {
       console.error("Error updating rule:", error);
-      Alert.alert("Error", "Could not update the subscription.");
+      Alert.alert("Error", "Could not update the recurrence.");
     } finally {
       setIsLoading(false);
     }
@@ -1179,25 +1185,25 @@ export default function HomeScreen() {
               type="defaultSemiBold"
               style={{ opacity: activeTab === "transactions" ? 1 : 0.6 }}
             >
-              Log
+              Transactions
             </ThemedText>
           </Pressable>
           <Pressable
-            onPress={() => setActiveTab("subscriptions")}
+            onPress={() => setActiveTab("recurrences")}
             style={[
               styles.tab,
-              activeTab === "subscriptions" && {
+              activeTab === "recurrences" && {
                 backgroundColor: ui.surface,
                 borderColor: ui.border,
               },
-              activeTab === "subscriptions" && styles.activeTab,
+              activeTab === "recurrences" && styles.activeTab,
             ]}
           >
             <ThemedText
               type="defaultSemiBold"
-              style={{ opacity: activeTab === "subscriptions" ? 1 : 0.6 }}
+              style={{ opacity: activeTab === "recurrences" ? 1 : 0.6 }}
             >
-              Subscriptions
+              Recurring
             </ThemedText>
           </Pressable>
         </View>
@@ -1323,10 +1329,10 @@ export default function HomeScreen() {
               { borderColor: ui.border, backgroundColor: ui.surface2 },
             ]}
           >
-            <ThemedText type="defaultSemiBold">Your Subscriptions</ThemedText>
+            <ThemedText type="defaultSemiBold">Your Recurrences</ThemedText>
             {recurringRules.length === 0 ? (
               <ThemedText>
-                {isLoading ? "Loading…" : "No subscriptions found."}
+                {isLoading ? "Loading…" : "No recurrences found."}
               </ThemedText>
             ) : (
               recurringRules.map((rule) => (
@@ -1437,6 +1443,24 @@ export default function HomeScreen() {
                   {selectedAccount?.account_name ?? "Select an account"}
                 </ThemedText>
               </Pressable>
+            </View>
+
+            <View style={styles.fieldGroup}>
+              <ThemedText type="defaultSemiBold">Transaction Date</ThemedText>
+              <TextInput
+                value={transactionDate}
+                onChangeText={setTransactionDate}
+                placeholder="YYYY-MM-DD"
+                placeholderTextColor={ui.mutedText}
+                style={[
+                  styles.input,
+                  {
+                    borderColor: ui.border,
+                    backgroundColor: ui.surface,
+                    color: ui.text,
+                  },
+                ]}
+              />
             </View>
 
             <View style={styles.fieldGroup}>
@@ -1947,6 +1971,24 @@ export default function HomeScreen() {
                   {editSelectedAccount?.account_name ?? "Select an account"}
                 </ThemedText>
               </Pressable>
+            </View>
+
+            <View style={{ gap: 6 }}>
+              <ThemedText type="defaultSemiBold">Transaction Date</ThemedText>
+              <TextInput
+                value={editTransactionDate}
+                onChangeText={setEditTransactionDate}
+                placeholder="YYYY-MM-DD"
+                placeholderTextColor={ui.mutedText}
+                style={[
+                  styles.input,
+                  {
+                    borderColor: ui.border,
+                    backgroundColor: ui.surface,
+                    color: ui.text,
+                  },
+                ]}
+              />
             </View>
 
             <View style={{ gap: 6 }}>

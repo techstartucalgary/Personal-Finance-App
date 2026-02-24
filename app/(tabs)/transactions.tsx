@@ -169,7 +169,7 @@ export default function HomeScreen() {
   const [editTransactionRuleNextRunDate, setEditTransactionRuleNextRunDate] = useState("");
   const [editTransactionDate, setEditTransactionDate] = useState("");
 
-  // Edit Subscription State
+  // Edit Recurrence State
   const [editRuleName, setEditRuleName] = useState("");
   const [editRuleAmount, setEditRuleAmount] = useState("");
   const [editRuleFrequency, setEditRuleFrequency] = useState("Monthly");
@@ -1058,6 +1058,7 @@ export default function HomeScreen() {
           try {
             await deleteRecurringRule({ id: ruleId, profile_id: userId });
             await loadRecurringRules();
+            setEditingRule(null);
           } catch (error) {
             console.error("Error deleting rule:", error);
             Alert.alert("Error", "Could not delete this recurrence.");
@@ -1069,25 +1070,9 @@ export default function HomeScreen() {
     ]);
   }, [userId, loadRecurringRules]);
 
-  const handleToggleRuleStatus = useCallback(async (rule: any) => {
-    if (!userId) return;
-    setIsLoading(true);
-    try {
-      await updateRecurringRule({
-        id: rule.id,
-        profile_id: userId,
-        update: { is_active: !rule.is_active }
-      });
-      await loadRecurringRules();
-    } catch (error) {
-      console.error("Error toggling rule:", error);
-      Alert.alert("Error", "Could not update rule status.");
-    } finally {
-      setIsLoading(false);
-    }
-  }, [userId, loadRecurringRules]);
 
-  const handleSaveRuleEdit = useCallback(async () => {
+
+  const handleSaveRuleEdit = useCallback(async (statusOverride?: boolean) => {
     if (!userId || !editingRule) return;
 
     if (!editRuleAmount || isNaN(parseFloat(editRuleAmount))) {
@@ -1108,6 +1093,7 @@ export default function HomeScreen() {
           next_run_date: editRuleNextRunDate.trim() ? editRuleNextRunDate.trim() : undefined,
           expense_categoryid: editRuleSelectedCategory?.id || undefined,
           subcategory_id: editRuleSelectedSubcategory?.id || undefined,
+          is_active: statusOverride !== undefined ? statusOverride : editingRule.is_active,
         }
       });
       setEditingRule(null);
@@ -1208,60 +1194,61 @@ export default function HomeScreen() {
           </Pressable>
         </View>
 
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ gap: 8, paddingVertical: 8 }}
+        >
+          <Pressable
+            onPress={() => setFilterAccountId(null)}
+            style={[
+              styles.chip,
+              {
+                backgroundColor:
+                  filterAccountId === null ? ui.text : ui.surface2,
+                borderColor: ui.border,
+              },
+            ]}
+          >
+            <ThemedText
+              style={{
+                fontSize: 13,
+                fontWeight: "600",
+                color: filterAccountId === null ? ui.surface : ui.text,
+              }}
+            >
+              All
+            </ThemedText>
+          </Pressable>
+          {accounts.map((acct) => (
+            <Pressable
+              key={acct.id}
+              onPress={() => setFilterAccountId(acct.id)}
+              style={[
+                styles.chip,
+                {
+                  backgroundColor:
+                    filterAccountId === acct.id ? ui.text : ui.surface2,
+                  borderColor: ui.border,
+                },
+              ]}
+            >
+              <ThemedText
+                style={{
+                  fontSize: 13,
+                  fontWeight: "600",
+                  color: filterAccountId === acct.id ? ui.surface : ui.text,
+                }}
+              >
+                {acct.account_name ?? "Account"}
+              </ThemedText>
+            </Pressable>
+          ))}
+        </ScrollView>
+
         {activeTab === "transactions" ? (
           <>
-            {/* Account filter chips */}
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ gap: 8, paddingVertical: 8 }}
-            >
-              <Pressable
-                onPress={() => setFilterAccountId(null)}
-                style={[
-                  styles.chip,
-                  {
-                    backgroundColor:
-                      filterAccountId === null ? ui.text : ui.surface2,
-                    borderColor: ui.border,
-                  },
-                ]}
-              >
-                <ThemedText
-                  style={{
-                    fontSize: 13,
-                    fontWeight: "600",
-                    color: filterAccountId === null ? ui.surface : ui.text,
-                  }}
-                >
-                  All
-                </ThemedText>
-              </Pressable>
-              {accounts.map((acct) => (
-                <Pressable
-                  key={acct.id}
-                  onPress={() => setFilterAccountId(acct.id)}
-                  style={[
-                    styles.chip,
-                    {
-                      backgroundColor:
-                        filterAccountId === acct.id ? ui.text : ui.surface2,
-                      borderColor: ui.border,
-                    },
-                  ]}
-                >
-                  <ThemedText
-                    style={{
-                      fontSize: 13,
-                      fontWeight: "600",
-                      color: filterAccountId === acct.id ? ui.surface : ui.text,
-                    }}
-                  >
-                    {acct.account_name ?? "Account"}
-                  </ThemedText>
-                </Pressable>
-              ))}
-            </ScrollView>
+
 
             {expenses.filter(
               (e) => filterAccountId === null || e.account_id === filterAccountId,
@@ -1323,19 +1310,18 @@ export default function HomeScreen() {
             )}
           </>
         ) : (
-          <View
-            style={[
-              styles.card,
-              { borderColor: ui.border, backgroundColor: ui.surface2 },
-            ]}
-          >
-            <ThemedText type="defaultSemiBold">Your Recurrences</ThemedText>
-            {recurringRules.length === 0 ? (
-              <ThemedText>
-                {isLoading ? "Loading…" : "No recurrences found."}
-              </ThemedText>
-            ) : (
-              recurringRules.map((rule) => (
+          recurringRules
+            .filter((r) => filterAccountId === null || r.account_id === filterAccountId)
+            .sort((a, b) => (a.is_active === b.is_active ? 0 : a.is_active ? -1 : 1))
+            .length === 0 ? (
+            <ThemedText style={{ padding: 16 }}>
+              {isLoading ? "Loading…" : "No recurrences found."}
+            </ThemedText>
+          ) : (
+            recurringRules
+              .filter((r) => filterAccountId === null || r.account_id === filterAccountId)
+              .sort((a, b) => (a.is_active === b.is_active ? 0 : a.is_active ? -1 : 1))
+              .map((rule) => (
                 <Pressable
                   key={rule.id}
                   onPress={() => setEditingRule(rule)}
@@ -1367,23 +1353,10 @@ export default function HomeScreen() {
                     <ThemedText type="defaultSemiBold">
                       {formatMoney(rule.amount ?? 0)}
                     </ThemedText>
-                    <View style={{ flexDirection: "row", gap: 12 }}>
-                      <Pressable onPress={() => handleToggleRuleStatus(rule)}>
-                        <ThemedText style={{ color: ui.text, fontWeight: "600", fontSize: 13 }}>
-                          {rule.is_active ? "Pause" : "Resume"}
-                        </ThemedText>
-                      </Pressable>
-                      <Pressable onPress={() => handleDeleteRule(rule.id)}>
-                        <ThemedText style={{ color: "#FF3B30", fontWeight: "600", fontSize: 13 }}>
-                          Delete
-                        </ThemedText>
-                      </Pressable>
-                    </View>
                   </View>
                 </Pressable>
               ))
-            )}
-          </View>
+          )
         )}
       </ScrollView>
 
@@ -2471,7 +2444,7 @@ export default function HomeScreen() {
         </ThemedView>
       </Modal>
 
-      {/* Edit Subscription Modal */}
+      {/* Edit Recurrance Modal */}
       <Modal
         visible={!!editingRule}
         animationType="slide"
@@ -2494,140 +2467,171 @@ export default function HomeScreen() {
               marginBottom: 16,
             }}
           >
-            <ThemedText type="title">Edit Subscription</ThemedText>
+            <ThemedText type="title">Edit Recurrance</ThemedText>
             <Pressable onPress={() => setEditingRule(null)}>
               <ThemedText style={{ color: "#007AFF" }}>Cancel</ThemedText>
             </Pressable>
           </View>
 
-          <View style={{ gap: 16 }}>
-            <View style={{ gap: 6 }}>
-              <ThemedText type="defaultSemiBold">Description</ThemedText>
-              <TextInput
-                style={[
-                  styles.input,
-                  { borderColor: ui.border, color: ui.text, backgroundColor: ui.surface2 },
-                ]}
-                value={editRuleName}
-                onChangeText={setEditRuleName}
-                placeholder="ex. Netflix"
-                placeholderTextColor={ui.mutedText}
-              />
-            </View>
-
-            <View style={{ gap: 6 }}>
-              <ThemedText type="defaultSemiBold">Amount</ThemedText>
-              <TextInput
-                style={[
-                  styles.input,
-                  { borderColor: ui.border, color: ui.text, backgroundColor: ui.surface2 },
-                ]}
-                value={editRuleAmount}
-                onChangeText={setEditRuleAmount}
-                placeholder="0.00"
-                keyboardType="decimal-pad"
-                placeholderTextColor={ui.mutedText}
-              />
-            </View>
-
-            <View style={{ gap: 6 }}>
-              <ThemedText type="defaultSemiBold">Category</ThemedText>
-              <Pressable
-                onPress={() => setEditRuleCategoryModalOpen(true)}
-                style={[
-                  styles.dropdownButton,
-                  { borderColor: ui.border, backgroundColor: ui.surface2 },
-                ]}
-              >
-                <ThemedText>
-                  {editRuleSelectedCategory?.category_name ?? "Select Category"}
-                </ThemedText>
-              </Pressable>
-            </View>
-
-            {editRuleSelectedCategory && (
+          <ScrollView contentContainerStyle={{ gap: 16, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
+            <View style={{ gap: 16 }}>
               <View style={{ gap: 6 }}>
-                <ThemedText type="defaultSemiBold">Subcategory</ThemedText>
+                <ThemedText type="defaultSemiBold">Description</ThemedText>
+                <TextInput
+                  style={[
+                    styles.input,
+                    { borderColor: ui.border, color: ui.text, backgroundColor: ui.surface2 },
+                  ]}
+                  value={editRuleName}
+                  onChangeText={setEditRuleName}
+                  placeholder="ex. Netflix"
+                  placeholderTextColor={ui.mutedText}
+                />
+              </View>
+
+              <View style={{ gap: 6 }}>
+                <ThemedText type="defaultSemiBold">Amount</ThemedText>
+                <TextInput
+                  style={[
+                    styles.input,
+                    { borderColor: ui.border, color: ui.text, backgroundColor: ui.surface2 },
+                  ]}
+                  value={editRuleAmount}
+                  onChangeText={setEditRuleAmount}
+                  placeholder="0.00"
+                  keyboardType="decimal-pad"
+                  placeholderTextColor={ui.mutedText}
+                />
+              </View>
+
+              <View style={{ gap: 6 }}>
+                <ThemedText type="defaultSemiBold">Category</ThemedText>
                 <Pressable
-                  onPress={() => setEditRuleSubcategoryModalOpen(true)}
+                  onPress={() => setEditRuleCategoryModalOpen(true)}
                   style={[
                     styles.dropdownButton,
                     { borderColor: ui.border, backgroundColor: ui.surface2 },
                   ]}
                 >
                   <ThemedText>
-                    {editRuleSelectedSubcategory?.category_name ?? "None (Optional)"}
+                    {editRuleSelectedCategory?.category_name ?? "Select Category"}
                   </ThemedText>
                 </Pressable>
               </View>
-            )}
 
-            <View style={{ gap: 6 }}>
-              <ThemedText type="defaultSemiBold">Frequency</ThemedText>
-              <Pressable
-                onPress={() => setEditRuleFrequencyModalOpen(true)}
-                style={[
-                  styles.dropdownButton,
-                  { borderColor: ui.border, backgroundColor: ui.surface2 },
-                ]}
-              >
-                <ThemedText>{editRuleFrequency}</ThemedText>
-              </Pressable>
+              {editRuleSelectedCategory && (
+                <View style={{ gap: 6 }}>
+                  <ThemedText type="defaultSemiBold">Subcategory</ThemedText>
+                  <Pressable
+                    onPress={() => setEditRuleSubcategoryModalOpen(true)}
+                    style={[
+                      styles.dropdownButton,
+                      { borderColor: ui.border, backgroundColor: ui.surface2 },
+                    ]}
+                  >
+                    <ThemedText>
+                      {editRuleSelectedSubcategory?.category_name ?? "None (Optional)"}
+                    </ThemedText>
+                  </Pressable>
+                </View>
+              )}
+
+              <View style={{ gap: 6 }}>
+                <ThemedText type="defaultSemiBold">Frequency</ThemedText>
+                <Pressable
+                  onPress={() => setEditRuleFrequencyModalOpen(true)}
+                  style={[
+                    styles.dropdownButton,
+                    { borderColor: ui.border, backgroundColor: ui.surface2 },
+                  ]}
+                >
+                  <ThemedText>{editRuleFrequency}</ThemedText>
+                </Pressable>
+              </View>
+
+              <View style={{ gap: 6 }}>
+                <ThemedText type="defaultSemiBold">Ends On (Optional)</ThemedText>
+                <TextInput
+                  value={editRuleEndsOn}
+                  onChangeText={setEditRuleEndsOn}
+                  placeholder="YYYY-MM-DD"
+                  placeholderTextColor={ui.mutedText}
+                  style={[
+                    styles.input,
+                    {
+                      borderColor: ui.border,
+                      backgroundColor: ui.surface2,
+                      color: ui.text,
+                    },
+                  ]}
+                />
+              </View>
+
+              <View style={{ gap: 6 }}>
+                <ThemedText type="defaultSemiBold">Next Run Date</ThemedText>
+                <TextInput
+                  value={editRuleNextRunDate}
+                  onChangeText={setEditRuleNextRunDate}
+                  placeholder="YYYY-MM-DD"
+                  placeholderTextColor={ui.mutedText}
+                  style={[
+                    styles.input,
+                    {
+                      borderColor: ui.border,
+                      backgroundColor: ui.surface2,
+                      color: ui.text,
+                    },
+                  ]}
+                />
+              </View>
             </View>
 
-            <View style={{ gap: 6 }}>
-              <ThemedText type="defaultSemiBold">Ends On (Optional)</ThemedText>
-              <TextInput
-                value={editRuleEndsOn}
-                onChangeText={setEditRuleEndsOn}
-                placeholder="YYYY-MM-DD"
-                placeholderTextColor={ui.mutedText}
-                style={[
-                  styles.input,
-                  {
-                    borderColor: ui.border,
-                    backgroundColor: ui.surface2,
-                    color: ui.text,
-                  },
-                ]}
-              />
-            </View>
+            <Pressable
+              onPress={() => handleSaveRuleEdit()}
+              disabled={isLoading}
+              style={[
+                styles.button,
+                { backgroundColor: ui.text, width: "100%", alignItems: "center" },
+                isLoading && styles.buttonDisabled,
+              ]}
+            >
+              {isLoading ? (
+                <ActivityIndicator color={ui.surface} />
+              ) : (
+                <ThemedText style={{ color: ui.surface, fontWeight: "600" }}>
+                  Save Changes
+                </ThemedText>
+              )}
+            </Pressable>
 
-            <View style={{ gap: 6 }}>
-              <ThemedText type="defaultSemiBold">Next Run Date</ThemedText>
-              <TextInput
-                value={editRuleNextRunDate}
-                onChangeText={setEditRuleNextRunDate}
-                placeholder="YYYY-MM-DD"
-                placeholderTextColor={ui.mutedText}
-                style={[
-                  styles.input,
-                  {
-                    borderColor: ui.border,
-                    backgroundColor: ui.surface2,
-                    color: ui.text,
-                  },
-                ]}
-              />
-            </View>
-          </View>
-
-          <View style={{ flex: 1 }} />
-          <Pressable
-            onPress={handleSaveRuleEdit}
-            style={[
-              styles.button,
-              { backgroundColor: ui.text, width: "100%", alignItems: "center" },
-            ]}
-          >
-            {isLoading ? (
-              <ActivityIndicator color={ui.surface} />
-            ) : (
-              <ThemedText style={{ color: ui.surface, fontWeight: "600" }}>
-                Save Changes
+            <Pressable
+              onPress={() => handleSaveRuleEdit(!editingRule.is_active)}
+              disabled={isLoading}
+              style={[
+                styles.deleteAction,
+                { borderColor: ui.border, backgroundColor: ui.surface, marginTop: 4 },
+                isLoading && styles.buttonDisabled,
+              ]}
+            >
+              <ThemedText style={{ color: ui.text, fontWeight: "600" }}>
+                {editingRule?.is_active ? "Pause" : "Resume"}
               </ThemedText>
-            )}
-          </Pressable>
+            </Pressable>
+
+            <Pressable
+              onPress={() => handleDeleteRule(editingRule?.id)}
+              disabled={isLoading}
+              style={[
+                styles.deleteAction,
+                { borderColor: ui.border, backgroundColor: ui.surface, marginTop: 4 },
+                isLoading && styles.buttonDisabled,
+              ]}
+            >
+              <ThemedText style={{ color: "#FF3B30", fontWeight: "600" }}>
+                Delete Recurrence
+              </ThemedText>
+            </Pressable>
+          </ScrollView>
 
           {/* Subcategory Picker Overlay (Edit Rule) */}
           {editRuleSubcategoryModalOpen && (

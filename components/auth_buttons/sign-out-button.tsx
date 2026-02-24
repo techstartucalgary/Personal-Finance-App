@@ -3,7 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage'
 import React from 'react'
 import { Button } from 'react-native'
 
-async function onSignOutButtonPress() {
+export async function onSignOutButtonPress() {
   try {
     const { error } = await supabase.auth.signOut()
     if (error) throw error

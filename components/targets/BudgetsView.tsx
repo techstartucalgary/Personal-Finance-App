@@ -698,7 +698,7 @@ const styles = StyleSheet.create({
     },
     card: {
         padding: 12,
-        borderRadius: 12,
+        borderRadius: 20,
         borderWidth: StyleSheet.hairlineWidth,
     },
     fab: {

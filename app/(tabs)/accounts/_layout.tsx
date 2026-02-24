@@ -2,7 +2,7 @@ import { IconSymbol } from "@/components/ui/icon-symbol";
 import Feather from "@expo/vector-icons/Feather";
 import { Stack, useRouter } from "expo-router";
 import React from "react";
-import { Platform, Pressable, StyleSheet, useColorScheme, View } from "react-native";
+import { Alert, Platform, Pressable, StyleSheet, useColorScheme, View } from "react-native";
 
 export default function AccountsLayout() {
     const colorScheme = useColorScheme();
@@ -25,12 +25,34 @@ export default function AccountsLayout() {
                     backgroundColor: "transparent",
                 },
                 headerLeft: () => (
-                    <View style={{ flexDirection: "row", gap: 16, marginLeft: -8 }}>
-                        <Pressable hitSlop={10}>
-                            <Feather name="menu" size={26} color={isDark ? "#ffffff" : "#111111"} />
+                    <View style={{ flexDirection: "row", gap: 6 }}>
+                        <Pressable
+                            hitSlop={10}
+                            onPress={() => Alert.alert("Settings", "Settings coming soon!")}
+                            style={({ pressed }) => ({
+                                width: 36,
+                                height: 36,
+                                borderRadius: 18,
+                                alignItems: "center",
+                                justifyContent: "center",
+                                opacity: pressed ? 0.7 : 1,
+                            })}
+                        >
+                            <Feather name="settings" size={20} color={isDark ? "#ffffff" : "#111111"} />
                         </Pressable>
-                        <Pressable hitSlop={10}>
-                            <Feather name="bell" size={24} color={isDark ? "#ffffff" : "#111111"} />
+                        <Pressable
+                            hitSlop={10}
+                            onPress={() => Alert.alert("Notifications", "You have no new notifications.")}
+                            style={({ pressed }) => ({
+                                width: 36,
+                                height: 36,
+                                borderRadius: 18,
+                                alignItems: "center",
+                                justifyContent: "center",
+                                opacity: pressed ? 0.7 : 1,
+                            })}
+                        >
+                            <Feather name="bell" size={20} color={isDark ? "#ffffff" : "#111111"} />
                         </Pressable>
                     </View>
                 ),
@@ -38,15 +60,16 @@ export default function AccountsLayout() {
                     <Pressable
                         onPress={() => router.push("/profile")}
                         hitSlop={10}
-                        style={{
+                        style={({ pressed }) => ({
                             width: 36,
                             height: 36,
                             borderRadius: 18,
                             alignItems: "center",
                             justifyContent: "center",
-                        }}
+                            opacity: pressed ? 0.7 : 1,
+                        })}
                     >
-                        <IconSymbol size={22} name="person.fill" color={isDark ? "#ffffff" : "#111111"} />
+                        <IconSymbol size={25} name="person" color={isDark ? "#ffffff" : "#111111"} />
                     </Pressable>
                 ),
             }}

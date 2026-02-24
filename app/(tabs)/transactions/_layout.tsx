@@ -30,7 +30,7 @@ export default function TransactionsLayout() {
                             justifyContent: "center",
                         }}
                     >
-                        <IconSymbol size={22} name="person.fill" color={isDark ? "#ffffff" : "#111111"} />
+                        <IconSymbol size={25} name="person" color={isDark ? "#ffffff" : "#111111"} />
                     </Pressable>
                 ),
             }}

@@ -21,7 +21,7 @@ export default function TabLayout() {
       labelVisibilityMode="labeled"
     >
       <NativeTabs.Trigger
-        name="index"
+        name="dashboard"
         options={{
           title: "Dashboard",
         }}

@@ -601,6 +601,7 @@ export default function AccountsScreen() {
         }
       >
 
+
         <View
           style={[
             styles.card,
@@ -1609,37 +1610,6 @@ export default function AccountsScreen() {
           </ScrollView>
         </ThemedView>
       </Modal>
-      <View
-        pointerEvents="none"
-        style={[
-          styles.bgDecor,
-          {
-            backgroundColor: isDark ? "#16181C" : "#ECECF1",
-            zIndex: -1,
-            elevation: -1,
-          },
-        ]}
-      >
-        <View
-          style={[
-            styles.bgOrb,
-            styles.bgOrbTop,
-            { backgroundColor: ui.accentSoft },
-          ]}
-        />
-        <View
-          style={[
-            styles.bgOrb,
-            styles.bgOrbBottom,
-            {
-              backgroundColor: isDark
-                ? "rgba(255,255,255,0.08)"
-                : "rgba(255,255,255,0.65)",
-            },
-          ]}
-        />
-        <View style={[styles.bgRing, { borderColor: ui.accentSoft }]} />
-      </View>
     </>
   );
 }
@@ -1652,40 +1622,6 @@ const styles = StyleSheet.create({
     gap: 12,
     position: "relative",
     overflow: "hidden",
-  },
-  bgDecor: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-  },
-  bgOrb: {
-    position: "absolute",
-    borderRadius: 999,
-    opacity: 0.7,
-  },
-  bgOrbTop: {
-    width: 260,
-    height: 260,
-    top: -140,
-    right: -90,
-  },
-  bgOrbBottom: {
-    width: 220,
-    height: 220,
-    bottom: -120,
-    left: -70,
-  },
-  bgRing: {
-    position: "absolute",
-    width: 260,
-    height: 260,
-    borderRadius: 130,
-    borderWidth: 1,
-    top: 180,
-    right: -130,
-    opacity: 0.35,
   },
   scrollContent: {
     gap: 14,

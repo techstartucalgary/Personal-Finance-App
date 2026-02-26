@@ -1,6 +1,12 @@
 import Feather from "@expo/vector-icons/Feather";
-import React, { useMemo, useState } from "react";
-import { Pressable, StyleSheet, View, useColorScheme } from "react-native";
+import React, { useCallback, useMemo, useState } from "react";
+import {
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  View,
+  useColorScheme,
+} from "react-native";
 
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -10,7 +16,9 @@ import { ThemedView } from "@/components/themed-view";
 import { BudgetsView } from "@/components/targets/BudgetsView";
 import { GoalsView } from "@/components/targets/GoalsView";
 import { Tokens } from "@/constants/authTokens";
-import { useRouter } from "expo-router";
+import { useAuthContext } from "@/hooks/use-auth-context";
+import { listAccounts } from "@/utils/accounts";
+import { useFocusEffect, useRouter } from "expo-router";
 
 type Tab = "goals" | "budgets";
 

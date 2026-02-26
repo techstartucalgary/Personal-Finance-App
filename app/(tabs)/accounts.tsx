@@ -1,7 +1,12 @@
 import Feather from "@expo/vector-icons/Feather";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   Alert,
   Animated,
@@ -19,9 +24,9 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useFocusEffect, useRouter } from "expo-router";
 
-import { Tokens } from "@/constants/authTokens";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
+import { Tokens } from "@/constants/authTokens";
 import { useAuthContext } from "@/hooks/use-auth-context";
 import {
   createAccount as createAccountApi,
@@ -536,7 +541,7 @@ export default function AccountsScreen() {
         />
         <View style={[styles.bgRing, { borderColor: ui.accentSoft }]} />
       </View>
-            <ScrollView
+      <ScrollView
         contentContainerStyle={[
           styles.scrollContent,
           { paddingBottom: tabBarHeight + 88 },
@@ -649,9 +654,7 @@ export default function AccountsScreen() {
                 ]}
               >
                 <Feather name="trending-up" size={14} color={ui.accent} />
-                <ThemedText
-                  style={[styles.heroBadgeText, { color: ui.text }]}
-                >
+                <ThemedText style={[styles.heroBadgeText, { color: ui.text }]}>
                   Overview
                 </ThemedText>
               </View>
@@ -692,9 +695,7 @@ export default function AccountsScreen() {
                 <ThemedText style={[styles.statLabel, { color: ui.mutedText }]}>
                   Credit / Debit
                 </ThemedText>
-                <ThemedText
-                  style={[styles.statValueSmall, { color: ui.text }]}
-                >
+                <ThemedText style={[styles.statValueSmall, { color: ui.text }]}>
                   {creditCount} / {debitCount}
                 </ThemedText>
               </View>
@@ -1417,7 +1418,6 @@ export default function AccountsScreen() {
           </ScrollView>
         </ThemedView>
       </Modal>
-    </ThemedView>
     </ThemedView>
   );
 }

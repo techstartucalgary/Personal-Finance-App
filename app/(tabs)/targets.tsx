@@ -28,10 +28,30 @@ export default function TargetsScreen() {
       mutedText: isDark ? "rgba(255,255,255,0.6)" : "rgba(0,0,0,0.5)",
       backdrop: "rgba(0,0,0,0.45)",
     }),
-    [isDark]
+    [isDark],
   );
 
   const [activeTab, setActiveTab] = useState<Tab>("goals");
+  const { session } = useAuthContext();
+  const userId = session?.user.id;
+  const [accounts, setAccounts] = useState<any[]>([]);
+  const [filterAccountId, setFilterAccountId] = useState<number | null>(null);
+
+  const loadAccounts = useCallback(async () => {
+    if (!userId) return;
+    try {
+      const data = await listAccounts({ profile_id: userId });
+      setAccounts(data || []);
+    } catch (error) {
+      console.error("Error loading accounts:", error);
+    }
+  }, [userId]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadAccounts();
+    }, [loadAccounts]),
+  );
 
   return (
     <ThemedView
@@ -102,8 +122,64 @@ export default function TargetsScreen() {
         </Pressable>
       </View>
 
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={{ gap: 8, paddingVertical: 8 }}
+        style={{ flexGrow: 0 }}
+      >
+        <Pressable
+          onPress={() => setFilterAccountId(null)}
+          style={[
+            styles.chip,
+            {
+              backgroundColor: filterAccountId === null ? ui.text : ui.surface2,
+              borderColor: ui.border,
+            },
+          ]}
+        >
+          <ThemedText
+            style={{
+              fontSize: 13,
+              fontWeight: "600",
+              color: filterAccountId === null ? ui.surface : ui.text,
+            }}
+          >
+            All
+          </ThemedText>
+        </Pressable>
+        {accounts.map((acct) => (
+          <Pressable
+            key={acct.id}
+            onPress={() => setFilterAccountId(acct.id)}
+            style={[
+              styles.chip,
+              {
+                backgroundColor:
+                  filterAccountId === acct.id ? ui.text : ui.surface2,
+                borderColor: ui.border,
+              },
+            ]}
+          >
+            <ThemedText
+              style={{
+                fontSize: 13,
+                fontWeight: "600",
+                color: filterAccountId === acct.id ? ui.surface : ui.text,
+              }}
+            >
+              {acct.account_name ?? "Account"}
+            </ThemedText>
+          </Pressable>
+        ))}
+      </ScrollView>
+
       <View style={styles.content}>
-        {activeTab === "goals" ? <GoalsView /> : <BudgetsView />}
+        {activeTab === "goals" ? (
+          <GoalsView filterAccountId={filterAccountId} />
+        ) : (
+          <BudgetsView filterAccountId={filterAccountId} />
+        )}
       </View>
     </ThemedView>
   );
@@ -113,7 +189,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     paddingHorizontal: 16,
-    gap: 16,
+    gap: 12,
   },
   headerRow: {
     flexDirection: "row",
@@ -158,5 +234,11 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
+  },
+  chip: {
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 20,
+    borderWidth: StyleSheet.hairlineWidth,
   },
 });

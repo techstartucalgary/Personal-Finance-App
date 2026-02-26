@@ -75,9 +75,14 @@ const PERIOD_LABEL: Record<BudgetPeriod, string> = {
     yearly: "Yearly",
 };
 
+
+type BudgetsViewProps = {
+    filterAccountId?: number | null;
+};
+
 // ── Component ──────────────────────────────────────
 
-export function BudgetsView() {
+export function BudgetsView({ filterAccountId = null }: BudgetsViewProps) {
     const { session } = useAuthContext();
     const userId = session?.user.id;
     const insets = useSafeAreaInsets();
@@ -155,6 +160,7 @@ export function BudgetsView() {
                                 expense_category_id: cb.expense_category_id,
                                 start_date: b.start_date,
                                 end_date: b.end_date,
+                                account_id: filterAccountId,
                             });
                             const cat = (catRows as CategoryRow[]).find(
                                 (c) => c.id === cb.expense_category_id,
@@ -175,7 +181,7 @@ export function BudgetsView() {
         } finally {
             setIsLoading(false);
         }
-    }, [userId]);
+    }, [userId, filterAccountId]);
 
     useFocusEffect(
         useCallback(() => {
@@ -685,13 +691,12 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     scrollContent: {
-        padding: 12,
         gap: 12,
         paddingBottom: 80,
     },
     card: {
-        padding: 14,
-        borderRadius: 12,
+        padding: 12,
+        borderRadius: 20,
         borderWidth: StyleSheet.hairlineWidth,
     },
     fab: {

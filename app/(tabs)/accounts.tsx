@@ -1,6 +1,7 @@
 import Feather from "@expo/vector-icons/Feather";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
   Animated,
@@ -563,6 +564,14 @@ export default function AccountsScreen() {
           >
             <Feather name="user" size={22} color={ui.text} />
           </Pressable>
+        </View>
+        <View style={styles.headerTitleWrap}>
+          <ThemedText style={[styles.headerTitle, { color: ui.text }]}>
+            Accounts
+          </ThemedText>
+          <ThemedText style={[styles.headerSubtitle, { color: ui.mutedText }]}>
+            Track balances, due dates, and goals in one place.
+          </ThemedText>
         </View>
 
         <View
@@ -1409,6 +1418,7 @@ export default function AccountsScreen() {
         </ThemedView>
       </Modal>
     </ThemedView>
+    </ThemedView>
   );
 }
 
@@ -1903,6 +1913,3 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
   },
 });
-
-
-

@@ -1,3 +1,4 @@
+import Feather from "@expo/vector-icons/Feather";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Alert,
@@ -18,6 +19,7 @@ import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 
 import { IconSymbol } from "@/components/ui/icon-symbol";
+import { Tokens } from "@/constants/authTokens";
 import { useAuthContext } from "@/hooks/use-auth-context";
 import { getAccountById, listAccounts, updateAccount } from "@/utils/accounts";
 import {
@@ -787,9 +789,18 @@ export default function HomeScreen() {
         }
       >
         <View style={styles.headerRow}>
-          <ThemedText type="title">Transactions</ThemedText>
-          <Pressable onPress={() => router.push("/profile")}>
-            <IconSymbol size={28} name="person" color={ui.text} />
+          <Pressable style={styles.iconBtn} hitSlop={8}>
+            <Feather name="bell" size={22} color={ui.text} />
+          </Pressable>
+          <ThemedText style={[styles.headerTitle, { color: ui.text }]}>
+            Transactions
+          </ThemedText>
+          <Pressable
+            onPress={() => router.push("/profile")}
+            style={styles.iconBtn}
+            hitSlop={8}
+          >
+            <Feather name="user" size={22} color={ui.text} />
           </Pressable>
         </View>
 
@@ -1732,6 +1743,21 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+    gap: 10,
+  },
+  headerTitle: {
+    flex: 1,
+    textAlign: "center",
+    fontSize: 18,
+    letterSpacing: 0.2,
+    fontFamily: Tokens.font.semiFamily ?? Tokens.font.family,
+  },
+  iconBtn: {
+    width: 36,
+    height: 36,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 12,
   },
   card: {
     padding: 12,

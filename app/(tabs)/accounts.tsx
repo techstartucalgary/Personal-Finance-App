@@ -550,25 +550,19 @@ export default function AccountsScreen() {
         }
       >
         <View style={styles.headerRow}>
-          <View style={styles.headerLeft}>
-            <Pressable style={styles.iconBtn} hitSlop={8}>
-              <Feather name="menu" size={28} color={ui.text} />
-            </Pressable>
-            <Pressable style={styles.iconBtn} hitSlop={8}>
-              <Feather name="bell" size={24} color={ui.text} />
-            </Pressable>
-          </View>
-          <Pressable onPress={() => router.push("/profile")}>
-            <Feather name="user" size={24} color={ui.text} />
+          <Pressable style={styles.iconBtn} hitSlop={8}>
+            <Feather name="bell" size={22} color={ui.text} />
           </Pressable>
-        </View>
-        <View style={styles.headerTitleWrap}>
           <ThemedText style={[styles.headerTitle, { color: ui.text }]}>
             Accounts
           </ThemedText>
-          <ThemedText style={[styles.headerSubtitle, { color: ui.mutedText }]}>
-            Track balances, due dates, and goals in one place.
-          </ThemedText>
+          <Pressable
+            onPress={() => router.push("/profile")}
+            style={styles.iconBtn}
+            hitSlop={8}
+          >
+            <Feather name="user" size={22} color={ui.text} />
+          </Pressable>
         </View>
 
         <View
@@ -1469,33 +1463,21 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-  },
-  headerLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 14,
+    gap: 10,
   },
   iconBtn: {
-    width: 32,
-    height: 32,
+    width: 36,
+    height: 36,
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: 10,
-  },
-  headerTitleWrap: {
-    marginTop: 4,
-    marginBottom: 2,
+    borderRadius: 12,
   },
   headerTitle: {
-    fontSize: 30,
-    fontWeight: "700",
-    letterSpacing: 0.3,
-    fontFamily: Tokens.font.headingFamily,
-  },
-  headerSubtitle: {
-    fontSize: 13,
-    lineHeight: 18,
-    fontFamily: Tokens.font.family,
+    flex: 1,
+    textAlign: "center",
+    fontSize: 18,
+    letterSpacing: 0.2,
+    fontFamily: Tokens.font.semiFamily ?? Tokens.font.family,
   },
   heroCard: {
     borderWidth: 1,

@@ -47,9 +47,10 @@ type GoalsViewProps = {
     filterAccountId?: string | number | null;
     refreshKey?: number;
     createRequested?: number;
+    searchQuery?: string;
 };
 
-export function GoalsView({ filterAccountId = null, refreshKey = 0, createRequested = 0 }: GoalsViewProps) {
+export function GoalsView({ filterAccountId = null, refreshKey = 0, createRequested = 0, searchQuery = "" }: GoalsViewProps) {
     const { session } = useAuthContext();
     const userId = session?.user.id;
     const insets = useSafeAreaInsets();
@@ -285,12 +286,18 @@ export function GoalsView({ filterAccountId = null, refreshKey = 0, createReques
     };
 
     const filteredGoals = useMemo(() => {
-        if (filterAccountId === null) return goals;
-        return goals.filter((g) => {
-            // Check against both manual ID (number) or Plaid ID (string)
-            return g.linked_account === filterAccountId || g.linked_plaid_account === filterAccountId;
-        });
-    }, [goals, filterAccountId]);
+        let result = goals;
+        if (filterAccountId !== null) {
+            result = result.filter((g) => {
+                // Check against both manual ID (number) or Plaid ID (string)
+                return g.linked_account === filterAccountId || g.linked_plaid_account === filterAccountId;
+            });
+        }
+        if (searchQuery) {
+            result = result.filter(g => g.name.toLowerCase().includes(searchQuery.toLowerCase()));
+        }
+        return result;
+    }, [goals, filterAccountId, searchQuery]);
 
     return (
         <View style={styles.container}>

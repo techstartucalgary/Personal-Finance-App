@@ -15,8 +15,8 @@ import { useAuthContext } from "@/hooks/use-auth-context";
 import { listAccounts } from "@/utils/accounts";
 import type { PlaidAccount } from "@/utils/plaid";
 import { getPlaidAccounts } from "@/utils/plaid";
-import { useFocusEffect, useRouter } from "expo-router";
-import { useCallback } from "react";
+import { useFocusEffect, useNavigation, useRouter } from "expo-router";
+import { useCallback, useEffect } from "react";
 
 type Tab = "goals" | "budgets";
 
@@ -55,6 +55,8 @@ export default function TargetsScreen() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [createRequested, setCreateRequested] = useState(0);
+  const [searchQuery, setSearchQuery] = useState("");
+  const navigation = useNavigation();
 
   const loadAccounts = useCallback(async () => {
     if (!userId) return;
@@ -89,6 +91,18 @@ export default function TargetsScreen() {
     setRefreshKey((prev) => prev + 1);
     setIsRefreshing(false);
   }, [loadAccounts, loadPlaidAccounts]);
+
+  useEffect(() => {
+    navigation.setOptions({
+      headerSearchBarOptions: {
+        placeholder: "Search targets...",
+        onChangeText: (event: any) => setSearchQuery(event.nativeEvent.text),
+        hideWhenScrolling: true,
+        tintColor: ui.text,
+        textColor: ui.text,
+      },
+    });
+  }, [navigation, ui]);
 
   return (
     <>
@@ -203,9 +217,9 @@ export default function TargetsScreen() {
         </ScrollView>
 
         {activeTab === "goals" ? (
-          <GoalsView filterAccountId={filterAccountId} refreshKey={refreshKey} createRequested={createRequested} />
+          <GoalsView filterAccountId={filterAccountId} refreshKey={refreshKey} createRequested={createRequested} searchQuery={searchQuery} />
         ) : (
-          <BudgetsView filterAccountId={filterAccountId} refreshKey={refreshKey} createRequested={createRequested} />
+          <BudgetsView filterAccountId={filterAccountId} refreshKey={refreshKey} createRequested={createRequested} searchQuery={searchQuery} />
         )}
       </ScrollView>
 

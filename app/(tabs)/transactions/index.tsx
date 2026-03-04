@@ -77,6 +77,7 @@ export default function HomeScreen() {
       text: isDark ? "#ffffff" : "#111111",
       mutedText: isDark ? "rgba(255,255,255,0.6)" : "rgba(0,0,0,0.5)",
       backdrop: "rgba(0,0,0,0.45)",
+      accent: isDark ? "#8CF2D1" : "#1F6F5B",
     }),
     [isDark],
   );
@@ -139,6 +140,8 @@ export default function HomeScreen() {
   const [editCategoryModalOpen, setEditCategoryModalOpen] = useState(false);
   const [editSelectedCategory, setEditSelectedCategory] =
     useState<CategoryRow | null>(null);
+
+  const [searchQuery, setSearchQuery] = useState("");
 
   // edit subcategory state
   const [editSubcategories, setEditSubcategories] = useState<SubcategoryRow[]>(
@@ -267,6 +270,18 @@ export default function HomeScreen() {
   useEffect(() => {
     loadCategories();
   }, [loadCategories]);
+
+  useEffect(() => {
+    navigation.setOptions({
+      headerSearchBarOptions: {
+        placeholder: "Search transactions...",
+        onChangeText: (event: any) => setSearchQuery(event.nativeEvent.text),
+        hideWhenScrolling: true,
+        tintColor: ui.accent,
+        textColor: ui.text,
+      },
+    });
+  }, [navigation, ui]);
 
   // Recalculate default Next Run Date when Frequency or IsRecurring changes (Add Modal)
   useEffect(() => {
@@ -1273,18 +1288,25 @@ export default function HomeScreen() {
           <>
 
 
-            {expenses.filter(
-              (e) => filterAccountId === null || e.account_id === filterAccountId,
-            ).length === 0 ? (
+            {expenses.filter((e) => {
+              const matchesAccount = filterAccountId === null || e.account_id === filterAccountId;
+              const matchesSearch = !searchQuery ||
+                (e.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                  e.amount?.toString().includes(searchQuery));
+              return matchesAccount && matchesSearch;
+            }).length === 0 ? (
               <ThemedText>
                 {isLoading ? "Loading…" : "No transactions found."}
               </ThemedText>
             ) : (
               expenses
-                .filter(
-                  (e) =>
-                    filterAccountId === null || e.account_id === filterAccountId,
-                )
+                .filter((e) => {
+                  const matchesAccount = filterAccountId === null || e.account_id === filterAccountId;
+                  const matchesSearch = !searchQuery ||
+                    (e.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                      e.amount?.toString().includes(searchQuery));
+                  return matchesAccount && matchesSearch;
+                })
                 .map((expense) => (
                   <Pressable
                     key={expense.id}
@@ -1347,11 +1369,19 @@ export default function HomeScreen() {
                 )}
                 {plaidTransactions
                   .filter((t) => {
-                    if (filterAccountId === null) return true;
-                    if (typeof filterAccountId === "string" && filterAccountId.startsWith("plaid:")) {
-                      return t.account_id === filterAccountId.replace("plaid:", "");
+                    let matchesAccount = true;
+                    if (filterAccountId !== null) {
+                      if (typeof filterAccountId === "string" && filterAccountId.startsWith("plaid:")) {
+                        matchesAccount = t.account_id === filterAccountId.replace("plaid:", "");
+                      } else {
+                        matchesAccount = false;
+                      }
                     }
-                    return false;
+                    const matchesSearch = !searchQuery ||
+                      ((t.merchant_name || t.name)?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                        t.amount?.toString().includes(searchQuery));
+
+                    return matchesAccount && matchesSearch;
                   })
                   .map((tx) => (
                     <Pressable
@@ -1435,7 +1465,13 @@ export default function HomeScreen() {
           </>
         ) : (
           recurringRules
-            .filter((r) => filterAccountId === null || r.account_id === filterAccountId)
+            .filter((r) => {
+              const matchesAccount = filterAccountId === null || r.account_id === filterAccountId;
+              const matchesSearch = !searchQuery ||
+                (r.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                  r.amount?.toString().includes(searchQuery));
+              return matchesAccount && matchesSearch;
+            })
             .sort((a, b) => (a.is_active === b.is_active ? 0 : a.is_active ? -1 : 1))
             .length === 0 ? (
             <ThemedText style={{ padding: 16 }}>
@@ -1443,7 +1479,13 @@ export default function HomeScreen() {
             </ThemedText>
           ) : (
             recurringRules
-              .filter((r) => filterAccountId === null || r.account_id === filterAccountId)
+              .filter((r) => {
+                const matchesAccount = filterAccountId === null || r.account_id === filterAccountId;
+                const matchesSearch = !searchQuery ||
+                  (r.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                    r.amount?.toString().includes(searchQuery));
+                return matchesAccount && matchesSearch;
+              })
               .sort((a, b) => (a.is_active === b.is_active ? 0 : a.is_active ? -1 : 1))
               .map((rule) => (
                 <Pressable

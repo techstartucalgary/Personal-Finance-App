@@ -18,7 +18,7 @@ import type { LinkExit, LinkSuccess } from "react-native-plaid-link-sdk";
 import { create as plaidCreate, destroy as plaidDestroy, open as plaidOpen } from "react-native-plaid-link-sdk";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { useFocusEffect, useRouter } from "expo-router";
+import { useFocusEffect, useNavigation, useRouter } from "expo-router";
 
 import { AccountDetailModal } from "@/components/AccountDetailModal";
 import { ThemedText } from "@/components/themed-text";
@@ -72,6 +72,7 @@ export default function AccountsScreen() {
   const { session, isLoading: authLoading } = useAuthContext();
 
   const router = useRouter();
+  const navigation = useNavigation();
 
   const insets = useSafeAreaInsets();
 
@@ -138,6 +139,18 @@ export default function AccountsScreen() {
   const [searchQuery, setSearchQuery] = useState("");
 
   const [detailModalVisible, setDetailModalVisible] = useState(false);
+
+  useEffect(() => {
+    navigation.setOptions({
+      headerSearchBarOptions: {
+        placeholder: "Search",
+        onChangeText: (event: any) => setSearchQuery(event.nativeEvent.text),
+        hideWhenScrolling: true,
+        tintColor: ui.accent,
+        textColor: ui.text,
+      },
+    });
+  }, [navigation, ui]);
   const [selectedDetailAccount, setSelectedDetailAccount] = useState<AccountRow | PlaidAccount | null>(null);
 
   // Plaid Link state
@@ -571,7 +584,7 @@ export default function AccountsScreen() {
         contentInsetAdjustmentBehavior="automatic"
         contentContainerStyle={[
           styles.scrollContent,
-          { paddingBottom: tabBarHeight + 120, paddingTop: 16 },
+          { paddingBottom: tabBarHeight + 120, paddingTop: 0 },
         ]}
         showsVerticalScrollIndicator={false}
         refreshControl={
@@ -710,32 +723,6 @@ export default function AccountsScreen() {
             />
             <Feather name="list" size={18} color={ui.text} />
           </View>
-        </View>
-
-        <View
-          style={[
-            styles.searchWrap,
-            { borderColor: ui.border, backgroundColor: ui.surface2 },
-          ]}
-        >
-          <Feather name="search" size={18} color={ui.mutedText} />
-          <TextInput
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            placeholder="Search"
-            placeholderTextColor={ui.mutedText}
-            style={[styles.searchInput, { color: ui.text }]}
-          />
-          <Pressable
-            onPress={() => { }}
-            style={[
-              styles.searchFilter,
-              { borderColor: ui.border, backgroundColor: ui.surface },
-            ]}
-            hitSlop={8}
-          >
-            <Feather name="sliders" size={16} color={ui.mutedText} />
-          </Pressable>
         </View>
 
         <View style={styles.sectionHeader}>

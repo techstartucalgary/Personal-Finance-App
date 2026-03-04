@@ -83,11 +83,12 @@ type BudgetsViewProps = {
     filterAccountId?: string | number | null;
     refreshKey?: number;
     createRequested?: number;
+    searchQuery?: string;
 };
 
 // ── Component ──────────────────────────────────────
 
-export function BudgetsView({ filterAccountId = null, refreshKey = 0, createRequested = 0 }: BudgetsViewProps) {
+export function BudgetsView({ filterAccountId = null, refreshKey = 0, createRequested = 0, searchQuery = "" }: BudgetsViewProps) {
     const { session } = useAuthContext();
     const userId = session?.user.id;
     const insets = useSafeAreaInsets();
@@ -358,16 +359,21 @@ export function BudgetsView({ filterAccountId = null, refreshKey = 0, createRequ
         ]);
     }, [userId, editingBudget, loadData]);
 
+    const filteredBudgets = useMemo(() => {
+        if (!searchQuery) return budgets;
+        return budgets.filter(b => b.budget_name.toLowerCase().includes(searchQuery.toLowerCase()));
+    }, [budgets, searchQuery]);
+
     // ── Render ──────────────────────────────────────
     return (
         <View style={styles.container}>
             <View style={styles.scrollContent}>
-                {budgets.length === 0 ? (
+                {filteredBudgets.length === 0 ? (
                     <ThemedText style={{ textAlign: "center", marginTop: 24, opacity: 0.6 }}>
                         No budgets yet. Create one below!
                     </ThemedText>
                 ) : (
-                    budgets.map((budget) => (
+                    filteredBudgets.map((budget) => (
                         <Pressable
                             key={budget.id}
                             onPress={() => openEditModal(budget)}

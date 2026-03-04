@@ -1,20 +1,24 @@
-import React, { useMemo, useState } from "react";
-import { Pressable, StyleSheet, View, useColorScheme } from "react-native";
+import Feather from "@expo/vector-icons/Feather";
+import React, { useCallback, useMemo, useState } from "react";
+import {
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  View,
+  useColorScheme,
+} from "react-native";
 
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 
-import { IconSymbol } from "@/components/ui/icon-symbol";
-
 import { BudgetsView } from "@/components/targets/BudgetsView";
 import { GoalsView } from "@/components/targets/GoalsView";
+import { Tokens } from "@/constants/authTokens";
 import { useAuthContext } from "@/hooks/use-auth-context";
 import { listAccounts } from "@/utils/accounts";
 import { useFocusEffect, useRouter } from "expo-router";
-import { useCallback } from "react";
-import { ScrollView } from "react-native";
 
 type Tab = "goals" | "budgets";
 
@@ -32,7 +36,7 @@ export default function TargetsScreen() {
       mutedText: isDark ? "rgba(255,255,255,0.6)" : "rgba(0,0,0,0.5)",
       backdrop: "rgba(0,0,0,0.45)",
     }),
-    [isDark]
+    [isDark],
   );
 
   const [activeTab, setActiveTab] = useState<Tab>("goals");
@@ -54,7 +58,7 @@ export default function TargetsScreen() {
   useFocusEffect(
     useCallback(() => {
       loadAccounts();
-    }, [loadAccounts])
+    }, [loadAccounts]),
   );
 
   return (
@@ -67,9 +71,18 @@ export default function TargetsScreen() {
       ]}
     >
       <View style={styles.headerRow}>
-        <ThemedText type="title">Targets</ThemedText>
-        <Pressable onPress={() => router.push("/profile")}>
-          <IconSymbol size={28} name="person" color={ui.text} />
+        <Pressable style={styles.iconBtn} hitSlop={8}>
+          <Feather name="bell" size={22} color={ui.text} />
+        </Pressable>
+        <ThemedText style={[styles.headerTitle, { color: ui.text }]}>
+          Targets
+        </ThemedText>
+        <Pressable
+          onPress={() => router.push("/profile")}
+          style={styles.iconBtn}
+          hitSlop={8}
+        >
+          <Feather name="user" size={22} color={ui.text} />
         </Pressable>
       </View>
 
@@ -190,6 +203,22 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+    marginBottom: 8,
+    gap: 10,
+  },
+  headerTitle: {
+    flex: 1,
+    textAlign: "center",
+    fontSize: 18,
+    letterSpacing: 0.2,
+    fontFamily: Tokens.font.semiFamily ?? Tokens.font.family,
+  },
+  iconBtn: {
+    width: 36,
+    height: 36,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 12,
   },
   tabsContainer: {
     flexDirection: "row",

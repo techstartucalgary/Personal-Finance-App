@@ -125,7 +125,8 @@ export async function getCategorySpending(params: {
   end_date: string;
   account_id?: number | null;
 }): Promise<number> {
-  const { profile_id, expense_category_id, start_date, end_date, account_id } = params;
+  const { profile_id, expense_category_id, start_date, end_date, account_id } =
+    params;
 
   const { data, error } = await supabase
     .from("Expense")
@@ -144,7 +145,10 @@ export async function getCategorySpending(params: {
     if (!dateToUse) return false;
 
     const inDateRange = dateToUse >= start_date && dateToUse <= end_date;
-    const matchesAccount = account_id === undefined || account_id === null || row.account_id === account_id;
+    const matchesAccount =
+      account_id === undefined ||
+      account_id === null ||
+      row.account_id === account_id;
 
     return inDateRange && matchesAccount;
   });

@@ -123,7 +123,10 @@ export default function AccountsScreen() {
       useNativeDriver: true,
     });
 
-    Animated.stagger(120, [hero, list]).start();
+    const anim = Animated.stagger(120, [hero, list]);
+    anim.start();
+
+    return () => anim.stop();
   }, [heroAnim, listAnim]);
 
   const userId = session?.user.id;

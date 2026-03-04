@@ -1,11 +1,9 @@
 import Feather from "@expo/vector-icons/Feather";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
-  Animated,
-  Image,
   Modal,
   Platform,
   Pressable,
@@ -14,7 +12,7 @@ import {
   StyleSheet,
   TextInput,
   View,
-  useColorScheme,
+  useColorScheme
 } from "react-native";
 import type { LinkExit, LinkSuccess } from "react-native-plaid-link-sdk";
 import { create as plaidCreate, destroy as plaidDestroy, open as plaidOpen } from "react-native-plaid-link-sdk";
@@ -107,27 +105,7 @@ export default function AccountsScreen() {
     [isDark],
   );
 
-  const heroAnim = useRef(new Animated.Value(0)).current;
-  const listAnim = useRef(new Animated.Value(0)).current;
 
-  useEffect(() => {
-    const hero = Animated.timing(heroAnim, {
-      toValue: 1,
-      duration: 520,
-      useNativeDriver: true,
-    });
-    const list = Animated.timing(listAnim, {
-      toValue: 1,
-      duration: 480,
-      delay: 120,
-      useNativeDriver: true,
-    });
-
-    const anim = Animated.stagger(120, [hero, list]);
-    anim.start();
-
-    return () => anim.stop();
-  }, [heroAnim, listAnim]);
 
   const userId = session?.user.id;
 
@@ -567,35 +545,7 @@ export default function AccountsScreen() {
     });
   }, [accounts, searchQuery]);
 
-  const heroAnimatedStyle = useMemo(
-    () => ({
-      opacity: heroAnim,
-      transform: [
-        {
-          translateY: heroAnim.interpolate({
-            inputRange: [0, 1],
-            outputRange: [12, 0],
-          }),
-        },
-      ],
-    }),
-    [heroAnim],
-  );
 
-  const listAnimatedStyle = useMemo(
-    () => ({
-      opacity: listAnim,
-      transform: [
-        {
-          translateY: listAnim.interpolate({
-            inputRange: [0, 1],
-            outputRange: [16, 0],
-          }),
-        },
-      ],
-    }),
-    [listAnim],
-  );
 
   if (authLoading && !session) {
     return (
@@ -621,7 +571,7 @@ export default function AccountsScreen() {
         contentInsetAdjustmentBehavior="automatic"
         contentContainerStyle={[
           styles.scrollContent,
-          { paddingBottom: tabBarHeight + 88 },
+          { paddingBottom: tabBarHeight + 120, paddingTop: 16 },
         ]}
         showsVerticalScrollIndicator={false}
         refreshControl={
@@ -710,310 +660,240 @@ export default function AccountsScreen() {
           )}
         </View>
 
-        <Animated.View style={heroAnimatedStyle}>
-          <View
-            style={[
-              styles.heroCard,
-              { borderColor: ui.border, backgroundColor: ui.hero },
-            ]}
-          >
-            <View style={styles.heroTopRow}>
-              <View>
-                <ThemedText style={[styles.heroLabel, { color: ui.mutedText }]}>
-                  Total Balance
-                </ThemedText>
-                <ThemedText style={[styles.heroValue, { color: ui.text }]}>
-                  {formatMoney(totalBalance)}
-                </ThemedText>
-              </View>
-              <View
-                style={[
-                  styles.heroBadge,
-                  { borderColor: ui.border, backgroundColor: ui.heroAlt },
-                ]}
-              >
-                <Feather name="trending-up" size={14} color={ui.accent} />
-                <ThemedText
-                  style={[styles.heroBadgeText, { color: ui.text }]}
-                >
-                  Overview
-                </ThemedText>
-              </View>
-            </View>
-            <View style={styles.heroStatsRow}>
-              <View
-                style={[
-                  styles.statPill,
-                  { borderColor: ui.border, backgroundColor: ui.heroAlt },
-                ]}
-              >
-                <ThemedText style={[styles.statLabel, { color: ui.mutedText }]}>
-                  Available
-                </ThemedText>
-                <ThemedText style={[styles.statValue, { color: ui.text }]}>
-                  {formatMoney(totalAvailable)}
-                </ThemedText>
-              </View>
-              <View
-                style={[
-                  styles.statPill,
-                  { borderColor: ui.border, backgroundColor: ui.heroAlt },
-                ]}
-              >
-                <ThemedText style={[styles.statLabel, { color: ui.mutedText }]}>
-                  Accounts
-                </ThemedText>
-                <ThemedText style={[styles.statValue, { color: ui.text }]}>
-                  {accounts.length + plaidAccounts.length}
-                </ThemedText>
-              </View>
-              <View
-                style={[
-                  styles.statPill,
-                  { borderColor: ui.border, backgroundColor: ui.heroAlt },
-                ]}
-              >
-                <ThemedText style={[styles.statLabel, { color: ui.mutedText }]}>
-                  Assets / Liabilities
-                </ThemedText>
-                <ThemedText
-                  style={[styles.statValueSmall, { color: ui.text }]}
-                >
-                  {assetsCount} / {liabilitiesCount}
-                </ThemedText>
-              </View>
-            </View>
-          </View>
-        </Animated.View>
-
-        <Animated.View style={listAnimatedStyle}>
-          <View
-            style={[
-              styles.chartCard,
-              { borderColor: ui.border, backgroundColor: ui.surface2 },
-            ]}
-          >
-            <View
-              pointerEvents="none"
-              style={[styles.chartGlow, { backgroundColor: ui.accentSoft }]}
-            />
-            <View style={styles.chartHeader}>
-              <View>
-                <ThemedText style={[styles.chartTitle, { color: ui.text }]}>
-                  Balance Trend
-                </ThemedText>
-                <ThemedText
-                  style={[styles.chartSubtitle, { color: ui.mutedText }]}
-                >
-                  Last 4 months
-                </ThemedText>
-              </View>
-              <View
-                style={[
-                  styles.chartChip,
-                  { borderColor: ui.border, backgroundColor: ui.surface },
-                ]}
-              >
-                <Feather name="bar-chart-2" size={14} color={ui.accent} />
-                <ThemedText style={[styles.chartChipText, { color: ui.text }]}>
-                  Insights
-                </ThemedText>
-              </View>
-            </View>
-            <View style={styles.chartRow}>
-              <View style={styles.yAxis}>
-                <ThemedText style={[styles.yLabel, { color: ui.mutedText }]}>
-                  50k
-                </ThemedText>
-                <ThemedText style={[styles.yLabel, { color: ui.mutedText }]}>
-                  20k
-                </ThemedText>
-                <ThemedText style={[styles.yLabel, { color: ui.mutedText }]}>
-                  10k
-                </ThemedText>
-                <ThemedText style={[styles.yLabel, { color: ui.mutedText }]}>
-                  0
-                </ThemedText>
-              </View>
-
-              <View style={styles.chartArea}>
-                <View
-                  style={[
-                    styles.chartGuide,
-                    { borderColor: ui.border, top: "8%" },
-                  ]}
-                />
-                <View
-                  style={[
-                    styles.chartGuide,
-                    { borderColor: ui.border, top: "34%" },
-                  ]}
-                />
-                <View
-                  style={[
-                    styles.chartGuide,
-                    { borderColor: ui.border, top: "58%" },
-                  ]}
-                />
-                <View
-                  style={[
-                    styles.chartGuide,
-                    { borderColor: ui.border, top: "82%" },
-                  ]}
-                />
-                <Image
-                  source={{
-                    uri: "https://api.builder.io/api/v1/image/assets/TEMP/94870884-619f-436a-b553-127d9ef92e88?placeholderIfAbsent=true&apiKey=342743ad2e264936acee3aea8d83ec5e",
-                  }}
-                  style={styles.chartImage}
-                  resizeMode="contain"
-                />
-              </View>
-            </View>
-
-            <View style={styles.monthRow}>
-              <ThemedText style={[styles.monthLabel, { color: ui.mutedText }]}>
-                Jan
-              </ThemedText>
-              <ThemedText style={[styles.monthLabel, { color: ui.mutedText }]}>
-                Feb
-              </ThemedText>
-              <ThemedText style={[styles.monthLabel, { color: ui.text }]}>
-                Mar
-              </ThemedText>
-              <ThemedText style={[styles.monthLabel, { color: ui.mutedText }]}>
-                Apr
-              </ThemedText>
-            </View>
-          </View>
-
-          <View style={styles.toolbarRow}>
-            <View style={{ flexDirection: "row", gap: 8 }}>
-              <Pressable
-                onPress={() => setCreateModalOpen(true)}
-                style={[
-                  styles.smallActionBtn,
-                  { borderColor: ui.border, backgroundColor: ui.surface2 },
-                ]}
-              >
-                <Feather name="plus" size={18} color={ui.text} />
-                <ThemedText style={[styles.actionText, { color: ui.text }]}>
-                  Add
-                </ThemedText>
-              </Pressable>
-
-              <Pressable
-                onPress={handleConnectBank}
-                disabled={isConnecting}
-                style={[
-                  styles.smallActionBtn,
-                  { borderColor: ui.accent, backgroundColor: ui.accentSoft },
-                  isConnecting && { opacity: 0.5 },
-                ]}
-              >
-                {isConnecting ? (
-                  <ActivityIndicator size="small" color={ui.accent} />
-                ) : (
-                  <Feather name="link" size={18} color={ui.accent} />
-                )}
-                <ThemedText style={[styles.actionText, { color: ui.accent }]}>
-                  {isConnecting ? "Connecting..." : "Connect Bank"}
-                </ThemedText>
-              </Pressable>
-            </View>
-
-            <View
-              style={[
-                styles.viewPill,
-                {
-                  borderColor: ui.border,
-                  backgroundColor: isDark ? "#2A2D33" : "#D8D8DA",
-                },
-              ]}
-            >
-              <Feather name="grid" size={18} color={ui.text} />
-              <View
-                style={[styles.viewDivider, { backgroundColor: ui.border }]}
-              />
-              <Feather name="list" size={18} color={ui.text} />
-            </View>
-          </View>
-
-          <View
-            style={[
-              styles.searchWrap,
-              { borderColor: ui.border, backgroundColor: ui.surface2 },
-            ]}
-          >
-            <Feather name="search" size={18} color={ui.mutedText} />
-            <TextInput
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-              placeholder="Search"
-              placeholderTextColor={ui.mutedText}
-              style={[styles.searchInput, { color: ui.text }]}
-            />
+        <View style={styles.toolbarRow}>
+          <View style={{ flexDirection: "row", gap: 8 }}>
             <Pressable
-              onPress={() => { }}
+              onPress={() => setCreateModalOpen(true)}
               style={[
-                styles.searchFilter,
-                { borderColor: ui.border, backgroundColor: ui.surface },
-              ]}
-              hitSlop={8}
-            >
-              <Feather name="sliders" size={16} color={ui.mutedText} />
-            </Pressable>
-          </View>
-
-          <View style={styles.sectionHeader}>
-            <ThemedText style={[styles.sectionTitle, { color: ui.text }]}>
-              Your Accounts
-            </ThemedText>
-            <ThemedText
-              style={[styles.sectionSubtitle, { color: ui.mutedText }]}
-            >
-              {filteredAccounts.length} total
-            </ThemedText>
-          </View>
-
-          {filteredAccounts.length === 0 ? (
-            <View
-              style={[
-                styles.emptyState,
+                styles.smallActionBtn,
                 { borderColor: ui.border, backgroundColor: ui.surface2 },
               ]}
             >
-              <ThemedText style={{ color: ui.text }}>
-                {isLoading
-                  ? "Loading..."
-                  : "No accounts found. Tap + to add your first account."}
+              <Feather name="plus" size={18} color={ui.text} />
+              <ThemedText style={[styles.actionText, { color: ui.text }]}>
+                Add
+              </ThemedText>
+            </Pressable>
+
+            <Pressable
+              onPress={handleConnectBank}
+              disabled={isConnecting}
+              style={[
+                styles.smallActionBtn,
+                { borderColor: ui.accent, backgroundColor: ui.accentSoft },
+                isConnecting && { opacity: 0.5 },
+              ]}
+            >
+              {isConnecting ? (
+                <ActivityIndicator size="small" color={ui.accent} />
+              ) : (
+                <Feather name="link" size={18} color={ui.accent} />
+              )}
+              <ThemedText style={[styles.actionText, { color: ui.accent }]}>
+                {isConnecting ? "Connecting..." : "Connect Bank"}
+              </ThemedText>
+            </Pressable>
+          </View>
+
+          <View
+            style={[
+              styles.viewPill,
+              {
+                borderColor: ui.border,
+                backgroundColor: isDark ? "#2A2D33" : "#D8D8DA",
+              },
+            ]}
+          >
+            <Feather name="grid" size={18} color={ui.text} />
+            <View
+              style={[styles.viewDivider, { backgroundColor: ui.border }]}
+            />
+            <Feather name="list" size={18} color={ui.text} />
+          </View>
+        </View>
+
+        <View
+          style={[
+            styles.searchWrap,
+            { borderColor: ui.border, backgroundColor: ui.surface2 },
+          ]}
+        >
+          <Feather name="search" size={18} color={ui.mutedText} />
+          <TextInput
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            placeholder="Search"
+            placeholderTextColor={ui.mutedText}
+            style={[styles.searchInput, { color: ui.text }]}
+          />
+          <Pressable
+            onPress={() => { }}
+            style={[
+              styles.searchFilter,
+              { borderColor: ui.border, backgroundColor: ui.surface },
+            ]}
+            hitSlop={8}
+          >
+            <Feather name="sliders" size={16} color={ui.mutedText} />
+          </Pressable>
+        </View>
+
+        <View style={styles.sectionHeader}>
+          <ThemedText style={[styles.sectionTitle, { color: ui.text }]}>
+            Your Accounts
+          </ThemedText>
+          <ThemedText
+            style={[styles.sectionSubtitle, { color: ui.mutedText }]}
+          >
+            {filteredAccounts.length} total
+          </ThemedText>
+        </View>
+
+        {filteredAccounts.length === 0 ? (
+          <View
+            style={[
+              styles.emptyState,
+              { borderColor: ui.border, backgroundColor: ui.surface2 },
+            ]}
+          >
+            <ThemedText style={{ color: ui.text }}>
+              {isLoading
+                ? "Loading..."
+                : "No accounts found. Tap + to add your first account."}
+            </ThemedText>
+          </View>
+        ) : (
+          filteredAccounts.map((item) => {
+            const isCredit =
+              (item.account_type ?? "").toLowerCase() === "credit";
+            const cardColor = isDark
+              ? isCredit
+                ? "#B24E4E"
+                : "#61202A"
+              : isCredit
+                ? "#D86666"
+                : "#701D26";
+
+            return (
+              <Pressable
+                key={item.id}
+                onPress={() => {
+                  setSelectedDetailAccount(item);
+                  setDetailModalVisible(true);
+                }}
+                style={({ pressed }) => [
+                  styles.accountCard,
+                  {
+                    backgroundColor: cardColor,
+                    opacity: pressed ? 0.88 : 1,
+                    borderColor: "rgba(255,255,255,0.28)",
+                  },
+                ]}
+              >
+                <View
+                  pointerEvents="none"
+                  style={[
+                    styles.cardGlow,
+                    {
+                      backgroundColor: isCredit
+                        ? "rgba(255,255,255,0.26)"
+                        : "rgba(255,255,255,0.18)",
+                    },
+                  ]}
+                />
+                <View pointerEvents="none" style={styles.cardRing} />
+                <View style={styles.cardTopRow}>
+                  <View style={styles.cardTitleGroup}>
+                    <ThemedText style={styles.cardTitle}>
+                      {item.account_name ?? "Unnamed account"}
+                    </ThemedText>
+                    <View style={styles.cardTag}>
+                      <ThemedText style={styles.cardTagText}>
+                        {item.account_type
+                          ? item.account_type.charAt(0).toUpperCase() +
+                          item.account_type.slice(1)
+                          : "Account"}
+                      </ThemedText>
+                    </View>
+                  </View>
+                  <View style={styles.cardIcon}>
+                    <Feather
+                      name={isCredit ? "credit-card" : "dollar-sign"}
+                      size={18}
+                      color="#FFFFFF"
+                    />
+                  </View>
+                </View>
+                <ThemedText style={styles.cardBalance}>
+                  {formatMoney(item.balance ?? 0)}
+                </ThemedText>
+                <View style={styles.cardMetaRow}>
+                  <View style={styles.cardMetaPill}>
+                    <Feather
+                      name="calendar"
+                      size={12}
+                      color="rgba(255,255,255,0.9)"
+                    />
+                    <ThemedText style={styles.cardMetaText}>
+                      {formatCardDate(item.payment_duedate)}
+                    </ThemedText>
+                  </View>
+                  {item.currency ? (
+                    <View style={styles.cardMetaPill}>
+                      <Feather
+                        name="globe"
+                        size={12}
+                        color="rgba(255,255,255,0.9)"
+                      />
+                      <ThemedText style={styles.cardMetaText}>
+                        {item.currency}
+                      </ThemedText>
+                    </View>
+                  ) : null}
+                </View>
+                <ThemedText style={styles.cardSubText}>
+                  Available: {formatMoney(calculateAvailable(item))}
+                </ThemedText>
+              </Pressable>
+            );
+          })
+        )}
+
+        {/* Linked Banks (Plaid) */}
+        {plaidAccounts.length > 0 && (
+          <View style={{ marginTop: 20 }}>
+            <View style={styles.sectionHeader}>
+              <ThemedText style={[styles.sectionTitle, { color: ui.text }]}>
+                Linked Banks
+              </ThemedText>
+              <ThemedText
+                style={[styles.sectionSubtitle, { color: ui.mutedText }]}
+              >
+                {plaidAccounts.length} account{plaidAccounts.length !== 1 ? "s" : ""}
               </ThemedText>
             </View>
-          ) : (
-            filteredAccounts.map((item) => {
-              const isCredit =
-                (item.account_type ?? "").toLowerCase() === "credit";
+
+            {plaidAccounts.map((pa) => {
+              const isCredit = pa.type === "credit";
               const cardColor = isDark
-                ? isCredit
-                  ? "#B24E4E"
-                  : "#61202A"
-                : isCredit
-                  ? "#D86666"
-                  : "#701D26";
+                ? isCredit ? "#4E6AB2" : "#1F6F5B"
+                : isCredit ? "#5A7FD4" : "#2A8A6E";
 
               return (
                 <Pressable
-                  key={item.id}
+                  key={pa.account_id}
                   onPress={() => {
-                    setSelectedDetailAccount(item);
+                    setSelectedDetailAccount(pa);
                     setDetailModalVisible(true);
                   }}
                   style={({ pressed }) => [
                     styles.accountCard,
                     {
                       backgroundColor: cardColor,
-                      opacity: pressed ? 0.88 : 1,
                       borderColor: "rgba(255,255,255,0.28)",
+                      marginBottom: 12,
+                      opacity: pressed ? 0.9 : 1,
+
                     },
                   ]}
                 >
@@ -1021,177 +901,68 @@ export default function AccountsScreen() {
                     pointerEvents="none"
                     style={[
                       styles.cardGlow,
-                      {
-                        backgroundColor: isCredit
-                          ? "rgba(255,255,255,0.26)"
-                          : "rgba(255,255,255,0.18)",
-                      },
+                      { backgroundColor: "rgba(255,255,255,0.18)" },
                     ]}
                   />
                   <View pointerEvents="none" style={styles.cardRing} />
                   <View style={styles.cardTopRow}>
                     <View style={styles.cardTitleGroup}>
                       <ThemedText style={styles.cardTitle}>
-                        {item.account_name ?? "Unnamed account"}
+                        {pa.name}
                       </ThemedText>
                       <View style={styles.cardTag}>
                         <ThemedText style={styles.cardTagText}>
-                          {item.account_type
-                            ? item.account_type.charAt(0).toUpperCase() +
-                            item.account_type.slice(1)
-                            : "Account"}
+                          {pa.institution_name || "Bank"}
                         </ThemedText>
                       </View>
                     </View>
                     <View style={styles.cardIcon}>
                       <Feather
-                        name={isCredit ? "credit-card" : "dollar-sign"}
+                        name={isCredit ? "credit-card" : "briefcase"}
                         size={18}
                         color="#FFFFFF"
                       />
                     </View>
                   </View>
                   <ThemedText style={styles.cardBalance}>
-                    {formatMoney(item.balance ?? 0)}
+                    {formatMoney(pa.balances.current ?? 0)}
                   </ThemedText>
                   <View style={styles.cardMetaRow}>
-                    <View style={styles.cardMetaPill}>
-                      <Feather
-                        name="calendar"
-                        size={12}
-                        color="rgba(255,255,255,0.9)"
-                      />
-                      <ThemedText style={styles.cardMetaText}>
-                        {formatCardDate(item.payment_duedate)}
-                      </ThemedText>
-                    </View>
-                    {item.currency ? (
+                    {pa.subtype && (
                       <View style={styles.cardMetaPill}>
-                        <Feather
-                          name="globe"
-                          size={12}
-                          color="rgba(255,255,255,0.9)"
-                        />
+                        <Feather name="tag" size={12} color="rgba(255,255,255,0.9)" />
                         <ThemedText style={styles.cardMetaText}>
-                          {item.currency}
+                          {pa.subtype.charAt(0).toUpperCase() + pa.subtype.slice(1)}
                         </ThemedText>
                       </View>
-                    ) : null}
+                    )}
+                    {pa.mask && (
+                      <View style={styles.cardMetaPill}>
+                        <Feather name="hash" size={12} color="rgba(255,255,255,0.9)" />
+                        <ThemedText style={styles.cardMetaText}>
+                          ••{pa.mask}
+                        </ThemedText>
+                      </View>
+                    )}
+
+                    {pa.balances.iso_currency_code && (
+                      <View style={styles.cardMetaPill}>
+                        <Feather name="globe" size={12} color="rgba(255,255,255,0.9)" />
+                        <ThemedText style={styles.cardMetaText}>
+                          {pa.balances.iso_currency_code}
+                        </ThemedText>
+                      </View>
+                    )}
                   </View>
                   <ThemedText style={styles.cardSubText}>
-                    Available: {formatMoney(calculateAvailable(item))}
+                    Available: {formatMoney(calculatePlaidAvailable(pa))}
                   </ThemedText>
                 </Pressable>
               );
-            })
-          )}
-
-          {/* Linked Banks (Plaid) */}
-          {plaidAccounts.length > 0 && (
-            <View style={{ marginTop: 20 }}>
-              <View style={styles.sectionHeader}>
-                <ThemedText style={[styles.sectionTitle, { color: ui.text }]}>
-                  Linked Banks
-                </ThemedText>
-                <ThemedText
-                  style={[styles.sectionSubtitle, { color: ui.mutedText }]}
-                >
-                  {plaidAccounts.length} account{plaidAccounts.length !== 1 ? "s" : ""}
-                </ThemedText>
-              </View>
-
-              {plaidAccounts.map((pa) => {
-                const isCredit = pa.type === "credit";
-                const cardColor = isDark
-                  ? isCredit ? "#4E6AB2" : "#1F6F5B"
-                  : isCredit ? "#5A7FD4" : "#2A8A6E";
-
-                return (
-                  <Pressable
-                    key={pa.account_id}
-                    onPress={() => {
-                      setSelectedDetailAccount(pa);
-                      setDetailModalVisible(true);
-                    }}
-                    style={({ pressed }) => [
-                      styles.accountCard,
-                      {
-                        backgroundColor: cardColor,
-                        borderColor: "rgba(255,255,255,0.28)",
-                        marginBottom: 12,
-                        opacity: pressed ? 0.9 : 1,
-
-                      },
-                    ]}
-                  >
-                    <View
-                      pointerEvents="none"
-                      style={[
-                        styles.cardGlow,
-                        { backgroundColor: "rgba(255,255,255,0.18)" },
-                      ]}
-                    />
-                    <View pointerEvents="none" style={styles.cardRing} />
-                    <View style={styles.cardTopRow}>
-                      <View style={styles.cardTitleGroup}>
-                        <ThemedText style={styles.cardTitle}>
-                          {pa.name}
-                        </ThemedText>
-                        <View style={styles.cardTag}>
-                          <ThemedText style={styles.cardTagText}>
-                            {pa.institution_name || "Bank"}
-                          </ThemedText>
-                        </View>
-                      </View>
-                      <View style={styles.cardIcon}>
-                        <Feather
-                          name={isCredit ? "credit-card" : "briefcase"}
-                          size={18}
-                          color="#FFFFFF"
-                        />
-                      </View>
-                    </View>
-                    <ThemedText style={styles.cardBalance}>
-                      {formatMoney(pa.balances.current ?? 0)}
-                    </ThemedText>
-                    <View style={styles.cardMetaRow}>
-                      {pa.subtype && (
-                        <View style={styles.cardMetaPill}>
-                          <Feather name="tag" size={12} color="rgba(255,255,255,0.9)" />
-                          <ThemedText style={styles.cardMetaText}>
-                            {pa.subtype.charAt(0).toUpperCase() + pa.subtype.slice(1)}
-                          </ThemedText>
-                        </View>
-                      )}
-                      {pa.mask && (
-                        <View style={styles.cardMetaPill}>
-                          <Feather name="hash" size={12} color="rgba(255,255,255,0.9)" />
-                          <ThemedText style={styles.cardMetaText}>
-                            ••{pa.mask}
-                          </ThemedText>
-                        </View>
-                      )}
-
-                      {pa.balances.iso_currency_code && (
-                        <View style={styles.cardMetaPill}>
-                          <Feather name="globe" size={12} color="rgba(255,255,255,0.9)" />
-                          <ThemedText style={styles.cardMetaText}>
-                            {pa.balances.iso_currency_code}
-                          </ThemedText>
-                        </View>
-                      )}
-                    </View>
-                    <ThemedText style={styles.cardSubText}>
-                      Available: {formatMoney(calculatePlaidAvailable(pa))}
-                    </ThemedText>
-                  </Pressable>
-                );
-              })}
-            </View>
-          )}
-        </Animated.View>
+            })}
+          </View>
+        )}
       </ScrollView>
-
       <Pressable
         onPress={() => setCreateModalOpen(true)}
         style={({ pressed }) => [

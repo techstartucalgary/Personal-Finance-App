@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { Pressable, RefreshControl, ScrollView, StyleSheet, useColorScheme } from "react-native";
+import { Platform, Pressable, RefreshControl, ScrollView, StyleSheet, useColorScheme, View } from "react-native";
 
 import SegmentedControl from "@react-native-segmented-control/segmented-control";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
@@ -109,7 +109,7 @@ export default function TargetsScreen() {
       <ScrollView
         style={[styles.container, { backgroundColor: "transparent" }]}
         contentInsetAdjustmentBehavior="automatic"
-        contentContainerStyle={[styles.scrollContent, { paddingBottom: tabBarHeight + 120, paddingTop: 16 }]}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: tabBarHeight + 120, paddingTop: Platform.OS === 'android' ? 16 + insets.top : 16 }]}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
@@ -119,6 +119,15 @@ export default function TargetsScreen() {
           />
         }
       >
+        {Platform.OS === "android" && (
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+            <ThemedText style={{ fontSize: 28, fontWeight: 'bold', color: ui.text }}>Targets</ThemedText>
+            <Pressable hitSlop={10} onPress={() => router.push("/profile")}>
+              <IconSymbol size={25} name="person" color={ui.text} />
+            </Pressable>
+          </View>
+        )}
+
         {/* Native Segmented Control */}
         <SegmentedControl
           values={["Goals", "Budgets"]}

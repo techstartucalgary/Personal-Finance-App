@@ -11,6 +11,7 @@ export default function TargetsLayout() {
     return (
         <Stack
             screenOptions={{
+                headerShown: Platform.OS === "ios",
                 headerLargeTitle: true,
                 headerTransparent: Platform.OS === "ios",
                 headerShadowVisible: false,

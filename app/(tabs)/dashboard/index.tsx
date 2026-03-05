@@ -6,6 +6,7 @@ import {
   ActivityIndicator,
   Animated,
   Image,
+  Platform,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -16,6 +17,7 @@ import {
 
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
+import { IconSymbol } from "@/components/ui/icon-symbol";
 import { Tokens } from "@/constants/authTokens";
 import { useAuthContext } from "@/hooks/use-auth-context";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -332,7 +334,7 @@ export default function DashboardScreen() {
       contentInsetAdjustmentBehavior="automatic"
       contentContainerStyle={[
         styles.scrollContent,
-        { paddingBottom: tabBarHeight + 120, paddingTop: 16 },
+        { paddingBottom: tabBarHeight + 120, paddingTop: Platform.OS === 'android' ? 16 + insets.top : 16 },
       ]}
       showsVerticalScrollIndicator={false}
       refreshControl={
@@ -343,6 +345,15 @@ export default function DashboardScreen() {
         />
       }
     >
+      {Platform.OS === "android" && (
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+          <ThemedText style={{ fontSize: 28, fontWeight: 'bold', color: ui.text }}>Dashboard</ThemedText>
+          <Pressable hitSlop={10} onPress={() => router.push("/profile")}>
+            <IconSymbol size={25} name="person" color={ui.text} />
+          </Pressable>
+        </View>
+      )}
+
       <Animated.View style={heroAnimatedStyle}>
         <View
           style={[

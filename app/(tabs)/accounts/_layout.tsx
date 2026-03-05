@@ -16,16 +16,20 @@ export default function AccountsLayout() {
     return (
         <Stack
             screenOptions={{
+                headerShown: Platform.OS === "ios",
                 contentStyle: { backgroundColor: isDark ? "#16181C" : "#ECECF1" },
                 headerLargeTitle: true,
-                headerTransparent: Platform.OS === "ios",
                 headerShadowVisible: false,
-                headerStyle: Platform.OS === "android" ? { backgroundColor: isDark ? "#16181C" : "#ECECF1" } : undefined,
+                headerStyle: { backgroundColor: isDark ? "#16181C" : "#ECECF1" },
+                headerTitleStyle: {
+                    fontSize: Platform.OS === "android" ? 28 : undefined,
+                    fontWeight: Platform.OS === "android" ? "bold" : undefined
+                },
                 headerLargeStyle: {
-                    backgroundColor: "transparent",
+                    backgroundColor: isDark ? "#16181C" : "#ECECF1",
                 },
                 headerLeft: () => (
-                    <View style={{ flexDirection: "row", gap: 6 }}>
+                    <View style={{ flexDirection: "row", gap: 16 }}>
                         <Pressable
                             hitSlop={10}
                             onPress={() => Alert.alert("Settings", "Settings coming soon!")}
@@ -38,7 +42,7 @@ export default function AccountsLayout() {
                                 opacity: pressed ? 0.7 : 1,
                             })}
                         >
-                            <Feather name="settings" size={20} color={isDark ? "#ffffff" : "#111111"} />
+                            <Feather name="settings" size={24} color={isDark ? "#ffffff" : "#111111"} />
                         </Pressable>
                         <Pressable
                             hitSlop={10}
@@ -52,7 +56,7 @@ export default function AccountsLayout() {
                                 opacity: pressed ? 0.7 : 1,
                             })}
                         >
-                            <Feather name="bell" size={20} color={isDark ? "#ffffff" : "#111111"} />
+                            <Feather name="bell" size={24} color={isDark ? "#ffffff" : "#111111"} />
                         </Pressable>
                     </View>
                 ),

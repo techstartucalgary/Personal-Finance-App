@@ -1174,7 +1174,7 @@ export default function HomeScreen() {
       <ScrollView
         style={[styles.container, { backgroundColor: "transparent" }]}
         contentInsetAdjustmentBehavior="automatic"
-        contentContainerStyle={[styles.scrollContent, { paddingBottom: tabBarHeight + 120, paddingTop: 16 }]}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: tabBarHeight + 120, paddingTop: Platform.OS === 'android' ? 16 + insets.top : 16 }]}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
@@ -1189,6 +1189,14 @@ export default function HomeScreen() {
           />
         }
       >
+        {Platform.OS === "android" && (
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+            <ThemedText style={{ fontSize: 28, fontWeight: 'bold', color: ui.text }}>Transactions</ThemedText>
+            <Pressable hitSlop={10} onPress={() => router.push("/profile")}>
+              <IconSymbol size={25} name="person" color={ui.text} />
+            </Pressable>
+          </View>
+        )}
 
         {/* Native Segmented Control */}
         <SegmentedControl

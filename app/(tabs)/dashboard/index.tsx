@@ -4,6 +4,7 @@ import { useFocusEffect, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   Animated,
   Image,
   Platform,
@@ -12,7 +13,7 @@ import {
   ScrollView,
   StyleSheet,
   useColorScheme,
-  View,
+  View
 } from "react-native";
 
 import { ThemedText } from "@/components/themed-text";
@@ -346,12 +347,22 @@ export default function DashboardScreen() {
       }
     >
       {Platform.OS === "android" && (
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-          <ThemedText style={{ fontSize: 28, fontWeight: 'bold', color: ui.text }}>Dashboard</ThemedText>
-          <Pressable hitSlop={10} onPress={() => router.push("/profile")}>
-            <IconSymbol size={25} name="person" color={ui.text} />
-          </Pressable>
-        </View>
+        <>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, gap: 16 }}>
+            <Pressable hitSlop={10} onPress={() => router.push("/profile")}>
+              <IconSymbol size={25} name="person" color={ui.text} />
+            </Pressable>
+            <View style={{ flexDirection: "row", gap: 16, alignItems: "center" }}>
+              <Pressable hitSlop={10} onPress={() => Alert.alert("Settings", "Settings coming soon!")}>
+                <Feather name="settings" size={24} color={ui.text} />
+              </Pressable>
+              <Pressable hitSlop={10} onPress={() => Alert.alert("Notifications", "You have no new notifications.")}>
+                <Feather name="bell" size={24} color={ui.text} />
+              </Pressable>
+            </View>
+          </View>
+          <ThemedText style={{ fontSize: 34, lineHeight: 42, fontWeight: 'bold', marginBottom: 16, color: ui.text }}>Dashboard</ThemedText>
+        </>
       )}
 
       <Animated.View style={heroAnimatedStyle}>

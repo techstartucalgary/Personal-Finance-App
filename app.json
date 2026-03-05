@@ -32,6 +32,7 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
+      "softwareKeyboardLayoutMode": "pan",
       "package": "com.techstart.sterlingbudgeting"
     },
     "web": {

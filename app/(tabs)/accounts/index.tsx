@@ -24,7 +24,6 @@ import { AccountDetailModal } from "@/components/AccountDetailModal";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { DateTimePickerField } from "@/components/ui/DateTimePickerField";
-import { IconSymbol } from "@/components/ui/icon-symbol";
 import { Tokens } from "@/constants/authTokens";
 import { useAuthContext } from "@/hooks/use-auth-context";
 import {
@@ -138,6 +137,7 @@ export default function AccountsScreen() {
   const [editPaymentDate, setEditPaymentDate] = useState("");
   const [editCurrency, setEditCurrency] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
+  const [isAndroidSearching, setIsAndroidSearching] = useState(false);
 
   const [detailModalVisible, setDetailModalVisible] = useState(false);
   const [addSourceModalOpen, setAddSourceModalOpen] = useState(false);
@@ -146,7 +146,6 @@ export default function AccountsScreen() {
     useCallback(() => {
       navigation.setOptions({
         headerSearchBarOptions: {
-          placement: "integrated",
           placeholder: "Search accounts...",
           onChangeText: (event: any) => setSearchQuery(event.nativeEvent.text),
           hideWhenScrolling: true,
@@ -628,22 +627,38 @@ export default function AccountsScreen() {
         </View>
 
         {Platform.OS === "android" && (
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: insets.top, marginBottom: 8 }}>
-            <View style={{ flexDirection: "row", gap: 16, alignItems: "center" }}>
-              <Pressable hitSlop={10} onPress={() => Alert.alert("Settings", "Settings coming soon!")}>
-                <Feather name="settings" size={24} color={ui.text} />
-              </Pressable>
-              <Pressable hitSlop={10} onPress={() => Alert.alert("Notifications", "You have no new notifications.")}>
-                <Feather name="bell" size={24} color={ui.text} />
-              </Pressable>
-            </View>
-            <Pressable hitSlop={10} onPress={() => router.push("/profile")}>
-              <IconSymbol size={25} name="person" color={ui.text} />
-            </Pressable>
+          <View style={{ marginBottom: 16 }}>
+            {isAndroidSearching ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: ui.surface2, borderRadius: 12, paddingHorizontal: 12, height: 44, borderColor: ui.border, borderWidth: StyleSheet.hairlineWidth, marginTop: insets.top }}>
+                <Feather name="search" size={20} color={ui.mutedText} />
+                <TextInput
+                  value={searchQuery}
+                  onChangeText={setSearchQuery}
+                  placeholder="Search accounts..."
+                  placeholderTextColor={ui.mutedText}
+                  autoFocus
+                  onBlur={() => {
+                    if (!searchQuery.trim()) {
+                      setIsAndroidSearching(false);
+                    }
+                  }}
+                  style={{ flex: 1, color: ui.text, marginLeft: 8, fontSize: 16 }}
+                />
+                <Pressable hitSlop={10} onPress={() => { setSearchQuery(""); setIsAndroidSearching(false); }}>
+                  <Feather name="x" size={20} color={ui.mutedText} />
+                </Pressable>
+              </View>
+            ) : (
+              <>
+                <View style={{ flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', marginTop: insets.top, marginBottom: 8 }}>
+                  <Pressable hitSlop={10} onPress={() => setIsAndroidSearching(true)}>
+                    <Feather name="search" size={24} color={ui.text} />
+                  </Pressable>
+                </View>
+                <ThemedText style={{ fontSize: 34, lineHeight: 42, fontWeight: 'bold', color: ui.text }}>Accounts</ThemedText>
+              </>
+            )}
           </View>
-        )}
-        {Platform.OS === "android" && (
-          <ThemedText style={{ fontSize: 28, fontWeight: 'bold', marginBottom: 16, color: ui.text }}>Accounts</ThemedText>
         )}
 
         <View

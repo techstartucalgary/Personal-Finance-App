@@ -8,6 +8,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ThemedText } from "@/components/themed-text";
 
 import { IconSymbol } from "@/components/ui/icon-symbol";
+import Feather from "@expo/vector-icons/Feather";
 
 import { BudgetsView } from "@/components/targets/BudgetsView";
 import { GoalsView } from "@/components/targets/GoalsView";
@@ -16,7 +17,8 @@ import { listAccounts } from "@/utils/accounts";
 import type { PlaidAccount } from "@/utils/plaid";
 import { getPlaidAccounts } from "@/utils/plaid";
 import { useFocusEffect, useNavigation, useRouter } from "expo-router";
-import { useCallback, useEffect } from "react";
+import { useCallback } from "react";
+import { TextInput } from "react-native";
 
 type Tab = "goals" | "budgets";
 
@@ -56,6 +58,7 @@ export default function TargetsScreen() {
   const [refreshKey, setRefreshKey] = useState(0);
   const [createRequested, setCreateRequested] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
+  const [isAndroidSearching, setIsAndroidSearching] = useState(false);
   const navigation = useNavigation();
 
   const loadAccounts = useCallback(async () => {
@@ -92,17 +95,19 @@ export default function TargetsScreen() {
     setIsRefreshing(false);
   }, [loadAccounts, loadPlaidAccounts]);
 
-  useEffect(() => {
-    navigation.setOptions({
-      headerSearchBarOptions: {
-        placeholder: "Search targets...",
-        onChangeText: (event: any) => setSearchQuery(event.nativeEvent.text),
-        hideWhenScrolling: true,
-        tintColor: ui.text,
-        textColor: ui.text,
-      },
-    });
-  }, [navigation, ui]);
+  useFocusEffect(
+    useCallback(() => {
+      navigation.setOptions({
+        headerSearchBarOptions: {
+          placeholder: "Search targets...",
+          onChangeText: (event: any) => setSearchQuery(event.nativeEvent.text),
+          hideWhenScrolling: true,
+          tintColor: ui.text,
+          textColor: ui.text,
+        },
+      });
+    }, [navigation, ui])
+  );
 
   return (
     <>
@@ -120,11 +125,37 @@ export default function TargetsScreen() {
         }
       >
         {Platform.OS === "android" && (
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-            <ThemedText style={{ fontSize: 28, fontWeight: 'bold', color: ui.text }}>Targets</ThemedText>
-            <Pressable hitSlop={10} onPress={() => router.push("/profile")}>
-              <IconSymbol size={25} name="person" color={ui.text} />
-            </Pressable>
+          <View style={{ marginBottom: 16 }}>
+            {isAndroidSearching ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: ui.surface2, borderRadius: 12, paddingHorizontal: 12, height: 44, borderColor: ui.border, borderWidth: StyleSheet.hairlineWidth, marginTop: insets.top }}>
+                <Feather name="search" size={20} color={ui.mutedText} />
+                <TextInput
+                  value={searchQuery}
+                  onChangeText={setSearchQuery}
+                  placeholder="Search targets..."
+                  placeholderTextColor={ui.mutedText}
+                  autoFocus
+                  onBlur={() => {
+                    if (!searchQuery.trim()) {
+                      setIsAndroidSearching(false);
+                    }
+                  }}
+                  style={{ flex: 1, color: ui.text, marginLeft: 8, fontSize: 16 }}
+                />
+                <Pressable hitSlop={10} onPress={() => { setSearchQuery(""); setIsAndroidSearching(false); }}>
+                  <Feather name="x" size={20} color={ui.mutedText} />
+                </Pressable>
+              </View>
+            ) : (
+              <>
+                <View style={{ flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', marginBottom: 8, gap: 16 }}>
+                  <Pressable hitSlop={10} onPress={() => setIsAndroidSearching(true)}>
+                    <Feather name="search" size={24} color={ui.text} />
+                  </Pressable>
+                </View>
+                <ThemedText style={{ fontSize: 34, lineHeight: 42, fontWeight: 'bold', color: ui.text }}>Targets</ThemedText>
+              </>
+            )}
           </View>
         )}
 

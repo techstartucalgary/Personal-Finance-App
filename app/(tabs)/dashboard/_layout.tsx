@@ -1,7 +1,8 @@
 import { IconSymbol } from "@/components/ui/icon-symbol";
+import Feather from "@expo/vector-icons/Feather";
 import { Stack, useRouter } from "expo-router";
 import React from "react";
-import { Platform, Pressable, useColorScheme } from "react-native";
+import { Platform, Pressable, useColorScheme, View } from "react-native";
 
 export default function IndexLayout() {
     const colorScheme = useColorScheme();
@@ -19,7 +20,7 @@ export default function IndexLayout() {
                 headerLargeStyle: {
                     backgroundColor: "transparent",
                 },
-                headerRight: () => (
+                headerLeft: () => (
                     <Pressable
                         onPress={() => router.push("/profile")}
                         hitSlop={10}
@@ -33,6 +34,36 @@ export default function IndexLayout() {
                     >
                         <IconSymbol size={25} name="person" color={isDark ? "#ffffff" : "#111111"} />
                     </Pressable>
+                ),
+                headerRight: () => (
+                    <View style={{ flexDirection: "row", gap: 16 }}>
+                        <Pressable
+                            hitSlop={10}
+                            style={({ pressed }) => ({
+                                width: 36,
+                                height: 36,
+                                borderRadius: 18,
+                                alignItems: "center",
+                                justifyContent: "center",
+                                opacity: pressed ? 0.7 : 1,
+                            })}
+                        >
+                            <Feather name="settings" size={24} color={isDark ? "#ffffff" : "#111111"} />
+                        </Pressable>
+                        <Pressable
+                            hitSlop={10}
+                            style={({ pressed }) => ({
+                                width: 36,
+                                height: 36,
+                                borderRadius: 18,
+                                alignItems: "center",
+                                justifyContent: "center",
+                                opacity: pressed ? 0.7 : 1,
+                            })}
+                        >
+                            <Feather name="bell" size={24} color={isDark ? "#ffffff" : "#111111"} />
+                        </Pressable>
+                    </View>
                 ),
             }}
         >

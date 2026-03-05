@@ -1,7 +1,6 @@
-import { IconSymbol } from "@/components/ui/icon-symbol";
 import { Stack, useRouter } from "expo-router";
 import React from "react";
-import { Platform, Pressable, useColorScheme } from "react-native";
+import { Platform, useColorScheme } from "react-native";
 
 export default function TargetsLayout() {
     const colorScheme = useColorScheme();
@@ -19,21 +18,6 @@ export default function TargetsLayout() {
                 headerLargeStyle: {
                     backgroundColor: "transparent",
                 },
-                headerRight: () => (
-                    <Pressable
-                        onPress={() => router.push("/profile")}
-                        hitSlop={10}
-                        style={{
-                            width: 36,
-                            height: 36,
-                            borderRadius: 18,
-                            alignItems: "center",
-                            justifyContent: "center",
-                        }}
-                    >
-                        <IconSymbol size={25} name="person" color={isDark ? "#ffffff" : "#111111"} />
-                    </Pressable>
-                ),
             }}
         >
             <Stack.Screen name="index" options={{ title: "Targets" }} />

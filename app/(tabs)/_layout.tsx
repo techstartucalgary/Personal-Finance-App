@@ -87,6 +87,23 @@ export default function TabLayout() {
           }
         />
       </NativeTabs.Trigger>
+
+      <NativeTabs.Trigger
+        name="chatAI"
+        options={{
+          title: "AI buddy",
+        }}
+      >
+        <Icon
+          sf="eye"
+          androidSrc={
+            <VectorIcon
+              family={Feather}
+              name="eye"
+            />
+          }
+        />
+        </NativeTabs.Trigger>
     </NativeTabs>
   );
 }

@@ -1281,6 +1281,49 @@ const styles = StyleSheet.create({
     paddingBottom: 2,
     gap: 6,
   },
+  chartRow: {
+    flexDirection: "row",
+    alignItems: "stretch",
+  },
+  yAxis: {
+    width: 36,
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    paddingVertical: 12,
+  },
+  yLabel: {
+    fontSize: 12,
+    fontFamily: Tokens.font.semiFamily ?? Tokens.font.family,
+  },
+  chartArea: {
+    flex: 1,
+    height: 240,
+    position: "relative",
+    justifyContent: "center",
+  },
+  chartGuide: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    borderTopWidth: 1,
+    borderStyle: "dashed",
+    opacity: 0.5,
+  },
+  chartImage: {
+    width: "100%",
+    height: 214,
+    alignSelf: "center",
+  },
+  monthRow: {
+    marginTop: 6,
+    paddingHorizontal: 42,
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  monthLabel: {
+    fontSize: 12,
+    fontFamily: Tokens.font.semiFamily ?? Tokens.font.family,
+  },
   toolbarRow: {
     marginTop: 10,
     flexDirection: "row",

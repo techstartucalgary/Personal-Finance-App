@@ -171,17 +171,22 @@ export function AccountsTrendChart({
   }, [accounts, transactions, monthBuckets, months]);
 
   const maxValue = useMemo(() => {
+    if (series.length === 0) return 1;
     const rawMax = Math.max(0, ...series.flatMap((item) => item.values));
     return rawMax <= 0 ? 1 : niceMax(rawMax);
   }, [series]);
 
   const ticks = useMemo(() => {
-    if (maxValue <= 0 || Number.isNaN(maxValue)) {
+    const rawMax =
+      series.length === 0
+        ? 0
+        : Math.max(0, ...series.flatMap((item) => item.values));
+    if (rawMax <= 0 || Number.isNaN(maxValue)) {
       return [0, 0, 0, 0];
     }
     const step = maxValue / 3;
     return [maxValue, maxValue - step, maxValue - step * 2, 0];
-  }, [maxValue]);
+  }, [maxValue, series]);
 
   const handleLayout = (event: LayoutChangeEvent) => {
     const nextWidth = Math.max(0, event.nativeEvent.layout.width);

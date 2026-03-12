@@ -18,8 +18,8 @@ export default function TabLayout() {
   return (
     <NativeTabs
       tintColor={Colors[colorScheme ?? "light"].tint}
-      indicatorColor={theme.colors.secondaryContainer}
-      backgroundColor={theme.colors.elevation.level2}
+      indicatorColor={theme.colors.surfaceVariant}
+      backgroundColor={theme.colors.surface}
       labelVisibilityMode="labeled"
     >
       <NativeTabs.Trigger

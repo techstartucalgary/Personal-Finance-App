@@ -1240,8 +1240,8 @@ export default function HomeScreen() {
             const index = event.nativeEvent.selectedSegmentIndex;
             setActiveTab(index === 0 ? "transactions" : "recurrences");
           }}
-          tintColor={isAndroid ? theme.colors.surface : (isDark ? "#3A3A3C" : "#FFFFFF")}
-          backgroundColor={isAndroid ? theme.colors.elevation.level2 : "transparent"}
+          tintColor={isAndroid ? theme.colors.background : (isDark ? "#3A3A3C" : "#FFFFFF")}
+          backgroundColor={isAndroid ? theme.colors.surface : "transparent"}
           fontStyle={{ color: ui.text, fontWeight: "500" }}
           activeFontStyle={{ color: ui.text, fontWeight: "600" }}
         />

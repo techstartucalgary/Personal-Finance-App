@@ -75,6 +75,13 @@ export default function ProfileScreen() {
           headerBackTitle: "Back",
           headerLargeTitle: true,
           headerTransparent: Platform.OS === "ios",
+          headerStyle: {
+            backgroundColor: ui.surface,
+          },
+          headerTintColor: ui.text,
+          headerTitleStyle: {
+            color: ui.text,
+          },
         }}
       />
       <ScrollView
@@ -83,10 +90,10 @@ export default function ProfileScreen() {
         contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 40 }]}
       >
         <View style={styles.avatarSection}>
-          <View style={[styles.avatarCircle, { backgroundColor: ui.surface2, borderColor: ui.border }]}>
-            <ThemedText style={[styles.avatarText, { color: ui.text }]}>{initials}</ThemedText>
+          <View style={[styles.avatarCircle, { backgroundColor: ui.accent, borderColor: ui.border, borderWidth: 0 }]}>
+            <ThemedText style={[styles.avatarText, { color: isAndroid ? theme.colors.onPrimary : ui.surface }]}>{initials}</ThemedText>
           </View>
-          <ThemedText type="title" style={{ marginTop: 12 }}>{fullName}</ThemedText>
+          <ThemedText type="title" style={{ marginTop: 16, fontWeight: "700" }}>{fullName}</ThemedText>
           <ThemedText style={{ color: ui.mutedText, fontSize: 16, marginTop: 4 }}>
             {session?.user?.email ?? "—"}
           </ThemedText>

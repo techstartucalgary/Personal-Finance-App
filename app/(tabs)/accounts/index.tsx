@@ -22,9 +22,12 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useFocusEffect, useNavigation, useRouter } from "expo-router";
 
 import { AccountDetailModal } from "@/components/AccountDetailModal";
+import { AccountListCard, AccountWaveCard } from "@/components/accounts/AccountCards";
+import { AccountsViewToggle } from "@/components/accounts/AccountsViewToggle";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { DateTimePickerField } from "@/components/ui/DateTimePickerField";
+import { IconSymbol } from "@/components/ui/icon-symbol";
 import { Tokens } from "@/constants/authTokens";
 import { useAuthContext } from "@/hooks/use-auth-context";
 import {
@@ -146,6 +149,16 @@ export default function AccountsScreen() {
 
   const [detailModalVisible, setDetailModalVisible] = useState(false);
   const [addSourceModalOpen, setAddSourceModalOpen] = useState(false);
+  const [viewMode, setViewMode] = useState<"list" | "wave">("wave");
+
+  const getAccountColor = (item: AccountRow | PlaidAccount, index: number) => {
+    const type = (("account_type" in item ? item.account_type : item.type) ?? "").toLowerCase();
+    const isDebit = type === "debit" || type === "depository" || type === "checking" || type === "savings";
+    const palette = isDebit
+      ? ["#701D26", "#8A2431", "#5A1520", "#9B2B3A"] // DEBIT_PALETTE
+      : ["#D86666", "#E07A7A", "#C95454", "#E39191"]; // CREDIT_PALETTE
+    return palette[index % palette.length];
+  };
 
   useFocusEffect(
     useCallback(() => {
@@ -555,7 +568,7 @@ export default function AccountsScreen() {
     return manualLiabilities + plaidLiabilities;
   }, [accounts, plaidAccounts]);
 
-  const filteredAccounts = useMemo(() => {
+  const filteredManualAccounts = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
     if (!q) return accounts;
 
@@ -568,6 +581,20 @@ export default function AccountsScreen() {
       );
     });
   }, [accounts, searchQuery]);
+
+  const filteredPlaidAccounts = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return plaidAccounts;
+
+    return plaidAccounts.filter((pa) => {
+      const namePart = pa.name?.toLowerCase() ?? "";
+      const typePart = pa.type?.toLowerCase() ?? "";
+      const subtypePart = pa.subtype?.toLowerCase() ?? "";
+      return (
+        namePart.includes(q) || typePart.includes(q) || subtypePart.includes(q)
+      );
+    });
+  }, [plaidAccounts, searchQuery]);
 
 
 
@@ -665,103 +692,29 @@ export default function AccountsScreen() {
           <View style={[styles.bgRing, { borderColor: ui.accentSoft }]} />
         </View>
 
-        <View
-          style={[
-            styles.card,
-            {
-              borderColor: ui.border,
-              backgroundColor: ui.surface2,
-              display: "none",
-            },
-          ]}
-        >
-          <ThemedText type="defaultSemiBold">Your accounts</ThemedText>
-          {accounts.length === 0 ? (
-            <ThemedText>
-              {isLoading ? "Loading..." : "No accounts yet. Add one below."}
-            </ThemedText>
-          ) : (
-            accounts.map((item) => (
-              <Pressable
-                key={item.id}
-                onPress={() => setEditingAccount(item)}
-                style={({ pressed }) => [
-                  styles.row,
-                  {
-                    borderColor: ui.border,
-                    backgroundColor: ui.surface2,
-                    opacity: pressed ? 0.7 : 1,
-                  },
-                ]}
-              >
-                <View style={{ flex: 1 }}>
-                  <ThemedText type="defaultSemiBold">
-                    {item.account_name ?? "Unnamed account"}
-                  </ThemedText>
-                  <ThemedText type="default">
-                    {item.account_type
-                      ? item.account_type.charAt(0).toUpperCase() +
-                      item.account_type.slice(1)
-                      : "-"}
-                  </ThemedText>
-                  <ThemedText>
-                    Balance: {formatMoney(item.balance ?? 0)}
-                  </ThemedText>
-                  <ThemedText style={{ opacity: 0.7, fontSize: 13 }}>
-                    Available: {formatMoney(calculateAvailable(item))}
-                  </ThemedText>
-                  <ThemedText>{item.currency}</ThemedText>
-                </View>
-              </Pressable>
-            ))
-          )}
-        </View>
 
         <View style={styles.toolbarRow}>
-          <View style={{ flexDirection: "row", gap: 8 }}>
-            <Pressable
-              onPress={() => setAddSourceModalOpen(true)}
-              style={[
-                styles.smallActionBtn,
-                { borderColor: ui.border, backgroundColor: ui.text },
-              ]}
-            >
-              <Feather name="plus" size={18} color={ui.surface} />
-              <ThemedText style={[styles.actionText, { color: ui.surface, fontWeight: "600" }]}>
-                Add Account
-              </ThemedText>
-            </Pressable>
-          </View>
-
-          <View
-            style={[
-              styles.viewPill,
-              {
-                borderColor: ui.border,
-                backgroundColor: isDark ? "#2A2D33" : "#D8D8DA",
-              },
-            ]}
-          >
-            <Feather name="grid" size={18} color={ui.text} />
-            <View
-              style={[styles.viewDivider, { backgroundColor: ui.border }]}
-            />
-            <Feather name="list" size={18} color={ui.text} />
-          </View>
+          <View style={{ flex: 1 }} />
+          <AccountsViewToggle
+            value={viewMode}
+            onChange={setViewMode}
+            borderColor={ui.border}
+            backgroundColor={ui.surface2}
+            activeColor={ui.accent}
+            inactiveColor={ui.mutedText}
+          />
         </View>
 
         <View style={styles.sectionHeader}>
           <ThemedText style={[styles.sectionTitle, { color: ui.text }]}>
-            Your Accounts
+            Manual Accounts
           </ThemedText>
-          <ThemedText
-            style={[styles.sectionSubtitle, { color: ui.mutedText }]}
-          >
-            {filteredAccounts.length} total
+          <ThemedText style={[styles.sectionSubtitle, { color: ui.mutedText }]}>
+            {filteredManualAccounts.length} account{filteredManualAccounts.length !== 1 ? "s" : ""}
           </ThemedText>
         </View>
 
-        {filteredAccounts.length === 0 ? (
+        {filteredManualAccounts.length === 0 ? (
           <View
             style={[
               styles.emptyState,
@@ -771,108 +724,33 @@ export default function AccountsScreen() {
             <ThemedText style={{ color: ui.text }}>
               {isLoading
                 ? "Loading..."
-                : "No accounts found. Tap + to add your first account."}
+                : "No matches found."}
             </ThemedText>
           </View>
         ) : (
-          filteredAccounts.map((item) => {
-            const isCredit =
-              (item.account_type ?? "").toLowerCase() === "credit";
-            const cardColor = isDark
-              ? isCredit
-                ? "#B24E4E"
-                : "#61202A"
-              : isCredit
-                ? "#D86666"
-                : "#701D26";
+          filteredManualAccounts.map((item, idx) => {
+            const cardProps = {
+              title: item.account_name ?? "Unnamed account",
+              balance: formatMoney(item.balance ?? 0),
+              typeLabel: item.account_type ? item.account_type.charAt(0).toUpperCase() + item.account_type.slice(1) : "-",
+              dateLabel: item.currency ?? "CAD",
+              color: getAccountColor(item, idx),
+              onPress: () => {
+                setSelectedDetailAccount(item);
+                setDetailModalVisible(true);
+              },
+            };
 
-            return (
-              <Pressable
-                key={item.id}
-                onPress={() => {
-                  setSelectedDetailAccount(item);
-                  setDetailModalVisible(true);
-                }}
-                style={({ pressed }) => [
-                  styles.accountCard,
-                  {
-                    backgroundColor: cardColor,
-                    opacity: pressed ? 0.88 : 1,
-                    borderColor: "rgba(255,255,255,0.28)",
-                  },
-                ]}
-              >
-                <View
-                  pointerEvents="none"
-                  style={[
-                    styles.cardGlow,
-                    {
-                      backgroundColor: isCredit
-                        ? "rgba(255,255,255,0.26)"
-                        : "rgba(255,255,255,0.18)",
-                    },
-                  ]}
-                />
-                <View pointerEvents="none" style={styles.cardRing} />
-                <View style={styles.cardTopRow}>
-                  <View style={styles.cardTitleGroup}>
-                    <ThemedText style={styles.cardTitle}>
-                      {item.account_name ?? "Unnamed account"}
-                    </ThemedText>
-                    <View style={styles.cardTag}>
-                      <ThemedText style={styles.cardTagText}>
-                        {item.account_type
-                          ? item.account_type.charAt(0).toUpperCase() +
-                          item.account_type.slice(1)
-                          : "Account"}
-                      </ThemedText>
-                    </View>
-                  </View>
-                  <View style={styles.cardIcon}>
-                    <Feather
-                      name={isCredit ? "credit-card" : "dollar-sign"}
-                      size={18}
-                      color="#FFFFFF"
-                    />
-                  </View>
-                </View>
-                <ThemedText style={styles.cardBalance}>
-                  {formatMoney(item.balance ?? 0)}
-                </ThemedText>
-                <View style={styles.cardMetaRow}>
-                  <View style={styles.cardMetaPill}>
-                    <Feather
-                      name="calendar"
-                      size={12}
-                      color="rgba(255,255,255,0.9)"
-                    />
-                    <ThemedText style={styles.cardMetaText}>
-                      {formatCardDate(item.payment_duedate)}
-                    </ThemedText>
-                  </View>
-                  {item.currency ? (
-                    <View style={styles.cardMetaPill}>
-                      <Feather
-                        name="globe"
-                        size={12}
-                        color="rgba(255,255,255,0.9)"
-                      />
-                      <ThemedText style={styles.cardMetaText}>
-                        {item.currency}
-                      </ThemedText>
-                    </View>
-                  ) : null}
-                </View>
-                <ThemedText style={styles.cardSubText}>
-                  Available: {formatMoney(calculateAvailable(item))}
-                </ThemedText>
-              </Pressable>
+            return viewMode === "wave" ? (
+              <AccountWaveCard key={item.id} {...cardProps} />
+            ) : (
+              <AccountListCard key={item.id} {...cardProps} />
             );
           })
         )}
 
         {/* Linked Banks (Plaid) */}
-        {plaidAccounts.length > 0 && (
+        {filteredPlaidAccounts.length > 0 && (
           <View style={{ marginTop: 20 }}>
             <View style={styles.sectionHeader}>
               <ThemedText style={[styles.sectionTitle, { color: ui.text }]}>
@@ -881,201 +759,155 @@ export default function AccountsScreen() {
               <ThemedText
                 style={[styles.sectionSubtitle, { color: ui.mutedText }]}
               >
-                {plaidAccounts.length} account{plaidAccounts.length !== 1 ? "s" : ""}
+                {filteredPlaidAccounts.length} account{filteredPlaidAccounts.length !== 1 ? "s" : ""}
               </ThemedText>
             </View>
 
-            {plaidAccounts.map((pa) => {
-              const isCredit = pa.type === "credit";
-              const cardColor = isDark
-                ? isCredit ? "#4E6AB2" : "#1F6F5B"
-                : isCredit ? "#5A7FD4" : "#2A8A6E";
-
-              return (
-                <Pressable
-                  key={pa.account_id}
-                  onPress={() => {
-                    setSelectedDetailAccount(pa);
-                    setDetailModalVisible(true);
-                  }}
-                  style={({ pressed }) => [
-                    styles.accountCard,
-                    {
-                      backgroundColor: cardColor,
-                      borderColor: "rgba(255,255,255,0.28)",
-                      marginBottom: 12,
-                      opacity: pressed ? 0.9 : 1,
-
-                    },
-                  ]}
-                >
-                  <View
-                    pointerEvents="none"
-                    style={[
-                      styles.cardGlow,
-                      { backgroundColor: "rgba(255,255,255,0.18)" },
-                    ]}
-                  />
-                  <View pointerEvents="none" style={styles.cardRing} />
-                  <View style={styles.cardTopRow}>
-                    <View style={styles.cardTitleGroup}>
-                      <ThemedText style={styles.cardTitle}>
-                        {pa.name}
-                      </ThemedText>
-                      <View style={styles.cardTag}>
-                        <ThemedText style={styles.cardTagText}>
-                          {pa.institution_name || "Bank"}
-                        </ThemedText>
-                      </View>
-                    </View>
-                    <View style={styles.cardIcon}>
-                      <Feather
-                        name={isCredit ? "credit-card" : "briefcase"}
-                        size={18}
-                        color="#FFFFFF"
-                      />
-                    </View>
-                  </View>
-                  <ThemedText style={styles.cardBalance}>
-                    {formatMoney(pa.balances.current ?? 0)}
-                  </ThemedText>
-                  <View style={styles.cardMetaRow}>
-                    {pa.subtype && (
-                      <View style={styles.cardMetaPill}>
-                        <Feather name="tag" size={12} color="rgba(255,255,255,0.9)" />
-                        <ThemedText style={styles.cardMetaText}>
-                          {pa.subtype.charAt(0).toUpperCase() + pa.subtype.slice(1)}
-                        </ThemedText>
-                      </View>
-                    )}
-                    {pa.mask && (
-                      <View style={styles.cardMetaPill}>
-                        <Feather name="hash" size={12} color="rgba(255,255,255,0.9)" />
-                        <ThemedText style={styles.cardMetaText}>
-                          ••{pa.mask}
-                        </ThemedText>
-                      </View>
-                    )}
-
-                    {pa.balances.iso_currency_code && (
-                      <View style={styles.cardMetaPill}>
-                        <Feather name="globe" size={12} color="rgba(255,255,255,0.9)" />
-                        <ThemedText style={styles.cardMetaText}>
-                          {pa.balances.iso_currency_code}
-                        </ThemedText>
-                      </View>
-                    )}
-                  </View>
-                  <ThemedText style={styles.cardSubText}>
-                    Available: {formatMoney(calculatePlaidAvailable(pa))}
-                  </ThemedText>
-                </Pressable>
+            {filteredPlaidAccounts.map((pa, idx) => {
+              const cardProps = {
+                title: pa.name,
+                balance: formatMoney(pa.balances.current ?? 0),
+                typeLabel: pa.type.charAt(0).toUpperCase() + pa.type.slice(1),
+                dateLabel: pa.subtype ? pa.subtype.charAt(0).toUpperCase() + pa.subtype.slice(1) : "Bank",
+                color: getAccountColor(pa, idx + accounts.length),
+                onPress: () => {
+                  setSelectedDetailAccount(pa);
+                  setDetailModalVisible(true);
+                },
+              };
+              return viewMode === "wave" ? (
+                <AccountWaveCard key={pa.account_id} {...cardProps} waveAngle={idx % 2 === 0 ? -8 : 8} />
+              ) : (
+                <AccountListCard key={pa.account_id} {...cardProps} />
               );
             })}
           </View>
         )}
       </ScrollView>
 
+      <Pressable
+        onPress={() => setAddSourceModalOpen(true)}
+        style={({ pressed }) => [
+          styles.fab,
+          isAndroid && {
+            width: 80,
+            height: 80,
+            borderRadius: 20,
+            right: 16,
+          },
+          {
+            backgroundColor: isAndroid ? theme.colors.primary : ui.text,
+            opacity: pressed ? 0.8 : 1,
+            bottom: fabBottom,
+            elevation: isAndroid ? 5 : 6,
+          },
+        ]}
+      >
+        <IconSymbol name="plus" size={isAndroid ? 36 : 32} color={isAndroid ? theme.colors.onPrimary : ui.surface} />
+      </Pressable>
+
       {/* Select Source Modal */}
-      {addSourceModalOpen && (
-        <Pressable
-          style={[
-            styles.modalBackdrop,
-            StyleSheet.absoluteFill,
-            { backgroundColor: ui.backdrop, zIndex: 100 },
-          ]}
-          onPress={() => setAddSourceModalOpen(false)}
-        >
+      {
+        addSourceModalOpen && (
           <Pressable
             style={[
-              styles.modalCard,
-              { backgroundColor: ui.surface2, borderColor: ui.border, width: '85%' },
+              styles.modalBackdrop,
+              StyleSheet.absoluteFill,
+              { backgroundColor: ui.backdrop, zIndex: 100 },
             ]}
-            onPress={() => { }}
+            onPress={() => setAddSourceModalOpen(false)}
           >
-            <ThemedText type="defaultSemiBold" style={{ fontSize: 18, marginBottom: 8 }}>
-              Add Account
-            </ThemedText>
-            <ThemedText style={{ color: ui.mutedText, marginBottom: 20 }}>
-              How would you like to add your new account?
-            </ThemedText>
-
             <Pressable
               style={[
-                styles.modalOption,
-                {
-                  borderColor: ui.border,
-                  backgroundColor: ui.surface,
-                  flexDirection: 'row',
-                  justifyContent: 'flex-start',
-                  paddingHorizontal: 16,
-                  paddingVertical: 14,
-                  gap: 12
-                },
+                styles.modalCard,
+                { backgroundColor: ui.surface2, borderColor: ui.border },
               ]}
-              onPress={() => {
-                setAddSourceModalOpen(false);
-                setCreateModalOpen(true);
-              }}
+              onPress={() => { }}
             >
-              <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: ui.surface2, alignItems: 'center', justifyContent: 'center' }}>
-                <Feather name="edit-2" size={18} color={ui.text} />
-              </View>
-              <View>
-                <ThemedText type="defaultSemiBold">Manual Account</ThemedText>
-                <ThemedText style={{ color: ui.mutedText, fontSize: 13, marginTop: 2 }}>Enter transactions yourself</ThemedText>
-              </View>
-            </Pressable>
+              <ThemedText type="defaultSemiBold" style={{ fontSize: 18, marginBottom: 8 }}>
+                Add Account
+              </ThemedText>
+              <ThemedText style={{ color: ui.mutedText, marginBottom: 20 }}>
+                How would you like to add your new account?
+              </ThemedText>
 
-            <Pressable
-              style={[
-                styles.modalOption,
-                {
-                  borderColor: ui.border,
-                  backgroundColor: ui.surface,
-                  flexDirection: 'row',
-                  justifyContent: 'flex-start',
-                  paddingHorizontal: 16,
-                  paddingVertical: 14,
-                  gap: 12
-                },
-              ]}
-              disabled={isConnecting}
-              onPress={() => {
-                handleConnectBank({
-                  onBeforeOpen: () => setAddSourceModalOpen(false),
-                  onError: () => setAddSourceModalOpen(false)
-                });
-              }}
-            >
-              <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: ui.accentSoft, alignItems: 'center', justifyContent: 'center' }}>
-                {isConnecting ? (
-                  <ActivityIndicator size="small" color={ui.accent} />
-                ) : (
-                  <Feather name="link" size={18} color={ui.accent} />
-                )}
-              </View>
-              <View>
-                <ThemedText type="defaultSemiBold">
-                  {isConnecting ? "Connecting..." : "Connect Bank"}
-                </ThemedText>
-                <ThemedText style={{ color: ui.mutedText, fontSize: 13, marginTop: 2 }}>Sync automatically via Plaid</ThemedText>
-              </View>
-            </Pressable>
+              <Pressable
+                style={[
+                  styles.modalOption,
+                  {
+                    borderColor: ui.border,
+                    backgroundColor: ui.surface,
+                    flexDirection: 'row',
+                    justifyContent: 'flex-start',
+                    paddingHorizontal: 16,
+                    paddingVertical: 14,
+                    gap: 12
+                  },
+                ]}
+                onPress={() => {
+                  setAddSourceModalOpen(false);
+                  setCreateModalOpen(true);
+                }}
+              >
+                <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: ui.surface2, alignItems: 'center', justifyContent: 'center' }}>
+                  <Feather name="edit-2" size={18} color={ui.text} />
+                </View>
+                <View>
+                  <ThemedText type="defaultSemiBold">Manual Account</ThemedText>
+                  <ThemedText style={{ color: ui.mutedText, fontSize: 13, marginTop: 2 }}>Enter transactions yourself</ThemedText>
+                </View>
+              </Pressable>
 
-            <Pressable
-              style={[
-                styles.modalOption,
-                styles.modalCancel,
-                { borderColor: "transparent", backgroundColor: "transparent", marginTop: 8 },
-              ]}
-              onPress={() => setAddSourceModalOpen(false)}
-            >
-              <ThemedText type="defaultSemiBold" style={{ color: ui.mutedText }}>Cancel</ThemedText>
+              <Pressable
+                style={[
+                  styles.modalOption,
+                  {
+                    borderColor: ui.border,
+                    backgroundColor: ui.surface,
+                    flexDirection: 'row',
+                    justifyContent: 'flex-start',
+                    paddingHorizontal: 16,
+                    paddingVertical: 14,
+                    gap: 12
+                  },
+                ]}
+                disabled={isConnecting}
+                onPress={() => {
+                  handleConnectBank({
+                    onBeforeOpen: () => setAddSourceModalOpen(false),
+                    onError: () => setAddSourceModalOpen(false)
+                  });
+                }}
+              >
+                <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: ui.accentSoft, alignItems: 'center', justifyContent: 'center' }}>
+                  {isConnecting ? (
+                    <ActivityIndicator size="small" color={ui.accent} />
+                  ) : (
+                    <Feather name="link" size={18} color={ui.accent} />
+                  )}
+                </View>
+                <View>
+                  <ThemedText type="defaultSemiBold">
+                    {isConnecting ? "Connecting..." : "Connect Bank"}
+                  </ThemedText>
+                  <ThemedText style={{ color: ui.mutedText, fontSize: 13, marginTop: 2 }}>Sync automatically via Plaid</ThemedText>
+                </View>
+              </Pressable>
+
+              <Pressable
+                style={[
+                  styles.modalOption,
+                  styles.modalCancel,
+                  { borderColor: "transparent", backgroundColor: "transparent", marginTop: 8 },
+                ]}
+                onPress={() => setAddSourceModalOpen(false)}
+              >
+                <ThemedText type="defaultSemiBold" style={{ color: ui.mutedText }}>Cancel</ThemedText>
+              </Pressable>
             </Pressable>
           </Pressable>
-        </Pressable>
-      )}
+        )
+      }
 
       <Modal
         visible={createModalOpen}
@@ -1308,10 +1140,10 @@ export default function AccountsScreen() {
               : calculateAvailable(selectedDetailAccount as AccountRow)
             : null
         }
-        onEdit={(acc) => {
+        onEdit={(acc: any) => {
           setEditingAccount(acc as AccountRow);
         }}
-        onUnlink={(pa) => {
+        onUnlink={(pa: any) => {
           Alert.alert(
             "Unlink Account?",
             "Are you sure you want to unlink this account? Your data will be removed.",
@@ -1794,10 +1626,26 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  fab: {
+    position: "absolute",
+    right: 20,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOpacity: 0.3,
+    shadowOffset: { width: 0, height: 4 },
+    shadowRadius: 6,
+    elevation: 6,
+    zIndex: 99,
+  },
   sectionHeader: {
-    marginTop: 6,
+    marginTop: 20,
+    marginBottom: 4,
     flexDirection: "row",
-    alignItems: "flex-end",
+    alignItems: "center",
     justifyContent: "space-between",
   },
   sectionTitle: {
@@ -1813,14 +1661,14 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     paddingHorizontal: 14,
     paddingVertical: 16,
-    marginTop: 10,
+    marginTop: 4,
   },
   accountCard: {
     borderRadius: 24,
     paddingHorizontal: 20,
     paddingTop: 20,
     paddingBottom: 22,
-    marginTop: 10,
+    marginTop: 6,
     borderWidth: StyleSheet.hairlineWidth,
     shadowColor: "#000",
     shadowOpacity: 0.2,
@@ -1948,13 +1796,14 @@ const styles = StyleSheet.create({
   modalBackdrop: {
     flex: 1,
     justifyContent: "center",
-    padding: 18,
+    alignItems: "center",
   },
   modalCard: {
     borderRadius: 24,
     padding: 14,
     gap: 10,
     borderWidth: StyleSheet.hairlineWidth,
+    width: "85%",
   },
   modalOption: {
     paddingVertical: 12,

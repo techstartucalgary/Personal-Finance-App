@@ -15,7 +15,7 @@ import {
   View
 } from "react-native";
 
-import IncomeExpenseChart from "@/components/IncomeExpenseChart";
+import { AccountsTrendChart } from "@/components/accounts/AccountsTrendChart";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { Tokens } from "@/constants/authTokens";
@@ -49,6 +49,7 @@ type GoalRow = {
 
 type ExpenseRow = {
   id: string;
+  account_id: number;
   amount: number | null;
   description?: string | null;
   transaction_date?: string | null;
@@ -483,7 +484,37 @@ export default function DashboardScreen() {
                 </ThemedText>
               </View>
             </View>
-            <IncomeExpenseChart expenses={expenses} plaidTransactions={plaidTransactions} />
+            <AccountsTrendChart
+              accounts={[
+                ...accounts.map(a => ({
+                  id: a.id,
+                  account_name: a.account_name,
+                  account_type: a.account_type,
+                  balance: a.balance,
+                })),
+                ...plaidAccounts.map(pa => ({
+                  id: pa.account_id,
+                  account_name: pa.name,
+                  account_type: pa.type,
+                  balance: pa.balances.current,
+                })),
+              ]}
+              transactions={[
+                ...expenses.map(ex => ({
+                  account_id: ex.account_id,
+                  amount: ex.amount,
+                  transaction_date: ex.transaction_date,
+                })),
+                ...plaidTransactions.map(pt => ({
+                  account_id: pt.account_id as any,
+                  amount: pt.amount,
+                  transaction_date: pt.date,
+                })),
+              ]}
+              textColor={ui.text}
+              mutedTextColor={ui.mutedText}
+              gridColor={ui.border}
+            />
           </View>
         </Animated.View>
 

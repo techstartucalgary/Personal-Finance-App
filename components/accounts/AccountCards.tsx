@@ -60,7 +60,7 @@ export function AccountWaveCard({
     >
       <Image
         pointerEvents="none"
-        source={require("../../assets/images/Accounts Vector.png")}
+        source={require("../../assets/images/accounts-vector.png")}
         style={[
           styles.waveImage,
           { transform: [{ rotate: `${waveAngle}deg` }] },

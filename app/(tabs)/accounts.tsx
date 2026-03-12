@@ -10,7 +10,6 @@ import React, {
 import {
   Alert,
   Animated,
-  Image,
   Modal,
   Pressable,
   RefreshControl,
@@ -23,6 +22,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useFocusEffect, useRouter } from "expo-router";
 
+import { AccountsTrendChart } from "@/components/accounts/AccountsTrendChart";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { Tokens, getColors } from "@/constants/authTokens";
@@ -32,6 +32,7 @@ import {
   deleteAccount as deleteAccountApi,
   updateAccount as updateAccountApi,
 } from "@/utils/accounts";
+import { listExpenses } from "@/utils/expenses";
 import { listGoals } from "@/utils/goals";
 import { supabase } from "@/utils/supabase";
 
@@ -63,6 +64,14 @@ type GoalRow = {
   current_amount: number | null;
   target_date: string | null;
   linked_account: number | null;
+};
+
+type ExpenseRow = {
+  id: string;
+  amount: number | null;
+  created_at?: string | null;
+  account_id?: number | null;
+  transaction_date?: string | null;
 };
 
 export default function AccountsScreen() {
@@ -118,6 +127,7 @@ export default function AccountsScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const [accounts, setAccounts] = useState<AccountRow[]>([]);
   const [goals, setGoals] = useState<GoalRow[]>([]);
+  const [expenses, setExpenses] = useState<ExpenseRow[]>([]);
 
   // create form
   const [name, setName] = useState("");
@@ -151,6 +161,7 @@ export default function AccountsScreen() {
     async (silent = false) => {
       if (!userId) {
         setAccounts([]);
+        setExpenses([]);
         return;
       }
 
@@ -187,6 +198,13 @@ export default function AccountsScreen() {
         );
       } catch (err) {
         console.error("Error loading goals for accounts:", err);
+      }
+
+      try {
+        const expenseData = await listExpenses({ profile_id: userId });
+        setExpenses((expenseData as ExpenseRow[]) ?? []);
+      } catch (err) {
+        console.error("Error loading transactions for chart:", err);
       }
 
       if (!silent) setIsLoading(false);
@@ -584,71 +602,15 @@ export default function AccountsScreen() {
 
         <Animated.View style={listAnimatedStyle}>
           <View style={styles.chartCard}>
-            <View style={styles.chartRow}>
-              <View style={styles.yAxis}>
-                <ThemedText style={[styles.yLabel, { color: ui.mutedText }]}>
-                  50k
-                </ThemedText>
-                <ThemedText style={[styles.yLabel, { color: ui.mutedText }]}>
-                  20k
-                </ThemedText>
-                <ThemedText style={[styles.yLabel, { color: ui.mutedText }]}>
-                  10k
-                </ThemedText>
-                <ThemedText style={[styles.yLabel, { color: ui.mutedText }]}>
-                  0
-                </ThemedText>
-              </View>
-
-              <View style={styles.chartArea}>
-                <View
-                  style={[
-                    styles.chartGuide,
-                    { borderColor: ui.border, top: "8%" },
-                  ]}
-                />
-                <View
-                  style={[
-                    styles.chartGuide,
-                    { borderColor: ui.border, top: "34%" },
-                  ]}
-                />
-                <View
-                  style={[
-                    styles.chartGuide,
-                    { borderColor: ui.border, top: "58%" },
-                  ]}
-                />
-                <View
-                  style={[
-                    styles.chartGuide,
-                    { borderColor: ui.border, top: "82%" },
-                  ]}
-                />
-                <Image
-                  source={{
-                    uri: "https://api.builder.io/api/v1/image/assets/TEMP/94870884-619f-436a-b553-127d9ef92e88?placeholderIfAbsent=true&apiKey=342743ad2e264936acee3aea8d83ec5e",
-                  }}
-                  style={styles.chartImage}
-                  resizeMode="contain"
-                />
-              </View>
-            </View>
-
-            <View style={styles.monthRow}>
-              <ThemedText style={[styles.monthLabel, { color: ui.mutedText }]}>
-                Jan
-              </ThemedText>
-              <ThemedText style={[styles.monthLabel, { color: ui.mutedText }]}>
-                Feb
-              </ThemedText>
-              <ThemedText style={[styles.monthLabel, { color: ui.text }]}>
-                Mar
-              </ThemedText>
-              <ThemedText style={[styles.monthLabel, { color: ui.mutedText }]}>
-                Apr
-              </ThemedText>
-            </View>
+            <AccountsTrendChart
+              accounts={accounts}
+              transactions={expenses}
+              months={4}
+              height={220}
+              textColor={ui.text}
+              mutedTextColor={ui.mutedText}
+              gridColor={ui.border}
+            />
           </View>
 
           <View style={styles.toolbarRow}>
@@ -1309,58 +1271,15 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   heroValue: {
-    fontFamily: Tokens.font.boldFamily ?? Tokens.font.headingFamily,
-    fontSize: 36,
-    lineHeight: 38,
+    fontFamily: "Lato-Bold",
+    fontSize: 38,
+    lineHeight: 40,
     textAlign: "center",
   },
   chartCard: {
     paddingTop: 2,
     paddingBottom: 2,
     gap: 6,
-  },
-  chartRow: {
-    flexDirection: "row",
-    alignItems: "stretch",
-  },
-  yAxis: {
-    width: 36,
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-    paddingVertical: 12,
-  },
-  yLabel: {
-    fontSize: 12,
-    fontFamily: Tokens.font.semiFamily ?? Tokens.font.family,
-  },
-  chartArea: {
-    flex: 1,
-    height: 240,
-    position: "relative",
-    justifyContent: "center",
-  },
-  chartGuide: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    borderTopWidth: 1,
-    borderStyle: "dashed",
-    opacity: 0.5,
-  },
-  chartImage: {
-    width: "100%",
-    height: 214,
-    alignSelf: "center",
-  },
-  monthRow: {
-    marginTop: 6,
-    paddingHorizontal: 42,
-    flexDirection: "row",
-    justifyContent: "space-between",
-  },
-  monthLabel: {
-    fontSize: 12,
-    fontFamily: Tokens.font.semiFamily ?? Tokens.font.family,
   },
   toolbarRow: {
     marginTop: 10,

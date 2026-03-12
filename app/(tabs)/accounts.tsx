@@ -10,7 +10,6 @@ import React, {
 import {
   Alert,
   Animated,
-  Image,
   Modal,
   Pressable,
   RefreshControl,
@@ -18,21 +17,24 @@ import {
   StyleSheet,
   TextInput,
   View,
-  useColorScheme,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useFocusEffect, useRouter } from "expo-router";
 
+import { AccountListCard, AccountWaveCard } from "@/components/accounts/AccountCards";
+import { AccountsTrendChart } from "@/components/accounts/AccountsTrendChart";
+import { AccountsViewToggle } from "@/components/accounts/AccountsViewToggle";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
-import { Tokens } from "@/constants/authTokens";
+import { Tokens, getColors } from "@/constants/authTokens";
 import { useAuthContext } from "@/hooks/use-auth-context";
 import {
   createAccount as createAccountApi,
   deleteAccount as deleteAccountApi,
   updateAccount as updateAccountApi,
 } from "@/utils/accounts";
+import { listExpenses } from "@/utils/expenses";
 import { listGoals } from "@/utils/goals";
 import { supabase } from "@/utils/supabase";
 
@@ -66,15 +68,20 @@ type GoalRow = {
   linked_account: number | null;
 };
 
+type ExpenseRow = {
+  id: string;
+  amount: number | null;
+  created_at?: string | null;
+  account_id?: number | null;
+  transaction_date?: string | null;
+};
+
 export default function AccountsScreen() {
   const { session, isLoading: authLoading } = useAuthContext();
 
   const router = useRouter();
 
   const insets = useSafeAreaInsets();
-
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === "dark";
 
   // Dynamic tab bar height
   let tabBarHeight = 0;
@@ -87,21 +94,16 @@ export default function AccountsScreen() {
   }
   const fabBottom = tabBarHeight + 60;
 
-  const ui = useMemo(
-    () => ({
-      surface: isDark ? "#121212" : "#ffffff",
-      surface2: isDark ? "#1a1a1a" : "#ffffff",
-      border: isDark ? "rgba(255,255,255,0.18)" : "rgba(0,0,0,0.12)",
-      text: isDark ? "#ffffff" : "#111111",
-      mutedText: isDark ? "rgba(255,255,255,0.6)" : "rgba(0,0,0,0.5)",
-      backdrop: "rgba(0,0,0,0.45)",
-      accent: isDark ? "#8CF2D1" : "#1F6F5B",
-      accentSoft: isDark ? "rgba(140,242,209,0.2)" : "rgba(31,111,91,0.12)",
-      hero: isDark ? "#1C2027" : "#F9F4EC",
-      heroAlt: isDark ? "#262B34" : "#FFFFFF",
-    }),
-    [isDark],
-  );
+  const C = getColors("light");
+  const ui = {
+    page: C.bg,
+    surface: "#E1E1E1",
+    surface2: "#FFFFFF",
+    border: "rgba(2,2,2,0.14)",
+    text: C.text,
+    mutedText: C.muted,
+    backdrop: "rgba(0,0,0,0.45)",
+  };
 
   const heroAnim = useRef(new Animated.Value(0)).current;
   const listAnim = useRef(new Animated.Value(0)).current;
@@ -127,6 +129,7 @@ export default function AccountsScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const [accounts, setAccounts] = useState<AccountRow[]>([]);
   const [goals, setGoals] = useState<GoalRow[]>([]);
+  const [expenses, setExpenses] = useState<ExpenseRow[]>([]);
 
   // create form
   const [name, setName] = useState("");
@@ -150,6 +153,7 @@ export default function AccountsScreen() {
   const [editPaymentDate, setEditPaymentDate] = useState("");
   const [editCurrency, setEditCurrency] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
+  const [viewMode, setViewMode] = useState<"list" | "wave">("list");
 
   const canCreate = useMemo(
     () => !!userId && name.trim().length > 0,
@@ -160,6 +164,7 @@ export default function AccountsScreen() {
     async (silent = false) => {
       if (!userId) {
         setAccounts([]);
+        setExpenses([]);
         return;
       }
 
@@ -196,6 +201,13 @@ export default function AccountsScreen() {
         );
       } catch (err) {
         console.error("Error loading goals for accounts:", err);
+      }
+
+      try {
+        const expenseData = await listExpenses({ profile_id: userId });
+        setExpenses((expenseData as ExpenseRow[]) ?? []);
+      } catch (err) {
+        console.error("Error loading transactions for chart:", err);
       }
 
       if (!silent) setIsLoading(false);
@@ -427,28 +439,6 @@ export default function AccountsScreen() {
     [accounts],
   );
 
-  const totalAvailable = useMemo(
-    () =>
-      accounts.reduce((sum, account) => sum + calculateAvailable(account), 0),
-    [accounts, calculateAvailable],
-  );
-
-  const creditCount = useMemo(
-    () =>
-      accounts.filter(
-        (account) => (account.account_type ?? "").toLowerCase() === "credit",
-      ).length,
-    [accounts],
-  );
-
-  const debitCount = useMemo(
-    () =>
-      accounts.filter(
-        (account) => (account.account_type ?? "").toLowerCase() === "debit",
-      ).length,
-    [accounts],
-  );
-
   const filteredAccounts = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
     if (!q) return accounts;
@@ -516,31 +506,10 @@ export default function AccountsScreen() {
         styles.container,
         {
           paddingTop: 12 + insets.top,
-          backgroundColor: isDark ? "#16181C" : "#ECECF1",
+          backgroundColor: ui.page,
         },
       ]}
     >
-      <View pointerEvents="none" style={styles.bgDecor}>
-        <View
-          style={[
-            styles.bgOrb,
-            styles.bgOrbTop,
-            { backgroundColor: ui.accentSoft },
-          ]}
-        />
-        <View
-          style={[
-            styles.bgOrb,
-            styles.bgOrbBottom,
-            {
-              backgroundColor: isDark
-                ? "rgba(255,255,255,0.08)"
-                : "rgba(255,255,255,0.65)",
-            },
-          ]}
-        />
-        <View style={[styles.bgRing, { borderColor: ui.accentSoft }]} />
-      </View>
       <ScrollView
         contentContainerStyle={[
           styles.scrollContent,
@@ -569,14 +538,6 @@ export default function AccountsScreen() {
           >
             <Feather name="user" size={22} color={ui.text} />
           </Pressable>
-        </View>
-        <View style={styles.headerTitleWrap}>
-          <ThemedText style={[styles.headerTitle, { color: ui.text }]}>
-            Accounts
-          </ThemedText>
-          <ThemedText style={[styles.headerSubtitle, { color: ui.mutedText }]}>
-            Track balances, due dates, and goals in one place.
-          </ThemedText>
         </View>
 
         <View
@@ -632,176 +593,27 @@ export default function AccountsScreen() {
         </View>
 
         <Animated.View style={heroAnimatedStyle}>
-          <View
-            style={[
-              styles.heroCard,
-              { borderColor: ui.border, backgroundColor: ui.hero },
-            ]}
-          >
-            <View style={styles.heroTopRow}>
-              <View>
-                <ThemedText style={[styles.heroLabel, { color: ui.mutedText }]}>
-                  Total Balance
-                </ThemedText>
-                <ThemedText style={[styles.heroValue, { color: ui.text }]}>
-                  {formatMoney(totalBalance)}
-                </ThemedText>
-              </View>
-              <View
-                style={[
-                  styles.heroBadge,
-                  { borderColor: ui.border, backgroundColor: ui.heroAlt },
-                ]}
-              >
-                <Feather name="trending-up" size={14} color={ui.accent} />
-                <ThemedText style={[styles.heroBadgeText, { color: ui.text }]}>
-                  Overview
-                </ThemedText>
-              </View>
-            </View>
-            <View style={styles.heroStatsRow}>
-              <View
-                style={[
-                  styles.statPill,
-                  { borderColor: ui.border, backgroundColor: ui.heroAlt },
-                ]}
-              >
-                <ThemedText style={[styles.statLabel, { color: ui.mutedText }]}>
-                  Available
-                </ThemedText>
-                <ThemedText style={[styles.statValue, { color: ui.text }]}>
-                  {formatMoney(totalAvailable)}
-                </ThemedText>
-              </View>
-              <View
-                style={[
-                  styles.statPill,
-                  { borderColor: ui.border, backgroundColor: ui.heroAlt },
-                ]}
-              >
-                <ThemedText style={[styles.statLabel, { color: ui.mutedText }]}>
-                  Accounts
-                </ThemedText>
-                <ThemedText style={[styles.statValue, { color: ui.text }]}>
-                  {accounts.length}
-                </ThemedText>
-              </View>
-              <View
-                style={[
-                  styles.statPill,
-                  { borderColor: ui.border, backgroundColor: ui.heroAlt },
-                ]}
-              >
-                <ThemedText style={[styles.statLabel, { color: ui.mutedText }]}>
-                  Credit / Debit
-                </ThemedText>
-                <ThemedText style={[styles.statValueSmall, { color: ui.text }]}>
-                  {creditCount} / {debitCount}
-                </ThemedText>
-              </View>
-            </View>
+          <View style={styles.heroCard}>
+            <ThemedText style={[styles.heroLabel, { color: ui.mutedText }]}>
+              Total Balance
+            </ThemedText>
+            <ThemedText style={[styles.heroValue, { color: ui.text }]}>
+              {formatMoney(totalBalance)}
+            </ThemedText>
           </View>
         </Animated.View>
 
         <Animated.View style={listAnimatedStyle}>
-          <View
-            style={[
-              styles.chartCard,
-              { borderColor: ui.border, backgroundColor: ui.surface2 },
-            ]}
-          >
-            <View
-              pointerEvents="none"
-              style={[styles.chartGlow, { backgroundColor: ui.accentSoft }]}
+          <View style={styles.chartCard}>
+            <AccountsTrendChart
+              accounts={accounts}
+              transactions={expenses}
+              months={4}
+              height={220}
+              textColor={ui.text}
+              mutedTextColor={ui.mutedText}
+              gridColor={ui.border}
             />
-            <View style={styles.chartHeader}>
-              <View>
-                <ThemedText style={[styles.chartTitle, { color: ui.text }]}>
-                  Balance Trend
-                </ThemedText>
-                <ThemedText
-                  style={[styles.chartSubtitle, { color: ui.mutedText }]}
-                >
-                  Last 4 months
-                </ThemedText>
-              </View>
-              <View
-                style={[
-                  styles.chartChip,
-                  { borderColor: ui.border, backgroundColor: ui.surface },
-                ]}
-              >
-                <Feather name="bar-chart-2" size={14} color={ui.accent} />
-                <ThemedText style={[styles.chartChipText, { color: ui.text }]}>
-                  Insights
-                </ThemedText>
-              </View>
-            </View>
-            <View style={styles.chartRow}>
-              <View style={styles.yAxis}>
-                <ThemedText style={[styles.yLabel, { color: ui.mutedText }]}>
-                  50k
-                </ThemedText>
-                <ThemedText style={[styles.yLabel, { color: ui.mutedText }]}>
-                  20k
-                </ThemedText>
-                <ThemedText style={[styles.yLabel, { color: ui.mutedText }]}>
-                  10k
-                </ThemedText>
-                <ThemedText style={[styles.yLabel, { color: ui.mutedText }]}>
-                  0
-                </ThemedText>
-              </View>
-
-              <View style={styles.chartArea}>
-                <View
-                  style={[
-                    styles.chartGuide,
-                    { borderColor: ui.border, top: "8%" },
-                  ]}
-                />
-                <View
-                  style={[
-                    styles.chartGuide,
-                    { borderColor: ui.border, top: "34%" },
-                  ]}
-                />
-                <View
-                  style={[
-                    styles.chartGuide,
-                    { borderColor: ui.border, top: "58%" },
-                  ]}
-                />
-                <View
-                  style={[
-                    styles.chartGuide,
-                    { borderColor: ui.border, top: "82%" },
-                  ]}
-                />
-                <Image
-                  source={{
-                    uri: "https://api.builder.io/api/v1/image/assets/TEMP/94870884-619f-436a-b553-127d9ef92e88?placeholderIfAbsent=true&apiKey=342743ad2e264936acee3aea8d83ec5e",
-                  }}
-                  style={styles.chartImage}
-                  resizeMode="contain"
-                />
-              </View>
-            </View>
-
-            <View style={styles.monthRow}>
-              <ThemedText style={[styles.monthLabel, { color: ui.mutedText }]}>
-                Jan
-              </ThemedText>
-              <ThemedText style={[styles.monthLabel, { color: ui.mutedText }]}>
-                Feb
-              </ThemedText>
-              <ThemedText style={[styles.monthLabel, { color: ui.text }]}>
-                Mar
-              </ThemedText>
-              <ThemedText style={[styles.monthLabel, { color: ui.mutedText }]}>
-                Apr
-              </ThemedText>
-            </View>
           </View>
 
           <View style={styles.toolbarRow}>
@@ -818,21 +630,14 @@ export default function AccountsScreen() {
               </ThemedText>
             </Pressable>
 
-            <View
-              style={[
-                styles.viewPill,
-                {
-                  borderColor: ui.border,
-                  backgroundColor: isDark ? "#2A2D33" : "#D8D8DA",
-                },
-              ]}
-            >
-              <Feather name="grid" size={18} color={ui.text} />
-              <View
-                style={[styles.viewDivider, { backgroundColor: ui.border }]}
-              />
-              <Feather name="list" size={18} color={ui.text} />
-            </View>
+            <AccountsViewToggle
+              value={viewMode}
+              onChange={setViewMode}
+              borderColor={ui.border}
+              backgroundColor={ui.surface2}
+              activeColor={ui.text}
+              inactiveColor={ui.mutedText}
+            />
           </View>
 
           <View
@@ -861,17 +666,6 @@ export default function AccountsScreen() {
             </Pressable>
           </View>
 
-          <View style={styles.sectionHeader}>
-            <ThemedText style={[styles.sectionTitle, { color: ui.text }]}>
-              Your Accounts
-            </ThemedText>
-            <ThemedText
-              style={[styles.sectionSubtitle, { color: ui.mutedText }]}
-            >
-              {filteredAccounts.length} total
-            </ThemedText>
-          </View>
-
           {filteredAccounts.length === 0 ? (
             <View
               style={[
@@ -886,95 +680,40 @@ export default function AccountsScreen() {
               </ThemedText>
             </View>
           ) : (
-            filteredAccounts.map((item) => {
+            filteredAccounts.map((item, index) => {
               const isCredit =
                 (item.account_type ?? "").toLowerCase() === "credit";
-              const cardColor = isDark
-                ? isCredit
-                  ? "#B24E4E"
-                  : "#61202A"
-                : isCredit
-                  ? "#D86666"
-                  : "#701D26";
-
+              const cardColor = isCredit ? "#D86666" : "#701D26";
+              const title = item.account_name ?? "Unnamed account";
+              const typeLabel = item.account_type
+                ? item.account_type.charAt(0).toUpperCase() +
+                  item.account_type.slice(1)
+                : "Account";
+              const dateLabel = formatCardDate(item.payment_duedate);
+              const balanceLabel = formatMoney(item.balance ?? 0);
               return (
-                <Pressable
-                  key={item.id}
-                  onPress={() => setEditingAccount(item)}
-                  style={({ pressed }) => [
-                    styles.accountCard,
-                    {
-                      backgroundColor: cardColor,
-                      opacity: pressed ? 0.88 : 1,
-                      borderColor: "rgba(255,255,255,0.28)",
-                    },
-                  ]}
-                >
-                  <View
-                    pointerEvents="none"
-                    style={[
-                      styles.cardGlow,
-                      {
-                        backgroundColor: isCredit
-                          ? "rgba(255,255,255,0.26)"
-                          : "rgba(255,255,255,0.18)",
-                      },
-                    ]}
+                viewMode === "list" ? (
+                  <AccountListCard
+                    key={`${item.id}-list`}
+                    title={title}
+                    balance={balanceLabel}
+                    typeLabel={typeLabel}
+                    dateLabel={dateLabel}
+                    color={cardColor}
+                    onPress={() => setEditingAccount(item)}
                   />
-                  <View pointerEvents="none" style={styles.cardRing} />
-                  <View style={styles.cardTopRow}>
-                    <View style={styles.cardTitleGroup}>
-                      <ThemedText style={styles.cardTitle}>
-                        {item.account_name ?? "Unnamed account"}
-                      </ThemedText>
-                      <View style={styles.cardTag}>
-                        <ThemedText style={styles.cardTagText}>
-                          {item.account_type
-                            ? item.account_type.charAt(0).toUpperCase() +
-                              item.account_type.slice(1)
-                            : "Account"}
-                        </ThemedText>
-                      </View>
-                    </View>
-                    <View style={styles.cardIcon}>
-                      <Feather
-                        name={isCredit ? "credit-card" : "dollar-sign"}
-                        size={18}
-                        color="#FFFFFF"
-                      />
-                    </View>
-                  </View>
-                  <ThemedText style={styles.cardBalance}>
-                    {formatMoney(item.balance ?? 0)}
-                  </ThemedText>
-                  <View style={styles.cardMetaRow}>
-                    <View style={styles.cardMetaPill}>
-                      <Feather
-                        name="calendar"
-                        size={12}
-                        color="rgba(255,255,255,0.9)"
-                      />
-                      <ThemedText style={styles.cardMetaText}>
-                        {formatCardDate(item.payment_duedate)}
-                      </ThemedText>
-                    </View>
-                    {item.currency ? (
-                      <View style={styles.cardMetaPill}>
-                        <Feather
-                          name="globe"
-                          size={12}
-                          color="rgba(255,255,255,0.9)"
-                        />
-                        <ThemedText style={styles.cardMetaText}>
-                          {item.currency}
-                        </ThemedText>
-                      </View>
-                    ) : null}
-                  </View>
-                  <ThemedText style={styles.cardSubText}>
-                    Available: {formatMoney(calculateAvailable(item))}
-                  </ThemedText>
-                </Pressable>
+                ) : (
+                  <AccountWaveCard
+                    key={`${item.id}-wave`}
+                    title={title}
+                    balance={balanceLabel}
+                    typeLabel={typeLabel}
+                    dateLabel={dateLabel}
+                    color={cardColor}
+                    waveAngle={index % 2 === 0 ? -8 : 8}
+                    onPress={() => setEditingAccount(item)}
+                  />
+                )
               );
             })
           )}
@@ -1431,42 +1170,8 @@ const styles = StyleSheet.create({
     position: "relative",
     overflow: "hidden",
   },
-  bgDecor: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-  },
-  bgOrb: {
-    position: "absolute",
-    borderRadius: 999,
-    opacity: 0.7,
-  },
-  bgOrbTop: {
-    width: 260,
-    height: 260,
-    top: -140,
-    right: -90,
-  },
-  bgOrbBottom: {
-    width: 220,
-    height: 220,
-    bottom: -120,
-    left: -70,
-  },
-  bgRing: {
-    position: "absolute",
-    width: 260,
-    height: 260,
-    borderRadius: 130,
-    borderWidth: 1,
-    top: 180,
-    right: -130,
-    opacity: 0.35,
-  },
   scrollContent: {
-    gap: 14,
+    gap: 10,
     paddingBottom: 16,
   },
   headerRow: {
@@ -1490,113 +1195,27 @@ const styles = StyleSheet.create({
     fontFamily: Tokens.font.semiFamily ?? Tokens.font.family,
   },
   heroCard: {
-    borderWidth: 1,
-    borderRadius: 20,
-    padding: 16,
-    gap: 12,
-    shadowColor: "#000",
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 3,
-  },
-  heroTopRow: {
-    flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    gap: 12,
+    paddingTop: 6,
+    paddingBottom: 6,
+    gap: 4,
   },
   heroLabel: {
     fontFamily: Tokens.font.semiFamily ?? Tokens.font.family,
     fontSize: 12,
     letterSpacing: 0.2,
+    textAlign: "center",
   },
   heroValue: {
-    fontFamily: Tokens.font.boldFamily ?? Tokens.font.headingFamily,
-    fontSize: 36,
-    lineHeight: 38,
-  },
-  heroBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-  },
-  heroBadgeText: {
-    fontFamily: Tokens.font.semiFamily ?? Tokens.font.family,
-    fontSize: 12,
-  },
-  heroStatsRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 10,
-  },
-  statPill: {
-    flexGrow: 1,
-    flexBasis: "47%",
-    borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: 14,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    gap: 4,
-  },
-  statLabel: {
-    fontFamily: Tokens.font.family,
-    fontSize: 12,
-  },
-  statValue: {
-    fontFamily: Tokens.font.boldFamily ?? Tokens.font.headingFamily,
-    fontSize: 16,
-  },
-  statValueSmall: {
-    fontFamily: Tokens.font.semiFamily ?? Tokens.font.family,
-    fontSize: 15,
+    fontFamily: "Lato-Bold",
+    fontSize: 38,
+    lineHeight: 40,
+    textAlign: "center",
   },
   chartCard: {
-    borderWidth: 1,
-    borderRadius: 18,
-    padding: 14,
-    gap: 10,
-    overflow: "hidden",
-  },
-  chartGlow: {
-    position: "absolute",
-    top: -40,
-    right: -60,
-    width: 160,
-    height: 160,
-    borderRadius: 80,
-    opacity: 0.6,
-  },
-  chartHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  chartTitle: {
-    fontFamily: Tokens.font.semiFamily ?? Tokens.font.family,
-    fontSize: 16,
-  },
-  chartSubtitle: {
-    fontFamily: Tokens.font.family,
-    fontSize: 12,
-    marginTop: 2,
-  },
-  chartChip: {
-    flexDirection: "row",
-    alignItems: "center",
+    paddingTop: 2,
+    paddingBottom: 2,
     gap: 6,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-  },
-  chartChipText: {
-    fontFamily: Tokens.font.semiFamily ?? Tokens.font.family,
-    fontSize: 12,
   },
   chartRow: {
     flexDirection: "row",
@@ -1660,20 +1279,6 @@ const styles = StyleSheet.create({
     fontFamily: Tokens.font.semiFamily ?? Tokens.font.family,
     fontSize: 13,
   },
-  viewPill: {
-    height: 40,
-    borderRadius: 999,
-    borderWidth: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 14,
-    gap: 10,
-  },
-  viewDivider: {
-    width: StyleSheet.hairlineWidth,
-    height: 16,
-  },
   searchWrap: {
     marginTop: 6,
     borderWidth: 1,
@@ -1686,7 +1291,7 @@ const styles = StyleSheet.create({
   },
   searchInput: {
     flex: 1,
-    fontSize: 16,
+    fontSize: 15.5,
     paddingVertical: 0,
     fontFamily: Tokens.font.family,
   },
@@ -1698,128 +1303,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  sectionHeader: {
-    marginTop: 6,
-    flexDirection: "row",
-    alignItems: "flex-end",
-    justifyContent: "space-between",
-  },
-  sectionTitle: {
-    fontFamily: Tokens.font.semiFamily ?? Tokens.font.family,
-    fontSize: 16,
-  },
-  sectionSubtitle: {
-    fontFamily: Tokens.font.family,
-    fontSize: 12,
-  },
   emptyState: {
     borderRadius: 16,
     borderWidth: StyleSheet.hairlineWidth,
     paddingHorizontal: 14,
     paddingVertical: 16,
     marginTop: 10,
-  },
-  accountCard: {
-    borderRadius: 22,
-    paddingVertical: 18,
-    paddingHorizontal: 18,
-    marginTop: 10,
-    borderWidth: StyleSheet.hairlineWidth,
-    shadowColor: "#000",
-    shadowOpacity: 0.2,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 4,
-    overflow: "hidden",
-    gap: 8,
-  },
-  cardTopRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 12,
-  },
-  cardTitleGroup: {
-    flex: 1,
-    gap: 6,
-  },
-  cardTitle: {
-    color: "#F6F6F6",
-    fontSize: 20,
-    fontFamily: Tokens.font.boldFamily ?? Tokens.font.headingFamily,
-  },
-  cardTag: {
-    alignSelf: "flex-start",
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    backgroundColor: "rgba(255,255,255,0.18)",
-  },
-  cardTagText: {
-    color: "rgba(255,255,255,0.92)",
-    fontSize: 11,
-    fontFamily: Tokens.font.semiFamily ?? Tokens.font.family,
-    letterSpacing: 0.3,
-  },
-  cardIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 12,
-    backgroundColor: "rgba(255,255,255,0.18)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  cardGlow: {
-    position: "absolute",
-    top: -60,
-    right: -60,
-    width: 160,
-    height: 160,
-    borderRadius: 80,
-    opacity: 0.7,
-  },
-  cardRing: {
-    position: "absolute",
-    bottom: -80,
-    left: -60,
-    width: 200,
-    height: 200,
-    borderRadius: 100,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.18)",
-    opacity: 0.5,
-  },
-  cardBalance: {
-    color: "#FFFFFF",
-    fontSize: 30,
-    fontFamily: Tokens.font.boldFamily ?? Tokens.font.headingFamily,
-  },
-  cardMetaRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-  },
-  cardMetaPill: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 999,
-    backgroundColor: "rgba(255,255,255,0.16)",
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: "rgba(255,255,255,0.22)",
-  },
-  cardMetaText: {
-    color: "rgba(255,255,255,0.92)",
-    fontSize: 12,
-    fontFamily: Tokens.font.semiFamily ?? Tokens.font.family,
-  },
-  cardSubText: {
-    color: "rgba(255,255,255,0.9)",
-    marginTop: 4,
-    fontSize: 13,
-    fontFamily: Tokens.font.family,
   },
   card: {
     padding: 12,
@@ -1832,6 +1321,8 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingHorizontal: 12,
     paddingVertical: 10,
+    fontFamily: Tokens.font.family,
+    fontSize: 15.5,
   },
   pickerContainer: {
     borderWidth: StyleSheet.hairlineWidth,

@@ -1,3 +1,4 @@
+import { useAuthContext } from '@/hooks/use-auth-context';
 import { generateAPIUrl } from '@/utils/apiUrlGenerator';
 import { useChat } from '@ai-sdk/react';
 import { DefaultChatTransport } from 'ai';
@@ -7,14 +8,18 @@ import { SafeAreaView, ScrollView, Text, TextInput, View } from 'react-native';
 
 export default function ChatAI() {
   const [input, setInput] = useState('');
-
+  const { session } = useAuthContext();
   const apiUrl = generateAPIUrl('/api/chat');
-  console.log('API URL:', apiUrl);
+  
 
   const { messages, error, sendMessage } = useChat({
+    
     transport: new DefaultChatTransport({
       fetch: expoFetch as unknown as typeof globalThis.fetch,
       api: apiUrl,
+      body: {
+        profile_id: session?.user.id
+      }
     }),
     onError: error => console.error(error, 'ERROR'),
   });

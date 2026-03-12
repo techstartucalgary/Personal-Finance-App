@@ -1,92 +1,66 @@
-import Feather from "@expo/vector-icons/Feather";
-import MaterialIcons from "@expo/vector-icons/MaterialIcons";
-import {
-  Icon,
-  NativeTabs,
-  VectorIcon,
-} from "expo-router/unstable-native-tabs";
+import { Tabs } from "expo-router";
 import React from "react";
-
-import { Colors } from "@/constants/theme";
-import { useColorScheme } from "@/hooks/use-color-scheme";
+import { Edit, Filter2, Home, Wallet } from "react-native-iconly";
 
 export default function TabLayout() {
-  const colorScheme = useColorScheme();
+  const tabBarIconColor = "#111111";
+  const tabBarBg = "#FFFFFF";
+  const tabBarBorder = "rgba(0, 0, 0, 0.12)";
 
   return (
-    <NativeTabs
-      tintColor={Colors[colorScheme ?? "light"].tint}
-      indicatorColor={colorScheme === "dark" ? "#454548ff" : "#E5E7EB"}
-      backgroundColor={colorScheme === "dark" ? "#202324" : "#F9FAFB"}
-      labelVisibilityMode="labeled"
+    <Tabs
+      initialRouteName="index"
+      screenOptions={{
+        headerShown: false,
+        tabBarShowLabel: false,
+        tabBarActiveTintColor: tabBarIconColor,
+        tabBarInactiveTintColor: tabBarIconColor,
+        tabBarStyle: {
+          backgroundColor: tabBarBg,
+          borderTopColor: tabBarBorder,
+          borderTopWidth: 1,
+          height: 72,
+          paddingTop: 8,
+          paddingBottom: 12,
+        },
+      }}
     >
-      <NativeTabs.Trigger
-        name="index"
-        options={{
-          title: "Dashboard",
-        }}
-      >
-        <Icon
-          sf="chart.pie"
-          androidSrc={
-            <VectorIcon
-              family={Feather}
-              name="pie-chart"
-            />
-          }
-        />
-      </NativeTabs.Trigger>
-
-      <NativeTabs.Trigger
+      <Tabs.Screen
         name="accounts"
         options={{
           title: "Accounts",
+          tabBarIcon: ({ color, size }) => (
+            <Wallet set="light" primaryColor={color} size={size ?? 24} />
+          ),
         }}
-      >
-        <Icon
-          sf="wallet.bifold"
-          androidSrc={
-            <VectorIcon
-              family={MaterialIcons}
-              name="wallet"
-            />
-          }
-        />
-      </NativeTabs.Trigger>
-
-      <NativeTabs.Trigger
+      />
+      <Tabs.Screen
+        name="index"
+        options={{
+          title: "Dashboard",
+          tabBarIcon: ({ color, size }) => (
+            <Home set="light" primaryColor={color} size={size ?? 24} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="transactions"
         options={{
           title: "Transactions",
+          tabBarIcon: ({ color, size }) => (
+            <Edit set="light" primaryColor={color} size={size ?? 24} />
+          ),
         }}
-      >
-        <Icon
-          sf="list.bullet"
-          androidSrc={
-            <VectorIcon
-              family={Feather}
-              name="list"
-            />
-          }
-        />
-      </NativeTabs.Trigger>
-
-      <NativeTabs.Trigger
+      />
+      <Tabs.Screen
         name="targets"
         options={{
           title: "Targets",
+          tabBarIcon: ({ color, size }) => (
+            <Filter2 set="light" primaryColor={color} size={size ?? 24} />
+          ),
         }}
-      >
-        <Icon
-          sf="target"
-          androidSrc={
-            <VectorIcon
-              family={Feather}
-              name="target"
-            />
-          }
-        />
-      </NativeTabs.Trigger>
-    </NativeTabs>
+      />
+    </Tabs>
   );
 }

@@ -92,7 +92,9 @@ export default function AccountsScreen() {
     // Fallback if hook fails (e.g. not in tab navigator context)
     tabBarHeight = insets.bottom + 60;
   }
-  const fabBottom = tabBarHeight + 60;
+  const fabSize = 72;
+  const fabBottom = tabBarHeight - fabSize / 2;
+  const fabStyle = { width: fabSize, height: fabSize, borderRadius: fabSize / 2 };
 
   const C = getColors("light");
   const ui = {
@@ -724,6 +726,7 @@ export default function AccountsScreen() {
         onPress={() => setCreateModalOpen(true)}
         style={({ pressed }) => [
           styles.fabCenter,
+          fabStyle,
           {
             backgroundColor: ui.surface2,
             opacity: pressed ? 0.8 : 1,
@@ -1376,9 +1379,6 @@ const styles = StyleSheet.create({
   fabCenter: {
     position: "absolute",
     alignSelf: "center",
-    width: 72,
-    height: 72,
-    borderRadius: 36,
     borderWidth: 1,
     alignItems: "center",
     justifyContent: "center",
@@ -1387,6 +1387,7 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 6 },
     elevation: 6,
+    zIndex: 10,
   },
   deleteButton: {
     paddingHorizontal: 10,

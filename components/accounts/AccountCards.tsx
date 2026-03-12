@@ -1,6 +1,6 @@
 import Feather from "@expo/vector-icons/Feather";
 import React from "react";
-import { Pressable, StyleSheet, View } from "react-native";
+import { Image, Pressable, StyleSheet, View } from "react-native";
 
 import { ThemedText } from "@/components/themed-text";
 import { Tokens } from "@/constants/authTokens";
@@ -12,6 +12,7 @@ type AccountCardProps = {
   dateLabel: string;
   color: string;
   onPress?: () => void;
+  waveAngle?: number;
 };
 
 export function AccountListCard({
@@ -47,6 +48,7 @@ export function AccountWaveCard({
   dateLabel,
   color,
   onPress,
+  waveAngle = -8,
 }: AccountCardProps) {
   return (
     <Pressable
@@ -56,8 +58,15 @@ export function AccountWaveCard({
         { backgroundColor: color, opacity: pressed ? 0.9 : 1 },
       ]}
     >
-      <View pointerEvents="none" style={styles.waveBand} />
-      <View pointerEvents="none" style={styles.waveBandAccent} />
+      <Image
+        pointerEvents="none"
+        source={require("../../assets/images/Accounts Vector.png")}
+        style={[
+          styles.waveImage,
+          { transform: [{ rotate: `${waveAngle}deg` }] },
+        ]}
+        resizeMode="cover"
+      />
       <View style={styles.waveTopRow}>
         <View style={styles.waveTitleGroup}>
           <ThemedText style={styles.waveTitle}>{title}</ThemedText>
@@ -110,9 +119,10 @@ const styles = StyleSheet.create({
   },
   waveCard: {
     borderRadius: 22,
-    paddingVertical: 18,
+    paddingVertical: 22,
     paddingHorizontal: 18,
     marginTop: 10,
+    minHeight: 140,
     shadowColor: "#000",
     shadowOpacity: 0.18,
     shadowRadius: 12,
@@ -120,26 +130,12 @@ const styles = StyleSheet.create({
     elevation: 5,
     overflow: "hidden",
   },
-  waveBand: {
+  waveImage: {
     position: "absolute",
     width: 360,
-    height: 90,
-    borderRadius: 999,
-    backgroundColor: "#FFFFFF",
-    left: -120,
-    top: 46,
-    transform: [{ rotate: "-8deg" }],
-    opacity: 0.95,
-  },
-  waveBandAccent: {
-    position: "absolute",
-    width: 360,
-    height: 70,
-    borderRadius: 999,
-    backgroundColor: "#FFFFFF",
-    left: -140,
-    top: 94,
-    transform: [{ rotate: "-12deg" }],
+    height: 180,
+    right: -30,
+    top: 36,
     opacity: 0.95,
   },
   waveTopRow: {
@@ -170,7 +166,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   waveMetaRow: {
-    marginTop: 26,
+    marginTop: 32,
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",

@@ -680,7 +680,7 @@ export default function AccountsScreen() {
               </ThemedText>
             </View>
           ) : (
-            filteredAccounts.map((item) => {
+            filteredAccounts.map((item, index) => {
               const isCredit =
                 (item.account_type ?? "").toLowerCase() === "credit";
               const cardColor = isCredit ? "#D86666" : "#701D26";
@@ -710,6 +710,7 @@ export default function AccountsScreen() {
                     typeLabel={typeLabel}
                     dateLabel={dateLabel}
                     color={cardColor}
+                    waveAngle={index % 2 === 0 ? -8 : 8}
                     onPress={() => setEditingAccount(item)}
                   />
                 )

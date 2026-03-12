@@ -22,7 +22,9 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useFocusEffect, useRouter } from "expo-router";
 
+import { AccountListCard, AccountWaveCard } from "@/components/accounts/AccountCards";
 import { AccountsTrendChart } from "@/components/accounts/AccountsTrendChart";
+import { AccountsViewToggle } from "@/components/accounts/AccountsViewToggle";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { Tokens, getColors } from "@/constants/authTokens";
@@ -151,6 +153,7 @@ export default function AccountsScreen() {
   const [editPaymentDate, setEditPaymentDate] = useState("");
   const [editCurrency, setEditCurrency] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
+  const [viewMode, setViewMode] = useState<"list" | "wave">("list");
 
   const canCreate = useMemo(
     () => !!userId && name.trim().length > 0,
@@ -627,21 +630,14 @@ export default function AccountsScreen() {
               </ThemedText>
             </Pressable>
 
-            <View
-              style={[
-                styles.viewPill,
-                {
-                  borderColor: ui.border,
-                  backgroundColor: ui.surface2,
-                },
-              ]}
-            >
-              <Feather name="grid" size={18} color={ui.text} />
-              <View
-                style={[styles.viewDivider, { backgroundColor: ui.border }]}
-              />
-              <Feather name="list" size={18} color={ui.text} />
-            </View>
+            <AccountsViewToggle
+              value={viewMode}
+              onChange={setViewMode}
+              borderColor={ui.border}
+              backgroundColor={ui.surface2}
+              activeColor={ui.text}
+              inactiveColor={ui.mutedText}
+            />
           </View>
 
           <View
@@ -670,17 +666,6 @@ export default function AccountsScreen() {
             </Pressable>
           </View>
 
-          <View style={styles.sectionHeader}>
-            <ThemedText style={[styles.sectionTitle, { color: ui.text }]}>
-              Your Accounts
-            </ThemedText>
-            <ThemedText
-              style={[styles.sectionSubtitle, { color: ui.mutedText }]}
-            >
-              {filteredAccounts.length} total
-            </ThemedText>
-          </View>
-
           {filteredAccounts.length === 0 ? (
             <View
               style={[
@@ -699,85 +684,35 @@ export default function AccountsScreen() {
               const isCredit =
                 (item.account_type ?? "").toLowerCase() === "credit";
               const cardColor = isCredit ? "#D86666" : "#701D26";
-
+              const title = item.account_name ?? "Unnamed account";
+              const typeLabel = item.account_type
+                ? item.account_type.charAt(0).toUpperCase() +
+                  item.account_type.slice(1)
+                : "Account";
+              const dateLabel = formatCardDate(item.payment_duedate);
+              const balanceLabel = formatMoney(item.balance ?? 0);
               return (
-                <Pressable
-                  key={item.id}
-                  onPress={() => setEditingAccount(item)}
-                  style={({ pressed }) => [
-                    styles.accountCard,
-                    {
-                      backgroundColor: cardColor,
-                      opacity: pressed ? 0.88 : 1,
-                      borderColor: "rgba(255,255,255,0.28)",
-                    },
-                  ]}
-                >
-                  <View
-                    pointerEvents="none"
-                    style={[
-                      styles.cardGlow,
-                      {
-                        backgroundColor: isCredit
-                          ? "rgba(255,255,255,0.26)"
-                          : "rgba(255,255,255,0.18)",
-                      },
-                    ]}
+                viewMode === "list" ? (
+                  <AccountListCard
+                    key={`${item.id}-list`}
+                    title={title}
+                    balance={balanceLabel}
+                    typeLabel={typeLabel}
+                    dateLabel={dateLabel}
+                    color={cardColor}
+                    onPress={() => setEditingAccount(item)}
                   />
-                  <View pointerEvents="none" style={styles.cardRing} />
-                  <View style={styles.cardTopRow}>
-                    <View style={styles.cardTitleGroup}>
-                      <ThemedText style={styles.cardTitle}>
-                        {item.account_name ?? "Unnamed account"}
-                      </ThemedText>
-                      <View style={styles.cardTag}>
-                        <ThemedText style={styles.cardTagText}>
-                          {item.account_type
-                            ? item.account_type.charAt(0).toUpperCase() +
-                              item.account_type.slice(1)
-                            : "Account"}
-                        </ThemedText>
-                      </View>
-                    </View>
-                    <View style={styles.cardIcon}>
-                      <Feather
-                        name={isCredit ? "credit-card" : "dollar-sign"}
-                        size={18}
-                        color="#FFFFFF"
-                      />
-                    </View>
-                  </View>
-                  <ThemedText style={styles.cardBalance}>
-                    {formatMoney(item.balance ?? 0)}
-                  </ThemedText>
-                  <View style={styles.cardMetaRow}>
-                    <View style={styles.cardMetaPill}>
-                      <Feather
-                        name="calendar"
-                        size={12}
-                        color="rgba(255,255,255,0.9)"
-                      />
-                      <ThemedText style={styles.cardMetaText}>
-                        {formatCardDate(item.payment_duedate)}
-                      </ThemedText>
-                    </View>
-                    {item.currency ? (
-                      <View style={styles.cardMetaPill}>
-                        <Feather
-                          name="globe"
-                          size={12}
-                          color="rgba(255,255,255,0.9)"
-                        />
-                        <ThemedText style={styles.cardMetaText}>
-                          {item.currency}
-                        </ThemedText>
-                      </View>
-                    ) : null}
-                  </View>
-                  <ThemedText style={styles.cardSubText}>
-                    Available: {formatMoney(calculateAvailable(item))}
-                  </ThemedText>
-                </Pressable>
+                ) : (
+                  <AccountWaveCard
+                    key={`${item.id}-wave`}
+                    title={title}
+                    balance={balanceLabel}
+                    typeLabel={typeLabel}
+                    dateLabel={dateLabel}
+                    color={cardColor}
+                    onPress={() => setEditingAccount(item)}
+                  />
+                )
               );
             })
           )}
@@ -1343,20 +1278,6 @@ const styles = StyleSheet.create({
     fontFamily: Tokens.font.semiFamily ?? Tokens.font.family,
     fontSize: 13,
   },
-  viewPill: {
-    height: 40,
-    borderRadius: 999,
-    borderWidth: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 14,
-    gap: 10,
-  },
-  viewDivider: {
-    width: StyleSheet.hairlineWidth,
-    height: 16,
-  },
   searchWrap: {
     marginTop: 6,
     borderWidth: 1,
@@ -1381,128 +1302,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  sectionHeader: {
-    marginTop: 6,
-    flexDirection: "row",
-    alignItems: "flex-end",
-    justifyContent: "space-between",
-  },
-  sectionTitle: {
-    fontFamily: Tokens.font.semiFamily ?? Tokens.font.family,
-    fontSize: 16,
-  },
-  sectionSubtitle: {
-    fontFamily: Tokens.font.family,
-    fontSize: 12,
-  },
   emptyState: {
     borderRadius: 16,
     borderWidth: StyleSheet.hairlineWidth,
     paddingHorizontal: 14,
     paddingVertical: 16,
     marginTop: 10,
-  },
-  accountCard: {
-    borderRadius: 22,
-    paddingVertical: 18,
-    paddingHorizontal: 18,
-    marginTop: 10,
-    borderWidth: StyleSheet.hairlineWidth,
-    shadowColor: "#000",
-    shadowOpacity: 0.2,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 4,
-    overflow: "hidden",
-    gap: 8,
-  },
-  cardTopRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 12,
-  },
-  cardTitleGroup: {
-    flex: 1,
-    gap: 6,
-  },
-  cardTitle: {
-    color: "#F6F6F6",
-    fontSize: 20,
-    fontFamily: Tokens.font.boldFamily ?? Tokens.font.headingFamily,
-  },
-  cardTag: {
-    alignSelf: "flex-start",
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    backgroundColor: "rgba(255,255,255,0.18)",
-  },
-  cardTagText: {
-    color: "rgba(255,255,255,0.92)",
-    fontSize: 11,
-    fontFamily: Tokens.font.semiFamily ?? Tokens.font.family,
-    letterSpacing: 0.3,
-  },
-  cardIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 12,
-    backgroundColor: "rgba(255,255,255,0.18)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  cardGlow: {
-    position: "absolute",
-    top: -60,
-    right: -60,
-    width: 160,
-    height: 160,
-    borderRadius: 80,
-    opacity: 0.7,
-  },
-  cardRing: {
-    position: "absolute",
-    bottom: -80,
-    left: -60,
-    width: 200,
-    height: 200,
-    borderRadius: 100,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.18)",
-    opacity: 0.5,
-  },
-  cardBalance: {
-    color: "#FFFFFF",
-    fontSize: 30,
-    fontFamily: Tokens.font.boldFamily ?? Tokens.font.headingFamily,
-  },
-  cardMetaRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-  },
-  cardMetaPill: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 999,
-    backgroundColor: "rgba(255,255,255,0.16)",
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: "rgba(255,255,255,0.22)",
-  },
-  cardMetaText: {
-    color: "rgba(255,255,255,0.92)",
-    fontSize: 12,
-    fontFamily: Tokens.font.semiFamily ?? Tokens.font.family,
-  },
-  cardSubText: {
-    color: "rgba(255,255,255,0.9)",
-    marginTop: 4,
-    fontSize: 13,
-    fontFamily: Tokens.font.family,
   },
   card: {
     padding: 12,

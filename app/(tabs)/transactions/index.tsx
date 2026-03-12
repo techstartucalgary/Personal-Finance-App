@@ -21,6 +21,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
+import { Appbar, Searchbar, useTheme } from "react-native-paper";
 
 import { TransactionDetailModal } from "@/components/TransactionDetailModal";
 import { DateTimePickerField } from "@/components/ui/DateTimePickerField";
@@ -69,17 +70,21 @@ export default function HomeScreen() {
     tabBarHeight = insets.bottom + 60;
   }
   const fabBottom = tabBarHeight + 60;
+  const theme = useTheme();
+
+  const isAndroid = Platform.OS === "android";
+
   const ui = useMemo(
     () => ({
-      surface: isDark ? "#121212" : "#ffffff",
-      surface2: isDark ? "#1e1e1e" : "#f5f5f5",
-      border: isDark ? "rgba(255,255,255,0.18)" : "rgba(0,0,0,0.18)",
-      text: isDark ? "#ffffff" : "#111111",
-      mutedText: isDark ? "rgba(255,255,255,0.6)" : "rgba(0,0,0,0.5)",
+      surface: isAndroid ? theme.colors.surface : (isDark ? "#1C1C1E" : "#F5F5F5"), // neutral gray
+      surface2: isAndroid ? theme.colors.elevation.level2 : (isDark ? "#2C2C2E" : "#EBEBEB"), // slightly darker gray for inputs
+      border: isAndroid ? theme.colors.outlineVariant : (isDark ? "rgba(84,84,88,0.65)" : "rgba(60,60,67,0.29)"),
+      text: isDark ? "#FFFFFF" : "#000000",
+      mutedText: isDark ? "rgba(235,235,245,0.6)" : "rgba(60,60,67,0.6)",
       backdrop: "rgba(0,0,0,0.45)",
-      accent: isDark ? "#8CF2D1" : "#1F6F5B",
+      accent: isAndroid ? theme.colors.primary : (isDark ? "#8CF2D1" : "#1F6F5B"),
     }),
-    [isDark],
+    [isDark, theme, isAndroid],
   );
 
   const userId = session?.user.id;
@@ -1174,10 +1179,44 @@ export default function HomeScreen() {
 
   return (
     <>
+      {Platform.OS === "android" && (
+        isAndroidSearching ? (
+          <Appbar.Header mode="small" elevated>
+            <Searchbar
+              placeholder="Search transactions..."
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              autoFocus
+              onBlur={() => {
+                if (!searchQuery.trim()) {
+                  setIsAndroidSearching(false);
+                }
+              }}
+              onIconPress={() => { setSearchQuery(""); setIsAndroidSearching(false); }}
+              icon="arrow-left"
+              style={{ flex: 1, marginHorizontal: 4, backgroundColor: theme.colors.elevation.level5 }}
+              inputStyle={{ color: theme.colors.onSurface }}
+              iconColor={theme.colors.onSurface}
+            />
+          </Appbar.Header>
+        ) : (
+          <Appbar.Header mode="small" elevated>
+            <Appbar.Content
+              title="Transactions"
+              titleStyle={{ fontWeight: "bold" }}
+            />
+            <Appbar.Action
+              icon="magnify"
+              onPress={() => setIsAndroidSearching(true)}
+            />
+          </Appbar.Header>
+        )
+      )}
+
       <ScrollView
         style={[styles.container, { backgroundColor: "transparent" }]}
         contentInsetAdjustmentBehavior="automatic"
-        contentContainerStyle={[styles.scrollContent, { paddingBottom: tabBarHeight + 120, paddingTop: Platform.OS === 'android' ? 16 + insets.top : 16 }]}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: tabBarHeight + 120, paddingTop: 16 }]}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
@@ -1192,40 +1231,6 @@ export default function HomeScreen() {
           />
         }
       >
-        {Platform.OS === "android" && (
-          <View style={{ marginBottom: 16 }}>
-            {isAndroidSearching ? (
-              <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: ui.surface2, borderRadius: 12, paddingHorizontal: 12, height: 44, borderColor: ui.border, borderWidth: StyleSheet.hairlineWidth, marginTop: insets.top }}>
-                <Feather name="search" size={20} color={ui.mutedText} />
-                <TextInput
-                  value={searchQuery}
-                  onChangeText={setSearchQuery}
-                  placeholder="Search transactions..."
-                  placeholderTextColor={ui.mutedText}
-                  autoFocus
-                  onBlur={() => {
-                    if (!searchQuery.trim()) {
-                      setIsAndroidSearching(false);
-                    }
-                  }}
-                  style={{ flex: 1, color: ui.text, marginLeft: 8, fontSize: 16 }}
-                />
-                <Pressable hitSlop={10} onPress={() => { setSearchQuery(""); setIsAndroidSearching(false); }}>
-                  <Feather name="x" size={20} color={ui.mutedText} />
-                </Pressable>
-              </View>
-            ) : (
-              <>
-                <View style={{ flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', marginBottom: 8, gap: 16 }}>
-                  <Pressable hitSlop={10} onPress={() => setIsAndroidSearching(true)}>
-                    <Feather name="search" size={24} color={ui.text} />
-                  </Pressable>
-                </View>
-                <ThemedText style={{ fontSize: 34, lineHeight: 42, fontWeight: 'bold', color: ui.text }}>Transactions</ThemedText>
-              </>
-            )}
-          </View>
-        )}
 
         {/* Native Segmented Control */}
         <SegmentedControl
@@ -1235,7 +1240,8 @@ export default function HomeScreen() {
             const index = event.nativeEvent.selectedSegmentIndex;
             setActiveTab(index === 0 ? "transactions" : "recurrences");
           }}
-          tintColor={ui.surface}
+          tintColor={isAndroid ? theme.colors.surface : (isDark ? "#3A3A3C" : "#FFFFFF")}
+          backgroundColor={isAndroid ? theme.colors.elevation.level2 : "transparent"}
           fontStyle={{ color: ui.text, fontWeight: "500" }}
           activeFontStyle={{ color: ui.text, fontWeight: "600" }}
         />
@@ -1250,8 +1256,7 @@ export default function HomeScreen() {
             style={[
               styles.chip,
               {
-                backgroundColor:
-                  filterAccountId === null ? ui.text : ui.surface2,
+                backgroundColor: filterAccountId === null ? (isAndroid ? theme.colors.tertiary : ui.text) : ui.surface2,
                 borderColor: ui.border,
               },
             ]}
@@ -1260,7 +1265,7 @@ export default function HomeScreen() {
               style={{
                 fontSize: 13,
                 fontWeight: "600",
-                color: filterAccountId === null ? ui.surface : ui.text,
+                color: filterAccountId === null ? (isAndroid ? theme.colors.onTertiary : ui.surface) : ui.text,
               }}
             >
               All
@@ -1274,7 +1279,7 @@ export default function HomeScreen() {
                 styles.chip,
                 {
                   backgroundColor:
-                    filterAccountId === acct.id ? ui.text : ui.surface2,
+                    filterAccountId === acct.id ? (isAndroid ? theme.colors.tertiary : ui.text) : ui.surface2,
                   borderColor: ui.border,
                 },
               ]}
@@ -1283,7 +1288,7 @@ export default function HomeScreen() {
                 style={{
                   fontSize: 13,
                   fontWeight: "600",
-                  color: filterAccountId === acct.id ? ui.surface : ui.text,
+                  color: filterAccountId === acct.id ? (isAndroid ? theme.colors.onTertiary : ui.surface) : ui.text,
                 }}
               >
                 {acct.account_name ?? "Account"}
@@ -1301,7 +1306,7 @@ export default function HomeScreen() {
                   styles.chip,
                   {
                     backgroundColor: isSelected
-                      ? (isDark ? "#1F6F5B" : "#2A8A6E")
+                      ? (isAndroid ? theme.colors.tertiary : (isDark ? "#1F6F5B" : "#2A8A6E"))
                       : ui.surface2,
                     borderColor: isDark ? "rgba(140,242,209,0.3)" : "rgba(31,111,91,0.2)",
                   },
@@ -1311,7 +1316,7 @@ export default function HomeScreen() {
                   style={{
                     fontSize: 13,
                     fontWeight: "600",
-                    color: isSelected ? "#FFFFFF" : (isDark ? "#8CF2D1" : "#1F6F5B"),
+                    color: isSelected ? (isAndroid ? theme.colors.onTertiary : "#FFFFFF") : (isDark ? "#8CF2D1" : "#1F6F5B"),
                   }}
                 >
                   {pa.name}{pa.mask ? ` ••${pa.mask}` : ""}
@@ -1343,6 +1348,11 @@ export default function HomeScreen() {
                     (e.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
                       e.amount?.toString().includes(searchQuery));
                   return matchesAccount && matchesSearch;
+                })
+                .sort((a, b) => {
+                  const dateA = new Date(a.transaction_date || a.created_at || 0).getTime();
+                  const dateB = new Date(b.transaction_date || b.created_at || 0).getTime();
+                  return dateB - dateA;
                 })
                 .map((expense) => (
                   <Pressable
@@ -1419,6 +1429,11 @@ export default function HomeScreen() {
                         t.amount?.toString().includes(searchQuery));
 
                     return matchesAccount && matchesSearch;
+                  })
+                  .sort((a, b) => {
+                    const dateA = new Date(a.date || 0).getTime();
+                    const dateB = new Date(b.date || 0).getTime();
+                    return dateB - dateA;
                   })
                   .map((tx) => (
                     <Pressable
@@ -1567,14 +1582,21 @@ export default function HomeScreen() {
         onPress={() => setAddModalOpen(true)}
         style={({ pressed }) => [
           styles.fab,
+          isAndroid && {
+            width: 80,
+            height: 80,
+            borderRadius: 20,
+            right: 16,
+          },
           {
-            backgroundColor: ui.text,
+            backgroundColor: isAndroid ? theme.colors.primary : ui.text,
             opacity: pressed ? 0.8 : 1,
             bottom: fabBottom,
+            elevation: isAndroid ? 5 : 6,
           },
         ]}
       >
-        <IconSymbol name="plus" size={32} color={ui.surface} />
+        <IconSymbol name="plus" size={isAndroid ? 36 : 32} color={isAndroid ? theme.colors.surfaceVariant : ui.surface} />
       </Pressable>
 
       <Modal
@@ -1586,6 +1608,7 @@ export default function HomeScreen() {
         <ThemedView
           style={{
             flex: 1,
+            backgroundColor: ui.surface,
             padding: 16,
             paddingTop: Platform.OS === "ios" ? 8 : (16 + insets.top),
             paddingBottom: 16 + insets.bottom,
@@ -2101,6 +2124,7 @@ export default function HomeScreen() {
           <ThemedView
             style={{
               flex: 1,
+              backgroundColor: ui.surface,
               padding: 16,
               paddingTop: Platform.OS === "ios" ? 8 : (16 + insets.top),
               paddingBottom: 16 + insets.bottom,
@@ -2113,7 +2137,7 @@ export default function HomeScreen() {
                 <Pressable
                   onPress={() => setEditingExpense(null)}
                   hitSlop={20}
-                  style={[styles.modalCloseButton, { backgroundColor: isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.05)" }]}
+                  style={[styles.modalCloseButton, { backgroundColor: isAndroid ? theme.colors.surfaceVariant : (isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.05)") }]}
                 >
                   <Feather name="x" size={18} color={ui.text} />
                 </Pressable>
@@ -2257,7 +2281,7 @@ export default function HomeScreen() {
                 style={[
                   styles.button,
                   {
-                    backgroundColor: ui.text,
+                    backgroundColor: isAndroid ? theme.colors.primary : ui.text,
                     borderColor: ui.border,
                     alignSelf: "center",
                     width: "100%",
@@ -2266,7 +2290,7 @@ export default function HomeScreen() {
                   isLoading && styles.buttonDisabled,
                 ]}
               >
-                <ThemedText type="defaultSemiBold" style={{ color: ui.surface }}>
+                <ThemedText type="defaultSemiBold" style={{ color: isAndroid ? theme.colors.onPrimary : ui.surface }}>
                   Save Changes
                 </ThemedText>
               </Pressable>
@@ -2613,6 +2637,7 @@ export default function HomeScreen() {
         <ThemedView
           style={{
             flex: 1,
+            backgroundColor: ui.surface,
             padding: 16,
             paddingTop: Platform.OS === "ios" ? 8 : (16 + insets.top),
             paddingBottom: 16 + insets.bottom,
@@ -2992,13 +3017,13 @@ const styles = StyleSheet.create({
   },
   input: {
     borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: 12,
+    borderRadius: 24,
     paddingHorizontal: 12,
     paddingVertical: 10,
   },
   dropdownButton: {
     borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: 12,
+    borderRadius: 24,
     paddingHorizontal: 12,
     paddingVertical: 10,
   },
@@ -3006,7 +3031,7 @@ const styles = StyleSheet.create({
     alignSelf: "flex-start",
     paddingHorizontal: 14,
     paddingVertical: 10,
-    borderRadius: 12,
+    borderRadius: 24,
     borderWidth: StyleSheet.hairlineWidth,
   },
   buttonDisabled: { opacity: 0.5 },
@@ -3024,7 +3049,7 @@ const styles = StyleSheet.create({
   modalOption: {
     paddingVertical: 12,
     paddingHorizontal: 10,
-    borderRadius: 12,
+    borderRadius: 24,
     borderWidth: StyleSheet.hairlineWidth,
     gap: 2,
   },
@@ -3047,7 +3072,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 14,
     paddingVertical: 12,
-    borderRadius: 12,
+    borderRadius: 24,
     borderWidth: StyleSheet.hairlineWidth,
   },
   fab: {

@@ -29,6 +29,7 @@ import {
     View,
     useColorScheme
 } from "react-native";
+import { useTheme } from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 // ── Types ──────────────────────────────────────────
@@ -94,6 +95,8 @@ export function BudgetsView({ filterAccountId = null, refreshKey = 0, createRequ
     const insets = useSafeAreaInsets();
     const colorScheme = useColorScheme();
     const isDark = colorScheme === "dark";
+    const theme = useTheme();
+    const isAndroid = Platform.OS === "android";
 
     let tabBarHeight = 0;
     try {
@@ -105,15 +108,15 @@ export function BudgetsView({ filterAccountId = null, refreshKey = 0, createRequ
 
     const ui = useMemo(
         () => ({
-            surface: isDark ? "#121212" : "#ffffff",
-            surface2: isDark ? "#1e1e1e" : "#f5f5f5",
-            border: isDark ? "rgba(255,255,255,0.18)" : "rgba(0,0,0,0.18)",
-            text: isDark ? "#ffffff" : "#111111",
-            mutedText: isDark ? "rgba(255,255,255,0.6)" : "rgba(0,0,0,0.5)",
+            surface: isAndroid ? theme.colors.surface : (isDark ? "#1C1C1E" : "#F5F5F5"), // neutral gray
+            surface2: isAndroid ? theme.colors.elevation.level2 : (isDark ? "#2C2C2E" : "#EBEBEB"), // slightly darker gray for inputs
+            border: isAndroid ? theme.colors.outlineVariant : (isDark ? "rgba(84,84,88,0.65)" : "rgba(60,60,67,0.29)"),
+            text: isDark ? "#FFFFFF" : "#000000",
+            mutedText: isDark ? "rgba(235,235,245,0.6)" : "rgba(60,60,67,0.6)",
             backdrop: "rgba(0,0,0,0.45)",
             destructive: "#ff3b30",
         }),
-        [isDark],
+        [isDark, theme, isAndroid],
     );
 
     // ── Data state ─────────────────────────────────

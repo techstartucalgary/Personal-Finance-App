@@ -14,7 +14,7 @@ export default function TransactionsLayout() {
                 headerLargeTitle: true,
                 headerTransparent: Platform.OS === "ios",
                 headerShadowVisible: false,
-                headerStyle: Platform.OS === "android" ? { backgroundColor: isDark ? "#000000" : "#ffffff" } : undefined,
+                headerStyle: Platform.OS === "android" ? { backgroundColor: "transparent" } : undefined,
                 headerLargeStyle: {
                     backgroundColor: "transparent",
                 },

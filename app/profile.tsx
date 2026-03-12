@@ -8,6 +8,7 @@ import { ThemedText } from "@/components/themed-text";
 
 import { onSignOutButtonPress } from "@/components/auth_buttons/sign-out-button";
 import { useAuthContext } from "@/hooks/use-auth-context";
+import { useTheme } from "react-native-paper";
 
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
@@ -15,17 +16,20 @@ export default function ProfileScreen() {
   const isDark = colorScheme === "dark";
   const { profile, session } = useAuthContext();
 
+  const theme = useTheme();
+  const isAndroid = Platform.OS === 'android';
+
   const ui = useMemo(
     () => ({
-      surface: isDark ? "#121212" : "#ffffff",
-      surface2: isDark ? "#1e1e1e" : "#f5f5f5",
-      border: isDark ? "rgba(255,255,255,0.18)" : "rgba(0,0,0,0.18)",
-      text: isDark ? "#ffffff" : "#111111",
-      mutedText: isDark ? "rgba(255,255,255,0.6)" : "rgba(0,0,0,0.5)",
-      accent: isDark ? "#8CF2D1" : "#1F6F5B",
-      destructive: "#FF3B30",
+      surface: isAndroid ? theme.colors.surface : (isDark ? "#121212" : "#ffffff"),
+      surface2: isAndroid ? theme.colors.elevation.level2 : (isDark ? "#1e1e1e" : "#f5f5f5"),
+      border: isAndroid ? theme.colors.outlineVariant : (isDark ? "rgba(255,255,255,0.18)" : "rgba(0,0,0,0.18)"),
+      text: isAndroid ? theme.colors.onSurface : (isDark ? "#ffffff" : "#111111"),
+      mutedText: isAndroid ? theme.colors.onSurfaceVariant : (isDark ? "rgba(255,255,255,0.6)" : "rgba(0,0,0,0.5)"),
+      accent: isAndroid ? theme.colors.primary : (isDark ? "#8CF2D1" : "#1F6F5B"),
+      destructive: isAndroid ? theme.colors.error : "#FF3B30",
     }),
-    [isDark]
+    [isDark, isAndroid, theme]
   );
 
   const userMetadata = session?.user?.user_metadata as
@@ -71,10 +75,6 @@ export default function ProfileScreen() {
           headerBackTitle: "Back",
           headerLargeTitle: true,
           headerTransparent: Platform.OS === "ios",
-          headerStyle: Platform.OS === "android" ? { backgroundColor: isDark ? "#000000" : "#ffffff" } : undefined,
-          headerLargeStyle: {
-            backgroundColor: "transparent",
-          },
         }}
       />
       <ScrollView

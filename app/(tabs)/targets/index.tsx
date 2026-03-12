@@ -1,14 +1,14 @@
 import React, { useMemo, useState } from "react";
-import { Platform, Pressable, RefreshControl, ScrollView, StyleSheet, useColorScheme, View } from "react-native";
+import { Platform, Pressable, RefreshControl, ScrollView, StyleSheet, useColorScheme } from "react-native";
 
 import SegmentedControl from "@react-native-segmented-control/segmented-control";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { ThemedText } from "@/components/themed-text";
+import { Appbar, Searchbar, useTheme } from "react-native-paper";
 
 import { IconSymbol } from "@/components/ui/icon-symbol";
-import Feather from "@expo/vector-icons/Feather";
 
 import { BudgetsView } from "@/components/targets/BudgetsView";
 import { GoalsView } from "@/components/targets/GoalsView";
@@ -18,7 +18,6 @@ import type { PlaidAccount } from "@/utils/plaid";
 import { getPlaidAccounts } from "@/utils/plaid";
 import { useFocusEffect, useNavigation, useRouter } from "expo-router";
 import { useCallback } from "react";
-import { TextInput } from "react-native";
 
 type Tab = "goals" | "budgets";
 
@@ -27,16 +26,20 @@ export default function TargetsScreen() {
   const router = useRouter();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
+  const theme = useTheme();
+
+  const isAndroid = Platform.OS === "android";
+
   const ui = useMemo(
     () => ({
-      surface: isDark ? "#121212" : "#ffffff",
-      surface2: isDark ? "#1e1e1e" : "#f5f5f5",
-      border: isDark ? "rgba(255,255,255,0.18)" : "rgba(0,0,0,0.18)",
-      text: isDark ? "#ffffff" : "#111111",
-      mutedText: isDark ? "rgba(255,255,255,0.6)" : "rgba(0,0,0,0.5)",
+      surface: isAndroid ? theme.colors.surface : (isDark ? "#1C1C1E" : "#F5F5F5"), // neutral gray
+      surface2: isAndroid ? theme.colors.elevation.level2 : (isDark ? "#2C2C2E" : "#EBEBEB"), // slightly darker gray for inputs
+      border: isAndroid ? theme.colors.outlineVariant : (isDark ? "rgba(84,84,88,0.65)" : "rgba(60,60,67,0.29)"),
+      text: isDark ? "#FFFFFF" : "#000000",
+      mutedText: isDark ? "rgba(235,235,245,0.6)" : "rgba(60,60,67,0.6)",
       backdrop: "rgba(0,0,0,0.45)",
     }),
-    [isDark]
+    [isDark, theme, isAndroid]
   );
 
   // Dynamic tab bar height for FAB positioning
@@ -111,10 +114,44 @@ export default function TargetsScreen() {
 
   return (
     <>
+      {Platform.OS === "android" && (
+        isAndroidSearching ? (
+          <Appbar.Header mode="small" elevated>
+            <Searchbar
+              placeholder="Search targets..."
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              autoFocus
+              onBlur={() => {
+                if (!searchQuery.trim()) {
+                  setIsAndroidSearching(false);
+                }
+              }}
+              onIconPress={() => { setSearchQuery(""); setIsAndroidSearching(false); }}
+              icon="arrow-left"
+              style={{ flex: 1, marginHorizontal: 4, backgroundColor: theme.colors.elevation.level4 }}
+              inputStyle={{ color: theme.colors.onSurface }}
+              iconColor={theme.colors.onSurface}
+            />
+          </Appbar.Header>
+        ) : (
+          <Appbar.Header mode="small" elevated>
+            <Appbar.Content
+              title="Targets"
+              titleStyle={{ fontWeight: "bold" }}
+            />
+            <Appbar.Action
+              icon="magnify"
+              onPress={() => setIsAndroidSearching(true)}
+            />
+          </Appbar.Header>
+        )
+      )}
+
       <ScrollView
         style={[styles.container, { backgroundColor: "transparent" }]}
         contentInsetAdjustmentBehavior="automatic"
-        contentContainerStyle={[styles.scrollContent, { paddingBottom: tabBarHeight + 120, paddingTop: Platform.OS === 'android' ? 16 + insets.top : 16 }]}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: tabBarHeight + 120, paddingTop: 16 }]}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
@@ -124,40 +161,6 @@ export default function TargetsScreen() {
           />
         }
       >
-        {Platform.OS === "android" && (
-          <View style={{ marginBottom: 16 }}>
-            {isAndroidSearching ? (
-              <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: ui.surface2, borderRadius: 12, paddingHorizontal: 12, height: 44, borderColor: ui.border, borderWidth: StyleSheet.hairlineWidth, marginTop: insets.top }}>
-                <Feather name="search" size={20} color={ui.mutedText} />
-                <TextInput
-                  value={searchQuery}
-                  onChangeText={setSearchQuery}
-                  placeholder="Search targets..."
-                  placeholderTextColor={ui.mutedText}
-                  autoFocus
-                  onBlur={() => {
-                    if (!searchQuery.trim()) {
-                      setIsAndroidSearching(false);
-                    }
-                  }}
-                  style={{ flex: 1, color: ui.text, marginLeft: 8, fontSize: 16 }}
-                />
-                <Pressable hitSlop={10} onPress={() => { setSearchQuery(""); setIsAndroidSearching(false); }}>
-                  <Feather name="x" size={20} color={ui.mutedText} />
-                </Pressable>
-              </View>
-            ) : (
-              <>
-                <View style={{ flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', marginBottom: 8, gap: 16 }}>
-                  <Pressable hitSlop={10} onPress={() => setIsAndroidSearching(true)}>
-                    <Feather name="search" size={24} color={ui.text} />
-                  </Pressable>
-                </View>
-                <ThemedText style={{ fontSize: 34, lineHeight: 42, fontWeight: 'bold', color: ui.text }}>Targets</ThemedText>
-              </>
-            )}
-          </View>
-        )}
 
         {/* Native Segmented Control */}
         <SegmentedControl
@@ -168,7 +171,8 @@ export default function TargetsScreen() {
             setActiveTab(index === 0 ? "goals" : "budgets");
             setCreateRequested(0);
           }}
-          tintColor={ui.surface}
+          tintColor={isAndroid ? theme.colors.surface : (isDark ? "#3A3A3C" : "#FFFFFF")}
+          backgroundColor={isAndroid ? theme.colors.elevation.level2 : "transparent"}
           fontStyle={{ color: ui.text, fontWeight: "500" }}
           activeFontStyle={{ color: ui.text, fontWeight: "600" }}
         />
@@ -184,7 +188,7 @@ export default function TargetsScreen() {
             style={[
               styles.chip,
               {
-                backgroundColor: filterAccountId === null ? ui.text : ui.surface2,
+                backgroundColor: filterAccountId === null ? (isAndroid ? theme.colors.tertiary : ui.text) : ui.surface2,
                 borderColor: ui.border,
               },
             ]}
@@ -193,7 +197,7 @@ export default function TargetsScreen() {
               style={{
                 fontSize: 13,
                 fontWeight: "600",
-                color: filterAccountId === null ? ui.surface : ui.text,
+                color: filterAccountId === null ? (isAndroid ? theme.colors.onTertiary : ui.surface) : ui.text,
               }}
             >
               All
@@ -207,7 +211,7 @@ export default function TargetsScreen() {
                 styles.chip,
                 {
                   backgroundColor:
-                    filterAccountId === acct.id ? ui.text : ui.surface2,
+                    filterAccountId === acct.id ? (isAndroid ? theme.colors.tertiary : ui.text) : ui.surface2,
                   borderColor: ui.border,
                 },
               ]}
@@ -216,7 +220,7 @@ export default function TargetsScreen() {
                 style={{
                   fontSize: 13,
                   fontWeight: "600",
-                  color: filterAccountId === acct.id ? ui.surface : ui.text,
+                  color: filterAccountId === acct.id ? (isAndroid ? theme.colors.onTertiary : ui.surface) : ui.text,
                 }}
               >
                 {acct.account_name ?? "Account"}
@@ -234,7 +238,7 @@ export default function TargetsScreen() {
                   styles.chip,
                   {
                     backgroundColor: isSelected
-                      ? (isDark ? "#8CF2D1" : "#1F6F5B")
+                      ? (isAndroid ? theme.colors.tertiary : (isDark ? "#8CF2D1" : "#1F6F5B"))
                       : ui.surface2,
                     borderColor: isSelected
                       ? "transparent"
@@ -246,7 +250,7 @@ export default function TargetsScreen() {
                   style={{
                     fontSize: 13,
                     fontWeight: "600",
-                    color: isSelected ? "#FFFFFF" : (isDark ? "#8CF2D1" : "#1F6F5B"),
+                    color: isSelected ? (isAndroid ? theme.colors.onTertiary : "#FFFFFF") : (isDark ? "#8CF2D1" : "#1F6F5B"),
                   }}
                 >
                   {pa.name}{pa.mask ? ` ••${pa.mask}` : ""}
@@ -265,17 +269,24 @@ export default function TargetsScreen() {
 
       {/* FAB - outside ScrollView for fixed positioning */}
       <Pressable
-        onPress={() => setCreateRequested((prev) => prev + 1)}
+        onPress={() => setCreateRequested(Date.now())}
         style={({ pressed }) => [
           styles.fab,
+          isAndroid && {
+            width: 80,
+            height: 80,
+            borderRadius: 20,
+            right: 16,
+          },
           {
-            backgroundColor: ui.text,
+            backgroundColor: isAndroid ? theme.colors.primary : ui.text,
             opacity: pressed ? 0.8 : 1,
             bottom: fabBottom,
+            elevation: isAndroid ? 5 : 6,
           },
         ]}
       >
-        <IconSymbol name="plus" size={32} color={ui.surface} />
+        <IconSymbol name="plus" size={isAndroid ? 36 : 32} color={isAndroid ? theme.colors.surfaceVariant : ui.surface} />
       </Pressable>
     </>
   );

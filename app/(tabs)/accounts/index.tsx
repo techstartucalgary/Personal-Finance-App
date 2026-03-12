@@ -14,6 +14,7 @@ import {
   View,
   useColorScheme
 } from "react-native";
+import { Appbar, Searchbar, useTheme } from "react-native-paper";
 import type { LinkExit, LinkSuccess } from "react-native-plaid-link-sdk";
 import { create as plaidCreate, destroy as plaidDestroy, open as plaidOpen } from "react-native-plaid-link-sdk";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -90,20 +91,24 @@ export default function AccountsScreen() {
   }
   const fabBottom = tabBarHeight + 60;
 
+  const theme = useTheme();
+
+  const isAndroid = Platform.OS === "android";
+
   const ui = useMemo(
     () => ({
-      surface: isDark ? "#121212" : "#ffffff",
-      surface2: isDark ? "#1e1e1e" : "#f5f5f5",
-      border: isDark ? "rgba(255,255,255,0.18)" : "rgba(0,0,0,0.18)",
-      text: isDark ? "#ffffff" : "#111111",
-      mutedText: isDark ? "rgba(255,255,255,0.6)" : "rgba(0,0,0,0.5)",
+      surface: isAndroid ? theme.colors.surface : (isDark ? "#1C1C1E" : "#F5F5F5"), // neutral gray
+      surface2: isAndroid ? theme.colors.elevation.level2 : (isDark ? "#2C2C2E" : "#EBEBEB"), // slightly darker gray for inputs
+      border: isAndroid ? theme.colors.outlineVariant : (isDark ? "rgba(84,84,88,0.65)" : "rgba(60,60,67,0.29)"),
+      text: isDark ? "#FFFFFF" : "#000000",
+      mutedText: isDark ? "rgba(235,235,245,0.6)" : "rgba(60,60,67,0.6)",
       backdrop: "rgba(0,0,0,0.45)",
-      accent: isDark ? "#8CF2D1" : "#1F6F5B",
-      accentSoft: isDark ? "rgba(140,242,209,0.2)" : "rgba(31,111,91,0.12)",
-      hero: isDark ? "#1C2027" : "#F9F4EC",
-      heroAlt: isDark ? "#262B34" : "#FFFFFF",
+      accent: isAndroid ? theme.colors.primary : (isDark ? "#8CF2D1" : "#1F6F5B"),
+      accentSoft: isAndroid ? theme.colors.primaryContainer : (isDark ? "rgba(140,242,209,0.2)" : "rgba(31,111,91,0.12)"),
+      hero: isAndroid ? theme.colors.elevation.level1 : (isDark ? "#1C1C1E" : "#F2F2F7"),
+      heroAlt: isAndroid ? theme.colors.elevation.level2 : (isDark ? "#2C2C2E" : "#FFFFFF"),
     }),
-    [isDark],
+    [isDark, theme, isAndroid],
   );
 
 
@@ -585,6 +590,40 @@ export default function AccountsScreen() {
 
   return (
     <>
+      {Platform.OS === "android" && (
+        isAndroidSearching ? (
+          <Appbar.Header mode="small" elevated>
+            <Searchbar
+              placeholder="Search accounts..."
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              autoFocus
+              onBlur={() => {
+                if (!searchQuery.trim()) {
+                  setIsAndroidSearching(false);
+                }
+              }}
+              onIconPress={() => { setSearchQuery(""); setIsAndroidSearching(false); }}
+              icon="arrow-left"
+              style={{ flex: 1, marginHorizontal: 4, backgroundColor: theme.colors.elevation.level5 }}
+              inputStyle={{ color: theme.colors.onSurface }}
+              iconColor={theme.colors.onSurface}
+            />
+          </Appbar.Header>
+        ) : (
+          <Appbar.Header mode="small" elevated>
+            <Appbar.Content
+              title="Accounts"
+              titleStyle={{ fontWeight: "bold" }}
+            />
+            <Appbar.Action
+              icon="magnify"
+              onPress={() => setIsAndroidSearching(true)}
+            />
+          </Appbar.Header>
+        )
+      )}
+
       <ScrollView
         style={[styles.container, { backgroundColor: "transparent" }]}
         contentInsetAdjustmentBehavior="automatic"
@@ -625,41 +664,6 @@ export default function AccountsScreen() {
           />
           <View style={[styles.bgRing, { borderColor: ui.accentSoft }]} />
         </View>
-
-        {Platform.OS === "android" && (
-          <View style={{ marginBottom: 16 }}>
-            {isAndroidSearching ? (
-              <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: ui.surface2, borderRadius: 12, paddingHorizontal: 12, height: 44, borderColor: ui.border, borderWidth: StyleSheet.hairlineWidth, marginTop: insets.top }}>
-                <Feather name="search" size={20} color={ui.mutedText} />
-                <TextInput
-                  value={searchQuery}
-                  onChangeText={setSearchQuery}
-                  placeholder="Search accounts..."
-                  placeholderTextColor={ui.mutedText}
-                  autoFocus
-                  onBlur={() => {
-                    if (!searchQuery.trim()) {
-                      setIsAndroidSearching(false);
-                    }
-                  }}
-                  style={{ flex: 1, color: ui.text, marginLeft: 8, fontSize: 16 }}
-                />
-                <Pressable hitSlop={10} onPress={() => { setSearchQuery(""); setIsAndroidSearching(false); }}>
-                  <Feather name="x" size={20} color={ui.mutedText} />
-                </Pressable>
-              </View>
-            ) : (
-              <>
-                <View style={{ flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', marginTop: insets.top, marginBottom: 8 }}>
-                  <Pressable hitSlop={10} onPress={() => setIsAndroidSearching(true)}>
-                    <Feather name="search" size={24} color={ui.text} />
-                  </Pressable>
-                </View>
-                <ThemedText style={{ fontSize: 34, lineHeight: 42, fontWeight: 'bold', color: ui.text }}>Accounts</ThemedText>
-              </>
-            )}
-          </View>
-        )}
 
         <View
           style={[
@@ -1082,6 +1086,7 @@ export default function AccountsScreen() {
         <ThemedView
           style={{
             flex: 1,
+            backgroundColor: ui.surface,
             padding: 16,
             paddingTop: Platform.OS === "ios" ? 8 : (16 + insets.top),
             paddingBottom: 16 + insets.bottom,
@@ -1345,6 +1350,7 @@ export default function AccountsScreen() {
           <ThemedView
             style={{
               flex: 1,
+              backgroundColor: ui.surface,
               padding: 16,
               paddingTop: Platform.OS === "ios" ? 8 : (16 + insets.top),
               paddingBottom: 16 + insets.bottom,
@@ -1357,7 +1363,7 @@ export default function AccountsScreen() {
                 <Pressable
                   onPress={() => setEditingAccount(null)}
                   hitSlop={20}
-                  style={[styles.modalCloseButton, { backgroundColor: isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.05)" }]}
+                  style={[styles.modalCloseButton, { backgroundColor: isAndroid ? theme.colors.surfaceVariant : (isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.05)") }]}
                 >
                   <Feather name="x" size={18} color={ui.text} />
                 </Pressable>
@@ -1469,7 +1475,7 @@ export default function AccountsScreen() {
                 style={[
                   styles.button,
                   {
-                    backgroundColor: ui.text,
+                    backgroundColor: isAndroid ? theme.colors.primary : ui.text,
                     borderColor: ui.border,
                     alignSelf: "center",
                     width: "100%",
@@ -1480,7 +1486,7 @@ export default function AccountsScreen() {
               >
                 <ThemedText
                   type="defaultSemiBold"
-                  style={{ color: ui.surface }} // Invert text color
+                  style={{ color: isAndroid ? theme.colors.onPrimary : ui.surface }} // Invert text color
                 >
                   Save Changes
                 </ThemedText>

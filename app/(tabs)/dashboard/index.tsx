@@ -6,7 +6,6 @@ import {
   ActivityIndicator,
   Alert,
   Animated,
-  Image,
   Platform,
   Pressable,
   RefreshControl,
@@ -16,11 +15,12 @@ import {
   View
 } from "react-native";
 
+import IncomeExpenseChart from "@/components/IncomeExpenseChart";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
-import { IconSymbol } from "@/components/ui/icon-symbol";
 import { Tokens } from "@/constants/authTokens";
 import { useAuthContext } from "@/hooks/use-auth-context";
+import { Appbar, useTheme } from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { listAccounts } from "@/utils/accounts";
@@ -71,22 +71,26 @@ export default function DashboardScreen() {
     tabBarHeight = insets.bottom + 60;
   }
 
+  const theme = useTheme();
+
+  const isAndroid = Platform.OS === "android";
+
   const ui = useMemo(
     () => ({
-      surface: isDark ? "#121212" : "#ffffff",
-      surface2: isDark ? "#1e1e1e" : "#f5f5f5",
-      border: isDark ? "rgba(255,255,255,0.18)" : "rgba(0,0,0,0.18)",
-      text: isDark ? "#ffffff" : "#111111",
-      mutedText: isDark ? "rgba(255,255,255,0.6)" : "rgba(0,0,0,0.5)",
+      surface: isAndroid ? theme.colors.surface : (isDark ? "#1C1C1E" : "#F5F5F5"), // neutral gray
+      surface2: isAndroid ? theme.colors.elevation.level2 : (isDark ? "#2C2C2E" : "#EBEBEB"), // slightly darker gray for inputs
+      border: isAndroid ? theme.colors.outlineVariant : (isDark ? "rgba(84,84,88,0.65)" : "rgba(60,60,67,0.29)"),
+      text: isDark ? "#FFFFFF" : "#000000",
+      mutedText: isDark ? "rgba(235,235,245,0.6)" : "rgba(60,60,67,0.6)",
       backdrop: "rgba(0,0,0,0.45)",
-      accent: isDark ? "#8CF2D1" : "#1F6F5B",
-      accentSoft: isDark ? "rgba(140,242,209,0.2)" : "rgba(31,111,91,0.12)",
-      hero: isDark ? "#1C2027" : "#F9F4EC",
-      heroAlt: isDark ? "#262B34" : "#FFFFFF",
+      accent: isAndroid ? theme.colors.primary : (isDark ? "#8CF2D1" : "#1F6F5B"),
+      accentSoft: isAndroid ? theme.colors.primaryContainer : (isDark ? "rgba(140,242,209,0.2)" : "rgba(31,111,91,0.12)"),
+      hero: isAndroid ? theme.colors.elevation.level1 : (isDark ? "#1C1C1E" : "#F2F2F7"),
+      heroAlt: isAndroid ? theme.colors.elevation.level2 : (isDark ? "#2C2C2E" : "#FFFFFF"),
       negative: isDark ? "#ff6b6b" : "#e03131",
-      positive: isDark ? "#8CF2D1" : "#1F6F5B",
+      positive: isAndroid ? theme.colors.primary : (isDark ? "#8CF2D1" : "#1F6F5B"),
     }),
-    [isDark],
+    [isDark, theme, isAndroid],
   );
 
   const [isLoading, setIsLoading] = useState(false);
@@ -330,253 +334,194 @@ export default function DashboardScreen() {
   }
 
   return (
-    <ScrollView
-      style={[styles.container, { backgroundColor: "transparent" }]}
-      contentInsetAdjustmentBehavior="automatic"
-      contentContainerStyle={[
-        styles.scrollContent,
-        { paddingBottom: tabBarHeight + 120, paddingTop: Platform.OS === 'android' ? 16 + insets.top : 16 },
-      ]}
-      showsVerticalScrollIndicator={false}
-      refreshControl={
-        <RefreshControl
-          refreshing={isLoading}
-          onRefresh={() => loadData(false)}
-          tintColor={ui.text}
-        />
-      }
-    >
+    <>
       {Platform.OS === "android" && (
-        <>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, gap: 16 }}>
-            <Pressable hitSlop={10} onPress={() => router.push("/profile")}>
-              <IconSymbol size={25} name="person" color={ui.text} />
-            </Pressable>
-            <View style={{ flexDirection: "row", gap: 16, alignItems: "center" }}>
-              <Pressable hitSlop={10} onPress={() => Alert.alert("Settings", "Settings coming soon!")}>
-                <Feather name="settings" size={24} color={ui.text} />
-              </Pressable>
-              <Pressable hitSlop={10} onPress={() => Alert.alert("Notifications", "You have no new notifications.")}>
-                <Feather name="bell" size={24} color={ui.text} />
-              </Pressable>
-            </View>
-          </View>
-          <ThemedText style={{ fontSize: 34, lineHeight: 42, fontWeight: 'bold', marginBottom: 16, color: ui.text }}>Dashboard</ThemedText>
-        </>
+        <Appbar.Header mode="small" elevated>
+          <Appbar.Action
+            icon="account-circle-outline"
+            onPress={() => router.push("/profile")}
+          />
+          <Appbar.Content
+            title="Dashboard"
+            titleStyle={{ fontWeight: "bold" }}
+          />
+          <Appbar.Action
+            icon="cog-outline"
+            onPress={() => Alert.alert("Settings", "Settings coming soon!")}
+          />
+          <Appbar.Action
+            icon="bell-outline"
+            onPress={() => Alert.alert("Notifications", "You have no new notifications.")}
+          />
+        </Appbar.Header>
       )}
 
-      <Animated.View style={heroAnimatedStyle}>
-        <View
-          style={[
-            styles.heroCard,
-            { borderColor: ui.border, backgroundColor: ui.hero },
-          ]}
-        >
-          <View style={styles.heroTopRow}>
-            <View>
-              <ThemedText style={[styles.heroLabel, { color: ui.mutedText }]}>
-                Total Balance
-              </ThemedText>
-              <ThemedText style={[styles.heroValue, { color: ui.text }]}>
-                {formatMoney(totalBalance)}
-              </ThemedText>
-            </View>
-            <View
-              style={[
-                styles.heroBadge,
-                { borderColor: ui.border, backgroundColor: ui.heroAlt },
-              ]}
-            >
-              <Feather name="trending-up" size={14} color={ui.accent} />
-              <ThemedText
-                style={[styles.heroBadgeText, { color: ui.text }]}
-              >
-                Overview
-              </ThemedText>
-            </View>
-          </View>
-          <View style={styles.heroStatsRow}>
-            <View
-              style={[
-                styles.statPill,
-                { borderColor: ui.border, backgroundColor: ui.heroAlt },
-              ]}
-            >
-              <ThemedText style={[styles.statLabel, { color: ui.mutedText }]}>
-                Available
-              </ThemedText>
-              <ThemedText style={[styles.statValue, { color: ui.text }]}>
-                {formatMoney(totalAvailable)}
-              </ThemedText>
-            </View>
-            <View
-              style={[
-                styles.statPill,
-                { borderColor: ui.border, backgroundColor: ui.heroAlt },
-              ]}
-            >
-              <ThemedText style={[styles.statLabel, { color: ui.mutedText }]}>
-                Accounts
-              </ThemedText>
-              <ThemedText style={[styles.statValue, { color: ui.text }]}>
-                {accounts.length + plaidAccounts.length}
-              </ThemedText>
-            </View>
-            <View
-              style={[
-                styles.statPill,
-                { borderColor: ui.border, backgroundColor: ui.heroAlt },
-              ]}
-            >
-              <ThemedText style={[styles.statLabel, { color: ui.mutedText }]}>
-                Assets / Liabilities
-              </ThemedText>
-              <ThemedText
-                style={[styles.statValueSmall, { color: ui.text }]}
-              >
-                {assetsCount} / {liabilitiesCount}
-              </ThemedText>
-            </View>
-          </View>
-        </View>
-      </Animated.View>
-
-      <Animated.View style={listAnimatedStyle}>
-        <View
-          style={[
-            styles.chartCard,
-            { borderColor: ui.border, backgroundColor: ui.surface2 },
-          ]}
-        >
-          <View
-            pointerEvents="none"
-            style={[styles.chartGlow, { backgroundColor: ui.accentSoft }]}
+      <ScrollView
+        style={[styles.container, { backgroundColor: "transparent" }]}
+        contentInsetAdjustmentBehavior="automatic"
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingBottom: tabBarHeight + 120, paddingTop: 16 },
+        ]}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={isLoading}
+            onRefresh={() => loadData(false)}
+            tintColor={ui.text}
           />
-          <View style={styles.chartHeader}>
-            <View>
-              <ThemedText style={[styles.chartTitle, { color: ui.text }]}>
-                Balance Trend
-              </ThemedText>
-              <ThemedText
-                style={[styles.chartSubtitle, { color: ui.mutedText }]}
-              >
-                Last 4 months
-              </ThemedText>
-            </View>
-            <View
-              style={[
-                styles.chartChip,
-                { borderColor: ui.border, backgroundColor: ui.surface },
-              ]}
-            >
-              <Feather name="bar-chart-2" size={14} color={ui.accent} />
-              <ThemedText style={[styles.chartChipText, { color: ui.text }]}>
-                Insights
-              </ThemedText>
-            </View>
-          </View>
-          <View style={styles.chartRow}>
-            <View style={styles.yAxis}>
-              <ThemedText style={[styles.yLabel, { color: ui.mutedText }]}>
-                50k
-              </ThemedText>
-              <ThemedText style={[styles.yLabel, { color: ui.mutedText }]}>
-                20k
-              </ThemedText>
-              <ThemedText style={[styles.yLabel, { color: ui.mutedText }]}>
-                10k
-              </ThemedText>
-              <ThemedText style={[styles.yLabel, { color: ui.mutedText }]}>
-                0
-              </ThemedText>
-            </View>
+        }
+      >
 
-            <View style={styles.chartArea}>
-              <View
-                style={[
-                  styles.chartGuide,
-                  { borderColor: ui.border, top: "8%" },
-                ]}
-              />
-              <View
-                style={[
-                  styles.chartGuide,
-                  { borderColor: ui.border, top: "34%" },
-                ]}
-              />
-              <View
-                style={[
-                  styles.chartGuide,
-                  { borderColor: ui.border, top: "58%" },
-                ]}
-              />
-              <View
-                style={[
-                  styles.chartGuide,
-                  { borderColor: ui.border, top: "82%" },
-                ]}
-              />
-              <Image
-                source={{
-                  uri: "https://api.builder.io/api/v1/image/assets/TEMP/94870884-619f-436a-b553-127d9ef92e88?placeholderIfAbsent=true&apiKey=342743ad2e264936acee3aea8d83ec5e",
-                }}
-                style={styles.chartImage}
-                resizeMode="contain"
-              />
-            </View>
-          </View>
-
-          <View style={styles.monthRow}>
-            <ThemedText style={[styles.monthLabel, { color: ui.mutedText }]}>
-              Jan
-            </ThemedText>
-            <ThemedText style={[styles.monthLabel, { color: ui.mutedText }]}>
-              Feb
-            </ThemedText>
-            <ThemedText style={[styles.monthLabel, { color: ui.text }]}>
-              Mar
-            </ThemedText>
-            <ThemedText style={[styles.monthLabel, { color: ui.mutedText }]}>
-              Apr
-            </ThemedText>
-          </View>
-        </View>
-      </Animated.View>
-
-      <View style={styles.sectionHeader}>
-        <ThemedText type="subtitle">Recent Activity</ThemedText>
-        <Pressable onPress={() => router.push("/(tabs)/transactions")}>
-          <ThemedText style={{ color: ui.accent }}>View All</ThemedText>
-        </Pressable>
-      </View>
-
-      <View style={[styles.card, { borderColor: ui.border, backgroundColor: ui.surface2 }]}>
-        {recentActivity.length > 0 ? (
-          recentActivity.map((tx) => {
-            const isNegative = tx.amount > 0;
-            return (
-              <View key={tx.id} style={[styles.txRow, { borderBottomColor: ui.border }]}>
-                <View style={styles.txLeft}>
-                  <ThemedText style={[styles.txName, { color: ui.text }]} numberOfLines={1}>
-                    {tx.title}
-                  </ThemedText>
-                  <ThemedText style={[styles.txDate, { color: ui.mutedText }]}>
-                    {formatDateShort(tx.date)} {tx.isPlaid && "• Bank"}
-                  </ThemedText>
-                </View>
-                <ThemedText style={[styles.txAmount, { color: isNegative ? ui.text : ui.positive }]}>
-                  {isNegative ? "-" : "+"}{formatMoney(Math.abs(tx.amount))}
+        <Animated.View style={heroAnimatedStyle}>
+          <View
+            style={[
+              styles.heroCard,
+              { borderColor: ui.border, backgroundColor: ui.hero },
+            ]}
+          >
+            <View style={styles.heroTopRow}>
+              <View>
+                <ThemedText style={[styles.heroLabel, { color: ui.mutedText }]}>
+                  Total Balance
+                </ThemedText>
+                <ThemedText style={[styles.heroValue, { color: ui.text }]}>
+                  {formatMoney(totalBalance)}
                 </ThemedText>
               </View>
-            );
-          })
-        ) : (
-          <ThemedText style={{ color: ui.mutedText, textAlign: "center", paddingVertical: 16 }}>
-            No recent activity
-          </ThemedText>
-        )}
-      </View>
-    </ScrollView>
+              <View
+                style={[
+                  styles.heroBadge,
+                  { borderColor: ui.border, backgroundColor: ui.heroAlt },
+                ]}
+              >
+                <Feather name="trending-up" size={14} color={ui.accent} />
+                <ThemedText
+                  style={[styles.heroBadgeText, { color: ui.text }]}
+                >
+                  Overview
+                </ThemedText>
+              </View>
+            </View>
+            <View style={styles.heroStatsRow}>
+              <View
+                style={[
+                  styles.statPill,
+                  { borderColor: ui.border, backgroundColor: ui.heroAlt },
+                ]}
+              >
+                <ThemedText style={[styles.statLabel, { color: ui.mutedText }]}>
+                  Available
+                </ThemedText>
+                <ThemedText style={[styles.statValue, { color: ui.text }]}>
+                  {formatMoney(totalAvailable)}
+                </ThemedText>
+              </View>
+              <View
+                style={[
+                  styles.statPill,
+                  { borderColor: ui.border, backgroundColor: ui.heroAlt },
+                ]}
+              >
+                <ThemedText style={[styles.statLabel, { color: ui.mutedText }]}>
+                  Accounts
+                </ThemedText>
+                <ThemedText style={[styles.statValue, { color: ui.text }]}>
+                  {accounts.length + plaidAccounts.length}
+                </ThemedText>
+              </View>
+              <View
+                style={[
+                  styles.statPill,
+                  { borderColor: ui.border, backgroundColor: ui.heroAlt },
+                ]}
+              >
+                <ThemedText style={[styles.statLabel, { color: ui.mutedText }]}>
+                  Assets / Liabilities
+                </ThemedText>
+                <ThemedText
+                  style={[styles.statValueSmall, { color: ui.text }]}
+                >
+                  {assetsCount} / {liabilitiesCount}
+                </ThemedText>
+              </View>
+            </View>
+          </View>
+        </Animated.View>
+
+        <Animated.View style={listAnimatedStyle}>
+          <View
+            style={[
+              styles.chartCard,
+              { borderColor: ui.border, backgroundColor: ui.surface2 },
+            ]}
+          >
+            <View
+              pointerEvents="none"
+              style={[styles.chartGlow, { backgroundColor: ui.accentSoft }]}
+            />
+            <View style={styles.chartHeader}>
+              <View>
+                <ThemedText style={[styles.chartTitle, { color: ui.text }]}>
+                  Balance Trend
+                </ThemedText>
+                <ThemedText
+                  style={[styles.chartSubtitle, { color: ui.mutedText }]}
+                >
+                  Last 5 months
+                </ThemedText>
+              </View>
+              <View
+                style={[
+                  styles.chartChip,
+                  { borderColor: ui.border, backgroundColor: ui.surface },
+                ]}
+              >
+                <Feather name="bar-chart-2" size={14} color={ui.accent} />
+                <ThemedText style={[styles.chartChipText, { color: ui.text }]}>
+                  Insights
+                </ThemedText>
+              </View>
+            </View>
+            <IncomeExpenseChart expenses={expenses} plaidTransactions={plaidTransactions} />
+          </View>
+        </Animated.View>
+
+        <View style={styles.sectionHeader}>
+          <ThemedText type="subtitle">Recent Activity</ThemedText>
+          <Pressable onPress={() => router.push("/(tabs)/transactions")}>
+            <ThemedText style={{ color: ui.accent }}>View All</ThemedText>
+          </Pressable>
+        </View>
+
+        <View style={[styles.card, { borderColor: ui.border, backgroundColor: ui.surface2 }]}>
+          {recentActivity.length > 0 ? (
+            recentActivity.map((tx) => {
+              const isNegative = tx.amount > 0;
+              return (
+                <View key={tx.id} style={[styles.txRow, { borderBottomColor: ui.border }]}>
+                  <View style={styles.txLeft}>
+                    <ThemedText style={[styles.txName, { color: ui.text }]} numberOfLines={1}>
+                      {tx.title}
+                    </ThemedText>
+                    <ThemedText style={[styles.txDate, { color: ui.mutedText }]}>
+                      {formatDateShort(tx.date)} {tx.isPlaid && "• Bank"}
+                    </ThemedText>
+                  </View>
+                  <ThemedText style={[styles.txAmount, { color: isNegative ? ui.text : ui.positive }]}>
+                    {isNegative ? "-" : "+"}{formatMoney(Math.abs(tx.amount))}
+                  </ThemedText>
+                </View>
+              );
+            })
+          ) : (
+            <ThemedText style={{ color: ui.mutedText, textAlign: "center", paddingVertical: 16 }}>
+              No recent activity
+            </ThemedText>
+          )}
+        </View>
+      </ScrollView>
+    </>
   );
 }
 

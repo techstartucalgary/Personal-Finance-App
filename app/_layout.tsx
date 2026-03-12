@@ -1,3 +1,4 @@
+import { useMaterial3Theme } from "@pchmn/expo-material3-theme";
 import {
   DarkTheme,
   DefaultTheme,
@@ -5,7 +6,8 @@ import {
 } from "@react-navigation/native";
 import { SplashScreen, Stack, useRouter, useSegments } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import React, { useEffect } from "react";
+import React, { useEffect, useMemo } from "react";
+import { Platform } from "react-native";
 import { MD3DarkTheme, MD3LightTheme, PaperProvider } from "react-native-paper";
 
 import { SplashScreenController } from "@/components/splash-screen-controller";
@@ -73,6 +75,19 @@ export default function RootLayout() {
   });
   const colorScheme = useColorScheme() ?? "light";
 
+  const { theme: m3Theme } = useMaterial3Theme();
+
+  const paperTheme = useMemo(() => {
+    const baseTheme = colorScheme === "dark" ? MD3DarkTheme : MD3LightTheme;
+    if (Platform.OS === "android" && m3Theme) {
+      return {
+        ...baseTheme,
+        colors: colorScheme === "dark" ? m3Theme.dark : m3Theme.light,
+      };
+    }
+    return baseTheme;
+  }, [colorScheme, m3Theme]);
+
   useEffect(() => {
     if (loaded) {
       SplashScreen.hideAsync();
@@ -81,20 +96,23 @@ export default function RootLayout() {
 
   if (!loaded) return null;
 
+  const iosLightBg = "#FFFFFF";   // systemBackground
+  const iosDarkBg = "#000000";    // systemBackground
+  const lightBg = Platform.OS === "android" ? paperTheme.colors.surface : iosLightBg;
+  const darkBg = Platform.OS === "android" ? paperTheme.colors.background : iosDarkBg;
+
   const CustomDefaultTheme = {
     ...DefaultTheme,
-    colors: { ...DefaultTheme.colors, background: "#ffffff" },
+    colors: { ...DefaultTheme.colors, background: lightBg },
   };
 
   const CustomDarkTheme = {
     ...DarkTheme,
-    colors: { ...DarkTheme.colors, background: "#000000" },
+    colors: { ...DarkTheme.colors, background: darkBg },
   };
 
   return (
-    <PaperProvider
-      theme={colorScheme === "dark" ? MD3DarkTheme : MD3LightTheme}
-    >
+    <PaperProvider theme={paperTheme}>
       <ThemeProvider value={colorScheme === "dark" ? CustomDarkTheme : CustomDefaultTheme}>
         <AuthProvider>
           <SplashScreenController />

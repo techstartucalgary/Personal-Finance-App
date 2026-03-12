@@ -11,6 +11,7 @@ import {
     View,
     useColorScheme,
 } from "react-native";
+import { useTheme } from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ThemedText } from "./themed-text";
 import { ThemedView } from "./themed-view";
@@ -51,7 +52,9 @@ export function AccountDetailModal({
 }: AccountDetailModalProps) {
     const insets = useSafeAreaInsets();
     const colorScheme = useColorScheme();
+    const theme = useTheme();
     const isDark = colorScheme === "dark";
+    const isAndroid = Platform.OS === 'android';
 
     if (!account) return null;
 
@@ -88,13 +91,13 @@ export function AccountDetailModal({
     const interestRate = !isPlaid ? (account as AccountRowFull).interest_rate : null;
 
     const ui = {
-        surface: isDark ? "#121212" : "#ffffff",
-        surface2: isDark ? "#1a1a1a" : "#f8f9fa",
-        border: isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.05)",
-        text: isDark ? "#ffffff" : "#111111",
-        mutedText: isDark ? "rgba(255,255,255,0.5)" : "rgba(0,0,0,0.5)",
-        accent: isDark ? "#1F6F5B" : "#1F6F5B",
-        danger: "#FF3B30",
+        surface: isAndroid ? theme.colors.surface : (isDark ? "#1C1C1E" : "#FFFFFF"),
+        surface2: isAndroid ? theme.colors.elevation.level2 : (isDark ? "#2C2C2E" : "#F2F2F7"), // standard gray matching iOS/Android
+        border: isAndroid ? theme.colors.outlineVariant : (isDark ? "rgba(84,84,88,0.65)" : "rgba(60,60,67,0.29)"),
+        text: isAndroid ? theme.colors.onSurface : (isDark ? "#FFFFFF" : "#000000"),
+        mutedText: isAndroid ? theme.colors.onSurfaceVariant : (isDark ? "rgba(235,235,245,0.6)" : "rgba(60,60,67,0.6)"),
+        accent: isAndroid ? theme.colors.primary : "#1F6F5B",
+        danger: isAndroid ? theme.colors.error : "#FF3B30",
     };
 
     const formatMoney = (val: number | null | undefined) => {
@@ -139,7 +142,7 @@ export function AccountDetailModal({
                             hitSlop={20}
                             style={[
                                 styles.closeButton,
-                                { backgroundColor: isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.05)" }
+                                { backgroundColor: isAndroid ? theme.colors.surfaceVariant : (isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.05)") }
                             ]}
                         >
                             <Feather name="x" size={18} color={ui.text} />
@@ -181,8 +184,8 @@ export function AccountDetailModal({
                             }}
                             style={[styles.actionButton, { backgroundColor: ui.accent }]}
                         >
-                            <Feather name="edit-2" size={18} color="#FFFFFF" />
-                            <ThemedText style={styles.actionButtonText}>Edit Account</ThemedText>
+                            <Feather name="edit-2" size={18} color={isAndroid ? theme.colors.onPrimary : "#FFFFFF"} />
+                            <ThemedText style={[styles.actionButtonText, { color: isAndroid ? theme.colors.onPrimary : "#FFFFFF" }]}>Edit Account</ThemedText>
                         </Pressable>
                     )}
 
@@ -276,7 +279,7 @@ const styles = StyleSheet.create({
         fontWeight: "700",
     },
     infoCard: {
-        borderRadius: 16,
+        borderRadius: 30,
         borderWidth: 1,
         overflow: "hidden",
     },
@@ -303,7 +306,7 @@ const styles = StyleSheet.create({
         alignItems: "center",
         justifyContent: "center",
         padding: 16,
-        borderRadius: 14,
+        borderRadius: 30,
         gap: 8,
         marginTop: 8,
     },

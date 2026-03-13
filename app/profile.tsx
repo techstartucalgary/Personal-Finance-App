@@ -73,11 +73,12 @@ export default function ProfileScreen() {
         options={{
           title: "Profile",
           headerBackTitle: "Back",
-          headerLargeTitle: true,
+          headerLargeTitle: false,
           headerTransparent: Platform.OS === "ios",
-          headerStyle: {
+          headerShadowVisible: false,
+          headerStyle: Platform.OS === "android" ? {
             backgroundColor: ui.surface,
-          },
+          } : undefined,
           headerTintColor: ui.text,
           headerTitleStyle: {
             color: ui.text,
@@ -92,6 +93,7 @@ export default function ProfileScreen() {
                 borderRadius: 18,
                 alignItems: "center",
                 justifyContent: "center",
+                marginRight: 0,
                 opacity: pressed ? 0.7 : 1,
               })}
             >
@@ -213,7 +215,7 @@ const styles = StyleSheet.create({
     marginLeft: 12,
   },
   card: {
-    borderRadius: 16,
+    borderRadius: 24,
     borderWidth: StyleSheet.hairlineWidth,
     overflow: "hidden",
   },

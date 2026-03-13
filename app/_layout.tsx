@@ -46,7 +46,7 @@ function ProtectedLayout() {
       }
 
       if (inAuthGroup) {
-        router.replace("/(tabs)/accounts");
+        router.replace("/(tabs)/dashboard");
       }
       return;
     }

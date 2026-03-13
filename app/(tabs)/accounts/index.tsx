@@ -11,7 +11,8 @@ import {
   ScrollView,
   StyleSheet,
   TextInput,
-  View
+  View,
+  useColorScheme
 } from "react-native";
 import { Appbar, Searchbar, useTheme } from "react-native-paper";
 import type { LinkExit, LinkSuccess } from "react-native-plaid-link-sdk";
@@ -78,6 +79,9 @@ export default function AccountsScreen() {
   const navigation = useNavigation();
 
   const insets = useSafeAreaInsets();
+
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === "dark";
 
   // Dynamic tab bar height
   let tabBarHeight = 0;
@@ -182,7 +186,6 @@ export default function AccountsScreen() {
     async (silent = false) => {
       if (!userId) {
         setAccounts([]);
-        setExpenses([]);
         return;
       }
 
@@ -220,13 +223,6 @@ export default function AccountsScreen() {
         );
       } catch (err) {
         console.error("Error loading goals for accounts:", err);
-      }
-
-      try {
-        const expenseData = await listExpenses({ profile_id: userId });
-        setExpenses((expenseData as ExpenseRow[]) ?? []);
-      } catch (err) {
-        console.error("Error loading transactions for chart:", err);
       }
 
       if (!silent) setIsLoading(false);

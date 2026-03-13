@@ -1,5 +1,6 @@
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
+import { DateTimePickerField } from "@/components/ui/DateTimePickerField";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useAuthContext } from "@/hooks/use-auth-context";
 import { createBudget, deleteBudget, editBudget, listBudgets } from "@/utils/budgets";
@@ -12,20 +13,23 @@ import {
     getCategorySpending,
     listCategoryBudgets,
 } from "@/utils/categoryBudgets";
+import { parseLocalDate, toLocalISOString } from "@/utils/date";
+import Feather from "@expo/vector-icons/Feather";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { useFocusEffect } from "expo-router";
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
     Alert,
     Modal,
+    Platform,
     Pressable,
-    RefreshControl,
     ScrollView,
     StyleSheet,
     TextInput,
     View,
-    useColorScheme,
+    useColorScheme
 } from "react-native";
+import { useTheme } from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 // ── Types ──────────────────────────────────────────
@@ -77,17 +81,22 @@ const PERIOD_LABEL: Record<BudgetPeriod, string> = {
 
 
 type BudgetsViewProps = {
-    filterAccountId?: number | null;
+    filterAccountId?: string | number | null;
+    refreshKey?: number;
+    createRequested?: number;
+    searchQuery?: string;
 };
 
 // ── Component ──────────────────────────────────────
 
-export function BudgetsView({ filterAccountId = null }: BudgetsViewProps) {
+export function BudgetsView({ filterAccountId = null, refreshKey = 0, createRequested = 0, searchQuery = "" }: BudgetsViewProps) {
     const { session } = useAuthContext();
     const userId = session?.user.id;
     const insets = useSafeAreaInsets();
     const colorScheme = useColorScheme();
     const isDark = colorScheme === "dark";
+    const theme = useTheme();
+    const isAndroid = Platform.OS === "android";
 
     let tabBarHeight = 0;
     try {
@@ -99,15 +108,15 @@ export function BudgetsView({ filterAccountId = null }: BudgetsViewProps) {
 
     const ui = useMemo(
         () => ({
-            surface: isDark ? "#121212" : "#ffffff",
-            surface2: isDark ? "#1a1a1a" : "#ffffff",
-            border: isDark ? "rgba(255,255,255,0.18)" : "rgba(0,0,0,0.12)",
-            text: isDark ? "#ffffff" : "#111111",
-            mutedText: isDark ? "rgba(255,255,255,0.6)" : "rgba(0,0,0,0.5)",
+            surface: isAndroid ? theme.colors.surface : (isDark ? "#1C1C1E" : "#F5F5F5"), // neutral gray
+            surface2: isAndroid ? theme.colors.elevation.level2 : (isDark ? "#2C2C2E" : "#EBEBEB"), // slightly darker gray for inputs
+            border: isAndroid ? theme.colors.outlineVariant : (isDark ? "rgba(84,84,88,0.65)" : "rgba(60,60,67,0.29)"),
+            text: isDark ? "#FFFFFF" : "#000000",
+            mutedText: isDark ? "rgba(235,235,245,0.6)" : "rgba(60,60,67,0.6)",
             backdrop: "rgba(0,0,0,0.45)",
             destructive: "#ff3b30",
         }),
-        [isDark],
+        [isDark, theme, isAndroid],
     );
 
     // ── Data state ─────────────────────────────────
@@ -188,6 +197,18 @@ export function BudgetsView({ filterAccountId = null }: BudgetsViewProps) {
             loadData();
         }, [loadData]),
     );
+
+    useEffect(() => {
+        if (refreshKey > 0) {
+            loadData();
+        }
+    }, [refreshKey]);
+
+    useEffect(() => {
+        if (createRequested > 0) {
+            openCreateModal();
+        }
+    }, [createRequested]);
 
     // ── Modal helpers ──────────────────────────────
     const openCreateModal = () => {
@@ -341,21 +362,21 @@ export function BudgetsView({ filterAccountId = null }: BudgetsViewProps) {
         ]);
     }, [userId, editingBudget, loadData]);
 
+    const filteredBudgets = useMemo(() => {
+        if (!searchQuery) return budgets;
+        return budgets.filter(b => b.budget_name.toLowerCase().includes(searchQuery.toLowerCase()));
+    }, [budgets, searchQuery]);
+
     // ── Render ──────────────────────────────────────
     return (
         <View style={styles.container}>
-            <ScrollView
-                contentContainerStyle={styles.scrollContent}
-                refreshControl={
-                    <RefreshControl refreshing={isLoading} onRefresh={loadData} tintColor={ui.text} />
-                }
-            >
-                {budgets.length === 0 ? (
+            <View style={styles.scrollContent}>
+                {filteredBudgets.length === 0 ? (
                     <ThemedText style={{ textAlign: "center", marginTop: 24, opacity: 0.6 }}>
                         No budgets yet. Create one below!
                     </ThemedText>
                 ) : (
-                    budgets.map((budget) => (
+                    filteredBudgets.map((budget) => (
                         <Pressable
                             key={budget.id}
                             onPress={() => openEditModal(budget)}
@@ -427,22 +448,7 @@ export function BudgetsView({ filterAccountId = null }: BudgetsViewProps) {
                         </Pressable>
                     ))
                 )}
-            </ScrollView>
-
-            {/* FAB */}
-            <Pressable
-                onPress={openCreateModal}
-                style={({ pressed }) => [
-                    styles.fab,
-                    {
-                        backgroundColor: ui.text,
-                        opacity: pressed ? 0.8 : 1,
-                        bottom: fabBottom,
-                    },
-                ]}
-            >
-                <IconSymbol name="plus" size={32} color={ui.surface} />
-            </Pressable>
+            </View>
 
             {/* ── Create / Edit Modal ───────────────── */}
             <Modal
@@ -455,17 +461,24 @@ export function BudgetsView({ filterAccountId = null }: BudgetsViewProps) {
                     style={{
                         flex: 1,
                         padding: 16,
-                        paddingTop: 16 + insets.top,
+                        paddingTop: Platform.OS === 'ios' ? 8 : (16 + insets.top),
                         paddingBottom: 16 + insets.bottom,
                         backgroundColor: ui.surface,
                     }}
                 >
                     {/* Header */}
-                    <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-                        <ThemedText type="title">{editingBudget ? "Edit Budget" : "New Budget"}</ThemedText>
-                        <Pressable onPress={closeModal}>
-                            <ThemedText style={{ color: "#007AFF" }}>Cancel</ThemedText>
-                        </Pressable>
+                    <View style={styles.modalHeader}>
+                        <View style={styles.modalHeaderLeft} />
+                        <ThemedText type="defaultSemiBold" style={styles.modalHeaderTitle}>{editingBudget ? "Edit Budget" : "New Budget"}</ThemedText>
+                        <View style={styles.modalHeaderRight}>
+                            <Pressable
+                                onPress={closeModal}
+                                hitSlop={20}
+                                style={[styles.modalCloseButton, { backgroundColor: isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.05)" }]}
+                            >
+                                <Feather name="x" size={18} color={ui.text} />
+                            </Pressable>
+                        </View>
                     </View>
 
                     <ScrollView contentContainerStyle={styles.formContent} keyboardShouldPersistTaps="handled">
@@ -482,28 +495,20 @@ export function BudgetsView({ filterAccountId = null }: BudgetsViewProps) {
                         </View>
 
                         {/* Start Date */}
-                        <View style={styles.fieldGroup}>
-                            <ThemedText type="defaultSemiBold">Start Date</ThemedText>
-                            <TextInput
-                                value={startDate}
-                                onChangeText={setStartDate}
-                                placeholder="YYYY-MM-DD"
-                                placeholderTextColor={ui.mutedText}
-                                style={[styles.input, { borderColor: ui.border, backgroundColor: ui.surface2, color: ui.text }]}
-                            />
-                        </View>
+                        <DateTimePickerField
+                            label="Start Date"
+                            value={parseLocalDate(startDate)}
+                            onChange={(date) => setStartDate(toLocalISOString(date))}
+                            ui={ui}
+                        />
 
                         {/* End Date */}
-                        <View style={styles.fieldGroup}>
-                            <ThemedText type="defaultSemiBold">End Date</ThemedText>
-                            <TextInput
-                                value={endDate}
-                                onChangeText={setEndDate}
-                                placeholder="YYYY-MM-DD"
-                                placeholderTextColor={ui.mutedText}
-                                style={[styles.input, { borderColor: ui.border, backgroundColor: ui.surface2, color: ui.text }]}
-                            />
-                        </View>
+                        <DateTimePickerField
+                            label="End Date"
+                            value={parseLocalDate(endDate)}
+                            onChange={(date) => setEndDate(toLocalISOString(date))}
+                            ui={ui}
+                        />
 
                         {/* ── Category Limits Section ─────── */}
                         <View style={{ marginTop: 8 }}>
@@ -722,14 +727,14 @@ const styles = StyleSheet.create({
     },
     input: {
         borderWidth: StyleSheet.hairlineWidth,
-        borderRadius: 8,
+        borderRadius: 12,
         padding: 12,
         fontSize: 16,
     },
     button: {
         paddingHorizontal: 14,
         paddingVertical: 10,
-        borderRadius: 10,
+        borderRadius: 12,
         borderWidth: StyleSheet.hairlineWidth,
     },
     deleteAction: {
@@ -738,7 +743,7 @@ const styles = StyleSheet.create({
         alignItems: "center",
         paddingHorizontal: 14,
         paddingVertical: 12,
-        borderRadius: 10,
+        borderRadius: 12,
         borderWidth: StyleSheet.hairlineWidth,
     },
     draftRow: {
@@ -746,20 +751,20 @@ const styles = StyleSheet.create({
         alignItems: "center",
         justifyContent: "space-between",
         padding: 12,
-        borderRadius: 10,
+        borderRadius: 12,
         borderWidth: StyleSheet.hairlineWidth,
         marginBottom: 8,
     },
     addSection: {
         padding: 12,
-        borderRadius: 12,
+        borderRadius: 24,
         borderWidth: StyleSheet.hairlineWidth,
         borderStyle: "dashed",
         marginTop: 8,
     },
     pickerContent: {
-        borderTopLeftRadius: 20,
-        borderTopRightRadius: 20,
+        borderTopLeftRadius: 24,
+        borderTopRightRadius: 24,
         padding: 20,
         borderTopWidth: 1,
         paddingBottom: 40,
@@ -772,8 +777,32 @@ const styles = StyleSheet.create({
     },
     pickerOption: {
         padding: 16,
-        borderRadius: 10,
+        borderRadius: 12,
         marginBottom: 8,
         borderWidth: StyleSheet.hairlineWidth,
+    },
+    modalHeader: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
+        paddingVertical: 8,
+    },
+    modalHeaderTitle: {
+        flex: 1,
+        textAlign: "center",
+    },
+    modalHeaderLeft: {
+        width: 44,
+    },
+    modalHeaderRight: {
+        width: 44,
+        alignItems: "flex-end",
+    },
+    modalCloseButton: {
+        width: 30,
+        height: 30,
+        borderRadius: 15,
+        alignItems: "center",
+        justifyContent: "center",
     },
 });

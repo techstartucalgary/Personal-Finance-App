@@ -68,6 +68,7 @@ export async function signInWithGoogle() {
 
     return { ok: true as const };
   } catch (error: any) {
+    console.error("Google Sign In Error:", error, error?.code, error?.message);
     if (error?.code === GoogleModule.statusCodes.IN_PROGRESS) {
       return {
         ok: false as const,
@@ -82,6 +83,6 @@ export async function signInWithGoogle() {
       };
     }
 
-    return { ok: false as const, message: "Please try again." };
+    return { ok: false as const, message: error?.message || "Please try again." };
   }
 }

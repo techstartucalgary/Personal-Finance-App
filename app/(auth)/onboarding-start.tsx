@@ -173,7 +173,7 @@ export default function OnboardingStart() {
               style={{ height: buttonHeight }}
               labelStyle={styles.actionLabel}
               onPress={async () => {
-                await supabase.auth.signOut();
+                await supabase.auth.signOut({ scope: 'local' });
                 router.push("/(auth)/signup");
               }}
             />
@@ -183,7 +183,7 @@ export default function OnboardingStart() {
               style={{ height: buttonHeight }}
               labelStyle={styles.actionLabel}
               onPress={async () => {
-                await supabase.auth.signOut();
+                await supabase.auth.signOut({ scope: 'local' });
                 router.push("/(auth)/login");
               }}
             />

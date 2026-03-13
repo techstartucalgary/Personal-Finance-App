@@ -6,22 +6,24 @@ import {
   VectorIcon,
 } from "expo-router/unstable-native-tabs";
 import React from "react";
+import { useTheme } from "react-native-paper";
 
 import { Colors } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
+  const theme = useTheme();
 
   return (
     <NativeTabs
       tintColor={Colors[colorScheme ?? "light"].tint}
-      indicatorColor={colorScheme === "dark" ? "#454548ff" : "#E5E7EB"}
-      backgroundColor={colorScheme === "dark" ? "#202324" : "#F9FAFB"}
+      indicatorColor={theme.colors.surfaceVariant}
+      backgroundColor={theme.colors.surface}
       labelVisibilityMode="labeled"
     >
       <NativeTabs.Trigger
-        name="index"
+        name="dashboard"
         options={{
           title: "Dashboard",
         }}

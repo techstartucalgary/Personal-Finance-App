@@ -6,7 +6,7 @@ import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { ThemedText } from "@/components/themed-text";
-import { Appbar, Searchbar, useTheme } from "react-native-paper";
+import { useTheme } from "react-native-paper";
 
 import { IconSymbol } from "@/components/ui/icon-symbol";
 
@@ -32,14 +32,14 @@ export default function TargetsScreen() {
 
   const ui = useMemo(
     () => ({
-      surface: isAndroid ? theme.colors.surface : (isDark ? "#1C1C1E" : "#F5F5F5"), // neutral gray
-      surface2: isAndroid ? theme.colors.elevation.level2 : (isDark ? "#2C2C2E" : "#EBEBEB"), // slightly darker gray for inputs
-      border: isAndroid ? theme.colors.outlineVariant : (isDark ? "rgba(84,84,88,0.65)" : "rgba(60,60,67,0.29)"),
+      surface: isDark ? "#1C1C1E" : "#FFFFFF",
+      surface2: isDark ? "#2C2C2E" : "#F2F2F7",
+      border: isDark ? "rgba(84,84,88,0.65)" : "rgba(60,60,67,0.29)",
       text: isDark ? "#FFFFFF" : "#000000",
       mutedText: isDark ? "rgba(235,235,245,0.6)" : "rgba(60,60,67,0.6)",
       backdrop: "rgba(0,0,0,0.45)",
     }),
-    [isDark, theme, isAndroid]
+    [isDark]
   );
 
   // Dynamic tab bar height for FAB positioning
@@ -49,7 +49,7 @@ export default function TargetsScreen() {
   } catch {
     tabBarHeight = insets.bottom + 60;
   }
-  const fabBottom = tabBarHeight + 60;
+  const fabBottom = Platform.OS === "android" ? tabBarHeight + 35 : tabBarHeight + 5;
 
   const [activeTab, setActiveTab] = useState<Tab>("goals");
   const { session } = useAuthContext();
@@ -106,7 +106,9 @@ export default function TargetsScreen() {
           onChangeText: (event: any) => setSearchQuery(event.nativeEvent.text),
           hideWhenScrolling: true,
           tintColor: ui.text,
-          textColor: ui.text,
+          hintTextColor: ui.mutedText,
+          headerIconColor: ui.mutedText,
+          shouldShowHintSearchIcon: false,
         },
       });
     }, [navigation, ui])
@@ -114,39 +116,6 @@ export default function TargetsScreen() {
 
   return (
     <>
-      {Platform.OS === "android" && (
-        isAndroidSearching ? (
-          <Appbar.Header mode="small" elevated>
-            <Searchbar
-              placeholder="Search targets..."
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-              autoFocus
-              onBlur={() => {
-                if (!searchQuery.trim()) {
-                  setIsAndroidSearching(false);
-                }
-              }}
-              onIconPress={() => { setSearchQuery(""); setIsAndroidSearching(false); }}
-              icon="arrow-left"
-              style={{ flex: 1, marginHorizontal: 4, backgroundColor: theme.colors.elevation.level4 }}
-              inputStyle={{ color: theme.colors.onSurface }}
-              iconColor={theme.colors.onSurface}
-            />
-          </Appbar.Header>
-        ) : (
-          <Appbar.Header mode="small" elevated>
-            <Appbar.Content
-              title="Targets"
-              titleStyle={{ fontWeight: "bold" }}
-            />
-            <Appbar.Action
-              icon="magnify"
-              onPress={() => setIsAndroidSearching(true)}
-            />
-          </Appbar.Header>
-        )
-      )}
 
       <ScrollView
         style={[styles.container, { backgroundColor: "transparent" }]}
@@ -188,7 +157,7 @@ export default function TargetsScreen() {
             style={[
               styles.chip,
               {
-                backgroundColor: filterAccountId === null ? (isAndroid ? theme.colors.tertiary : ui.text) : ui.surface2,
+                backgroundColor: filterAccountId === null ? ui.text : ui.surface2,
                 borderColor: ui.border,
               },
             ]}
@@ -197,7 +166,7 @@ export default function TargetsScreen() {
               style={{
                 fontSize: 13,
                 fontWeight: "600",
-                color: filterAccountId === null ? (isAndroid ? theme.colors.onTertiary : ui.surface) : ui.text,
+                color: filterAccountId === null ? ui.surface : ui.text,
               }}
             >
               All
@@ -211,7 +180,7 @@ export default function TargetsScreen() {
                 styles.chip,
                 {
                   backgroundColor:
-                    filterAccountId === acct.id ? (isAndroid ? theme.colors.tertiary : ui.text) : ui.surface2,
+                    filterAccountId === acct.id ? ui.text : ui.surface2,
                   borderColor: ui.border,
                 },
               ]}
@@ -220,7 +189,7 @@ export default function TargetsScreen() {
                 style={{
                   fontSize: 13,
                   fontWeight: "600",
-                  color: filterAccountId === acct.id ? (isAndroid ? theme.colors.onTertiary : ui.surface) : ui.text,
+                  color: filterAccountId === acct.id ? ui.surface : ui.text,
                 }}
               >
                 {acct.account_name ?? "Account"}
@@ -238,7 +207,7 @@ export default function TargetsScreen() {
                   styles.chip,
                   {
                     backgroundColor: isSelected
-                      ? (isAndroid ? theme.colors.tertiary : (isDark ? "#8CF2D1" : "#1F6F5B"))
+                      ? (isDark ? "#8CF2D1" : "#1F6F5B")
                       : ui.surface2,
                     borderColor: isSelected
                       ? "transparent"
@@ -250,7 +219,7 @@ export default function TargetsScreen() {
                   style={{
                     fontSize: 13,
                     fontWeight: "600",
-                    color: isSelected ? (isAndroid ? theme.colors.onTertiary : "#FFFFFF") : (isDark ? "#8CF2D1" : "#1F6F5B"),
+                    color: isSelected ? "#FFFFFF" : (isDark ? "#8CF2D1" : "#1F6F5B"),
                   }}
                 >
                   {pa.name}{pa.mask ? ` ••${pa.mask}` : ""}
@@ -272,21 +241,21 @@ export default function TargetsScreen() {
         onPress={() => setCreateRequested(Date.now())}
         style={({ pressed }) => [
           styles.fab,
-          isAndroid && {
+          {
             width: 80,
             height: 80,
             borderRadius: 20,
             right: 16,
           },
           {
-            backgroundColor: isAndroid ? theme.colors.primary : ui.text,
+            backgroundColor: ui.text,
             opacity: pressed ? 0.8 : 1,
             bottom: fabBottom,
-            elevation: isAndroid ? 5 : 6,
+            elevation: 5,
           },
         ]}
       >
-        <IconSymbol name="plus" size={isAndroid ? 36 : 32} color={isAndroid ? theme.colors.surfaceVariant : ui.surface} />
+        <IconSymbol name="plus" size={32} color={ui.surface} />
       </Pressable>
     </>
   );

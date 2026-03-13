@@ -4,7 +4,6 @@ import { useFocusEffect, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   Animated,
   Platform,
   Pressable,
@@ -20,7 +19,7 @@ import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { Tokens } from "@/constants/authTokens";
 import { useAuthContext } from "@/hooks/use-auth-context";
-import { Appbar, useTheme } from "react-native-paper";
+import { useTheme } from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { listAccounts } from "@/utils/accounts";
@@ -336,26 +335,6 @@ export default function DashboardScreen() {
 
   return (
     <>
-      {Platform.OS === "android" && (
-        <Appbar.Header mode="small" elevated>
-          <Appbar.Action
-            icon="account-circle-outline"
-            onPress={() => router.push("/profile")}
-          />
-          <Appbar.Content
-            title="Dashboard"
-            titleStyle={{ fontWeight: "bold" }}
-          />
-          <Appbar.Action
-            icon="cog-outline"
-            onPress={() => Alert.alert("Settings", "Settings coming soon!")}
-          />
-          <Appbar.Action
-            icon="bell-outline"
-            onPress={() => Alert.alert("Notifications", "You have no new notifications.")}
-          />
-        </Appbar.Header>
-      )}
 
       <ScrollView
         style={[styles.container, { backgroundColor: "transparent" }]}

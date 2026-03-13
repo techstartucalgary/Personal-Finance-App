@@ -21,7 +21,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
-import { Appbar, Searchbar, useTheme } from "react-native-paper";
+import { useTheme } from "react-native-paper";
 
 import { TransactionDetailModal } from "@/components/TransactionDetailModal";
 import { DateTimePickerField } from "@/components/ui/DateTimePickerField";
@@ -70,22 +70,24 @@ export default function HomeScreen() {
   } catch (e) {
     tabBarHeight = insets.bottom + 60;
   }
-  const fabBottom = tabBarHeight + 60;
+  const fabBottom = Platform.OS === "android" ? tabBarHeight + 35 : tabBarHeight + 5;
   const theme = useTheme();
 
   const isAndroid = Platform.OS === "android";
 
   const ui = useMemo(
     () => ({
-      surface: isAndroid ? theme.colors.surface : (isDark ? "#1C1C1E" : "#F5F5F5"), // neutral gray
-      surface2: isAndroid ? theme.colors.elevation.level2 : (isDark ? "#2C2C2E" : "#EBEBEB"), // slightly darker gray for inputs
-      border: isAndroid ? theme.colors.outlineVariant : (isDark ? "rgba(84,84,88,0.65)" : "rgba(60,60,67,0.29)"),
+      surface: isDark ? "#1C1C1E" : "#FFFFFF",
+      surface2: isDark ? "#2C2C2E" : "#F2F2F7",
+      border: isDark ? "rgba(84,84,88,0.65)" : "rgba(60,60,67,0.29)",
       text: isDark ? "#FFFFFF" : "#000000",
       mutedText: isDark ? "rgba(235,235,245,0.6)" : "rgba(60,60,67,0.6)",
       backdrop: "rgba(0,0,0,0.45)",
-      accent: isAndroid ? theme.colors.primary : (isDark ? "#8CF2D1" : "#1F6F5B"),
+      accent: isDark ? "#8CF2D1" : "#1F6F5B",
+      accentSoft: isDark ? "rgba(140,242,209,0.2)" : "rgba(31,111,91,0.12)",
+      danger: "#D32F2F",
     }),
-    [isDark, theme, isAndroid],
+    [isDark],
   );
 
   const userId = session?.user.id;
@@ -300,8 +302,11 @@ export default function HomeScreen() {
           placeholder: "Search transactions...",
           onChangeText: (event: any) => setSearchQuery(event.nativeEvent.text),
           hideWhenScrolling: true,
-          tintColor: ui.accent,
+          tintColor: ui.text,
           textColor: ui.text,
+          hintTextColor: ui.mutedText,
+          headerIconColor: ui.mutedText,
+          shouldShowHintSearchIcon: false,
         },
       });
     }, [navigation, ui])
@@ -1244,39 +1249,6 @@ export default function HomeScreen() {
 
   return (
     <>
-      {Platform.OS === "android" && (
-        isAndroidSearching ? (
-          <Appbar.Header mode="small" elevated>
-            <Searchbar
-              placeholder="Search transactions..."
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-              autoFocus
-              onBlur={() => {
-                if (!searchQuery.trim()) {
-                  setIsAndroidSearching(false);
-                }
-              }}
-              onIconPress={() => { setSearchQuery(""); setIsAndroidSearching(false); }}
-              icon="arrow-left"
-              style={{ flex: 1, marginHorizontal: 4, backgroundColor: theme.colors.elevation.level5 }}
-              inputStyle={{ color: theme.colors.onSurface }}
-              iconColor={theme.colors.onSurface}
-            />
-          </Appbar.Header>
-        ) : (
-          <Appbar.Header mode="small" elevated>
-            <Appbar.Content
-              title="Transactions"
-              titleStyle={{ fontWeight: "bold" }}
-            />
-            <Appbar.Action
-              icon="magnify"
-              onPress={() => setIsAndroidSearching(true)}
-            />
-          </Appbar.Header>
-        )
-      )}
 
       <ScrollView
         style={[styles.container, { backgroundColor: "transparent" }]}
@@ -1371,7 +1343,7 @@ export default function HomeScreen() {
                   styles.chip,
                   {
                     backgroundColor: isSelected
-                      ? (isAndroid ? theme.colors.tertiary : (isDark ? "#1F6F5B" : "#2A8A6E"))
+                      ? (isDark ? "#1F6F5B" : "#2A8A6E")
                       : ui.surface2,
                     borderColor: isDark ? "rgba(140,242,209,0.3)" : "rgba(31,111,91,0.2)",
                   },
@@ -1381,7 +1353,7 @@ export default function HomeScreen() {
                   style={{
                     fontSize: 13,
                     fontWeight: "600",
-                    color: isSelected ? (isAndroid ? theme.colors.onTertiary : "#FFFFFF") : (isDark ? "#8CF2D1" : "#1F6F5B"),
+                    color: isSelected ? "#FFFFFF" : (isDark ? "#8CF2D1" : "#1F6F5B"),
                   }}
                 >
                   {pa.name}{pa.mask ? ` ••${pa.mask}` : ""}
@@ -1670,21 +1642,21 @@ export default function HomeScreen() {
         onPress={() => setAddModalOpen(true)}
         style={({ pressed }) => [
           styles.fab,
-          isAndroid && {
+          {
             width: 80,
             height: 80,
             borderRadius: 20,
             right: 16,
           },
           {
-            backgroundColor: isAndroid ? theme.colors.primary : ui.text,
+            backgroundColor: ui.text,
             opacity: pressed ? 0.8 : 1,
             bottom: fabBottom,
             elevation: isAndroid ? 5 : 6,
           },
         ]}
       >
-        <IconSymbol name="plus" size={isAndroid ? 36 : 32} color={isAndroid ? theme.colors.surfaceVariant : ui.surface} />
+        <IconSymbol name="plus" size={32} color={ui.surface} />
       </Pressable>
 
       <Modal
@@ -1698,7 +1670,7 @@ export default function HomeScreen() {
             flex: 1,
             backgroundColor: ui.surface,
             padding: 16,
-            paddingTop: Platform.OS === "ios" ? 8 : (16 + insets.top),
+            paddingTop: Platform.OS === "ios" ? 12 : (16 + insets.top),
             paddingBottom: 16 + insets.bottom,
           }}
         >
@@ -1865,7 +1837,7 @@ export default function HomeScreen() {
               disabled={!canCreate || isLoading}
               style={[
                 styles.button,
-                { borderColor: ui.border, backgroundColor: ui.text },
+                { borderColor: ui.border, backgroundColor: ui.text, borderRadius: 24 },
                 (!canCreate || isLoading) && styles.buttonDisabled,
               ]}
             >
@@ -2223,18 +2195,18 @@ export default function HomeScreen() {
               flex: 1,
               backgroundColor: ui.surface,
               padding: 16,
-              paddingTop: Platform.OS === "ios" ? 8 : (16 + insets.top),
+              paddingTop: Platform.OS === "ios" ? 12 : (16 + insets.top),
               paddingBottom: 16 + insets.bottom,
             }}
           >
             <View style={styles.modalHeader}>
               <View style={styles.modalHeaderLeft} />
-              <ThemedText type="title" style={styles.modalHeaderTitle}>Edit Transaction</ThemedText>
+              <ThemedText type="defaultSemiBold" style={styles.modalHeaderTitle}>Edit Transaction</ThemedText>
               <View style={styles.modalHeaderRight}>
                 <Pressable
                   onPress={() => setEditingExpense(null)}
                   hitSlop={20}
-                  style={[styles.modalCloseButton, { backgroundColor: isAndroid ? theme.colors.surfaceVariant : (isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.05)") }]}
+                  style={[styles.modalCloseButton, { backgroundColor: isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.05)" }]}
                 >
                   <Feather name="x" size={18} color={ui.text} />
                 </Pressable>
@@ -2378,16 +2350,19 @@ export default function HomeScreen() {
                 style={[
                   styles.button,
                   {
-                    backgroundColor: isAndroid ? theme.colors.primary : ui.text,
+                    backgroundColor: ui.text,
                     borderColor: ui.border,
                     alignSelf: "center",
                     width: "100%",
                     alignItems: "center",
+                    paddingVertical: 12,
+                    borderRadius: 24,
+                    marginTop: 16,
                   },
                   isLoading && styles.buttonDisabled,
                 ]}
               >
-                <ThemedText type="defaultSemiBold" style={{ color: isAndroid ? theme.colors.onPrimary : ui.surface }}>
+                <ThemedText type="defaultSemiBold" style={{ color: ui.surface }}>
                   Save Changes
                 </ThemedText>
               </Pressable>
@@ -2397,11 +2372,11 @@ export default function HomeScreen() {
                 disabled={isLoading}
                 style={[
                   styles.deleteAction,
-                  { borderColor: ui.border, backgroundColor: ui.surface },
+                  { borderColor: ui.border, backgroundColor: ui.surface2, borderRadius: 24 },
                   isLoading && styles.buttonDisabled,
                 ]}
               >
-                <ThemedText style={{ color: "#FF3B30" }}>
+                <ThemedText style={{ color: ui.danger, fontWeight: "600" }}>
                   Delete Transaction
                 </ThemedText>
               </Pressable>
@@ -2736,13 +2711,13 @@ export default function HomeScreen() {
             flex: 1,
             backgroundColor: ui.surface,
             padding: 16,
-            paddingTop: Platform.OS === "ios" ? 8 : (16 + insets.top),
+            paddingTop: Platform.OS === "ios" ? 12 : (16 + insets.top),
             paddingBottom: 16 + insets.bottom,
           }}
         >
           <View style={styles.modalHeader}>
             <View style={styles.modalHeaderLeft} />
-            <ThemedText type="title" style={styles.modalHeaderTitle}>Edit Recurrance</ThemedText>
+            <ThemedText type="defaultSemiBold" style={styles.modalHeaderTitle}>Edit Recurrence</ThemedText>
             <View style={styles.modalHeaderRight}>
               <Pressable
                 onPress={() => setEditingRule(null)}
@@ -2867,6 +2842,9 @@ export default function HomeScreen() {
                   backgroundColor: ui.text,
                   width: "100%",
                   alignItems: "center",
+                  paddingVertical: 12,
+                  borderRadius: 24,
+                  marginTop: 12,
                 },
                 isLoading && styles.buttonDisabled,
               ]}
@@ -2887,8 +2865,9 @@ export default function HomeScreen() {
                 styles.deleteAction,
                 {
                   borderColor: ui.border,
-                  backgroundColor: ui.surface,
-                  marginTop: 4,
+                  backgroundColor: ui.surface2,
+                  paddingVertical: 12,
+                  borderRadius: 24,
                 },
                 isLoading && styles.buttonDisabled,
               ]}
@@ -2905,13 +2884,14 @@ export default function HomeScreen() {
                 styles.deleteAction,
                 {
                   borderColor: ui.border,
-                  backgroundColor: ui.surface,
-                  marginTop: 4,
+                  backgroundColor: ui.surface2,
+
+                  borderRadius: 24,
                 },
                 isLoading && styles.buttonDisabled,
               ]}
             >
-              <ThemedText style={{ color: "#FF3B30", fontWeight: "600" }}>
+              <ThemedText style={{ color: ui.danger, fontWeight: "600" }}>
                 Delete Recurrence
               </ThemedText>
             </Pressable>
@@ -3155,20 +3135,20 @@ const styles = StyleSheet.create({
   },
   input: {
     borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: 24,
+    borderRadius: 12,
     paddingHorizontal: 12,
     paddingVertical: 10,
   },
   dropdownButton: {
     borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: 24,
+    borderRadius: 12,
     paddingHorizontal: 12,
     paddingVertical: 10,
   },
   button: {
     alignSelf: "flex-start",
     paddingHorizontal: 14,
-    paddingVertical: 10,
+    paddingVertical: 12,
     borderRadius: 24,
     borderWidth: StyleSheet.hairlineWidth,
   },
@@ -3187,7 +3167,7 @@ const styles = StyleSheet.create({
   modalOption: {
     paddingVertical: 12,
     paddingHorizontal: 10,
-    borderRadius: 24,
+    borderRadius: 12,
     borderWidth: StyleSheet.hairlineWidth,
     gap: 2,
   },

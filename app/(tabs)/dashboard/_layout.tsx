@@ -3,20 +3,22 @@ import Feather from "@expo/vector-icons/Feather";
 import { Stack, useRouter } from "expo-router";
 import React from "react";
 import { Platform, Pressable, useColorScheme, View } from "react-native";
+import { useTheme } from "react-native-paper";
 
 export default function IndexLayout() {
     const colorScheme = useColorScheme();
     const isDark = colorScheme === "dark";
     const router = useRouter();
+    const theme = useTheme();
 
     return (
         <Stack
             screenOptions={{
-                headerShown: Platform.OS === "ios",
+                headerShown: true,
                 headerLargeTitle: true,
                 headerTransparent: Platform.OS === "ios",
                 headerShadowVisible: false,
-                headerStyle: Platform.OS === "android" ? { backgroundColor: "transparent" } : undefined,
+                headerStyle: Platform.OS === "android" ? { backgroundColor: isDark ? theme.colors.surface : theme.colors.surfaceVariant } : undefined,
                 headerLargeStyle: {
                     backgroundColor: "transparent",
                 },

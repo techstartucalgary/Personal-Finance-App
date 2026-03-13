@@ -85,13 +85,13 @@ export function TransactionDetailModal({
     }
 
     const ui = {
-        surface: isAndroid ? theme.colors.surface : (isDark ? "#1C1C1E" : "#FFFFFF"),
-        surface2: isAndroid ? theme.colors.elevation.level2 : (isDark ? "#2C2C2E" : "#F2F2F7"), // standard gray matching iOS/Android
-        border: isAndroid ? theme.colors.outlineVariant : (isDark ? "rgba(84,84,88,0.65)" : "rgba(60,60,67,0.29)"),
-        text: isAndroid ? theme.colors.onSurface : (isDark ? "#FFFFFF" : "#000000"),
-        mutedText: isAndroid ? theme.colors.onSurfaceVariant : (isDark ? "rgba(235,235,245,0.6)" : "rgba(60,60,67,0.6)"),
-        accent: isAndroid ? theme.colors.primary : "#1F6F5B",
-        danger: isAndroid ? theme.colors.error : "#FF3B30",
+        surface: isDark ? "#1C1C1E" : "#FFFFFF",
+        surface2: isDark ? "#2C2C2E" : "#F2F2F7",
+        border: isDark ? "rgba(84,84,88,0.65)" : "rgba(60,60,67,0.29)",
+        text: isDark ? "#FFFFFF" : "#000000",
+        mutedText: isDark ? "rgba(235,235,245,0.6)" : "rgba(60,60,67,0.6)",
+        accent: isDark ? "#8CF2D1" : "#1F6F5B",
+        danger: "#D32F2F",
     };
 
     const formatMoney = (val: number | null) => {
@@ -123,7 +123,7 @@ export function TransactionDetailModal({
                 styles.container,
                 {
                     backgroundColor: ui.surface,
-                    paddingTop: Platform.OS === 'ios' ? 8 : (insets.top + 16),
+                    paddingTop: Platform.OS === 'ios' ? 12 : (insets.top + 16),
                     paddingBottom: insets.bottom + 16,
                 }
             ]}>
@@ -136,7 +136,7 @@ export function TransactionDetailModal({
                             hitSlop={20}
                             style={[
                                 styles.closeButton,
-                                { backgroundColor: isAndroid ? theme.colors.surfaceVariant : (isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.05)") }
+                                { backgroundColor: isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.05)" }
                             ]}
                         >
                             <Feather name="x" size={18} color={ui.text} />
@@ -160,17 +160,26 @@ export function TransactionDetailModal({
                     </View>
 
                     <View style={[styles.infoCard, { backgroundColor: ui.surface2, borderColor: ui.border }]}>
-                        <DetailRow label="Date" value={formatDate(dateStr)} ui={ui} />
-                        <DetailRow label="Account" value={accountInfo} ui={ui} />
-                        {institution && <DetailRow label="Institution" value={institution} ui={ui} />}
-                        {isPlaid && (transaction as PlaidTransaction).category && (
-                            <DetailRow
-                                label="Categories"
-                                value={(transaction as PlaidTransaction).category?.join(", ") || "None"}
-                                ui={ui}
-                            />
-                        )}
-                        <DetailRow label="Source" value={isPlaid ? "Plaid Synchronization" : "Manual Transaction"} ui={ui} />
+                        {[
+                            { label: "Date", value: formatDate(dateStr) },
+                            { label: "Account", value: accountInfo },
+                            institution && { label: "Institution", value: institution },
+                            isPlaid && (transaction as PlaidTransaction).category && {
+                                label: "Categories",
+                                value: (transaction as PlaidTransaction).category?.join(", ") || "None",
+                            },
+                        ]
+                            .filter(Boolean)
+                            .concat([{ label: "Source", value: isPlaid ? "Plaid Synchronization" : "Manual Transaction" }])
+                            .map((row: any, index, array) => (
+                                <DetailRow
+                                    key={row.label}
+                                    label={row.label}
+                                    value={row.value}
+                                    ui={ui}
+                                    isLast={index === array.length - 1}
+                                />
+                            ))}
                     </View>
 
                     {!isPlaid && onEdit && (
@@ -178,10 +187,10 @@ export function TransactionDetailModal({
                             onPress={() => {
                                 onEdit(transaction as ExpenseRow);
                             }}
-                            style={[styles.editButton, { backgroundColor: ui.accent }]}
+                            style={[styles.editButton, { backgroundColor: ui.text, paddingVertical: 12, borderRadius: 24 }]}
                         >
-                            <Feather name="edit-2" size={18} color={isAndroid ? theme.colors.onPrimary : "#FFFFFF"} />
-                            <ThemedText style={[styles.editButtonText, { color: isAndroid ? theme.colors.onPrimary : "#FFFFFF" }]}>Edit Transaction</ThemedText>
+                            <Feather name="edit-2" size={18} color={ui.surface} />
+                            <ThemedText style={[styles.editButtonText, { color: ui.surface }]}>Edit Transaction</ThemedText>
                         </Pressable>
                     )}
                 </ScrollView>
@@ -191,9 +200,13 @@ export function TransactionDetailModal({
     );
 }
 
-function DetailRow({ label, value, ui }: { label: string; value: string; ui: any }) {
+function DetailRow({ label, value, ui, isLast }: { label: string; value: string; ui: any; isLast?: boolean }) {
     return (
-        <View style={[styles.detailRow, { borderBottomColor: ui.border }]}>
+        <View style={[
+            styles.detailRow,
+            { borderBottomColor: ui.border },
+            isLast && { borderBottomWidth: 0 }
+        ]}>
             <ThemedText style={[styles.detailLabel, { color: ui.mutedText }]}>{label}</ThemedText>
             <ThemedText style={[styles.detailValue, { color: ui.text }]}>{value}</ThemedText>
         </View>
@@ -263,8 +276,8 @@ const styles = StyleSheet.create({
         fontWeight: "700",
     },
     infoCard: {
-        borderRadius: 30,
-        borderWidth: 1,
+        borderRadius: 24,
+        borderWidth: StyleSheet.hairlineWidth,
         overflow: "hidden",
     },
     detailRow: {
@@ -272,7 +285,7 @@ const styles = StyleSheet.create({
         justifyContent: "space-between",
         alignItems: "center",
         padding: 16,
-        borderBottomWidth: 1,
+        borderBottomWidth: StyleSheet.hairlineWidth,
     },
     detailLabel: {
         fontSize: 14,

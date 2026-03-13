@@ -35,7 +35,7 @@ export function DateTimePickerField({ label, value, onChange, ui }: DateTimePick
                     mode="date"
                     display="compact"
                     onChange={onPickerChange}
-                    themeVariant={ui.text === "#ffffff" ? "dark" : "light"}
+                    accentColor="#007AFF"
                     style={{ alignSelf: "flex-start" }}
                 />
             ) : (

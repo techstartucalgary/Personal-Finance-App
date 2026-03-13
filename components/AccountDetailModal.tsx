@@ -91,13 +91,13 @@ export function AccountDetailModal({
     const interestRate = !isPlaid ? (account as AccountRowFull).interest_rate : null;
 
     const ui = {
-        surface: isAndroid ? theme.colors.surface : (isDark ? "#1C1C1E" : "#FFFFFF"),
-        surface2: isAndroid ? theme.colors.elevation.level2 : (isDark ? "#2C2C2E" : "#F2F2F7"), // standard gray matching iOS/Android
-        border: isAndroid ? theme.colors.outlineVariant : (isDark ? "rgba(84,84,88,0.65)" : "rgba(60,60,67,0.29)"),
-        text: isAndroid ? theme.colors.onSurface : (isDark ? "#FFFFFF" : "#000000"),
-        mutedText: isAndroid ? theme.colors.onSurfaceVariant : (isDark ? "rgba(235,235,245,0.6)" : "rgba(60,60,67,0.6)"),
-        accent: isAndroid ? theme.colors.primary : "#1F6F5B",
-        danger: isAndroid ? theme.colors.error : "#FF3B30",
+        surface: isDark ? "#1C1C1E" : "#FFFFFF",
+        surface2: isDark ? "#2C2C2E" : "#F2F2F7",
+        border: isDark ? "rgba(84,84,88,0.65)" : "rgba(60,60,67,0.29)",
+        text: isDark ? "#FFFFFF" : "#000000",
+        mutedText: isDark ? "rgba(235,235,245,0.6)" : "rgba(60,60,67,0.6)",
+        accent: isDark ? "#8CF2D1" : "#1F6F5B",
+        danger: "#D32F2F",
     };
 
     const formatMoney = (val: number | null | undefined) => {
@@ -164,17 +164,26 @@ export function AccountDetailModal({
                     </View>
 
                     <View style={[styles.infoCard, { backgroundColor: ui.surface2, borderColor: ui.border }]}>
-                        {availableBalance !== undefined && availableBalance !== null && (
-                            <DetailRow label="Available Balance" value={formatMoney(availableBalance)} ui={ui} />
-                        )}
-                        <DetailRow label="Institution" value={institution} ui={ui} />
-                        {mask && <DetailRow label="Account Number" value={`•••• ${mask}`} ui={ui} />}
-                        {limit !== null && limit !== undefined && <DetailRow label="Credit Limit" value={formatMoney(limit)} ui={ui} />}
-                        {currency && <DetailRow label="Currency" value={currency} ui={ui} />}
-
-                        {paymentDate && <DetailRow label="Payment Due" value={formatDate(paymentDate)} ui={ui} />}
-                        {statementDate && <DetailRow label="Statement Date" value={formatDate(statementDate)} ui={ui} />}
-                        {interestRate !== null && interestRate !== undefined && <DetailRow label="Interest Rate" value={`${interestRate}%`} ui={ui} />}
+                        {[
+                            availableBalance !== undefined && availableBalance !== null && { label: "Available Balance", value: formatMoney(availableBalance) },
+                            { label: "Institution", value: institution },
+                            mask && { label: "Account Number", value: `•••• ${mask}` },
+                            limit !== null && limit !== undefined && { label: "Credit Limit", value: formatMoney(limit) },
+                            currency && { label: "Currency", value: currency },
+                            paymentDate && { label: "Payment Due", value: formatDate(paymentDate) },
+                            statementDate && { label: "Statement Date", value: formatDate(statementDate) },
+                            interestRate !== null && interestRate !== undefined && { label: "Interest Rate", value: `${interestRate}%` },
+                        ]
+                            .filter(Boolean)
+                            .map((row: any, index, array) => (
+                                <DetailRow
+                                    key={row.label}
+                                    label={row.label}
+                                    value={row.value}
+                                    ui={ui}
+                                    isLast={index === array.length - 1}
+                                />
+                            ))}
                     </View>
 
                     {!isPlaid && onEdit && (
@@ -182,10 +191,10 @@ export function AccountDetailModal({
                             onPress={() => {
                                 onEdit(account as AccountRowFull);
                             }}
-                            style={[styles.actionButton, { backgroundColor: ui.accent }]}
+                            style={[styles.actionButton, { backgroundColor: ui.text, paddingVertical: 12, borderRadius: 24 }]}
                         >
-                            <Feather name="edit-2" size={18} color={isAndroid ? theme.colors.onPrimary : "#FFFFFF"} />
-                            <ThemedText style={[styles.actionButtonText, { color: isAndroid ? theme.colors.onPrimary : "#FFFFFF" }]}>Edit Account</ThemedText>
+                            <Feather name="edit-2" size={18} color={ui.surface} />
+                            <ThemedText style={[styles.actionButtonText, { color: ui.surface }]}>Edit Account</ThemedText>
                         </Pressable>
                     )}
 
@@ -194,10 +203,10 @@ export function AccountDetailModal({
                             onPress={() => {
                                 onUnlink(account as PlaidAccount);
                             }}
-                            style={[styles.actionButton, { backgroundColor: ui.surface, borderColor: ui.danger, borderWidth: 1 }]}
+                            style={[styles.actionButton, { backgroundColor: ui.surface2, borderColor: ui.border, borderWidth: 1, paddingVertical: 12, borderRadius: 24 }]}
                         >
                             <Feather name="link-2" size={18} color={ui.danger} />
-                            <ThemedText style={[styles.actionButtonText, { color: ui.danger }]}>Unlink Plaid Account</ThemedText>
+                            <ThemedText style={[styles.actionButtonText, { color: ui.danger, fontSize: 15 }]}>Unlink Plaid Account</ThemedText>
                         </Pressable>
                     )}
                 </ScrollView>
@@ -207,9 +216,13 @@ export function AccountDetailModal({
     );
 }
 
-function DetailRow({ label, value, ui }: { label: string; value: string; ui: any }) {
+function DetailRow({ label, value, ui, isLast }: { label: string; value: string; ui: any; isLast?: boolean }) {
     return (
-        <View style={[styles.detailRow, { borderBottomColor: ui.border }]}>
+        <View style={[
+            styles.detailRow,
+            { borderBottomColor: ui.border },
+            isLast && { borderBottomWidth: 0 }
+        ]}>
             <ThemedText style={[styles.detailLabel, { color: ui.mutedText }]}>{label}</ThemedText>
             <ThemedText style={[styles.detailValue, { color: ui.text }]}>{value}</ThemedText>
         </View>
@@ -279,8 +292,8 @@ const styles = StyleSheet.create({
         fontWeight: "700",
     },
     infoCard: {
-        borderRadius: 30,
-        borderWidth: 1,
+        borderRadius: 24,
+        borderWidth: StyleSheet.hairlineWidth,
         overflow: "hidden",
     },
     detailRow: {
@@ -288,7 +301,7 @@ const styles = StyleSheet.create({
         justifyContent: "space-between",
         alignItems: "center",
         padding: 16,
-        borderBottomWidth: 1,
+        borderBottomWidth: StyleSheet.hairlineWidth,
     },
     detailLabel: {
         fontSize: 14,

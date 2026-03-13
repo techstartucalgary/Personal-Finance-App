@@ -14,7 +14,7 @@ import {
   View,
   useColorScheme
 } from "react-native";
-import { Appbar, Searchbar, useTheme } from "react-native-paper";
+import { useTheme } from "react-native-paper";
 import type { LinkExit, LinkSuccess } from "react-native-plaid-link-sdk";
 import { create as plaidCreate, destroy as plaidDestroy, open as plaidOpen } from "react-native-plaid-link-sdk";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -92,7 +92,7 @@ export default function AccountsScreen() {
     // Fallback if hook fails (e.g. not in tab navigator context)
     tabBarHeight = insets.bottom + 60;
   }
-  const fabBottom = tabBarHeight + 60;
+  const fabBottom = Platform.OS === "android" ? tabBarHeight + 35 : tabBarHeight + 5;
 
   const theme = useTheme();
 
@@ -100,18 +100,19 @@ export default function AccountsScreen() {
 
   const ui = useMemo(
     () => ({
-      surface: isAndroid ? theme.colors.surface : (isDark ? "#1C1C1E" : "#F5F5F5"), // neutral gray
-      surface2: isAndroid ? theme.colors.elevation.level2 : (isDark ? "#2C2C2E" : "#EBEBEB"), // slightly darker gray for inputs
-      border: isAndroid ? theme.colors.outlineVariant : (isDark ? "rgba(84,84,88,0.65)" : "rgba(60,60,67,0.29)"),
+      surface: isDark ? "#1C1C1E" : "#FFFFFF",
+      surface2: isDark ? "#2C2C2E" : "#F2F2F7",
+      border: isDark ? "rgba(84,84,88,0.65)" : "rgba(60,60,67,0.29)",
       text: isDark ? "#FFFFFF" : "#000000",
       mutedText: isDark ? "rgba(235,235,245,0.6)" : "rgba(60,60,67,0.6)",
       backdrop: "rgba(0,0,0,0.45)",
-      accent: isAndroid ? theme.colors.primary : (isDark ? "#8CF2D1" : "#1F6F5B"),
-      accentSoft: isAndroid ? theme.colors.primaryContainer : (isDark ? "rgba(140,242,209,0.2)" : "rgba(31,111,91,0.12)"),
-      hero: isAndroid ? theme.colors.elevation.level1 : (isDark ? "#1C1C1E" : "#F2F2F7"),
-      heroAlt: isAndroid ? theme.colors.elevation.level2 : (isDark ? "#2C2C2E" : "#FFFFFF"),
+      accent: isDark ? "#8CF2D1" : "#1F6F5B",
+      accentSoft: isDark ? "rgba(140,242,209,0.2)" : "rgba(31,111,91,0.12)",
+      hero: isDark ? "#1C1C1E" : "#F2F2F7",
+      heroAlt: isDark ? "#2C2C2E" : "#FFFFFF",
+      danger: "#D32F2F",
     }),
-    [isDark, theme, isAndroid],
+    [isDark],
   );
 
 
@@ -169,6 +170,9 @@ export default function AccountsScreen() {
           hideWhenScrolling: true,
           tintColor: ui.accent,
           textColor: ui.text,
+          hintTextColor: ui.mutedText,
+          headerIconColor: ui.mutedText,
+          shouldShowHintSearchIcon: false,
         },
       });
     }, [navigation, ui, isDark, router])
@@ -617,39 +621,6 @@ export default function AccountsScreen() {
 
   return (
     <>
-      {Platform.OS === "android" && (
-        isAndroidSearching ? (
-          <Appbar.Header mode="small" elevated>
-            <Searchbar
-              placeholder="Search accounts..."
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-              autoFocus
-              onBlur={() => {
-                if (!searchQuery.trim()) {
-                  setIsAndroidSearching(false);
-                }
-              }}
-              onIconPress={() => { setSearchQuery(""); setIsAndroidSearching(false); }}
-              icon="arrow-left"
-              style={{ flex: 1, marginHorizontal: 4, backgroundColor: theme.colors.elevation.level5 }}
-              inputStyle={{ color: theme.colors.onSurface }}
-              iconColor={theme.colors.onSurface}
-            />
-          </Appbar.Header>
-        ) : (
-          <Appbar.Header mode="small" elevated>
-            <Appbar.Content
-              title="Accounts"
-              titleStyle={{ fontWeight: "bold" }}
-            />
-            <Appbar.Action
-              icon="magnify"
-              onPress={() => setIsAndroidSearching(true)}
-            />
-          </Appbar.Header>
-        )
-      )}
 
       <ScrollView
         style={[styles.container, { backgroundColor: "transparent" }]}
@@ -789,21 +760,21 @@ export default function AccountsScreen() {
         onPress={() => setAddSourceModalOpen(true)}
         style={({ pressed }) => [
           styles.fab,
-          isAndroid && {
+          {
             width: 80,
             height: 80,
             borderRadius: 20,
             right: 16,
           },
           {
-            backgroundColor: isAndroid ? theme.colors.primary : ui.text,
+            backgroundColor: ui.text,
             opacity: pressed ? 0.8 : 1,
             bottom: fabBottom,
-            elevation: isAndroid ? 5 : 6,
+            elevation: 5,
           },
         ]}
       >
-        <IconSymbol name="plus" size={isAndroid ? 36 : 32} color={isAndroid ? theme.colors.onPrimary : ui.surface} />
+        <IconSymbol name="plus" size={32} color={ui.surface} />
       </Pressable>
 
       {/* Select Source Modal */}
@@ -920,7 +891,7 @@ export default function AccountsScreen() {
             flex: 1,
             backgroundColor: ui.surface,
             padding: 16,
-            paddingTop: Platform.OS === "ios" ? 8 : (16 + insets.top),
+            paddingTop: Platform.OS === "ios" ? 12 : (16 + insets.top),
             paddingBottom: 16 + insets.bottom,
           }}
         >
@@ -1055,7 +1026,13 @@ export default function AccountsScreen() {
               disabled={!canCreate || isLoading}
               style={[
                 styles.button,
-                { borderColor: ui.border, backgroundColor: ui.text },
+                {
+                  borderColor: ui.border,
+                  backgroundColor: ui.text,
+                  width: "100%",
+                  alignItems: "center",
+                  borderRadius: 24,
+                },
                 (!canCreate || isLoading) && styles.buttonDisabled,
               ]}
             >
@@ -1184,7 +1161,7 @@ export default function AccountsScreen() {
               flex: 1,
               backgroundColor: ui.surface,
               padding: 16,
-              paddingTop: Platform.OS === "ios" ? 8 : (16 + insets.top),
+              paddingTop: Platform.OS === "ios" ? 12 : (16 + insets.top),
               paddingBottom: 16 + insets.bottom,
             }}
           >
@@ -1195,7 +1172,7 @@ export default function AccountsScreen() {
                 <Pressable
                   onPress={() => setEditingAccount(null)}
                   hitSlop={20}
-                  style={[styles.modalCloseButton, { backgroundColor: isAndroid ? theme.colors.surfaceVariant : (isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.05)") }]}
+                  style={[styles.modalCloseButton, { backgroundColor: isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.05)" }]}
                 >
                   <Feather name="x" size={18} color={ui.text} />
                 </Pressable>
@@ -1307,18 +1284,20 @@ export default function AccountsScreen() {
                 style={[
                   styles.button,
                   {
-                    backgroundColor: isAndroid ? theme.colors.primary : ui.text,
+                    backgroundColor: ui.text,
                     borderColor: ui.border,
                     alignSelf: "center",
                     width: "100%",
                     alignItems: "center",
-                    marginTop: 8,
+                    marginTop: 16,
+                    paddingVertical: 12,
+                    borderRadius: 24,
                   },
                 ]}
               >
                 <ThemedText
                   type="defaultSemiBold"
-                  style={{ color: isAndroid ? theme.colors.onPrimary : ui.surface }} // Invert text color
+                  style={{ color: ui.surface }}
                 >
                   Save Changes
                 </ThemedText>
@@ -1329,11 +1308,11 @@ export default function AccountsScreen() {
                 disabled={isLoading}
                 style={[
                   styles.deleteAction,
-                  { borderColor: ui.border, backgroundColor: ui.surface },
+                  { borderColor: ui.border, backgroundColor: ui.surface2, borderRadius: 24 },
                   isLoading && styles.buttonDisabled,
                 ]}
               >
-                <ThemedText style={{ color: "#FF3B30" }}>
+                <ThemedText style={{ color: ui.danger, fontWeight: "600" }}>
                   Delete Account
                 </ThemedText>
               </Pressable>
@@ -1707,8 +1686,8 @@ const styles = StyleSheet.create({
   button: {
     alignSelf: "flex-start",
     paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 12,
+    paddingVertical: 12,
+    borderRadius: 24,
     borderWidth: StyleSheet.hairlineWidth,
   },
   buttonDisabled: { opacity: 0.5 },
@@ -1738,7 +1717,7 @@ const styles = StyleSheet.create({
   deleteButton: {
     paddingHorizontal: 10,
     paddingVertical: 8,
-    borderRadius: 12,
+    borderRadius: 24,
     borderWidth: StyleSheet.hairlineWidth,
   },
   deleteAction: {
@@ -1747,7 +1726,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 14,
     paddingVertical: 12,
-    borderRadius: 12,
+    borderRadius: 24,
     borderWidth: StyleSheet.hairlineWidth,
   },
   modalHeader: {

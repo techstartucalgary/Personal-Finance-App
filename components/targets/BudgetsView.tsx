@@ -108,15 +108,15 @@ export function BudgetsView({ filterAccountId = null, refreshKey = 0, createRequ
 
     const ui = useMemo(
         () => ({
-            surface: isAndroid ? theme.colors.surface : (isDark ? "#1C1C1E" : "#F5F5F5"), // neutral gray
-            surface2: isAndroid ? theme.colors.elevation.level2 : (isDark ? "#2C2C2E" : "#EBEBEB"), // slightly darker gray for inputs
-            border: isAndroid ? theme.colors.outlineVariant : (isDark ? "rgba(84,84,88,0.65)" : "rgba(60,60,67,0.29)"),
+            surface: isDark ? "#1C1C1E" : "#FFFFFF",
+            surface2: isDark ? "#2C2C2E" : "#F2F2F7",
+            border: isDark ? "rgba(84,84,88,0.65)" : "rgba(60,60,67,0.29)",
             text: isDark ? "#FFFFFF" : "#000000",
             mutedText: isDark ? "rgba(235,235,245,0.6)" : "rgba(60,60,67,0.6)",
             backdrop: "rgba(0,0,0,0.45)",
-            destructive: "#ff3b30",
+            destructive: "#D32F2F",
         }),
-        [isDark, theme, isAndroid],
+        [isDark],
     );
 
     // ── Data state ─────────────────────────────────
@@ -461,7 +461,7 @@ export function BudgetsView({ filterAccountId = null, refreshKey = 0, createRequ
                     style={{
                         flex: 1,
                         padding: 16,
-                        paddingTop: Platform.OS === 'ios' ? 8 : (16 + insets.top),
+                        paddingTop: Platform.OS === 'ios' ? 12 : (16 + insets.top),
                         paddingBottom: 16 + insets.bottom,
                         backgroundColor: ui.surface,
                     }}
@@ -572,9 +572,9 @@ export function BudgetsView({ filterAccountId = null, refreshKey = 0, createRequ
                                 {/* Add button */}
                                 <Pressable
                                     onPress={addDraft}
-                                    style={[styles.button, { backgroundColor: ui.text, marginTop: 10, alignSelf: "flex-start" }]}
+                                    style={[styles.button, { backgroundColor: ui.text, marginTop: 10, alignSelf: "flex-start", paddingVertical: 8 }]}
                                 >
-                                    <ThemedText style={{ color: ui.surface, fontSize: 14, fontWeight: "600" }}>
+                                    <ThemedText style={{ color: ui.surface, fontSize: 13, fontWeight: "600" }}>
                                         + Add Category
                                     </ThemedText>
                                 </Pressable>
@@ -595,7 +595,7 @@ export function BudgetsView({ filterAccountId = null, refreshKey = 0, createRequ
                         {editingBudget && (
                             <Pressable
                                 onPress={handleDelete}
-                                style={[styles.deleteAction, { borderColor: ui.border, backgroundColor: ui.surface, marginTop: 12 }]}
+                                style={[styles.deleteAction, { borderColor: ui.border, backgroundColor: ui.surface2 }]}
                             >
                                 <ThemedText type="defaultSemiBold" style={{ color: ui.destructive }}>
                                     Delete Budget
@@ -734,7 +734,7 @@ const styles = StyleSheet.create({
     button: {
         paddingHorizontal: 14,
         paddingVertical: 10,
-        borderRadius: 12,
+        borderRadius: 24,
         borderWidth: StyleSheet.hairlineWidth,
     },
     deleteAction: {
@@ -743,7 +743,7 @@ const styles = StyleSheet.create({
         alignItems: "center",
         paddingHorizontal: 14,
         paddingVertical: 12,
-        borderRadius: 12,
+        borderRadius: 24,
         borderWidth: StyleSheet.hairlineWidth,
     },
     draftRow: {

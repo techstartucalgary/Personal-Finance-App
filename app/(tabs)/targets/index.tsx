@@ -33,7 +33,7 @@ export default function TargetsScreen() {
   const ui = useMemo(
     () => ({
       surface: isDark ? "#1C1C1E" : "#FFFFFF",
-      surface2: theme.colors.surfaceVariant,
+      surface2: isDark ? "#2C2C2E" : "#F2F2F7",
       border: isDark ? "rgba(84,84,88,0.65)" : "rgba(60,60,67,0.29)",
       text: isDark ? "#FFFFFF" : "#000000",
       mutedText: isDark ? "rgba(235,235,245,0.6)" : "rgba(60,60,67,0.6)",

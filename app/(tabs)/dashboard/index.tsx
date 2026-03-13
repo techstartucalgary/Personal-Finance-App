@@ -78,15 +78,15 @@ export default function DashboardScreen() {
   const ui = useMemo(
     () => ({
       surface: isAndroid ? theme.colors.surface : (isDark ? "#1C1C1E" : "#F5F5F5"), // neutral gray
-      surface2: isAndroid ? theme.colors.elevation.level2 : (isDark ? "#2C2C2E" : "#EBEBEB"), // slightly darker gray for inputs
+      surface2: isDark ? "#2C2C2E" : "#F2F2F7",
       border: isAndroid ? theme.colors.outlineVariant : (isDark ? "rgba(84,84,88,0.65)" : "rgba(60,60,67,0.29)"),
       text: isDark ? "#FFFFFF" : "#000000",
       mutedText: isDark ? "rgba(235,235,245,0.6)" : "rgba(60,60,67,0.6)",
       backdrop: "rgba(0,0,0,0.45)",
       accent: isAndroid ? theme.colors.primary : (isDark ? "#8CF2D1" : "#1F6F5B"),
       accentSoft: isAndroid ? theme.colors.primaryContainer : (isDark ? "rgba(140,242,209,0.2)" : "rgba(31,111,91,0.12)"),
-      hero: isAndroid ? theme.colors.elevation.level1 : (isDark ? "#1C1C1E" : "#F2F2F7"),
-      heroAlt: isAndroid ? theme.colors.elevation.level2 : (isDark ? "#2C2C2E" : "#FFFFFF"),
+      hero: isDark ? "#2C2C2E" : "#F2F2F7",
+      heroAlt: theme.colors.surfaceVariant,
       negative: isDark ? "#ff6b6b" : "#e03131",
       positive: isAndroid ? theme.colors.primary : (isDark ? "#8CF2D1" : "#1F6F5B"),
     }),
@@ -548,14 +548,10 @@ const styles = StyleSheet.create({
   },
   heroCard: {
     borderWidth: 1,
-    borderRadius: 20,
+    borderRadius: 24,
     padding: 16,
     gap: 12,
-    shadowColor: "#000",
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 3,
+
   },
   heroTopRow: {
     flexDirection: "row",
@@ -595,7 +591,7 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     flexBasis: "47%",
     borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: 14,
+    borderRadius: 12,
     paddingHorizontal: 12,
     paddingVertical: 10,
     gap: 4,
@@ -614,7 +610,7 @@ const styles = StyleSheet.create({
   },
   chartCard: {
     borderWidth: 1,
-    borderRadius: 18,
+    borderRadius: 24,
     padding: 14,
     gap: 10,
     overflow: "hidden",
@@ -705,7 +701,7 @@ const styles = StyleSheet.create({
     marginBottom: -8,
   },
   card: {
-    borderRadius: 16,
+    borderRadius: 24,
     borderWidth: 1,
     overflow: "hidden",
   },

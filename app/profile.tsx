@@ -1,7 +1,7 @@
 import Feather from "@expo/vector-icons/Feather";
 import { Stack } from "expo-router";
 import React, { useMemo } from "react";
-import { Platform, Pressable, ScrollView, StyleSheet, View, useColorScheme } from "react-native";
+import { Alert, Platform, Pressable, ScrollView, StyleSheet, View, useColorScheme } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { ThemedText } from "@/components/themed-text";
@@ -82,6 +82,22 @@ export default function ProfileScreen() {
           headerTitleStyle: {
             color: ui.text,
           },
+          headerRight: () => (
+            <Pressable
+              onPress={() => Alert.alert("Settings", "Settings coming soon!")}
+              hitSlop={10}
+              style={({ pressed }) => ({
+                width: 36,
+                height: 36,
+                borderRadius: 18,
+                alignItems: "center",
+                justifyContent: "center",
+                opacity: pressed ? 0.7 : 1,
+              })}
+            >
+              <Feather name="settings" size={24} color={ui.text} />
+            </Pressable>
+          ),
         }}
       />
       <ScrollView
@@ -230,8 +246,8 @@ const styles = StyleSheet.create({
     marginLeft: 60, // Align with text
   },
   deleteAction: {
-    paddingVertical: 14,
-    borderRadius: 16,
+    paddingVertical: 12,
+    borderRadius: 24,
     borderWidth: StyleSheet.hairlineWidth,
     alignItems: "center",
     justifyContent: "center",

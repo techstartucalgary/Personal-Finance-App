@@ -22,8 +22,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useFocusEffect, useNavigation, useRouter } from "expo-router";
 
 import { AccountDetailModal } from "@/components/AccountDetailModal";
-import { AccountListCard, AccountWaveCard } from "@/components/accounts/AccountCards";
-import { AccountsViewToggle } from "@/components/accounts/AccountsViewToggle";
+import { AccountWaveCard } from "@/components/accounts/AccountCards";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { DateTimePickerField } from "@/components/ui/DateTimePickerField";
@@ -150,7 +149,7 @@ export default function AccountsScreen() {
 
   const [detailModalVisible, setDetailModalVisible] = useState(false);
   const [addSourceModalOpen, setAddSourceModalOpen] = useState(false);
-  const [viewMode, setViewMode] = useState<"list" | "wave">("wave");
+  const [viewMode] = useState<"wave">("wave");
 
   const getAccountColor = (item: AccountRow | PlaidAccount, index: number) => {
     const type = (("account_type" in item ? item.account_type : item.type) ?? "").toLowerCase();
@@ -638,43 +637,8 @@ export default function AccountsScreen() {
           />
         }
       >
-        <View
-          pointerEvents="none"
-          style={StyleSheet.absoluteFill}
-        >
-          <View
-            style={[
-              styles.bgOrb,
-              styles.bgOrbTop,
-              { backgroundColor: ui.accentSoft },
-            ]}
-          />
-          <View
-            style={[
-              styles.bgOrb,
-              styles.bgOrbBottom,
-              {
-                backgroundColor: isDark
-                  ? "rgba(255,255,255,0.08)"
-                  : "rgba(255,255,255,0.65)",
-              },
-            ]}
-          />
-          <View style={[styles.bgRing, { borderColor: ui.accentSoft }]} />
-        </View>
 
 
-        <View style={styles.toolbarRow}>
-          <View style={{ flex: 1 }} />
-          <AccountsViewToggle
-            value={viewMode}
-            onChange={setViewMode}
-            borderColor={ui.border}
-            backgroundColor={ui.surface2}
-            activeColor={ui.accent}
-            inactiveColor={ui.mutedText}
-          />
-        </View>
 
         <View style={styles.sectionHeader}>
           <ThemedText style={[styles.sectionTitle, { color: ui.text }]}>
@@ -712,10 +676,8 @@ export default function AccountsScreen() {
               },
             };
 
-            return viewMode === "wave" ? (
+            return (
               <AccountWaveCard key={item.id} {...cardProps} />
-            ) : (
-              <AccountListCard key={item.id} {...cardProps} />
             );
           })
         )}
@@ -746,10 +708,8 @@ export default function AccountsScreen() {
                   setDetailModalVisible(true);
                 },
               };
-              return viewMode === "wave" ? (
+              return (
                 <AccountWaveCard key={pa.account_id} {...cardProps} waveAngle={idx % 2 === 0 ? -8 : 8} />
-              ) : (
-                <AccountListCard key={pa.account_id} {...cardProps} />
               );
             })}
           </View>
@@ -1337,33 +1297,6 @@ const styles = StyleSheet.create({
     gap: 14,
     paddingBottom: 16,
   },
-  bgOrb: {
-    position: "absolute",
-    borderRadius: 999,
-    opacity: 0.7,
-  },
-  bgOrbTop: {
-    width: 260,
-    height: 260,
-    top: -160,
-    right: -90,
-  },
-  bgOrbBottom: {
-    width: 220,
-    height: 220,
-    bottom: -80,
-    left: -70,
-  },
-  bgRing: {
-    position: "absolute",
-    width: 260,
-    height: 260,
-    borderRadius: 130,
-    borderWidth: 1,
-    top: 180,
-    right: -130,
-    opacity: 0.35,
-  },
   headerRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -1450,12 +1383,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: Tokens.font.semiFamily ?? Tokens.font.family,
   },
-  toolbarRow: {
-    marginTop: 10,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
   smallActionBtn: {
     height: 44,
     paddingHorizontal: 16,
@@ -1537,13 +1464,7 @@ const styles = StyleSheet.create({
     paddingBottom: 22,
     marginTop: 6,
     borderWidth: StyleSheet.hairlineWidth,
-    shadowColor: "#000",
-    shadowOpacity: 0.2,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 4,
     overflow: "hidden",
-    gap: 12,
   },
   cardTopRow: {
     flexDirection: "row",
@@ -1562,7 +1483,7 @@ const styles = StyleSheet.create({
   },
   cardTag: {
     alignSelf: "flex-start",
-    borderRadius: 999,
+    borderRadius: 12,
     paddingHorizontal: 10,
     paddingVertical: 4,
     backgroundColor: "rgba(255,255,255,0.18)",
@@ -1576,7 +1497,7 @@ const styles = StyleSheet.create({
   cardIcon: {
     width: 36,
     height: 36,
-    borderRadius: 12,
+    borderRadius: 10,
     backgroundColor: "rgba(255,255,255,0.18)",
     alignItems: "center",
     justifyContent: "center",
@@ -1587,7 +1508,7 @@ const styles = StyleSheet.create({
     right: -60,
     width: 160,
     height: 160,
-    borderRadius: 80,
+    borderRadius: 20,
     opacity: 0.7,
   },
   cardRing: {
@@ -1619,7 +1540,7 @@ const styles = StyleSheet.create({
     gap: 6,
     paddingHorizontal: 10,
     paddingVertical: 6,
-    borderRadius: 999,
+    borderRadius: 10,
     backgroundColor: "rgba(255,255,255,0.16)",
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: "rgba(255,255,255,0.22)",

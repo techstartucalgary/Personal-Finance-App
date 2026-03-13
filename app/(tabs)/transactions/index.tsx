@@ -12,7 +12,7 @@ import {
   Switch,
   TextInput,
   useColorScheme,
-  View
+  View,
 } from "react-native";
 
 import SegmentedControl from "@react-native-segmented-control/segmented-control";
@@ -26,6 +26,7 @@ import { Appbar, Searchbar, useTheme } from "react-native-paper";
 import { TransactionDetailModal } from "@/components/TransactionDetailModal";
 import { DateTimePickerField } from "@/components/ui/DateTimePickerField";
 import { IconSymbol } from "@/components/ui/icon-symbol";
+import { Tokens } from "@/constants/authTokens";
 import { useAuthContext } from "@/hooks/use-auth-context";
 import { getAccountById, listAccounts, updateAccount } from "@/utils/accounts";
 import {
@@ -49,7 +50,7 @@ import {
   createRecurringRule,
   deleteRecurringRule,
   getRecurringRules,
-  updateRecurringRule
+  updateRecurringRule,
 } from "@/utils/recurring";
 
 import { useFocusEffect, useNavigation, useRouter } from "expo-router";
@@ -174,7 +175,9 @@ export default function HomeScreen() {
   const [plaidAccounts, setPlaidAccounts] = useState<PlaidAccount[]>([]);
 
   // Tabs and Rules State
-  const [activeTab, setActiveTab] = useState<"transactions" | "recurrences">("transactions");
+  const [activeTab, setActiveTab] = useState<"transactions" | "recurrences">(
+    "transactions",
+  );
   const [recurringRules, setRecurringRules] = useState<any[]>([]); // Adjust type to RecurringExpenseRule if you import it
   const [editingRule, setEditingRule] = useState<any | null>(null);
 
@@ -182,11 +185,17 @@ export default function HomeScreen() {
   const [editingExpense, setEditingExpense] = useState<ExpenseRow | null>(null);
   const [editAmount, setEditAmount] = useState("");
   const [editDescription, setEditDescription] = useState("");
-  const [editTransactionIsRecurring, setEditTransactionIsRecurring] = useState(false);
-  const [editTransactionRecurringFrequency, setEditTransactionRecurringFrequency] = useState("Monthly");
-  const [editTransactionRuleEndsOn, setEditTransactionRuleEndsOn] = useState("");
+  const [editTransactionIsRecurring, setEditTransactionIsRecurring] =
+    useState(false);
+  const [
+    editTransactionRecurringFrequency,
+    setEditTransactionRecurringFrequency,
+  ] = useState("Monthly");
+  const [editTransactionRuleEndsOn, setEditTransactionRuleEndsOn] =
+    useState("");
   const [addRuleNextRunDate, setAddRuleNextRunDate] = useState("");
-  const [editTransactionRuleNextRunDate, setEditTransactionRuleNextRunDate] = useState("");
+  const [editTransactionRuleNextRunDate, setEditTransactionRuleNextRunDate] =
+    useState("");
   const [editTransactionDate, setEditTransactionDate] = useState("");
 
   const [selectedDetailTransaction, setSelectedDetailTransaction] = useState<ExpenseRow | PlaidTransaction | null>(null);
@@ -199,12 +208,19 @@ export default function HomeScreen() {
   const [isEditEndsOnEnabled, setIsEditEndsOnEnabled] = useState(false);
   const [editRuleEndsOn, setEditRuleEndsOn] = useState("");
   const [editRuleNextRunDate, setEditRuleNextRunDate] = useState("");
-  const [editRuleSelectedCategory, setEditRuleSelectedCategory] = useState<CategoryRow | null>(null);
-  const [editRuleSelectedSubcategory, setEditRuleSelectedSubcategory] = useState<SubcategoryRow | null>(null);
-  const [editRuleFrequencyModalOpen, setEditRuleFrequencyModalOpen] = useState(false);
-  const [editRuleCategoryModalOpen, setEditRuleCategoryModalOpen] = useState(false);
-  const [editRuleSubcategoryModalOpen, setEditRuleSubcategoryModalOpen] = useState(false);
-  const [editRuleSubcategories, setEditRuleSubcategories] = useState<SubcategoryRow[]>([]);
+  const [editRuleSelectedCategory, setEditRuleSelectedCategory] =
+    useState<CategoryRow | null>(null);
+  const [editRuleSelectedSubcategory, setEditRuleSelectedSubcategory] =
+    useState<SubcategoryRow | null>(null);
+  const [editRuleFrequencyModalOpen, setEditRuleFrequencyModalOpen] =
+    useState(false);
+  const [editRuleCategoryModalOpen, setEditRuleCategoryModalOpen] =
+    useState(false);
+  const [editRuleSubcategoryModalOpen, setEditRuleSubcategoryModalOpen] =
+    useState(false);
+  const [editRuleSubcategories, setEditRuleSubcategories] = useState<
+    SubcategoryRow[]
+  >([]);
 
   const formatDate = useCallback((value?: string | null) => {
     if (!value) return "";
@@ -316,7 +332,11 @@ export default function HomeScreen() {
       else if (editTransactionRecurringFrequency === "Yearly") nextDate.setFullYear(nextDate.getFullYear() + 1);
       setEditTransactionRuleNextRunDate(toLocalISOString(nextDate));
     }
-  }, [editTransactionIsRecurring, editTransactionRecurringFrequency, editingExpense]);
+  }, [
+    editTransactionIsRecurring,
+    editTransactionRecurringFrequency,
+    editingExpense,
+  ]);
 
   // Load subcategories when selectedCategory changes in Add Modal
   useEffect(() => {
@@ -401,7 +421,9 @@ export default function HomeScreen() {
       setEditDescription(editingExpense.description ?? "");
       setEditTransactionDate(editingExpense.transaction_date || "");
 
-      const rule = editingExpense.recurring_rule_id ? recurringRules.find((r) => r.id === editingExpense.recurring_rule_id) : null;
+      const rule = editingExpense.recurring_rule_id
+        ? recurringRules.find((r) => r.id === editingExpense.recurring_rule_id)
+        : null;
       if (rule) {
         setEditTransactionIsRecurring(true);
         setEditTransactionRecurringFrequency(rule.frequency || "Monthly");
@@ -455,7 +477,9 @@ export default function HomeScreen() {
     setEditRuleEndsOn(editingRule.end_date || "");
     setEditRuleNextRunDate(editingRule.next_run_date || "");
 
-    const categoryMatch = categories.find((c) => c.id === editingRule.expense_categoryid);
+    const categoryMatch = categories.find(
+      (c) => c.id === editingRule.expense_categoryid,
+    );
     setEditRuleSelectedCategory(categoryMatch ?? null);
 
     if (categoryMatch && editingRule.subcategory_id) {
@@ -464,7 +488,9 @@ export default function HomeScreen() {
         category_id: categoryMatch.id,
       }).then((subs) => {
         setEditRuleSubcategories((subs as SubcategoryRow[]) ?? []);
-        const subMatch = (subs as SubcategoryRow[]).find((s) => s.id === editingRule.subcategory_id);
+        const subMatch = (subs as SubcategoryRow[]).find(
+          (s) => s.id === editingRule.subcategory_id,
+        );
         setEditRuleSelectedSubcategory(subMatch ?? null);
       });
     } else {
@@ -732,7 +758,8 @@ export default function HomeScreen() {
           finalNextRunDate = toLocalISOString(fallbackDate);
         }
 
-        const ruleName = description.trim() || `${selectedCategory.category_name} expense`;
+        const ruleName =
+          description.trim() || `${selectedCategory.category_name} expense`;
         const rule = await createRecurringRule({
           profile_id: userId,
           name: ruleName,
@@ -847,30 +874,47 @@ export default function HomeScreen() {
           finalNextRunDate = toLocalISOString(fallbackDate);
         }
 
-        const ruleName = editDescription.trim() || `${editSelectedCategory.category_name} expense`;
+        const ruleName =
+          editDescription.trim() ||
+          `${editSelectedCategory.category_name} expense`;
         const rule = await createRecurringRule({
           profile_id: userId,
           name: ruleName,
           amount: parsed,
           frequency: editTransactionRecurringFrequency,
-          end_date: editTransactionRuleEndsOn.trim() ? editTransactionRuleEndsOn.trim() : null,
+          end_date: editTransactionRuleEndsOn.trim()
+            ? editTransactionRuleEndsOn.trim()
+            : null,
           next_run_date: finalNextRunDate,
           is_active: true,
           account_id: editSelectedAccount.id,
           expense_categoryid: editSelectedCategory.id,
-          subcategory_id: editSelectedSubcategory ? editSelectedSubcategory.id : null,
+          subcategory_id: editSelectedSubcategory
+            ? editSelectedSubcategory.id
+            : null,
         });
         finalRecurringRuleId = rule.id;
-      } else if (!editTransactionIsRecurring && editingExpense.recurring_rule_id) {
+      } else if (
+        !editTransactionIsRecurring &&
+        editingExpense.recurring_rule_id
+      ) {
         // Need to delete the existing rule
         const confirmed = await new Promise<boolean>((resolve) => {
           Alert.alert(
             "Remove recurring transaction?",
             "This will stop this transaction from recurring. Are you sure?",
             [
-              { text: "Cancel", style: "cancel", onPress: () => resolve(false) },
-              { text: "Remove", style: "destructive", onPress: () => resolve(true) }
-            ]
+              {
+                text: "Cancel",
+                style: "cancel",
+                onPress: () => resolve(false),
+              },
+              {
+                text: "Remove",
+                style: "destructive",
+                onPress: () => resolve(true),
+              },
+            ],
           );
         });
 
@@ -884,7 +928,10 @@ export default function HomeScreen() {
           profile_id: userId,
         });
         finalRecurringRuleId = null;
-      } else if (editTransactionIsRecurring && editingExpense.recurring_rule_id) {
+      } else if (
+        editTransactionIsRecurring &&
+        editingExpense.recurring_rule_id
+      ) {
         // Update existing rule properties (frequency, next_run_date, end_date)
         await updateRecurringRule({
           id: editingExpense.recurring_rule_id,
@@ -892,7 +939,9 @@ export default function HomeScreen() {
           update: {
             frequency: editTransactionRecurringFrequency as any,
             next_run_date: editTransactionRuleNextRunDate.trim() || undefined,
-            end_date: editTransactionRuleEndsOn.trim() ? editTransactionRuleEndsOn.trim() : null,
+            end_date: editTransactionRuleEndsOn.trim()
+              ? editTransactionRuleEndsOn.trim()
+              : null,
           },
         });
       }
@@ -1025,7 +1074,10 @@ export default function HomeScreen() {
                 await executeDelete();
               } catch (error) {
                 console.error("Error updating rule:", error);
-                Alert.alert("Error", "Could not cancel future recurring transactions.");
+                Alert.alert(
+                  "Error",
+                  "Could not cancel future recurring transactions.",
+                );
                 setIsLoading(false);
               }
             },
@@ -1105,77 +1157,90 @@ export default function HomeScreen() {
     loadAccounts,
   ]);
 
-  const handleDeleteRule = useCallback((ruleId: number) => {
-    if (!userId) return;
+  const handleDeleteRule = useCallback(
+    (ruleId: number) => {
+      if (!userId) return;
 
-    Alert.alert("Delete Recurrence?", "This action will permanently delete this recurring rule.", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Delete",
-        style: "destructive",
-        onPress: async () => {
-          setIsLoading(true);
-          try {
-            await deleteRecurringRule({ id: ruleId, profile_id: userId });
-            await loadRecurringRules();
-            setEditingRule(null);
-          } catch (error) {
-            console.error("Error deleting rule:", error);
-            Alert.alert("Error", "Could not delete this recurrence.");
-          } finally {
-            setIsLoading(false);
-          }
-        },
-      },
-    ]);
-  }, [userId, loadRecurringRules]);
+      Alert.alert(
+        "Delete Recurrence?",
+        "This action will permanently delete this recurring rule.",
+        [
+          { text: "Cancel", style: "cancel" },
+          {
+            text: "Delete",
+            style: "destructive",
+            onPress: async () => {
+              setIsLoading(true);
+              try {
+                await deleteRecurringRule({ id: ruleId, profile_id: userId });
+                await loadRecurringRules();
+                setEditingRule(null);
+              } catch (error) {
+                console.error("Error deleting rule:", error);
+                Alert.alert("Error", "Could not delete this recurrence.");
+              } finally {
+                setIsLoading(false);
+              }
+            },
+          },
+        ],
+      );
+    },
+    [userId, loadRecurringRules],
+  );
 
+  const handleSaveRuleEdit = useCallback(
+    async (statusOverride?: boolean) => {
+      if (!userId || !editingRule) return;
 
+      if (!editRuleAmount || isNaN(parseFloat(editRuleAmount))) {
+        Alert.alert("Invalid Amount", "Please enter a valid amount.");
+        return;
+      }
 
-  const handleSaveRuleEdit = useCallback(async (statusOverride?: boolean) => {
-    if (!userId || !editingRule) return;
-
-    if (!editRuleAmount || isNaN(parseFloat(editRuleAmount))) {
-      Alert.alert("Invalid Amount", "Please enter a valid amount.");
-      return;
-    }
-
-    setIsLoading(true);
-    try {
-      await updateRecurringRule({
-        id: editingRule.id,
-        profile_id: userId,
-        update: {
-          name: editRuleName || undefined,
-          amount: parseFloat(editRuleAmount),
-          frequency: editRuleFrequency as any,
-          end_date: editRuleEndsOn.trim() ? editRuleEndsOn.trim() : null,
-          next_run_date: editRuleNextRunDate.trim() ? editRuleNextRunDate.trim() : undefined,
-          expense_categoryid: editRuleSelectedCategory?.id || undefined,
-          subcategory_id: editRuleSelectedSubcategory?.id || undefined,
-          is_active: statusOverride !== undefined ? statusOverride : editingRule.is_active,
-        }
-      });
-      setEditingRule(null);
-      await loadRecurringRules();
-    } catch (error) {
-      console.error("Error updating rule:", error);
-      Alert.alert("Error", "Could not update the recurrence.");
-    } finally {
-      setIsLoading(false);
-    }
-  }, [
-    userId,
-    editingRule,
-    editRuleName,
-    editRuleAmount,
-    editRuleFrequency,
-    editRuleEndsOn,
-    editRuleNextRunDate,
-    editRuleSelectedCategory,
-    editRuleSelectedSubcategory,
-    loadRecurringRules,
-  ]);
+      setIsLoading(true);
+      try {
+        await updateRecurringRule({
+          id: editingRule.id,
+          profile_id: userId,
+          update: {
+            name: editRuleName || undefined,
+            amount: parseFloat(editRuleAmount),
+            frequency: editRuleFrequency as any,
+            end_date: editRuleEndsOn.trim() ? editRuleEndsOn.trim() : null,
+            next_run_date: editRuleNextRunDate.trim()
+              ? editRuleNextRunDate.trim()
+              : undefined,
+            expense_categoryid: editRuleSelectedCategory?.id || undefined,
+            subcategory_id: editRuleSelectedSubcategory?.id || undefined,
+            is_active:
+              statusOverride !== undefined
+                ? statusOverride
+                : editingRule.is_active,
+          },
+        });
+        setEditingRule(null);
+        await loadRecurringRules();
+      } catch (error) {
+        console.error("Error updating rule:", error);
+        Alert.alert("Error", "Could not update the recurrence.");
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [
+      userId,
+      editingRule,
+      editRuleName,
+      editRuleAmount,
+      editRuleFrequency,
+      editRuleEndsOn,
+      editRuleNextRunDate,
+      editRuleSelectedCategory,
+      editRuleSelectedSubcategory,
+      loadRecurringRules,
+    ],
+  );
 
   return (
     <>
@@ -1371,27 +1436,50 @@ export default function HomeScreen() {
                     ]}
                   >
                     <View style={{ flex: 1 }}>
-                      <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                      <View
+                        style={{
+                          flexDirection: "row",
+                          alignItems: "center",
+                          gap: 6,
+                        }}
+                      >
                         <ThemedText type="defaultSemiBold">
                           {expense.description ?? "Transaction"}
                         </ThemedText>
-                        {expense.recurring_rule_id && (() => {
-                          const linkedRule = recurringRules.find((r) => r.id === expense.recurring_rule_id);
-                          if (!linkedRule) return null;
-                          const color = linkedRule.is_active ? "#FF9500" : ui.mutedText;
-                          return (
-                            <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-                              <IconSymbol
-                                name="arrow.triangle.2.circlepath"
-                                size={12}
-                                color={color}
-                              />
-                              <ThemedText style={{ color, fontSize: 12, fontWeight: "500" }}>
-                                {linkedRule.is_active ? "Active" : "Inactive"}
-                              </ThemedText>
-                            </View>
-                          );
-                        })()}
+                        {expense.recurring_rule_id &&
+                          (() => {
+                            const linkedRule = recurringRules.find(
+                              (r) => r.id === expense.recurring_rule_id,
+                            );
+                            if (!linkedRule) return null;
+                            const color = linkedRule.is_active
+                              ? "#FF9500"
+                              : ui.mutedText;
+                            return (
+                              <View
+                                style={{
+                                  flexDirection: "row",
+                                  alignItems: "center",
+                                  gap: 4,
+                                }}
+                              >
+                                <IconSymbol
+                                  name="arrow.triangle.2.circlepath"
+                                  size={12}
+                                  color={color}
+                                />
+                                <ThemedText
+                                  style={{
+                                    color,
+                                    fontSize: 12,
+                                    fontWeight: "500",
+                                  }}
+                                >
+                                  {linkedRule.is_active ? "Active" : "Inactive"}
+                                </ThemedText>
+                              </View>
+                            );
+                          })()}
                       </View>
                       <ThemedText type="default">
                         {formatDate(expense.transaction_date || expense.created_at)}
@@ -1721,7 +1809,16 @@ export default function HomeScreen() {
               />
             </View>
 
-            <View style={[styles.fieldGroup, { flexDirection: "row", alignItems: "center", justifyContent: "space-between" }]}>
+            <View
+              style={[
+                styles.fieldGroup,
+                {
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                },
+              ]}
+            >
               <ThemedText type="defaultSemiBold">Make Recurring</ThemedText>
               <Switch
                 value={isRecurring}
@@ -2657,14 +2754,21 @@ export default function HomeScreen() {
             </View>
           </View>
 
-          <ScrollView contentContainerStyle={{ gap: 16, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
+          <ScrollView
+            contentContainerStyle={{ gap: 16, paddingBottom: 40 }}
+            showsVerticalScrollIndicator={false}
+          >
             <View style={{ gap: 16 }}>
               <View style={{ gap: 6 }}>
                 <ThemedText type="defaultSemiBold">Description</ThemedText>
                 <TextInput
                   style={[
                     styles.input,
-                    { borderColor: ui.border, color: ui.text, backgroundColor: ui.surface2 },
+                    {
+                      borderColor: ui.border,
+                      color: ui.text,
+                      backgroundColor: ui.surface2,
+                    },
                   ]}
                   value={editRuleName}
                   onChangeText={setEditRuleName}
@@ -2678,7 +2782,11 @@ export default function HomeScreen() {
                 <TextInput
                   style={[
                     styles.input,
-                    { borderColor: ui.border, color: ui.text, backgroundColor: ui.surface2 },
+                    {
+                      borderColor: ui.border,
+                      color: ui.text,
+                      backgroundColor: ui.surface2,
+                    },
                   ]}
                   value={editRuleAmount}
                   onChangeText={setEditRuleAmount}
@@ -2698,7 +2806,8 @@ export default function HomeScreen() {
                   ]}
                 >
                   <ThemedText>
-                    {editRuleSelectedCategory?.category_name ?? "Select Category"}
+                    {editRuleSelectedCategory?.category_name ??
+                      "Select Category"}
                   </ThemedText>
                 </Pressable>
               </View>
@@ -2714,7 +2823,8 @@ export default function HomeScreen() {
                     ]}
                   >
                     <ThemedText>
-                      {editRuleSelectedSubcategory?.category_name ?? "None (Optional)"}
+                      {editRuleSelectedSubcategory?.category_name ??
+                        "None (Optional)"}
                     </ThemedText>
                   </Pressable>
                 </View>
@@ -2753,7 +2863,11 @@ export default function HomeScreen() {
               disabled={isLoading}
               style={[
                 styles.button,
-                { backgroundColor: ui.text, width: "100%", alignItems: "center" },
+                {
+                  backgroundColor: ui.text,
+                  width: "100%",
+                  alignItems: "center",
+                },
                 isLoading && styles.buttonDisabled,
               ]}
             >
@@ -2771,7 +2885,11 @@ export default function HomeScreen() {
               disabled={isLoading}
               style={[
                 styles.deleteAction,
-                { borderColor: ui.border, backgroundColor: ui.surface, marginTop: 4 },
+                {
+                  borderColor: ui.border,
+                  backgroundColor: ui.surface,
+                  marginTop: 4,
+                },
                 isLoading && styles.buttonDisabled,
               ]}
             >
@@ -2785,7 +2903,11 @@ export default function HomeScreen() {
               disabled={isLoading}
               style={[
                 styles.deleteAction,
-                { borderColor: ui.border, backgroundColor: ui.surface, marginTop: 4 },
+                {
+                  borderColor: ui.border,
+                  backgroundColor: ui.surface,
+                  marginTop: 4,
+                },
                 isLoading && styles.buttonDisabled,
               ]}
             >
@@ -2955,7 +3077,9 @@ export default function HomeScreen() {
                   ]}
                   onPress={() => { }}
                 >
-                  <ThemedText type="defaultSemiBold">Select Frequency</ThemedText>
+                  <ThemedText type="defaultSemiBold">
+                    Select Frequency
+                  </ThemedText>
                   {["Daily", "Weekly", "Monthly", "Yearly"].map((freq) => (
                     <Pressable
                       key={freq}
@@ -2985,7 +3109,6 @@ export default function HomeScreen() {
               </Pressable>
             </Modal>
           )}
-
         </ThemedView>
       </Modal>
     </>
@@ -3005,6 +3128,21 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+    gap: 10,
+  },
+  headerTitle: {
+    flex: 1,
+    textAlign: "center",
+    fontSize: 18,
+    letterSpacing: 0.2,
+    fontFamily: Tokens.font.semiFamily ?? Tokens.font.family,
+  },
+  iconBtn: {
+    width: 36,
+    height: 36,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 12,
   },
   card: {
     padding: 12,

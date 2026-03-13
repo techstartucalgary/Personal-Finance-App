@@ -11,8 +11,7 @@ import {
   ScrollView,
   StyleSheet,
   TextInput,
-  View,
-  useColorScheme
+  View
 } from "react-native";
 import { Appbar, Searchbar, useTheme } from "react-native-paper";
 import type { LinkExit, LinkSuccess } from "react-native-plaid-link-sdk";
@@ -79,9 +78,6 @@ export default function AccountsScreen() {
   const navigation = useNavigation();
 
   const insets = useSafeAreaInsets();
-
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === "dark";
 
   // Dynamic tab bar height
   let tabBarHeight = 0;
@@ -186,6 +182,7 @@ export default function AccountsScreen() {
     async (silent = false) => {
       if (!userId) {
         setAccounts([]);
+        setExpenses([]);
         return;
       }
 
@@ -223,6 +220,13 @@ export default function AccountsScreen() {
         );
       } catch (err) {
         console.error("Error loading goals for accounts:", err);
+      }
+
+      try {
+        const expenseData = await listExpenses({ profile_id: userId });
+        setExpenses((expenseData as ExpenseRow[]) ?? []);
+      } catch (err) {
+        console.error("Error loading transactions for chart:", err);
       }
 
       if (!silent) setIsLoading(false);
@@ -1389,142 +1393,44 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-  },
-  headerLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 14,
+    gap: 10,
   },
   iconBtn: {
-    width: 32,
-    height: 32,
+    width: 36,
+    height: 36,
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: 10,
-  },
-  headerTitleWrap: {
-    marginTop: 4,
-    marginBottom: 2,
+    borderRadius: 12,
   },
   headerTitle: {
-    fontSize: 30,
-    fontWeight: "700",
-    letterSpacing: 0.3,
-    fontFamily: Tokens.font.headingFamily,
-  },
-  headerSubtitle: {
-    fontSize: 13,
-    lineHeight: 18,
-    fontFamily: Tokens.font.family,
+    flex: 1,
+    textAlign: "center",
+    fontSize: 18,
+    letterSpacing: 0.2,
+    fontFamily: Tokens.font.semiFamily ?? Tokens.font.family,
   },
   heroCard: {
-    borderWidth: 1,
-    borderRadius: 20,
-    padding: 16,
-    gap: 12,
-    shadowColor: "#000",
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 3,
-  },
-  heroTopRow: {
-    flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    gap: 12,
+    paddingTop: 6,
+    paddingBottom: 6,
+    gap: 4,
   },
   heroLabel: {
     fontFamily: Tokens.font.semiFamily ?? Tokens.font.family,
     fontSize: 12,
     letterSpacing: 0.2,
+    textAlign: "center",
   },
   heroValue: {
-    fontFamily: Tokens.font.boldFamily ?? Tokens.font.headingFamily,
-    fontSize: 36,
-    lineHeight: 38,
-  },
-  heroBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-  },
-  heroBadgeText: {
-    fontFamily: Tokens.font.semiFamily ?? Tokens.font.family,
-    fontSize: 12,
-  },
-  heroStatsRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 10,
-  },
-  statPill: {
-    flexGrow: 1,
-    flexBasis: "47%",
-    borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: 14,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    gap: 4,
-  },
-  statLabel: {
-    fontFamily: Tokens.font.family,
-    fontSize: 12,
-  },
-  statValue: {
-    fontFamily: Tokens.font.boldFamily ?? Tokens.font.headingFamily,
-    fontSize: 16,
-  },
-  statValueSmall: {
-    fontFamily: Tokens.font.semiFamily ?? Tokens.font.family,
-    fontSize: 15,
+    fontFamily: "Lato-Bold",
+    fontSize: 38,
+    lineHeight: 40,
+    textAlign: "center",
   },
   chartCard: {
-    borderWidth: 1,
-    borderRadius: 18,
-    padding: 14,
-    gap: 10,
-    overflow: "hidden",
-  },
-  chartGlow: {
-    position: "absolute",
-    top: -40,
-    right: -60,
-    width: 160,
-    height: 160,
-    borderRadius: 80,
-    opacity: 0.6,
-  },
-  chartHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  chartTitle: {
-    fontFamily: Tokens.font.semiFamily ?? Tokens.font.family,
-    fontSize: 16,
-  },
-  chartSubtitle: {
-    fontFamily: Tokens.font.family,
-    fontSize: 12,
-    marginTop: 2,
-  },
-  chartChip: {
-    flexDirection: "row",
-    alignItems: "center",
+    paddingTop: 2,
+    paddingBottom: 2,
     gap: 6,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-  },
-  chartChipText: {
-    fontFamily: Tokens.font.semiFamily ?? Tokens.font.family,
-    fontSize: 12,
   },
   chartRow: {
     flexDirection: "row",
@@ -1588,20 +1494,6 @@ const styles = StyleSheet.create({
     fontFamily: Tokens.font.semiFamily ?? Tokens.font.family,
     fontSize: 13,
   },
-  viewPill: {
-    height: 40,
-    borderRadius: 999,
-    borderWidth: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 14,
-    gap: 10,
-  },
-  viewDivider: {
-    width: StyleSheet.hairlineWidth,
-    height: 16,
-  },
   searchWrap: {
     marginTop: 6,
     borderWidth: 1,
@@ -1614,7 +1506,7 @@ const styles = StyleSheet.create({
   },
   searchInput: {
     flex: 1,
-    fontSize: 16,
+    fontSize: 15.5,
     paddingVertical: 0,
     fontFamily: Tokens.font.family,
   },
@@ -1779,6 +1671,8 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingHorizontal: 12,
     paddingVertical: 10,
+    fontFamily: Tokens.font.family,
+    fontSize: 15.5,
   },
   pickerContainer: {
     borderWidth: StyleSheet.hairlineWidth,

@@ -58,15 +58,16 @@ export function AccountWaveCard({
         { backgroundColor: color, opacity: pressed ? 0.9 : 1 },
       ]}
     >
-      <Image
-        pointerEvents="none"
-        source={require("../../assets/images/accounts-vector.png")}
-        style={[
-          styles.waveImage,
-          { transform: [{ rotate: `${waveAngle}deg` }] },
-        ]}
-        resizeMode="cover"
-      />
+      <View pointerEvents="none" style={styles.waveImageWrapper}>
+        <Image
+          source={require("../../assets/images/accounts-vector.png")}
+          style={[
+            styles.waveImage,
+            { transform: [{ rotate: `${waveAngle}deg` }] },
+          ]}
+          resizeMode="cover"
+        />
+      </View>
       <View style={styles.waveTopRow}>
         <View style={styles.waveTitleGroup}>
           <ThemedText style={styles.waveTitle}>{title}</ThemedText>
@@ -89,12 +90,7 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     paddingVertical: 16,
     paddingHorizontal: 18,
-    marginTop: 10,
-    shadowColor: "#000",
-    shadowOpacity: 0.18,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 4,
+    marginTop: 12,
     gap: 6,
   },
   listTitle: {
@@ -121,14 +117,12 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     paddingVertical: 22,
     paddingHorizontal: 18,
-    marginTop: 10,
+    marginTop: 12,
     minHeight: 140,
-    shadowColor: "#000",
-    shadowOpacity: 0.18,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 5,
     overflow: "hidden",
+  },
+  waveImageWrapper: {
+    ...StyleSheet.absoluteFillObject,
   },
   waveImage: {
     position: "absolute",

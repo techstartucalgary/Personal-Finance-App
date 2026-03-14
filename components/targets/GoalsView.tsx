@@ -1,23 +1,28 @@
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
+import { DateTimePickerField } from "@/components/ui/DateTimePickerField";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useAuthContext } from "@/hooks/use-auth-context";
-import { listAccounts } from "@/utils/accounts";
+import { listAccounts, type AccountRow } from "@/utils/accounts";
+import { parseLocalDate, toLocalISOString } from "@/utils/date";
 import { createGoal, deleteGoal, editGoal, listGoals } from "@/utils/goals";
+import { getPlaidAccounts } from "@/utils/plaid";
+import Feather from "@expo/vector-icons/Feather";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { useFocusEffect } from "expo-router";
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
     Alert,
     Modal,
+    Platform,
     Pressable,
-    RefreshControl,
     ScrollView,
     StyleSheet,
     TextInput,
     View,
     useColorScheme
 } from "react-native";
+import { useTheme } from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 type GoalRow = {
@@ -27,27 +32,33 @@ type GoalRow = {
     current_amount: number | null;
     target_date: string | null;
     linked_account: number | null;
+    linked_plaid_account: string | null;
     created_at?: string;
 };
 
-type AccountRow = {
-    id: number;
-    account_name: string | null;
-    account_type: string | null;
+type SelectableAccount = {
+    id: string | number;
+    isPlaid: boolean;
+    name: string;
+    type: string | null;
     balance: number | null;
-    currency: string | null;
 };
 
 type GoalsViewProps = {
-    filterAccountId?: number | null;
+    filterAccountId?: string | number | null;
+    refreshKey?: number;
+    createRequested?: number;
+    searchQuery?: string;
 };
 
-export function GoalsView({ filterAccountId = null }: GoalsViewProps) {
+export function GoalsView({ filterAccountId = null, refreshKey = 0, createRequested = 0, searchQuery = "" }: GoalsViewProps) {
     const { session } = useAuthContext();
     const userId = session?.user.id;
     const insets = useSafeAreaInsets();
     const colorScheme = useColorScheme();
     const isDark = colorScheme === "dark";
+    const theme = useTheme();
+    const isAndroid = Platform.OS === "android";
 
     // Dynamic tab bar height
     let tabBarHeight = 0;
@@ -60,13 +71,13 @@ export function GoalsView({ filterAccountId = null }: GoalsViewProps) {
 
     const ui = useMemo(
         () => ({
-            surface: isDark ? "#121212" : "#ffffff",
-            surface2: isDark ? "#1a1a1a" : "#ffffff",
-            border: isDark ? "rgba(255,255,255,0.18)" : "rgba(0,0,0,0.12)",
-            text: isDark ? "#ffffff" : "#111111",
-            mutedText: isDark ? "rgba(255,255,255,0.6)" : "rgba(0,0,0,0.5)",
+            surface: isDark ? "#1C1C1E" : "#FFFFFF",
+            surface2: isDark ? "#2C2C2E" : "#F2F2F7",
+            border: isDark ? "rgba(84,84,88,0.65)" : "rgba(60,60,67,0.29)",
+            text: isDark ? "#FFFFFF" : "#000000",
+            mutedText: isDark ? "rgba(235,235,245,0.6)" : "rgba(60,60,67,0.6)",
             backdrop: "rgba(0,0,0,0.45)",
-            destructive: "#ff3b30",
+            destructive: "#D32F2F",
         }),
         [isDark]
     );
@@ -81,8 +92,8 @@ export function GoalsView({ filterAccountId = null }: GoalsViewProps) {
     const [targetAmount, setTargetAmount] = useState("");
     const [currentAmount, setCurrentAmount] = useState("");
     const [targetDate, setTargetDate] = useState("");
-    const [accounts, setAccounts] = useState<AccountRow[]>([]);
-    const [selectedAccount, setSelectedAccount] = useState<AccountRow | null>(null);
+    const [accounts, setAccounts] = useState<SelectableAccount[]>([]);
+    const [selectedAccount, setSelectedAccount] = useState<SelectableAccount | null>(null);
     const [accountModalOpen, setAccountModalOpen] = useState(false);
     const [allocationModalOpen, setAllocationModalOpen] = useState(false);
     const [allocationAmount, setAllocationAmount] = useState("");
@@ -98,6 +109,7 @@ export function GoalsView({ filterAccountId = null }: GoalsViewProps) {
                 id: item.id,
                 name: item.name,
                 linked_account: item.linked_account,
+                linked_plaid_account: item.linked_plaid_account,
                 target_amount: item.target_amount,
                 current_amount: item.current_amount,
                 target_date: item.target_date,
@@ -115,8 +127,25 @@ export function GoalsView({ filterAccountId = null }: GoalsViewProps) {
     const loadAccounts = useCallback(async () => {
         if (!userId) return;
         try {
-            const data = await listAccounts({ profile_id: userId });
-            setAccounts(data as AccountRow[]);
+            const manualData = await listAccounts({ profile_id: userId }) as AccountRow[];
+            const selectableManual: SelectableAccount[] = manualData.map(a => ({
+                id: a.id,
+                isPlaid: false,
+                name: a.account_name || "Unnamed",
+                type: a.account_type,
+                balance: a.balance
+            }));
+
+            const plaidData = await getPlaidAccounts();
+            const selectablePlaid: SelectableAccount[] = plaidData.map(pa => ({
+                id: pa.account_id,
+                isPlaid: true,
+                name: `${pa.name} (${pa.institution_name})`,
+                type: pa.type,
+                balance: pa.balances.current
+            }));
+
+            setAccounts([...selectableManual, ...selectablePlaid]);
         } catch (error) {
             console.error("Error loading accounts:", error);
         }
@@ -129,13 +158,29 @@ export function GoalsView({ filterAccountId = null }: GoalsViewProps) {
         }, [loadGoals, loadAccounts])
     );
 
+    useEffect(() => {
+        if (refreshKey > 0) {
+            loadGoals();
+            loadAccounts();
+        }
+    }, [refreshKey]);
+
+    useEffect(() => {
+        if (createRequested > 0) {
+            openCreateModal();
+        }
+    }, [createRequested]);
+
     const handleSaveGoal = useCallback(async () => {
         if (!userId) return;
         const trimmedName = name.trim();
         const parsedTarget = parseFloat(targetAmount);
-        const linkedAccount = selectedAccount?.id;
 
-        if (!trimmedName || isNaN(parsedTarget) || !linkedAccount) {
+        const isPlaid = selectedAccount?.isPlaid;
+        const linkedAccount = !isPlaid && selectedAccount ? (selectedAccount.id as number) : null;
+        const linkedPlaidAccount = isPlaid && selectedAccount ? (selectedAccount.id as string) : null;
+
+        if (!trimmedName || isNaN(parsedTarget) || (!linkedAccount && !linkedPlaidAccount)) {
             Alert.alert("Invalid Input", "Please enter a valid name, target amount, and select an account.");
             return;
         }
@@ -151,6 +196,7 @@ export function GoalsView({ filterAccountId = null }: GoalsViewProps) {
                         current_amount: currentAmount ? parseFloat(currentAmount) : 0,
                         target_date: targetDate.trim() || null,
                         linked_account: linkedAccount,
+                        linked_plaid_account: linkedPlaidAccount,
                     },
                 });
             } else {
@@ -161,6 +207,7 @@ export function GoalsView({ filterAccountId = null }: GoalsViewProps) {
                     current_amount: currentAmount ? parseFloat(currentAmount) : 0,
                     target_date: targetDate.trim() || null,
                     linked_account: linkedAccount,
+                    linked_plaid_account: linkedPlaidAccount,
                 });
             }
             closeModal();
@@ -209,7 +256,10 @@ export function GoalsView({ filterAccountId = null }: GoalsViewProps) {
         setCurrentAmount(goal.current_amount ? goal.current_amount.toString() : "");
         setTargetDate(goal.target_date || "");
 
-        const accountMatch = accounts.find(a => a.id === goal.linked_account);
+        const accountMatch = accounts.find(a => {
+            if (a.isPlaid) return a.id === goal.linked_plaid_account;
+            return a.id === goal.linked_account;
+        });
         setSelectedAccount(accountMatch || null);
 
         setCreateModalOpen(true);
@@ -239,22 +289,22 @@ export function GoalsView({ filterAccountId = null }: GoalsViewProps) {
     };
 
     const filteredGoals = useMemo(() => {
-        if (filterAccountId === null) return goals;
-        return goals.filter((g) => g.linked_account === filterAccountId);
-    }, [goals, filterAccountId]);
+        let result = goals;
+        if (filterAccountId !== null) {
+            result = result.filter((g) => {
+                // Check against both manual ID (number) or Plaid ID (string)
+                return g.linked_account === filterAccountId || g.linked_plaid_account === filterAccountId;
+            });
+        }
+        if (searchQuery) {
+            result = result.filter(g => g.name.toLowerCase().includes(searchQuery.toLowerCase()));
+        }
+        return result;
+    }, [goals, filterAccountId, searchQuery]);
 
     return (
         <View style={styles.container}>
-            <ScrollView
-                contentContainerStyle={styles.scrollContent}
-                refreshControl={
-                    <RefreshControl
-                        refreshing={isLoading}
-                        onRefresh={loadGoals}
-                        tintColor={ui.text}
-                    />
-                }
-            >
+            <View style={styles.scrollContent}>
                 {filteredGoals.length === 0 ? (
                     <ThemedText style={{ textAlign: "center", marginTop: 24, opacity: 0.6 }}>
                         {filterAccountId ? "No goals for this account." : "No goals yet. Create one below!"}
@@ -285,9 +335,9 @@ export function GoalsView({ filterAccountId = null }: GoalsViewProps) {
                                         Target: {goal.target_date}
                                     </ThemedText>
                                 )}
-                                {goal.linked_account && (
-                                    <ThemedText style={{ opacity: 0.6, fontSize: 12 }}>
-                                        Account: {accounts.find(a => a.id === goal.linked_account)?.account_name || 'Unknown'}
+                                {(goal.linked_account || goal.linked_plaid_account) && (
+                                    <ThemedText style={{ opacity: 0.6, fontSize: 12, flexWrap: 'wrap', flex: 1, textAlign: 'right', marginLeft: 16 }}>
+                                        Account: {accounts.find(a => a.isPlaid ? a.id === goal.linked_plaid_account : a.id === goal.linked_account)?.name || 'Unknown'}
                                     </ThemedText>
                                 )}
                             </View>
@@ -315,21 +365,7 @@ export function GoalsView({ filterAccountId = null }: GoalsViewProps) {
                         </Pressable>
                     ))
                 )}
-            </ScrollView>
-
-            <Pressable
-                onPress={openCreateModal}
-                style={({ pressed }) => [
-                    styles.fab,
-                    {
-                        backgroundColor: ui.text,
-                        opacity: pressed ? 0.8 : 1,
-                        bottom: fabBottom,
-                    },
-                ]}
-            >
-                <IconSymbol name="plus" size={32} color={ui.surface} />
-            </Pressable>
+            </View>
 
             <Modal
                 visible={createModalOpen}
@@ -341,23 +377,23 @@ export function GoalsView({ filterAccountId = null }: GoalsViewProps) {
                     style={{
                         flex: 1,
                         padding: 16,
-                        paddingTop: 16 + insets.top,
+                        paddingTop: Platform.OS === 'ios' ? 12 : (16 + insets.top),
                         paddingBottom: 16 + insets.bottom,
                         backgroundColor: ui.surface,
                     }}
                 >
-                    <View
-                        style={{
-                            flexDirection: "row",
-                            justifyContent: "space-between",
-                            alignItems: "center",
-                            marginBottom: 16,
-                        }}
-                    >
-                        <ThemedText type="title">{editingGoal ? "Edit Goal" : "New Goal"}</ThemedText>
-                        <Pressable onPress={closeModal}>
-                            <ThemedText style={{ color: "#007AFF" }}>Cancel</ThemedText>
-                        </Pressable>
+                    <View style={styles.modalHeader}>
+                        <View style={styles.modalHeaderLeft} />
+                        <ThemedText type="defaultSemiBold" style={styles.modalHeaderTitle}>{editingGoal ? "Edit Goal" : "New Goal"}</ThemedText>
+                        <View style={styles.modalHeaderRight}>
+                            <Pressable
+                                onPress={closeModal}
+                                hitSlop={20}
+                                style={[styles.modalCloseButton, { backgroundColor: isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.05)" }]}
+                            >
+                                <Feather name="x" size={18} color={ui.text} />
+                            </Pressable>
+                        </View>
                     </View>
 
                     <ScrollView contentContainerStyle={styles.formContent}>
@@ -399,27 +435,20 @@ export function GoalsView({ filterAccountId = null }: GoalsViewProps) {
                                     </ThemedText>
                                     <Pressable
                                         onPress={() => setAllocationModalOpen(true)}
-                                        style={[styles.button, { backgroundColor: ui.text, marginTop: 0 }]}
+                                        style={[styles.button, { backgroundColor: ui.text, marginTop: 0, paddingVertical: 8 }]}
                                     >
-                                        <ThemedText style={{ color: ui.surface, fontSize: 14 }}>Allocate Funds</ThemedText>
+                                        <ThemedText style={{ color: ui.surface, fontSize: 13, fontWeight: "600" }}>Allocate Funds</ThemedText>
                                     </Pressable>
                                 </View>
                             </View>
                         )}
 
-                        <View style={styles.fieldGroup}>
-                            <ThemedText type="defaultSemiBold">Target Date (Optional)</ThemedText>
-                            <TextInput
-                                value={targetDate}
-                                onChangeText={setTargetDate}
-                                placeholder="YYYY-MM-DD"
-                                placeholderTextColor={ui.mutedText}
-                                style={[
-                                    styles.input,
-                                    { borderColor: ui.border, backgroundColor: ui.surface2, color: ui.text },
-                                ]}
-                            />
-                        </View>
+                        <DateTimePickerField
+                            label="Target Date (Optional)"
+                            value={parseLocalDate(targetDate)}
+                            onChange={(date) => setTargetDate(toLocalISOString(date))}
+                            ui={ui}
+                        />
 
                         <View style={styles.fieldGroup}>
                             <ThemedText type="defaultSemiBold">Linked Account</ThemedText>
@@ -437,8 +466,8 @@ export function GoalsView({ filterAccountId = null }: GoalsViewProps) {
                                     },
                                 ]}
                             >
-                                <ThemedText style={{ color: selectedAccount ? ui.text : ui.mutedText }}>
-                                    {selectedAccount ? selectedAccount.account_name : "Select an account"}
+                                <ThemedText style={{ color: selectedAccount ? ui.text : ui.mutedText, flexWrap: 'wrap', flex: 1 }}>
+                                    {selectedAccount ? selectedAccount.name : "Select an account"}
                                 </ThemedText>
                                 <IconSymbol name="chevron.right" size={16} color={ui.mutedText} />
                             </Pressable>
@@ -468,7 +497,7 @@ export function GoalsView({ filterAccountId = null }: GoalsViewProps) {
                                 onPress={handleDeleteGoal}
                                 style={[
                                     styles.deleteAction,
-                                    { borderColor: ui.border, backgroundColor: ui.surface, marginTop: 12 },
+                                    { borderColor: ui.border, backgroundColor: ui.surface2 },
                                 ]}
                             >
                                 <ThemedText type="defaultSemiBold" style={{ color: ui.destructive }}>
@@ -520,9 +549,11 @@ export function GoalsView({ filterAccountId = null }: GoalsViewProps) {
                                                 },
                                             ]}
                                         >
-                                            <ThemedText>{account.account_name}</ThemedText>
+                                            <ThemedText style={{ flexWrap: 'wrap', marginBottom: 2 }}>
+                                                {account.name}{account.isPlaid ? " (Plaid)" : ""}
+                                            </ThemedText>
                                             <ThemedText style={{ fontSize: 12, opacity: 0.6 }}>
-                                                {account.account_type} • ${account.balance}
+                                                {account.type} • ${account.balance}
                                             </ThemedText>
                                         </Pressable>
                                     ))}
@@ -557,7 +588,7 @@ export function GoalsView({ filterAccountId = null }: GoalsViewProps) {
                                 <ThemedText type="subtitle" style={{ marginBottom: 8 }}>Allocate Funds</ThemedText>
                                 <ThemedText style={{ marginBottom: 16, opacity: 0.7 }}>
                                     Allocation will increase the goal's current amount.
-                                    {selectedAccount ? `\nFrom: ${selectedAccount.account_name}` : ""}
+                                    {selectedAccount ? `\nFrom: ${selectedAccount.name}` : ""}
                                 </ThemedText>
 
                                 <TextInput
@@ -644,7 +675,7 @@ const styles = StyleSheet.create({
     },
     input: {
         borderWidth: StyleSheet.hairlineWidth,
-        borderRadius: 8,
+        borderRadius: 12,
         padding: 12,
         fontSize: 16,
     },
@@ -652,7 +683,7 @@ const styles = StyleSheet.create({
         alignSelf: "flex-start",
         paddingHorizontal: 14,
         paddingVertical: 10,
-        borderRadius: 10,
+        borderRadius: 24,
         borderWidth: StyleSheet.hairlineWidth,
     },
     deleteAction: {
@@ -661,7 +692,7 @@ const styles = StyleSheet.create({
         alignItems: "center",
         paddingHorizontal: 14,
         paddingVertical: 12,
-        borderRadius: 10,
+        borderRadius: 24,
         borderWidth: StyleSheet.hairlineWidth,
     },
     modalBackdrop: {
@@ -670,8 +701,8 @@ const styles = StyleSheet.create({
         justifyContent: "flex-end",
     },
     accountPickerContent: {
-        borderTopLeftRadius: 20,
-        borderTopRightRadius: 20,
+        borderTopLeftRadius: 24,
+        borderTopRightRadius: 24,
         padding: 20,
         borderTopWidth: 1,
         paddingBottom: 40,
@@ -684,15 +715,39 @@ const styles = StyleSheet.create({
     },
     accountOption: {
         padding: 16,
-        borderRadius: 10,
+        borderRadius: 12,
         marginBottom: 8,
         borderWidth: StyleSheet.hairlineWidth,
     },
     chip: {
         paddingHorizontal: 14,
         paddingVertical: 6,
-        borderRadius: 20,
+        borderRadius: 12,
         borderWidth: StyleSheet.hairlineWidth,
+    },
+    modalHeader: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
+        paddingVertical: 8,
+    },
+    modalHeaderTitle: {
+        flex: 1,
+        textAlign: "center",
+    },
+    modalHeaderLeft: {
+        width: 44,
+    },
+    modalHeaderRight: {
+        width: 44,
+        alignItems: "flex-end",
+    },
+    modalCloseButton: {
+        width: 30,
+        height: 30,
+        borderRadius: 15,
+        alignItems: "center",
+        justifyContent: "center",
     },
 });
 

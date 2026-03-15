@@ -1,15 +1,14 @@
 import React from "react";
 import {
+  Dimensions,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   View,
-  Platform,
-  Dimensions,
 } from "react-native";
 import { ThemedText } from "../themed-text";
-import { ThemedView } from "../themed-view";
 
 const { height: SCREEN_HEIGHT } = Dimensions.get("window");
 
@@ -48,15 +47,15 @@ export function SelectionModal({
         style={[styles.backdrop, { backgroundColor: ui.backdrop }]}
         onPress={onClose}
       >
-        <Pressable 
-            style={[
-                styles.card, 
-                { 
-                    backgroundColor: ui.surface2, 
-                    borderColor: ui.border 
-                }
-            ]} 
-            onPress={(e) => e.stopPropagation()}
+        <Pressable
+          style={[
+            styles.card,
+            {
+              backgroundColor: ui.surface2,
+              borderColor: ui.border
+            }
+          ]}
+          onPress={(e) => e.stopPropagation()}
         >
           <View style={[styles.header, { borderBottomColor: ui.border }]}>
             <ThemedText type="defaultSemiBold" style={{ fontSize: 18 }}>{title}</ThemedText>

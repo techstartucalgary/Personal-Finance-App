@@ -10,6 +10,7 @@ import {
   Switch,
   TextInput,
   View,
+  ActivityIndicator,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -561,8 +562,8 @@ export function EditTransactionModal({
           </View>
         </View>
 
-        <ScrollView contentContainerStyle={{ gap: 16, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
-          <View style={{ gap: 6 }}>
+        <ScrollView contentContainerStyle={{ gap: 12, paddingBottom: 24 }} showsVerticalScrollIndicator={false}>
+          <View style={styles.fieldGroup}>
             <ThemedText type="defaultSemiBold">Account</ThemedText>
             <Pressable
               onPress={() => setEditAccountModalOpen(true)}
@@ -584,7 +585,7 @@ export function EditTransactionModal({
             ui={ui}
           />
 
-          <View style={{ gap: 6 }}>
+          <View style={styles.fieldGroup}>
             <ThemedText type="defaultSemiBold">Category</ThemedText>
             <Pressable
               onPress={() => setEditCategoryModalOpen(true)}
@@ -599,29 +600,36 @@ export function EditTransactionModal({
             </Pressable>
           </View>
 
-          {editSelectedCategory && (
-            <View style={{ gap: 6 }}>
-              <ThemedText type="defaultSemiBold">Subcategory</ThemedText>
-              <Pressable
-                onPress={() => setEditSubcategoryModalOpen(true)}
-                style={[
-                  styles.dropdownButton,
-                  { borderColor: ui.border, backgroundColor: ui.surface2 },
-                ]}
-              >
-                <ThemedText>
-                  {editSelectedSubcategory?.category_name ?? "Select subcategory"}
-                </ThemedText>
-              </Pressable>
-            </View>
-          )}
+          <View style={styles.fieldGroup}>
+            <ThemedText type="defaultSemiBold">Subcategory</ThemedText>
+            <Pressable
+              onPress={() => {
+                if (!editSelectedCategory) {
+                  Alert.alert("Category required", "Please select a category first.");
+                  return;
+                }
+                setEditSubcategoryModalOpen(true);
+              }}
+              style={[
+                styles.dropdownButton,
+                { borderColor: ui.border, backgroundColor: ui.surface2 },
+                !editSelectedCategory && { opacity: 0.5 },
+              ]}
+            >
+              <ThemedText style={!editSelectedCategory ? { color: ui.mutedText } : undefined}>
+                {editSelectedSubcategory?.category_name ?? (editSelectedCategory ? "Select subcategory" : "Select category first")}
+              </ThemedText>
+            </Pressable>
+          </View>
 
-          <View style={{ gap: 6 }}>
+          <View style={styles.fieldGroup}>
             <ThemedText type="defaultSemiBold">Amount</ThemedText>
             <TextInput
               value={editAmount}
               onChangeText={setEditAmount}
-              keyboardType="numeric"
+              keyboardType="decimal-pad"
+              placeholder="0.00"
+              placeholderTextColor={ui.mutedText}
               style={[
                 styles.input,
                 {
@@ -633,11 +641,13 @@ export function EditTransactionModal({
             />
           </View>
 
-          <View style={{ gap: 6 }}>
+          <View style={styles.fieldGroup}>
             <ThemedText type="defaultSemiBold">Description</ThemedText>
             <TextInput
               value={editDescription}
               onChangeText={setEditDescription}
+              placeholder="e.g. Grocery run"
+              placeholderTextColor={ui.mutedText}
               style={[
                 styles.input,
                 {
@@ -649,7 +659,16 @@ export function EditTransactionModal({
             />
           </View>
 
-          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+          <View
+            style={[
+              styles.fieldGroup,
+              {
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "space-between",
+              },
+            ]}
+          >
             <ThemedText type="defaultSemiBold">Make Recurring</ThemedText>
             <Switch
               value={editTransactionIsRecurring}
@@ -659,7 +678,7 @@ export function EditTransactionModal({
           </View>
 
           {editTransactionIsRecurring && (
-            <View style={{ gap: 6 }}>
+            <View style={styles.fieldGroup}>
               <ThemedText type="defaultSemiBold">Frequency</ThemedText>
               <Pressable
                 onPress={() => setEditFrequencyModalOpen(true)}
@@ -709,9 +728,13 @@ export function EditTransactionModal({
               isLoading && styles.buttonDisabled,
             ]}
           >
-            <ThemedText type="defaultSemiBold" style={{ color: ui.surface }}>
-              Save Changes
-            </ThemedText>
+            {isLoading ? (
+              <ActivityIndicator color={ui.surface} />
+            ) : (
+              <ThemedText type="defaultSemiBold" style={{ color: ui.surface }}>
+                Save changes
+              </ThemedText>
+            )}
           </Pressable>
 
           <Pressable
@@ -719,12 +742,12 @@ export function EditTransactionModal({
             disabled={isLoading}
             style={[
               styles.deleteAction,
-              { borderColor: ui.border, backgroundColor: ui.surface2, borderRadius: 24 },
+              { borderColor: ui.border, backgroundColor: ui.surface2 },
               isLoading && styles.buttonDisabled,
             ]}
           >
             <ThemedText style={{ color: ui.danger, fontWeight: "600" }}>
-              Delete Transaction
+              Delete transaction
             </ThemedText>
           </Pressable>
         </ScrollView>
@@ -845,7 +868,7 @@ export function EditTransactionModal({
           }
         >
           {categories.length === 0 ? (
-            <ThemedText>No categories yet.</ThemedText>
+            <ThemedText style={{ textAlign: "center", padding: 20 }}>No categories yet.</ThemedText>
           ) : (
             categories.map((cat) => (
               <View key={cat.id} style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
@@ -895,19 +918,19 @@ const styles = StyleSheet.create({
   dropdownButton: {
     padding: 12,
     borderRadius: 12,
-    borderWidth: 1,
+    borderWidth: StyleSheet.hairlineWidth,
     justifyContent: "center",
   },
   input: {
     padding: 12,
     borderRadius: 12,
-    borderWidth: 1,
+    borderWidth: StyleSheet.hairlineWidth,
     fontSize: 16,
   },
   button: {
     padding: 12,
     borderRadius: 24,
-    borderWidth: 1,
+    borderWidth: StyleSheet.hairlineWidth,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -919,7 +942,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     marginTop: 8,
-    borderWidth: 1,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 24,
   },
   modalBackdrop: {
     justifyContent: "center",
@@ -931,13 +955,13 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     padding: 20,
     gap: 12,
-    borderWidth: 1,
+    borderWidth: StyleSheet.hairlineWidth,
     maxHeight: "80%",
   },
   modalOption: {
     padding: 16,
     borderRadius: 12,
-    borderWidth: 1,
+    borderWidth: StyleSheet.hairlineWidth,
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
@@ -947,7 +971,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   fieldGroup: {
-    gap: 8,
-    marginTop: 8,
+    gap: 6,
   },
 });

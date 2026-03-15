@@ -23,6 +23,7 @@ import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { useTheme } from "react-native-paper";
 
+import { AddTransactionModal } from "@/components/AddTransactionModal";
 import { TransactionDetailModal } from "@/components/TransactionDetailModal";
 import { EditTransactionModal } from "@/components/EditTransactionModal";
 import { DateTimePickerField } from "@/components/ui/DateTimePickerField";
@@ -100,11 +101,6 @@ export default function HomeScreen() {
     currency: string | null;
   };
 
-  const [isLoading, setIsLoading] = useState(false);
-  const [accounts, setAccounts] = useState<AccountRow[]>([]);
-  const [selectedAccount, setSelectedAccount] = useState<AccountRow | null>(
-    null,
-  );
   type CategoryRow = {
     id: number;
     category_name: string | null;
@@ -128,34 +124,17 @@ export default function HomeScreen() {
     recurring_rule_id?: number | null;
   };
 
-  const [categories, setCategories] = useState<CategoryRow[]>([]);
-  const [selectedCategory, setSelectedCategory] = useState<CategoryRow | null>(
-    null,
-  );
+  const [isLoading, setIsLoading] = useState(false);
+  const [accounts, setAccounts] = useState<AccountRow[]>([]);
 
-  // subcategory state
-  const [subcategories, setSubcategories] = useState<SubcategoryRow[]>([]);
-  const [subcategoryModalOpen, setSubcategoryModalOpen] = useState(false);
-  const [selectedSubcategory, setSelectedSubcategory] =
-    useState<SubcategoryRow | null>(null);
+  const [categories, setCategories] = useState<CategoryRow[]>([]);
+  const [newCategoryName, setNewCategoryName] = useState("");
   const [newSubcategoryName, setNewSubcategoryName] = useState("");
 
   const [searchQuery, setSearchQuery] = useState("");
   const [isAndroidSearching, setIsAndroidSearching] = useState(false);
 
   const [addModalOpen, setAddModalOpen] = useState(false);
-  const [categoryModalOpen, setCategoryModalOpen] = useState(false);
-  const [accountModalOpen, setAccountModalOpen] = useState(false);
-  const [addFrequencyModalOpen, setAddFrequencyModalOpen] = useState(false);
-  const [newCategoryName, setNewCategoryName] = useState("");
-  const [amount, setAmount] = useState("");
-  const [description, setDescription] = useState("");
-  const [isRecurring, setIsRecurring] = useState(false);
-  const [recurringFrequency, setRecurringFrequency] = useState("Monthly");
-  const [isAddEndsOnEnabled, setIsAddEndsOnEnabled] = useState(false);
-  const [addRuleEndsOn, setAddRuleEndsOn] = useState("");
-  const [addRuleNextRunDate, setAddRuleNextRunDate] = useState("");
-  const [transactionDate, setTransactionDate] = useState(toLocalISOString(new Date()));
   const [expenses, setExpenses] = useState<ExpenseRow[]>([]);
   const [plaidTransactions, setPlaidTransactions] = useState<PlaidTransaction[]>([]);
   const [plaidAccounts, setPlaidAccounts] = useState<PlaidAccount[]>([]);
@@ -277,42 +256,6 @@ export default function HomeScreen() {
     }, [navigation, ui])
   );
 
-  // Recalculate default Next Run Date when Frequency or IsRecurring changes (Add Modal)
-  useEffect(() => {
-    if (isRecurring) {
-      const nextDate = new Date();
-      if (recurringFrequency === "Daily") nextDate.setDate(nextDate.getDate() + 1);
-      else if (recurringFrequency === "Weekly") nextDate.setDate(nextDate.getDate() + 7);
-      else if (recurringFrequency === "Monthly") nextDate.setMonth(nextDate.getMonth() + 1);
-      else if (recurringFrequency === "Yearly") nextDate.setFullYear(nextDate.getFullYear() + 1);
-      setAddRuleNextRunDate(toLocalISOString(nextDate));
-    } else {
-      setAddRuleNextRunDate("");
-    }
-  }, [isRecurring, recurringFrequency]);
-
-
-  // Load subcategories when selectedCategory changes in Add Modal
-  useEffect(() => {
-    const fetchSub = async () => {
-      if (!userId || !selectedCategory) {
-        setSubcategories([]);
-        setSelectedSubcategory(null);
-        return;
-      }
-      try {
-        const data = await listSubcategories({
-          profile_id: userId,
-          category_id: selectedCategory.id,
-        });
-        setSubcategories((data as SubcategoryRow[]) ?? []);
-        setSelectedSubcategory(null); // reset subcategory when category changes
-      } catch (error) {
-        console.error("Error loading subcategories:", error);
-      }
-    };
-    fetchSub();
-  }, [userId, selectedCategory]);
 
 
   const loadExpenses = useCallback(async () => {
@@ -397,33 +340,6 @@ export default function HomeScreen() {
     }, [loadAccounts, loadCategories, loadExpenses, loadRecurringRules, userId]),
   );
 
-  const createSubcategory = useCallback(async () => {
-    if (!userId || !selectedCategory) return;
-    const trimmed = newSubcategoryName.trim();
-    if (!trimmed) {
-      Alert.alert("Subcategory name required", "Enter a name.");
-      return;
-    }
-    try {
-      const data = await addSubcategory({
-        profile_id: userId,
-        category_id: selectedCategory.id,
-        category_name: trimmed,
-      });
-      setNewSubcategoryName("");
-      setSelectedSubcategory(data as SubcategoryRow);
-      // refresh list
-      const subs = await listSubcategories({
-        profile_id: userId,
-        category_id: selectedCategory.id,
-      });
-      setSubcategories((subs as SubcategoryRow[]) ?? []);
-      setSubcategoryModalOpen(false);
-    } catch (err) {
-      console.error("Error creating subcategory", err);
-      Alert.alert("Error", "Could not create subcategory.");
-    }
-  }, [userId, selectedCategory, newSubcategoryName]);
 
   const createEditSubcategory = useCallback(async () => {
     if (!userId || !editRuleSelectedCategory) return;
@@ -453,29 +369,6 @@ export default function HomeScreen() {
     }
   }, [userId, editRuleSelectedCategory, newSubcategoryName]);
 
-  const createCategory = useCallback(async () => {
-    if (!userId) return;
-    const trimmed = newCategoryName.trim();
-    if (!trimmed) {
-      Alert.alert("Category name required", "Enter a category name.");
-      return;
-    }
-
-    try {
-      const data = await addCategory({
-        profile_id: userId,
-        category_name: trimmed,
-      });
-
-      setNewCategoryName("");
-      setSelectedCategory(data as CategoryRow);
-      await loadCategories();
-      setCategoryModalOpen(false);
-    } catch (error) {
-      console.error("Error creating category:", error);
-      Alert.alert("Could not create category", "Please try again.");
-    }
-  }, [userId, newCategoryName, loadCategories]);
 
   const createEditCategory = useCallback(async () => {
     if (!userId) return;
@@ -513,21 +406,15 @@ export default function HomeScreen() {
             text: "Delete",
             style: "destructive",
             onPress: async () => {
-              try {
-                await deleteCategory({ id: categoryId, profile_id: userId });
-                await loadCategories();
-                // If the deleted category was selected, clear it
-                if (selectedCategory?.id === categoryId) {
-                  setSelectedCategory(null);
-                  setSubcategories([]);
-                  setSelectedSubcategory(null);
-                }
-                if (editRuleSelectedCategory?.id === categoryId) {
-                  setEditRuleSelectedCategory(null);
-                  setEditRuleSubcategories([]);
-                  setEditRuleSelectedSubcategory(null);
-                }
-              } catch (error) {
+                try {
+                  await deleteCategory({ id: categoryId, profile_id: userId });
+                  await loadCategories();
+                  if (editRuleSelectedCategory?.id === categoryId) {
+                    setEditRuleSelectedCategory(null);
+                    setEditRuleSubcategories([]);
+                    setEditRuleSelectedSubcategory(null);
+                  }
+                } catch (error) {
                 console.error("Error deleting category:", error);
                 Alert.alert("Error", "Could not delete category.");
               }
@@ -536,7 +423,7 @@ export default function HomeScreen() {
         ],
       );
     },
-    [userId, loadCategories, selectedCategory, editRuleSelectedCategory],
+    [userId, loadCategories, editRuleSelectedCategory],
   );
 
   const handleDeleteSubcategory = useCallback(
@@ -551,35 +438,23 @@ export default function HomeScreen() {
             text: "Delete",
             style: "destructive",
             onPress: async () => {
-              try {
-                await deleteSubcategory({
-                  id: subcategoryId,
-                  profile_id: userId,
-                });
-                // refresh subcategories list for current selection
-                if (selectedCategory) {
-                  const subs = await listSubcategories({
+                try {
+                  await deleteSubcategory({
+                    id: subcategoryId,
                     profile_id: userId,
-                    category_id: selectedCategory.id,
                   });
-                  setSubcategories(subs);
-                }
-                if (editRuleSelectedCategory) {
-                  const editSubs = await listSubcategories({
-                    profile_id: userId,
-                    category_id: editRuleSelectedCategory.id,
-                  });
-                  setEditRuleSubcategories(editSubs);
-                }
+                  if (editRuleSelectedCategory) {
+                    const editSubs = await listSubcategories({
+                      profile_id: userId,
+                      category_id: editRuleSelectedCategory.id,
+                    });
+                    setEditRuleSubcategories(editSubs);
+                  }
 
-                // If deleted subcategory was selected, clear it
-                if (selectedSubcategory?.id === subcategoryId) {
-                  setSelectedSubcategory(null);
-                }
-                if (editRuleSelectedSubcategory?.id === subcategoryId) {
-                  setEditRuleSelectedSubcategory(null);
-                }
-              } catch (error) {
+                  if (editRuleSelectedSubcategory?.id === subcategoryId) {
+                    setEditRuleSelectedSubcategory(null);
+                  }
+                } catch (error) {
                 console.error("Error deleting subcategory:", error);
                 Alert.alert("Error", "Could not delete subcategory.");
               }
@@ -590,128 +465,11 @@ export default function HomeScreen() {
     },
     [
       userId,
-      selectedCategory,
       editRuleSelectedCategory,
-      selectedSubcategory,
       editRuleSelectedSubcategory,
     ],
   );
 
-  const canCreate = useMemo(() => {
-    const parsed = parseFloat(amount);
-    return (
-      !!userId &&
-      !!selectedAccount &&
-      !!selectedCategory &&
-      description.trim().length > 0 &&
-      Number.isFinite(parsed) &&
-      parsed > 0
-    );
-  }, [userId, selectedAccount, selectedCategory, amount, description]);
-
-  const createTransaction = useCallback(async () => {
-    if (!userId || !selectedAccount) return;
-
-    const parsed = parseFloat(amount.trim());
-    if (!Number.isFinite(parsed) || parsed <= 0) {
-      Alert.alert("Invalid amount", "Enter a valid amount greater than 0.");
-      return;
-    }
-    if (!description.trim()) {
-      Alert.alert("Missing description", "Enter a description.");
-      return;
-    }
-    if (!selectedCategory) return;
-
-    setIsLoading(true);
-
-    try {
-      let recurring_rule_id: number | null = null;
-      if (isRecurring) {
-        let finalNextRunDate = addRuleNextRunDate.trim();
-        // Fallback to calculation if field improperly formatted or empty
-        if (!finalNextRunDate) {
-          const fallbackDate = new Date();
-          if (recurringFrequency === "Daily") fallbackDate.setDate(fallbackDate.getDate() + 1);
-          else if (recurringFrequency === "Weekly") fallbackDate.setDate(fallbackDate.getDate() + 7);
-          else if (recurringFrequency === "Monthly") fallbackDate.setMonth(fallbackDate.getMonth() + 1);
-          else if (recurringFrequency === "Yearly") fallbackDate.setFullYear(fallbackDate.getFullYear() + 1);
-          finalNextRunDate = toLocalISOString(fallbackDate);
-        }
-
-        const ruleName =
-          description.trim() || `${selectedCategory.category_name} expense`;
-        const rule = await createRecurringRule({
-          profile_id: userId,
-          name: ruleName,
-          amount: parsed,
-          frequency: recurringFrequency,
-          end_date: addRuleEndsOn.trim() ? addRuleEndsOn.trim() : null,
-          next_run_date: finalNextRunDate,
-          is_active: true,
-          account_id: selectedAccount.id,
-          expense_categoryid: selectedCategory.id,
-          subcategory_id: selectedSubcategory ? selectedSubcategory.id : null,
-        });
-        recurring_rule_id = rule.id;
-      }
-
-      await addExpense({
-        profile_id: userId,
-        account_id: selectedAccount.id,
-        amount: parsed,
-        description: description.trim().length ? description.trim() : null,
-        expense_categoryid: selectedCategory.id,
-        subcategory_id: selectedSubcategory ? selectedSubcategory.id : null,
-        transaction_date: transactionDate || toLocalISOString(new Date()),
-        recurring_rule_id,
-      });
-
-      const latestAccount = await getAccountById({
-        id: selectedAccount.id,
-        profile_id: userId,
-      });
-      const balanceSource = latestAccount ?? selectedAccount;
-      const currentBalance = balanceSource.balance ?? 0;
-      const isCredit = balanceSource.account_type === "credit";
-      const nextBalance = isCredit
-        ? currentBalance + parsed
-        : currentBalance - parsed;
-
-      await updateAccount({
-        id: String(selectedAccount.id),
-        profile_id: userId,
-        update: { balance: nextBalance },
-      });
-
-      setAmount("");
-      setDescription("");
-      setSelectedSubcategory(null);
-      setIsRecurring(false);
-      setRecurringFrequency("Monthly");
-      setAddRuleEndsOn("");
-      setTransactionDate(toLocalISOString(new Date()));
-      setAddModalOpen(false);
-      await loadExpenses();
-      await loadAccounts();
-    } catch (error) {
-      console.error("Error creating transaction:", error);
-      Alert.alert("Could not create transaction", "Please try again.");
-    } finally {
-      setIsLoading(false);
-    }
-  }, [
-    userId,
-    selectedAccount,
-    amount,
-    selectedSubcategory,
-    selectedCategory,
-    description,
-    isRecurring,
-    recurringFrequency,
-    loadExpenses,
-    loadAccounts,
-  ]);
 
 
   const handleDeleteRule = useCallback(
@@ -1211,332 +969,20 @@ export default function HomeScreen() {
         <IconSymbol name="plus" size={32} color={ui.surface} />
       </Pressable>
 
-      <Modal
+      <AddTransactionModal
         visible={addModalOpen}
-        animationType="slide"
-        presentationStyle="pageSheet"
-        onRequestClose={() => setAddModalOpen(false)}
-      >
-        <ThemedView
-          style={{
-            flex: 1,
-            backgroundColor: ui.surface,
-            padding: 16,
-            paddingTop: Platform.OS === "ios" ? 12 : (16 + insets.top),
-            paddingBottom: 16 + insets.bottom,
-          }}
-        >
-          <View style={styles.modalHeader}>
-            <View style={styles.modalHeaderLeft} />
-            <ThemedText type="defaultSemiBold" style={styles.modalHeaderTitle}>Add Transaction</ThemedText>
-            <View style={styles.modalHeaderRight}>
-              <Pressable
-                onPress={() => setAddModalOpen(false)}
-                hitSlop={20}
-                style={[styles.modalCloseButton, { backgroundColor: isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.05)" }]}
-              >
-                <Feather name="x" size={18} color={ui.text} />
-              </Pressable>
-            </View>
-          </View>
-
-          <ScrollView contentContainerStyle={{ gap: 12, paddingBottom: 24 }}>
-            <View style={styles.fieldGroup}>
-              <ThemedText type="defaultSemiBold">Account</ThemedText>
-              <Pressable
-                onPress={() => setAccountModalOpen(true)}
-                style={[
-                  styles.dropdownButton,
-                  { borderColor: ui.border, backgroundColor: ui.surface2 },
-                ]}
-              >
-                <ThemedText>
-                  {selectedAccount?.account_name ?? "Select an account"}
-                </ThemedText>
-              </Pressable>
-            </View>
-
-            <DateTimePickerField
-              label="Transaction Date"
-              value={parseLocalDate(transactionDate)}
-              onChange={(date) => setTransactionDate(toLocalISOString(date))}
-              ui={ui}
-            />
-
-            <View style={styles.fieldGroup}>
-              <ThemedText type="defaultSemiBold">Category</ThemedText>
-              <Pressable
-                onPress={() => setCategoryModalOpen(true)}
-                style={[
-                  styles.dropdownButton,
-                  { borderColor: ui.border, backgroundColor: ui.surface2 },
-                ]}
-              >
-                <ThemedText>
-                  {selectedCategory?.category_name ?? "Select a category"}
-                </ThemedText>
-              </Pressable>
-            </View>
-
-            {/* Subcategory Picker Input */}
-            {selectedCategory && (
-              <View style={styles.fieldGroup}>
-                <ThemedText type="defaultSemiBold">Subcategory</ThemedText>
-                <Pressable
-                  onPress={() => setSubcategoryModalOpen(true)}
-                  style={[
-                    styles.dropdownButton,
-                    { borderColor: ui.border, backgroundColor: ui.surface2 },
-                  ]}
-                >
-                  <ThemedText>
-                    {selectedSubcategory?.category_name ?? "Select subcategory"}
-                  </ThemedText>
-                </Pressable>
-              </View>
-            )}
-
-            <View style={styles.fieldGroup}>
-              <ThemedText type="defaultSemiBold">Amount</ThemedText>
-              <TextInput
-                value={amount}
-                onChangeText={setAmount}
-                keyboardType="numeric"
-                placeholder="0.00"
-                placeholderTextColor={ui.mutedText}
-                style={[
-                  styles.input,
-                  {
-                    borderColor: ui.border,
-                    backgroundColor: ui.surface2,
-                    color: ui.text,
-                  },
-                ]}
-              />
-            </View>
-
-            <View style={styles.fieldGroup}>
-              <ThemedText type="defaultSemiBold">Description</ThemedText>
-              <TextInput
-                value={description}
-                onChangeText={setDescription}
-                placeholder="e.g. Grocery run"
-                placeholderTextColor={ui.mutedText}
-                style={[
-                  styles.input,
-                  {
-                    borderColor: ui.border,
-                    backgroundColor: ui.surface2,
-                    color: ui.text,
-                  },
-                ]}
-              />
-            </View>
-
-            <View
-              style={[
-                styles.fieldGroup,
-                {
-                  flexDirection: "row",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                },
-              ]}
-            >
-              <ThemedText type="defaultSemiBold">Make Recurring</ThemedText>
-              <Switch
-                value={isRecurring}
-                onValueChange={setIsRecurring}
-                trackColor={{ false: ui.border, true: "#34C759" }}
-              />
-            </View>
-
-            {isRecurring && (
-              <View style={styles.fieldGroup}>
-                <ThemedText type="defaultSemiBold">Frequency</ThemedText>
-                <Pressable
-                  onPress={() => setAddFrequencyModalOpen(true)}
-                  style={[
-                    styles.dropdownButton,
-                    { borderColor: ui.border, backgroundColor: ui.surface2 },
-                  ]}
-                >
-                  <ThemedText>{recurringFrequency}</ThemedText>
-                </Pressable>
-              </View>
-            )}
-
-            {isRecurring && (
-              <DateTimePickerField
-                label="Ends On (Optional)"
-                value={parseLocalDate(addRuleEndsOn)}
-                onChange={(date) => setAddRuleEndsOn(toLocalISOString(date))}
-                ui={ui}
-              />
-            )}
-
-            {isRecurring && (
-              <DateTimePickerField
-                label="Next Run Date"
-                value={parseLocalDate(addRuleNextRunDate)}
-                onChange={(date) => setAddRuleNextRunDate(toLocalISOString(date))}
-                ui={ui}
-              />
-            )}
-
-            <Pressable
-              onPress={createTransaction}
-              disabled={!canCreate || isLoading}
-              style={[
-                styles.button,
-                { borderColor: ui.border, backgroundColor: ui.text, borderRadius: 24 },
-                (!canCreate || isLoading) && styles.buttonDisabled,
-              ]}
-            >
-              <ThemedText type="defaultSemiBold" style={{ color: ui.surface }}>
-                Add transaction
-              </ThemedText>
-            </Pressable>
-          </ScrollView>
-        </ThemedView>
-      </Modal>
-
-      {/* Add Modal: Frequency Picker */}
-      <SelectionModal
-        visible={addFrequencyModalOpen}
-        onClose={() => setAddFrequencyModalOpen(false)}
-        title="Select Frequency"
+        onClose={() => setAddModalOpen(false)}
+        accounts={accounts}
+        categories={categories}
+        onRefresh={async () => {
+          await loadExpenses();
+          await loadAccounts();
+          await loadRecurringRules();
+        }}
         ui={ui}
-      >
-        {["Daily", "Weekly", "Monthly", "Yearly"].map((freq) => (
-          <Pressable
-            key={freq}
-            style={[styles.modalOption, { borderColor: ui.border, backgroundColor: ui.surface }]}
-            onPress={() => {
-              setRecurringFrequency(freq);
-              setAddFrequencyModalOpen(false);
-            }}
-          >
-            <ThemedText>{freq}</ThemedText>
-          </Pressable>
-        ))}
-      </SelectionModal>
-
-      {/* Add Modal: Account Picker */}
-      <SelectionModal
-        visible={accountModalOpen}
-        onClose={() => setAccountModalOpen(false)}
-        title="Select Account"
-        ui={ui}
-      >
-        {accounts.length === 0 ? (
-          <ThemedText style={{ textAlign: "center", padding: 20 }}>{isLoading ? "Loading…" : "No accounts yet."}</ThemedText>
-        ) : (
-          accounts.map((account) => (
-            <Pressable
-              key={account.id}
-              style={[styles.modalOption, { borderColor: ui.border, backgroundColor: ui.surface }]}
-              onPress={() => {
-                setSelectedAccount(account);
-                setAccountModalOpen(false);
-              }}
-            >
-              <View>
-                <ThemedText type="defaultSemiBold">{account.account_name ?? "Unnamed account"}</ThemedText>
-                <ThemedText type="default" style={{ fontSize: 13, color: ui.mutedText }}>
-                  {account.account_type ? account.account_type.charAt(0).toUpperCase() + account.account_type.slice(1) : "—"} {account.currency ?? ""}
-                </ThemedText>
-              </View>
-            </Pressable>
-          ))
-        )}
-      </SelectionModal>
-
-      {/* Add Modal: Category Picker */}
-      <SelectionModal
-        visible={categoryModalOpen}
-        onClose={() => setCategoryModalOpen(false)}
-        title="Select Category"
-        ui={ui}
-        footer={
-          <View style={styles.fieldGroup}>
-            <TextInput
-              value={newCategoryName}
-              onChangeText={setNewCategoryName}
-              placeholder="New category name"
-              placeholderTextColor={ui.mutedText}
-              style={[styles.input, { borderColor: ui.border, backgroundColor: ui.surface, color: ui.text }]}
-            />
-            <Pressable onPress={createCategory} style={[styles.button, { borderColor: ui.border, backgroundColor: ui.surface }]}>
-              <ThemedText type="defaultSemiBold">Add category</ThemedText>
-            </Pressable>
-          </View>
-        }
-      >
-        {categories.length === 0 ? (
-          <ThemedText style={{ textAlign: "center", padding: 20 }}>No categories yet.</ThemedText>
-        ) : (
-          categories.map((cat) => (
-            <View key={cat.id} style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-              <Pressable
-                style={[styles.modalOption, { borderColor: ui.border, backgroundColor: ui.surface, flex: 1 }]}
-                onPress={() => {
-                  setSelectedCategory(cat);
-                  setCategoryModalOpen(false);
-                }}
-              >
-                <ThemedText>{cat.category_name ?? "Unnamed category"}</ThemedText>
-              </Pressable>
-              <Pressable onPress={() => handleDeleteCategory(cat.id)} style={{ padding: 8 }}>
-                <IconSymbol name="trash" size={20} color="#FF3B30" />
-              </Pressable>
-            </View>
-          ))
-        )}
-      </SelectionModal>
-
-      {/* Add Modal: Subcategory Picker */}
-      <SelectionModal
-        visible={subcategoryModalOpen}
-        onClose={() => setSubcategoryModalOpen(false)}
-        title="Select Subcategory"
-        ui={ui}
-        footer={
-          <View style={styles.fieldGroup}>
-            <TextInput
-              value={newSubcategoryName}
-              onChangeText={setNewSubcategoryName}
-              placeholder="New subcategory name"
-              placeholderTextColor={ui.mutedText}
-              style={[styles.input, { borderColor: ui.border, backgroundColor: ui.surface, color: ui.text }]}
-            />
-            <Pressable onPress={createSubcategory} style={[styles.button, { borderColor: ui.border, backgroundColor: ui.surface }]}>
-              <ThemedText type="defaultSemiBold">Add subcategory</ThemedText>
-            </Pressable>
-          </View>
-        }
-      >
-        {subcategories.length === 0 ? (
-          <ThemedText style={{ textAlign: "center", padding: 20 }}>No subcategories found.</ThemedText>
-        ) : (
-          subcategories.map((sub) => (
-            <View key={sub.id} style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-              <Pressable
-                style={[styles.modalOption, { borderColor: ui.border, backgroundColor: ui.surface, flex: 1 }]}
-                onPress={() => {
-                  setSelectedSubcategory(sub);
-                  setSubcategoryModalOpen(false);
-                }}
-              >
-                <ThemedText>{sub.category_name ?? "Unnamed subcategory"}</ThemedText>
-              </Pressable>
-              <Pressable onPress={() => handleDeleteSubcategory(sub.id)} style={{ padding: 8 }}>
-                <IconSymbol name="trash" size={20} color="#FF3B30" />
-              </Pressable>
-            </View>
-          ))
-        )}
-      </SelectionModal>
+        isDark={isDark}
+        userId={userId}
+      />
 
       {/* Transaction Detail Modal */}
       <TransactionDetailModal

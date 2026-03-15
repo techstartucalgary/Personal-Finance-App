@@ -1,5 +1,6 @@
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
+import { SelectionModal } from "@/components/ui/SelectionModal";
 import { DateTimePickerField } from "@/components/ui/DateTimePickerField";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useAuthContext } from "@/hooks/use-auth-context";
@@ -604,85 +605,61 @@ export function BudgetsView({ filterAccountId = null, refreshKey = 0, createRequ
                         )}
                     </ScrollView>
 
-                    {/* ── Category picker overlay ──── */}
-                    {categoryPickerOpen && (
-                        <Pressable
-                            style={[StyleSheet.absoluteFill, { backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end", zIndex: 100 }]}
-                            onPress={() => setCategoryPickerOpen(false)}
-                        >
-                            <ThemedView
-                                style={[styles.pickerContent, { backgroundColor: ui.surface, borderColor: ui.border }]}
-                                onStartShouldSetResponder={() => true}
+                    {/* ── Category picker modal ──── */}
+                    <SelectionModal
+                        visible={categoryPickerOpen}
+                        onClose={() => setCategoryPickerOpen(false)}
+                        title="Select Category"
+                        ui={ui}
+                    >
+                        {categories.map((cat) => (
+                            <Pressable
+                                key={cat.id}
+                                onPress={() => {
+                                    setDraftCategoryId(cat.id);
+                                    setCategoryPickerOpen(false);
+                                }}
+                                style={({ pressed }) => [
+                                    styles.pickerOption,
+                                    {
+                                        backgroundColor: draftCategoryId === cat.id ? ui.surface2 : "transparent",
+                                        opacity: pressed ? 0.7 : 1,
+                                        borderColor: ui.border,
+                                    },
+                                ]}
                             >
-                                <View style={styles.pickerHeader}>
-                                    <ThemedText type="defaultSemiBold">Select Category</ThemedText>
-                                    <Pressable onPress={() => setCategoryPickerOpen(false)}>
-                                        <ThemedText style={{ color: "#007AFF" }}>Done</ThemedText>
-                                    </Pressable>
-                                </View>
-                                <ScrollView style={{ maxHeight: 300 }}>
-                                    {categories.map((cat) => (
-                                        <Pressable
-                                            key={cat.id}
-                                            onPress={() => {
-                                                setDraftCategoryId(cat.id);
-                                                setCategoryPickerOpen(false);
-                                            }}
-                                            style={({ pressed }) => [
-                                                styles.pickerOption,
-                                                {
-                                                    backgroundColor: draftCategoryId === cat.id ? ui.surface2 : "transparent",
-                                                    opacity: pressed ? 0.7 : 1,
-                                                    borderColor: ui.border,
-                                                },
-                                            ]}
-                                        >
-                                            <ThemedText>{cat.category_name}</ThemedText>
-                                        </Pressable>
-                                    ))}
-                                </ScrollView>
-                            </ThemedView>
-                        </Pressable>
-                    )}
+                                <ThemedText>{cat.category_name}</ThemedText>
+                            </Pressable>
+                        ))}
+                    </SelectionModal>
 
-                    {/* ── Period picker overlay ──── */}
-                    {periodPickerOpen && (
-                        <Pressable
-                            style={[StyleSheet.absoluteFill, { backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end", zIndex: 100 }]}
-                            onPress={() => setPeriodPickerOpen(false)}
-                        >
-                            <ThemedView
-                                style={[styles.pickerContent, { backgroundColor: ui.surface, borderColor: ui.border }]}
-                                onStartShouldSetResponder={() => true}
+                    {/* ── Period picker modal ──── */}
+                    <SelectionModal
+                        visible={periodPickerOpen}
+                        onClose={() => setPeriodPickerOpen(false)}
+                        title="Select Period"
+                        ui={ui}
+                    >
+                        {PERIOD_OPTIONS.map((p) => (
+                            <Pressable
+                                key={p}
+                                onPress={() => {
+                                    setDraftPeriod(p);
+                                    setPeriodPickerOpen(false);
+                                }}
+                                style={({ pressed }) => [
+                                    styles.pickerOption,
+                                    {
+                                        backgroundColor: draftPeriod === p ? ui.surface2 : "transparent",
+                                        opacity: pressed ? 0.7 : 1,
+                                        borderColor: ui.border,
+                                    },
+                                ]}
                             >
-                                <View style={styles.pickerHeader}>
-                                    <ThemedText type="defaultSemiBold">Select Period</ThemedText>
-                                    <Pressable onPress={() => setPeriodPickerOpen(false)}>
-                                        <ThemedText style={{ color: "#007AFF" }}>Done</ThemedText>
-                                    </Pressable>
-                                </View>
-                                {PERIOD_OPTIONS.map((p) => (
-                                    <Pressable
-                                        key={p}
-                                        onPress={() => {
-                                            setDraftPeriod(p);
-                                            setPeriodPickerOpen(false);
-                                        }}
-                                        style={({ pressed }) => [
-                                            styles.pickerOption,
-                                            {
-                                                backgroundColor: draftPeriod === p ? ui.surface2 : "transparent",
-                                                opacity: pressed ? 0.7 : 1,
-                                                borderColor: ui.border,
-                                            },
-                                        ]}
-                                    >
-                                        <ThemedText>{PERIOD_LABEL[p]}</ThemedText>
-                                    </Pressable>
-                                ))}
-                            </ThemedView>
-                        </Pressable>
-                    )}
+                                <ThemedText>{PERIOD_LABEL[p]}</ThemedText>
+                            </Pressable>
+                        ))}
+                    </SelectionModal>
                 </ThemedView>
             </Modal>
         </View>
@@ -761,19 +738,6 @@ const styles = StyleSheet.create({
         borderWidth: StyleSheet.hairlineWidth,
         borderStyle: "dashed",
         marginTop: 8,
-    },
-    pickerContent: {
-        borderTopLeftRadius: 24,
-        borderTopRightRadius: 24,
-        padding: 20,
-        borderTopWidth: 1,
-        paddingBottom: 40,
-    },
-    pickerHeader: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-        alignItems: "center",
-        marginBottom: 16,
     },
     pickerOption: {
         padding: 16,

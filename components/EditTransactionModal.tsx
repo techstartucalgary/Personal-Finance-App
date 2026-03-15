@@ -17,22 +17,23 @@ import { ThemedText } from "./themed-text";
 import { ThemedView } from "./themed-view";
 import { DateTimePickerField } from "./ui/DateTimePickerField";
 import { IconSymbol } from "./ui/icon-symbol";
+import { SelectionModal } from "./ui/SelectionModal";
 
-import { parseLocalDate, toLocalISOString } from "@/utils/date";
-import { updateExpense, deleteExpense } from "@/utils/expenses";
 import { getAccountById, updateAccount } from "@/utils/accounts";
+import {
+  addCategory,
+  addSubcategory,
+  deleteCategory,
+  deleteSubcategory,
+  listSubcategories,
+} from "@/utils/categories";
+import { parseLocalDate, toLocalISOString } from "@/utils/date";
+import { deleteExpense, updateExpense } from "@/utils/expenses";
 import {
   createRecurringRule,
   deleteRecurringRule,
   updateRecurringRule,
 } from "@/utils/recurring";
-import {
-  listSubcategories,
-  addSubcategory,
-  deleteSubcategory,
-  addCategory,
-  deleteCategory,
-} from "@/utils/categories";
 
 export type ExpenseRow = {
   id: string;
@@ -91,7 +92,7 @@ export function EditTransactionModal({
   userId,
 }: EditTransactionModalProps) {
   const insets = useSafeAreaInsets();
-  
+
   const [isLoading, setIsLoading] = useState(false);
   const [editAmount, setEditAmount] = useState("");
   const [editDescription, setEditDescription] = useState("");
@@ -100,7 +101,7 @@ export function EditTransactionModal({
   const [editSelectedCategory, setEditSelectedCategory] = useState<CategoryRow | null>(null);
   const [editSelectedSubcategory, setEditSelectedSubcategory] = useState<SubcategoryRow | null>(null);
   const [editSubcategories, setEditSubcategories] = useState<SubcategoryRow[]>([]);
-  
+
   const [editTransactionIsRecurring, setEditTransactionIsRecurring] = useState(false);
   const [editTransactionRecurringFrequency, setEditTransactionRecurringFrequency] = useState("Monthly");
   const [editTransactionRuleEndsOn, setEditTransactionRuleEndsOn] = useState("");
@@ -128,7 +129,7 @@ export function EditTransactionModal({
       const rule = expense.recurring_rule_id
         ? recurringRules.find((r) => r.id === expense.recurring_rule_id)
         : null;
-        
+
       if (rule) {
         setEditTransactionIsRecurring(true);
         setEditTransactionRecurringFrequency(rule.frequency || "Monthly");
@@ -728,175 +729,142 @@ export function EditTransactionModal({
           </Pressable>
         </ScrollView>
 
-        {/* Frequency Picker Overlay */}
-        {editFrequencyModalOpen && (
-          <Pressable
-            style={[styles.modalBackdrop, StyleSheet.absoluteFill, { backgroundColor: ui.backdrop, zIndex: 100 }]}
-            onPress={() => setEditFrequencyModalOpen(false)}
-          >
-            <Pressable style={[styles.modalCard, { backgroundColor: ui.surface2, borderColor: ui.border }]} onPress={() => {}}>
-              <ThemedText type="defaultSemiBold">Select Frequency</ThemedText>
-              {["Daily", "Weekly", "Monthly", "Yearly"].map((freq) => (
+        {/* Frequency Picker */}
+        <SelectionModal
+          visible={editFrequencyModalOpen}
+          onClose={() => setEditFrequencyModalOpen(false)}
+          title="Select Frequency"
+          ui={ui}
+        >
+          {["Daily", "Weekly", "Monthly", "Yearly"].map((freq) => (
+            <Pressable
+              key={freq}
+              style={[styles.modalOption, { borderColor: ui.border, backgroundColor: ui.surface }]}
+              onPress={() => {
+                setEditTransactionRecurringFrequency(freq);
+                setEditFrequencyModalOpen(false);
+              }}
+            >
+              <ThemedText>{freq}</ThemedText>
+            </Pressable>
+          ))}
+        </SelectionModal>
+
+        {/* Subcategory Picker */}
+        <SelectionModal
+          visible={editSubcategoryModalOpen}
+          onClose={() => setEditSubcategoryModalOpen(false)}
+          title="Select Subcategory"
+          ui={ui}
+          footer={
+            <View style={styles.fieldGroup}>
+              <TextInput
+                value={newSubcategoryName}
+                onChangeText={setNewSubcategoryName}
+                placeholder="New subcategory name"
+                placeholderTextColor={ui.mutedText}
+                style={[styles.input, { borderColor: ui.border, backgroundColor: ui.surface, color: ui.text }]}
+              />
+              <Pressable onPress={createEditSubcategory} style={[styles.button, { borderColor: ui.border, backgroundColor: ui.surface }]}>
+                <ThemedText type="defaultSemiBold">Add subcategory</ThemedText>
+              </Pressable>
+            </View>
+          }
+        >
+          {editSubcategories.length === 0 ? (
+            <ThemedText style={{ textAlign: "center", padding: 20 }}>No subcategories found.</ThemedText>
+          ) : (
+            editSubcategories.map((sub) => (
+              <View key={sub.id} style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
                 <Pressable
-                  key={freq}
-                  style={[styles.modalOption, { borderColor: ui.border, backgroundColor: ui.surface }]}
+                  style={[styles.modalOption, { borderColor: ui.border, backgroundColor: ui.surface, flex: 1 }]}
                   onPress={() => {
-                    setEditTransactionRecurringFrequency(freq);
-                    setEditFrequencyModalOpen(false);
+                    setEditSelectedSubcategory(sub);
+                    setEditSubcategoryModalOpen(false);
                   }}
                 >
-                  <ThemedText>{freq}</ThemedText>
+                  <ThemedText>{sub.category_name ?? "Unnamed subcategory"}</ThemedText>
                 </Pressable>
-              ))}
-              <Pressable
-                style={[styles.modalOption, styles.modalCancel, { borderColor: ui.border, backgroundColor: ui.surface }]}
-                onPress={() => setEditFrequencyModalOpen(false)}
-              >
-                <ThemedText>Cancel</ThemedText>
-              </Pressable>
-            </Pressable>
-          </Pressable>
-        )}
-
-        {/* Subcategory Picker Overlay */}
-        {editSubcategoryModalOpen && (
-          <Pressable
-            style={[styles.modalBackdrop, StyleSheet.absoluteFill, { backgroundColor: ui.backdrop, zIndex: 100 }]}
-            onPress={() => setEditSubcategoryModalOpen(false)}
-          >
-            <Pressable style={[styles.modalCard, { backgroundColor: ui.surface2, borderColor: ui.border }]} onPress={() => {}}>
-              <ThemedText type="defaultSemiBold">Select subcategory</ThemedText>
-              {editSubcategories.length === 0 ? (
-                <ThemedText>No subcategories found.</ThemedText>
-              ) : (
-                editSubcategories.map((sub) => (
-                  <View key={sub.id} style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                    <Pressable
-                      style={[styles.modalOption, { borderColor: ui.border, backgroundColor: ui.surface, flex: 1 }]}
-                      onPress={() => {
-                        setEditSelectedSubcategory(sub);
-                        setEditSubcategoryModalOpen(false);
-                      }}
-                    >
-                      <ThemedText>{sub.category_name ?? "Unnamed subcategory"}</ThemedText>
-                    </Pressable>
-                    <Pressable onPress={() => handleDeleteSubcategory(sub.id)} style={{ padding: 8 }}>
-                      <IconSymbol name="trash" size={20} color="#FF3B30" />
-                    </Pressable>
-                  </View>
-                ))
-              )}
-
-              <View style={styles.fieldGroup}>
-                <TextInput
-                  value={newSubcategoryName}
-                  onChangeText={setNewSubcategoryName}
-                  placeholder="New subcategory name"
-                  placeholderTextColor={ui.mutedText}
-                  style={[styles.input, { borderColor: ui.border, backgroundColor: ui.surface, color: ui.text }]}
-                />
-                <Pressable onPress={createEditSubcategory} style={[styles.button, { borderColor: ui.border, backgroundColor: ui.surface }]}>
-                  <ThemedText type="defaultSemiBold">Add subcategory</ThemedText>
+                <Pressable onPress={() => handleDeleteSubcategory(sub.id)} style={{ padding: 8 }}>
+                  <IconSymbol name="trash" size={20} color="#FF3B30" />
                 </Pressable>
               </View>
+            ))
+          )}
+        </SelectionModal>
 
+        {/* Account Picker */}
+        <SelectionModal
+          visible={editAccountModalOpen}
+          onClose={() => setEditAccountModalOpen(false)}
+          title="Select Account"
+          ui={ui}
+        >
+          {accounts.length === 0 ? (
+            <ThemedText>{isLoading ? "Loading…" : "No accounts yet."}</ThemedText>
+          ) : (
+            accounts.map((account) => (
               <Pressable
-                style={[styles.modalOption, styles.modalCancel, { borderColor: ui.border, backgroundColor: ui.surface }]}
-                onPress={() => setEditSubcategoryModalOpen(false)}
+                key={account.id}
+                style={[styles.modalOption, { borderColor: ui.border, backgroundColor: ui.surface }]}
+                onPress={() => {
+                  setEditSelectedAccount(account);
+                  setEditAccountModalOpen(false);
+                }}
               >
-                <ThemedText>Cancel</ThemedText>
+                <View>
+                  <ThemedText type="defaultSemiBold">{account.account_name ?? "Unnamed account"}</ThemedText>
+                  <ThemedText type="default" style={{ fontSize: 13, color: ui.mutedText }}>
+                    {account.account_type ? account.account_type.charAt(0).toUpperCase() + account.account_type.slice(1) : "—"} {account.currency ?? ""}
+                  </ThemedText>
+                </View>
               </Pressable>
-            </Pressable>
-          </Pressable>
-        )}
+            ))
+          )}
+        </SelectionModal>
 
-        {/* Account Picker Overlay */}
-        {editAccountModalOpen && (
-          <Pressable
-            style={[styles.modalBackdrop, StyleSheet.absoluteFill, { backgroundColor: ui.backdrop, zIndex: 100 }]}
-            onPress={() => setEditAccountModalOpen(false)}
-          >
-            <Pressable style={[styles.modalCard, { backgroundColor: ui.surface2, borderColor: ui.border }]} onPress={() => {}}>
-              <ThemedText type="defaultSemiBold">Select account</ThemedText>
-              {accounts.length === 0 ? (
-                <ThemedText>{isLoading ? "Loading…" : "No accounts yet."}</ThemedText>
-              ) : (
-                accounts.map((account) => (
-                  <Pressable
-                    key={account.id}
-                    style={[styles.modalOption, { borderColor: ui.border, backgroundColor: ui.surface }]}
-                    onPress={() => {
-                      setEditSelectedAccount(account);
-                      setEditAccountModalOpen(false);
-                    }}
-                  >
-                    <ThemedText>{account.account_name ?? "Unnamed account"}</ThemedText>
-                    <ThemedText type="default">
-                      {account.account_type ? account.account_type.charAt(0).toUpperCase() + account.account_type.slice(1) : "—"} {account.currency ?? ""}
-                    </ThemedText>
-                  </Pressable>
-                ))
-              )}
-              <Pressable
-                style={[styles.modalOption, styles.modalCancel, { borderColor: ui.border, backgroundColor: ui.surface }]}
-                onPress={() => setEditAccountModalOpen(false)}
-              >
-                <ThemedText>Cancel</ThemedText>
+        {/* Category Picker */}
+        <SelectionModal
+          visible={editCategoryModalOpen}
+          onClose={() => setEditCategoryModalOpen(false)}
+          title="Select Category"
+          ui={ui}
+          footer={
+            <View style={styles.fieldGroup}>
+              <TextInput
+                value={newCategoryName}
+                onChangeText={setNewCategoryName}
+                placeholder="New category name"
+                placeholderTextColor={ui.mutedText}
+                style={[styles.input, { borderColor: ui.border, backgroundColor: ui.surface, color: ui.text }]}
+              />
+              <Pressable onPress={createEditCategory} style={[styles.button, { borderColor: ui.border, backgroundColor: ui.surface }]}>
+                <ThemedText type="defaultSemiBold">Add category</ThemedText>
               </Pressable>
-            </Pressable>
-          </Pressable>
-        )}
-
-        {/* Category Picker Overlay */}
-        {editCategoryModalOpen && (
-          <Pressable
-            style={[styles.modalBackdrop, StyleSheet.absoluteFill, { backgroundColor: ui.backdrop, zIndex: 100 }]}
-            onPress={() => setEditCategoryModalOpen(false)}
-          >
-            <Pressable style={[styles.modalCard, { backgroundColor: ui.surface2, borderColor: ui.border }]} onPress={() => {}}>
-              <ThemedText type="defaultSemiBold">Select category</ThemedText>
-              {categories.length === 0 ? (
-                <ThemedText>No categories yet.</ThemedText>
-              ) : (
-                categories.map((cat) => (
-                  <View key={cat.id} style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                    <Pressable
-                      style={[styles.modalOption, { borderColor: ui.border, backgroundColor: ui.surface, flex: 1 }]}
-                      onPress={() => {
-                        setEditSelectedCategory(cat);
-                        setEditCategoryModalOpen(false);
-                      }}
-                    >
-                      <ThemedText>{cat.category_name ?? "Unnamed category"}</ThemedText>
-                    </Pressable>
-                    <Pressable onPress={() => handleDeleteCategory(cat.id)} style={{ padding: 8 }}>
-                      <IconSymbol name="trash" size={20} color="#FF3B30" />
-                    </Pressable>
-                  </View>
-                ))
-              )}
-
-              <View style={styles.fieldGroup}>
-                <TextInput
-                  value={newCategoryName}
-                  onChangeText={setNewCategoryName}
-                  placeholder="New category name"
-                  placeholderTextColor={ui.mutedText}
-                  style={[styles.input, { borderColor: ui.border, backgroundColor: ui.surface, color: ui.text }]}
-                />
-                <Pressable onPress={createEditCategory} style={[styles.button, { borderColor: ui.border, backgroundColor: ui.surface }]}>
-                  <ThemedText type="defaultSemiBold">Add category</ThemedText>
+            </View>
+          }
+        >
+          {categories.length === 0 ? (
+            <ThemedText>No categories yet.</ThemedText>
+          ) : (
+            categories.map((cat) => (
+              <View key={cat.id} style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                <Pressable
+                  style={[styles.modalOption, { borderColor: ui.border, backgroundColor: ui.surface, flex: 1 }]}
+                  onPress={() => {
+                    setEditSelectedCategory(cat);
+                    setEditCategoryModalOpen(false);
+                  }}
+                >
+                  <ThemedText>{cat.category_name ?? "Unnamed category"}</ThemedText>
+                </Pressable>
+                <Pressable onPress={() => handleDeleteCategory(cat.id)} style={{ padding: 8 }}>
+                  <IconSymbol name="trash" size={20} color="#FF3B30" />
                 </Pressable>
               </View>
-              <Pressable
-                style={[styles.modalOption, styles.modalCancel, { borderColor: ui.border, backgroundColor: ui.surface }]}
-                onPress={() => setEditCategoryModalOpen(false)}
-              >
-                <ThemedText>Cancel</ThemedText>
-              </Pressable>
-            </Pressable>
-          </Pressable>
-        )}
+            ))
+          )}
+        </SelectionModal>
       </ThemedView>
     </Modal>
   );

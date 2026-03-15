@@ -27,6 +27,7 @@ import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { DateTimePickerField } from "@/components/ui/DateTimePickerField";
 import { IconSymbol } from "@/components/ui/icon-symbol";
+import { SelectionModal } from "@/components/ui/SelectionModal";
 import { Tokens } from "@/constants/authTokens";
 import { useAuthContext } from "@/hooks/use-auth-context";
 import {
@@ -736,109 +737,82 @@ export default function AccountsScreen() {
       >
         <IconSymbol name="plus" size={32} color={ui.surface} />
       </Pressable>
-
       {/* Select Source Modal */}
-      {
-        addSourceModalOpen && (
-          <Pressable
-            style={[
-              styles.modalBackdrop,
-              StyleSheet.absoluteFill,
-              { backgroundColor: ui.backdrop, zIndex: 100 },
-            ]}
-            onPress={() => setAddSourceModalOpen(false)}
-          >
-            <Pressable
-              style={[
-                styles.modalCard,
-                { backgroundColor: ui.surface2, borderColor: ui.border },
-              ]}
-              onPress={() => { }}
-            >
-              <ThemedText type="defaultSemiBold" style={{ fontSize: 18, marginBottom: 8 }}>
-                Add Account
-              </ThemedText>
-              <ThemedText style={{ color: ui.mutedText, marginBottom: 20 }}>
-                How would you like to add your new account?
-              </ThemedText>
+      <SelectionModal
+        visible={addSourceModalOpen}
+        onClose={() => setAddSourceModalOpen(false)}
+        title="Add Account"
+        ui={ui}
+      >
+        <ThemedText style={{ color: ui.mutedText, marginBottom: 12, textAlign: "center" }}>
+          How would you like to add your new account?
+        </ThemedText>
 
-              <Pressable
-                style={[
-                  styles.modalOption,
-                  {
-                    borderColor: ui.border,
-                    backgroundColor: ui.surface,
-                    flexDirection: 'row',
-                    justifyContent: 'flex-start',
-                    paddingHorizontal: 16,
-                    paddingVertical: 14,
-                    gap: 12
-                  },
-                ]}
-                onPress={() => {
-                  setAddSourceModalOpen(false);
-                  setCreateModalOpen(true);
-                }}
-              >
-                <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: ui.surface2, alignItems: 'center', justifyContent: 'center' }}>
-                  <Feather name="edit-2" size={18} color={ui.text} />
-                </View>
-                <View>
-                  <ThemedText type="defaultSemiBold">Manual Account</ThemedText>
-                  <ThemedText style={{ color: ui.mutedText, fontSize: 13, marginTop: 2 }}>Enter transactions yourself</ThemedText>
-                </View>
-              </Pressable>
+        <Pressable
+          style={[
+            styles.modalOption,
+            {
+              borderColor: ui.border,
+              backgroundColor: ui.surface,
+              flexDirection: 'row',
+              justifyContent: 'flex-start',
+              paddingHorizontal: 16,
+              paddingVertical: 14,
+              gap: 12,
+              borderWidth: StyleSheet.hairlineWidth,
+            },
+          ]}
+          onPress={() => {
+            setAddSourceModalOpen(false);
+            setCreateModalOpen(true);
+          }}
+        >
+          <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: ui.surface2, alignItems: 'center', justifyContent: 'center' }}>
+            <Feather name="edit-2" size={18} color={ui.text} />
+          </View>
+          <View>
+            <ThemedText type="defaultSemiBold">Manual Account</ThemedText>
+            <ThemedText style={{ color: ui.mutedText, fontSize: 13, marginTop: 2 }}>Enter transactions yourself</ThemedText>
+          </View>
+        </Pressable>
 
-              <Pressable
-                style={[
-                  styles.modalOption,
-                  {
-                    borderColor: ui.border,
-                    backgroundColor: ui.surface,
-                    flexDirection: 'row',
-                    justifyContent: 'flex-start',
-                    paddingHorizontal: 16,
-                    paddingVertical: 14,
-                    gap: 12
-                  },
-                ]}
-                disabled={isConnecting}
-                onPress={() => {
-                  handleConnectBank({
-                    onBeforeOpen: () => setAddSourceModalOpen(false),
-                    onError: () => setAddSourceModalOpen(false)
-                  });
-                }}
-              >
-                <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: ui.accentSoft, alignItems: 'center', justifyContent: 'center' }}>
-                  {isConnecting ? (
-                    <ActivityIndicator size="small" color={ui.accent} />
-                  ) : (
-                    <Feather name="link" size={18} color={ui.accent} />
-                  )}
-                </View>
-                <View>
-                  <ThemedText type="defaultSemiBold">
-                    {isConnecting ? "Connecting..." : "Connect Bank"}
-                  </ThemedText>
-                  <ThemedText style={{ color: ui.mutedText, fontSize: 13, marginTop: 2 }}>Sync automatically via Plaid</ThemedText>
-                </View>
-              </Pressable>
-
-              <Pressable
-                style={[
-                  styles.modalOption,
-                  styles.modalCancel,
-                  { borderColor: "transparent", backgroundColor: "transparent", marginTop: 8 },
-                ]}
-                onPress={() => setAddSourceModalOpen(false)}
-              >
-                <ThemedText type="defaultSemiBold" style={{ color: ui.mutedText }}>Cancel</ThemedText>
-              </Pressable>
-            </Pressable>
-          </Pressable>
-        )
-      }
+        <Pressable
+          style={[
+            styles.modalOption,
+            {
+              borderColor: ui.border,
+              backgroundColor: ui.surface,
+              flexDirection: 'row',
+              justifyContent: 'flex-start',
+              paddingHorizontal: 16,
+              paddingVertical: 14,
+              gap: 12,
+              borderWidth: StyleSheet.hairlineWidth,
+            },
+          ]}
+          disabled={isConnecting}
+          onPress={() => {
+            handleConnectBank({
+              onBeforeOpen: () => setAddSourceModalOpen(false),
+              onError: () => setAddSourceModalOpen(false)
+            });
+          }}
+        >
+          <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: ui.accentSoft, alignItems: 'center', justifyContent: 'center' }}>
+            {isConnecting ? (
+              <ActivityIndicator size="small" color={ui.accent} />
+            ) : (
+              <Feather name="link" size={18} color={ui.accent} />
+            )}
+          </View>
+          <View>
+            <ThemedText type="defaultSemiBold">
+              {isConnecting ? "Connecting..." : "Connect Bank"}
+            </ThemedText>
+            <ThemedText style={{ color: ui.mutedText, fontSize: 13, marginTop: 2 }}>Sync automatically via Plaid</ThemedText>
+          </View>
+        </Pressable>
+      </SelectionModal>
 
       <Modal
         visible={createModalOpen}
@@ -1002,63 +976,38 @@ export default function AccountsScreen() {
             </Pressable>
           </ScrollView>
 
-          {/* Account Type Selection Modal (Add) - Overlay */}
-          {typeModalOpen && (
+          {/* Account Type Selection Modal (Add) */}
+          <SelectionModal
+            visible={typeModalOpen}
+            onClose={() => setTypeModalOpen(false)}
+            title="Select Account Type"
+            ui={ui}
+          >
             <Pressable
               style={[
-                styles.modalBackdrop,
-                StyleSheet.absoluteFill,
-                { backgroundColor: ui.backdrop, zIndex: 100 },
+                styles.modalOption,
+                { borderColor: ui.border, backgroundColor: ui.surface },
               ]}
-              onPress={() => setTypeModalOpen(false)}
+              onPress={() => {
+                setType("credit");
+                setTypeModalOpen(false);
+              }}
             >
-              <Pressable
-                style={[
-                  styles.modalCard,
-                  { backgroundColor: ui.surface2, borderColor: ui.border },
-                ]}
-                onPress={() => { }}
-              >
-                <ThemedText type="defaultSemiBold">
-                  Select account type
-                </ThemedText>
-                <Pressable
-                  style={[
-                    styles.modalOption,
-                    { borderColor: ui.border, backgroundColor: ui.surface },
-                  ]}
-                  onPress={() => {
-                    setType("credit");
-                    setTypeModalOpen(false);
-                  }}
-                >
-                  <ThemedText>Credit</ThemedText>
-                </Pressable>
-                <Pressable
-                  style={[
-                    styles.modalOption,
-                    { borderColor: ui.border, backgroundColor: ui.surface },
-                  ]}
-                  onPress={() => {
-                    setType("debit");
-                    setTypeModalOpen(false);
-                  }}
-                >
-                  <ThemedText>Debit</ThemedText>
-                </Pressable>
-                <Pressable
-                  style={[
-                    styles.modalOption,
-                    styles.modalCancel,
-                    { borderColor: ui.border, backgroundColor: ui.surface },
-                  ]}
-                  onPress={() => setTypeModalOpen(false)}
-                >
-                  <ThemedText>Cancel</ThemedText>
-                </Pressable>
-              </Pressable>
+              <ThemedText>Credit</ThemedText>
             </Pressable>
-          )}
+            <Pressable
+              style={[
+                styles.modalOption,
+                { borderColor: ui.border, backgroundColor: ui.surface },
+              ]}
+              onPress={() => {
+                setType("debit");
+                setTypeModalOpen(false);
+              }}
+            >
+              <ThemedText>Debit</ThemedText>
+            </Pressable>
+          </SelectionModal>
         </ThemedView>
       </Modal>
 

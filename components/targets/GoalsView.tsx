@@ -1,5 +1,6 @@
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
+import { SelectionModal } from "@/components/ui/SelectionModal";
 import { DateTimePickerField } from "@/components/ui/DateTimePickerField";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useAuthContext } from "@/hooks/use-auth-context";
@@ -507,60 +508,41 @@ export function GoalsView({ filterAccountId = null, refreshKey = 0, createReques
                         )}
                     </ScrollView>
 
-                    {/* Account Selection Overlay - Moved inside Create Modal to avoid iOS sibling modal issues */}
-                    {accountModalOpen && (
-                        <Pressable
-                            style={[
-                                StyleSheet.absoluteFill,
-                                { backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end", zIndex: 100 }
-                            ]}
-                            onPress={() => setAccountModalOpen(false)}
-                        >
-                            <ThemedView
-                                style={[
-                                    styles.accountPickerContent,
-                                    { backgroundColor: ui.surface, borderColor: ui.border },
+                    {/* Account Selection Modal */}
+                    <SelectionModal
+                        visible={accountModalOpen}
+                        onClose={() => setAccountModalOpen(false)}
+                        title="Select Account"
+                        ui={ui}
+                    >
+                        {accounts.map((account) => (
+                            <Pressable
+                                key={account.id}
+                                onPress={() => {
+                                    setSelectedAccount(account);
+                                    setAccountModalOpen(false);
+                                }}
+                                style={({ pressed }) => [
+                                    styles.accountOption,
+                                    {
+                                        backgroundColor:
+                                            selectedAccount?.id === account.id
+                                                ? ui.surface2
+                                                : "transparent",
+                                        opacity: pressed ? 0.7 : 1,
+                                        borderColor: ui.border,
+                                    },
                                 ]}
-                                onStartShouldSetResponder={() => true}
                             >
-                                <View style={styles.accountPickerHeader}>
-                                    <ThemedText type="defaultSemiBold">Select Account</ThemedText>
-                                    <Pressable onPress={() => setAccountModalOpen(false)}>
-                                        <ThemedText style={{ color: "#007AFF" }}>Done</ThemedText>
-                                    </Pressable>
-                                </View>
-                                <ScrollView style={{ maxHeight: 300 }}>
-                                    {accounts.map((account) => (
-                                        <Pressable
-                                            key={account.id}
-                                            onPress={() => {
-                                                setSelectedAccount(account);
-                                                setAccountModalOpen(false);
-                                            }}
-                                            style={({ pressed }) => [
-                                                styles.accountOption,
-                                                {
-                                                    backgroundColor:
-                                                        selectedAccount?.id === account.id
-                                                            ? ui.surface2
-                                                            : "transparent",
-                                                    opacity: pressed ? 0.7 : 1,
-                                                    borderColor: ui.border,
-                                                },
-                                            ]}
-                                        >
-                                            <ThemedText style={{ flexWrap: 'wrap', marginBottom: 2 }}>
-                                                {account.name}{account.isPlaid ? " (Plaid)" : ""}
-                                            </ThemedText>
-                                            <ThemedText style={{ fontSize: 12, opacity: 0.6 }}>
-                                                {account.type} • ${account.balance}
-                                            </ThemedText>
-                                        </Pressable>
-                                    ))}
-                                </ScrollView>
-                            </ThemedView>
-                        </Pressable>
-                    )}
+                                <ThemedText style={{ flexWrap: 'wrap', marginBottom: 2 }}>
+                                    {account.name}{account.isPlaid ? " (Plaid)" : ""}
+                                </ThemedText>
+                                <ThemedText style={{ fontSize: 12, opacity: 0.6 }}>
+                                    {account.type} • ${account.balance}
+                                </ThemedText>
+                            </Pressable>
+                        ))}
+                    </SelectionModal>
 
                     {/* Allocate Funds Overlay - Moved inside Create Modal to avoid iOS sibling modal issues */}
                     {allocationModalOpen && (
@@ -699,19 +681,6 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: "rgba(0,0,0,0.5)",
         justifyContent: "flex-end",
-    },
-    accountPickerContent: {
-        borderTopLeftRadius: 24,
-        borderTopRightRadius: 24,
-        padding: 20,
-        borderTopWidth: 1,
-        paddingBottom: 40,
-    },
-    accountPickerHeader: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-        alignItems: "center",
-        marginBottom: 16,
     },
     accountOption: {
         padding: 16,

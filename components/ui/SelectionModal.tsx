@@ -7,8 +7,12 @@ import {
   ScrollView,
   StyleSheet,
   View,
+  useColorScheme,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import Feather from "@expo/vector-icons/Feather";
 import { ThemedText } from "../themed-text";
+import { ThemedView } from "../themed-view";
 
 const { height: SCREEN_HEIGHT } = Dimensions.get("window");
 
@@ -23,9 +27,11 @@ interface SelectionModalProps {
     text: string;
     mutedText: string;
     backdrop: string;
+    accent?: string;
   };
   children: React.ReactNode;
   footer?: React.ReactNode;
+  layout?: 'list' | 'tags';
 }
 
 export function SelectionModal({
@@ -35,104 +41,118 @@ export function SelectionModal({
   ui,
   children,
   footer,
+  layout = 'list',
 }: SelectionModalProps) {
+  const insets = useSafeAreaInsets();
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === "dark";
+  const isIOS = Platform.OS === 'ios';
+
   return (
     <Modal
       visible={visible}
-      transparent={true}
-      animationType="fade"
+      transparent={!isIOS}
+      animationType="slide"
+      presentationStyle={isIOS ? "pageSheet" : undefined}
       onRequestClose={onClose}
     >
-      <Pressable
-        style={[styles.backdrop, { backgroundColor: ui.backdrop }]}
-        onPress={onClose}
+      <ThemedView
+        style={[
+          styles.container,
+          {
+            backgroundColor: ui.surface,
+            paddingTop: isIOS ? 12 : (insets.top + 16),
+            paddingBottom: insets.bottom + 16,
+          }
+        ]}
       >
-        <Pressable
-          style={[
-            styles.card,
-            {
-              backgroundColor: ui.surface2,
-              borderColor: ui.border
-            }
-          ]}
-          onPress={(e) => e.stopPropagation()}
-        >
-          <View style={[styles.header, { borderBottomColor: ui.border }]}>
-            <ThemedText type="defaultSemiBold" style={{ fontSize: 18 }}>{title}</ThemedText>
+        <View style={styles.header}>
+          <View style={styles.headerLeft} />
+          <ThemedText type="defaultSemiBold" style={styles.headerTitle}>{title}</ThemedText>
+          <View style={styles.headerRight}>
+            <Pressable
+              onPress={onClose}
+              hitSlop={20}
+              style={({ pressed }) => [
+                styles.closeButton,
+                {
+                  backgroundColor: isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.05)",
+                  opacity: pressed ? 0.7 : 1,
+                }
+              ]}
+            >
+              <Feather name="x" size={18} color={ui.text} />
+            </Pressable>
           </View>
+        </View>
 
-          <ScrollView
-            style={styles.scrollView}
-            contentContainerStyle={styles.scrollContent}
-            showsVerticalScrollIndicator={true}
-          >
-            {children}
-          </ScrollView>
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={[
+            styles.scrollContent,
+            layout === 'tags' && styles.tagsContent,
+            { paddingBottom: insets.bottom + 20 }
+          ]}
+          showsVerticalScrollIndicator={false}
+        >
+          {children}
+        </ScrollView>
 
-          {footer && (
-            <View style={[styles.footer, { borderTopColor: ui.border }]}>
-              {footer}
-            </View>
-          )}
-
-          <Pressable
-            style={[styles.cancelButton, { borderTopColor: ui.border }]}
-            onPress={onClose}
-          >
-            <ThemedText style={{ color: ui.text, fontWeight: "600" }}>Cancel</ThemedText>
-          </Pressable>
-        </Pressable>
-      </Pressable>
+        {footer && (
+          <View style={[styles.footer, { borderTopColor: ui.border, paddingBottom: insets.bottom + 16 }]}>
+            {footer}
+          </View>
+        )}
+      </ThemedView>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
-  backdrop: {
+  container: {
     flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 20,
-  },
-  card: {
-    width: "100%",
-    maxWidth: 400,
-    maxHeight: SCREEN_HEIGHT * 0.8,
-    borderRadius: 24,
-    borderWidth: 1,
-    overflow: "hidden",
-    ...Platform.select({
-      ios: {
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 10 },
-        shadowOpacity: 0.2,
-        shadowRadius: 20,
-      },
-      android: {
-        elevation: 10,
-      },
-    }),
   },
   header: {
-    padding: 20,
+    flexDirection: "row",
     alignItems: "center",
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  headerTitle: {
+    fontSize: 17,
+    flex: 1,
+    textAlign: "center",
+  },
+  headerLeft: {
+    width: 44,
+  },
+  headerRight: {
+    width: 44,
+    alignItems: "flex-end",
+  },
+  closeButton: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    alignItems: "center",
+    justifyContent: "center",
   },
   scrollView: {
-    maxHeight: SCREEN_HEIGHT * 0.5,
+    flex: 1,
   },
   scrollContent: {
-    padding: 16,
-    gap: 8,
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    gap: 12,
+  },
+  tagsContent: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
   },
   footer: {
     padding: 16,
-    borderTopWidth: StyleSheet.hairlineWidth,
-  },
-  cancelButton: {
-    padding: 16,
-    alignItems: "center",
-    justifyContent: "center",
     borderTopWidth: StyleSheet.hairlineWidth,
   },
 });

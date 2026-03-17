@@ -28,6 +28,16 @@ const MAPPING = {
   "chevron.left.forwardslash.chevron.right": "code",
   "chevron.right": "chevron-right",
   "arrow.triangle.2.circlepath": "repeat",
+  calendar: "calendar-today",
+  "calendar.badge.clock": "schedule",
+  "calendar.badge.minus": "event-busy",
+  creditcard: "payment",
+  tag: "local-offer",
+  "arrow.2.squarepath": "sync",
+  signature: "edit",
+  trash: "delete",
+  checkmark: "check",
+  pencil: "edit",
 } as IconMapping;
 
 const FEATHER_MAPPING: FeatherMapping = {

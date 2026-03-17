@@ -258,7 +258,7 @@ export function AddTransactionModal({
       setNewCategoryName("");
       setSelectedCategory(data as CategoryRow);
       await onRefresh();
-      setCategoryModalOpen(false);
+      // Keep modal open so user can see it's selected
     } catch (error) {
       console.error("Error creating category:", error);
       Alert.alert("Could not create category", "Please try again.");
@@ -314,7 +314,7 @@ export function AddTransactionModal({
         category_id: selectedCategory.id,
       });
       setSubcategories((subs as SubcategoryRow[]) ?? []);
-      setSubcategoryModalOpen(false);
+      // Keep modal open so user can see it's selected
     } catch (err) {
       console.error("Error creating subcategory", err);
       Alert.alert("Error", "Could not create subcategory.");
@@ -449,6 +449,14 @@ export function AddTransactionModal({
             <TextInput
               value={amount}
               onChangeText={setAmount}
+              onBlur={() => {
+                if (amount) {
+                  const parsed = parseFloat(amount);
+                  if (!isNaN(parsed)) {
+                    setAmount(parsed.toFixed(2));
+                  }
+                }
+              }}
               keyboardType="decimal-pad"
               placeholder="0.00"
               placeholderTextColor={ui.mutedText}
@@ -617,17 +625,27 @@ export function AddTransactionModal({
           onClose={() => setCategoryModalOpen(false)}
           title="Select Category"
           ui={ui}
+          layout="tags"
           footer={
-            <View style={styles.fieldGroup}>
+            <View style={styles.footerRow}>
               <TextInput
                 value={newCategoryName}
                 onChangeText={setNewCategoryName}
                 placeholder="New category name"
                 placeholderTextColor={ui.mutedText}
-                style={[styles.input, { borderColor: ui.border, backgroundColor: ui.surface, color: ui.text }]}
+                style={[styles.footerInput, { borderColor: ui.border, backgroundColor: ui.surface, color: ui.text }]}
               />
-              <Pressable onPress={createCategory} style={[styles.button, { borderColor: ui.border, backgroundColor: ui.surface }]}>
-                <ThemedText type="defaultSemiBold">Add category</ThemedText>
+              <Pressable
+                onPress={createCategory}
+                style={({ pressed }) => [
+                  styles.footerAddButton,
+                  {
+                    backgroundColor: ui.accent,
+                    opacity: pressed ? 0.7 : 1
+                  }
+                ]}
+              >
+                <IconSymbol name="plus" size={24} color={ui.surface} />
               </Pressable>
             </View>
           }
@@ -636,18 +654,32 @@ export function AddTransactionModal({
             <ThemedText style={{ textAlign: "center", padding: 20 }}>No categories yet.</ThemedText>
           ) : (
             categories.map((cat) => (
-              <View key={cat.id} style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+              <View
+                key={cat.id}
+                style={[
+                  styles.tag,
+                  {
+                    borderColor: ui.border,
+                    backgroundColor: selectedCategory?.id === cat.id ? ui.accentSoft : ui.surface2,
+                  }
+                ]}
+              >
                 <Pressable
-                  style={[styles.modalOption, { borderColor: ui.border, backgroundColor: ui.surface, flex: 1 }]}
+                  style={{ paddingVertical: 8, paddingLeft: 16, paddingRight: 8 }}
                   onPress={() => {
                     setSelectedCategory(cat);
                     setCategoryModalOpen(false);
                   }}
                 >
-                  <ThemedText>{cat.category_name ?? "Unnamed category"}</ThemedText>
+                  <ThemedText style={{ color: selectedCategory?.id === cat.id ? ui.accent : ui.text, fontWeight: '500' }}>
+                    {cat.category_name ?? "Unnamed"}
+                  </ThemedText>
                 </Pressable>
-                <Pressable onPress={() => handleDeleteCategory(cat.id)} style={{ padding: 8 }}>
-                  <IconSymbol name="trash" size={20} color="#FF3B30" />
+                <Pressable
+                  onPress={() => handleDeleteCategory(cat.id)}
+                  style={{ padding: 8, paddingRight: 10 }}
+                >
+                  <Feather name="x" size={16} color={ui.mutedText} />
                 </Pressable>
               </View>
             ))
@@ -660,17 +692,27 @@ export function AddTransactionModal({
           onClose={() => setSubcategoryModalOpen(false)}
           title="Select Subcategory"
           ui={ui}
+          layout="tags"
           footer={
-            <View style={styles.fieldGroup}>
+            <View style={styles.footerRow}>
               <TextInput
                 value={newSubcategoryName}
                 onChangeText={setNewSubcategoryName}
                 placeholder="New subcategory name"
                 placeholderTextColor={ui.mutedText}
-                style={[styles.input, { borderColor: ui.border, backgroundColor: ui.surface, color: ui.text }]}
+                style={[styles.footerInput, { borderColor: ui.border, backgroundColor: ui.surface, color: ui.text }]}
               />
-              <Pressable onPress={createSubcategory} style={[styles.button, { borderColor: ui.border, backgroundColor: ui.surface }]}>
-                <ThemedText type="defaultSemiBold">Add subcategory</ThemedText>
+              <Pressable
+                onPress={createSubcategory}
+                style={({ pressed }) => [
+                  styles.footerAddButton,
+                  {
+                    backgroundColor: ui.accent,
+                    opacity: pressed ? 0.7 : 1
+                  }
+                ]}
+              >
+                <IconSymbol name="plus" size={24} color={ui.surface} />
               </Pressable>
             </View>
           }
@@ -679,18 +721,32 @@ export function AddTransactionModal({
             <ThemedText style={{ textAlign: "center", padding: 20 }}>No subcategories found.</ThemedText>
           ) : (
             subcategories.map((sub) => (
-              <View key={sub.id} style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+              <View
+                key={sub.id}
+                style={[
+                  styles.tag,
+                  {
+                    borderColor: ui.border,
+                    backgroundColor: selectedSubcategory?.id === sub.id ? ui.accentSoft : ui.surface2,
+                  }
+                ]}
+              >
                 <Pressable
-                  style={[styles.modalOption, { borderColor: ui.border, backgroundColor: ui.surface, flex: 1 }]}
+                  style={{ paddingVertical: 8, paddingLeft: 16, paddingRight: 8 }}
                   onPress={() => {
                     setSelectedSubcategory(sub);
                     setSubcategoryModalOpen(false);
                   }}
                 >
-                  <ThemedText>{sub.category_name ?? "Unnamed subcategory"}</ThemedText>
+                  <ThemedText style={{ color: selectedSubcategory?.id === sub.id ? ui.accent : ui.text, fontWeight: '500' }}>
+                    {sub.category_name ?? "Unnamed"}
+                  </ThemedText>
                 </Pressable>
-                <Pressable onPress={() => handleDeleteSubcategory(sub.id)} style={{ padding: 8 }}>
-                  <IconSymbol name="trash" size={20} color="#FF3B30" />
+                <Pressable
+                  onPress={() => handleDeleteSubcategory(sub.id)}
+                  style={{ padding: 8, paddingRight: 10 }}
+                >
+                  <Feather name="x" size={16} color={ui.mutedText} />
                 </Pressable>
               </View>
             ))
@@ -740,10 +796,36 @@ const styles = StyleSheet.create({
   },
   button: {
     padding: 12,
-    borderRadius: 24,
+    borderRadius: 30,
     borderWidth: StyleSheet.hairlineWidth,
     alignItems: "center",
     justifyContent: "center",
+  },
+  footerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  footerInput: {
+    flex: 1,
+    padding: 12,
+    borderRadius: 16,
+    borderWidth: StyleSheet.hairlineWidth,
+    fontSize: 16,
+  },
+  footerAddButton: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  tag: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderRadius: 20,
+    borderWidth: StyleSheet.hairlineWidth,
+    overflow: "hidden",
   },
   buttonDisabled: {
     opacity: 0.5,

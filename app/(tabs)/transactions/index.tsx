@@ -359,7 +359,7 @@ export default function HomeScreen() {
         category_id: editRuleSelectedCategory.id,
       });
       setEditRuleSubcategories((subs as SubcategoryRow[]) ?? []);
-      setEditRuleSubcategoryModalOpen(false);
+      // Keep modal open so user can see it's selected
     } catch (err) {
       console.error("Error creating subcategory", err);
       Alert.alert("Error", "Could not create subcategory.");
@@ -384,7 +384,7 @@ export default function HomeScreen() {
       setNewCategoryName("");
       setEditRuleSelectedCategory(data as CategoryRow);
       await loadCategories();
-      setEditRuleCategoryModalOpen(false);
+      // Keep modal open so user can see it's selected
     } catch (error) {
       console.error("Error creating category:", error);
       Alert.alert("Could not create category", "Please try again.");
@@ -974,6 +974,7 @@ export default function HomeScreen() {
         onRefresh={async () => {
           await loadExpenses();
           await loadAccounts();
+          await loadCategories();
           await loadRecurringRules();
         }}
         ui={ui}
@@ -1005,6 +1006,7 @@ export default function HomeScreen() {
           onRefresh={async () => {
             await loadExpenses();
             await loadAccounts();
+            await loadCategories();
             await loadRecurringRules();
           }}
           ui={ui}
@@ -1241,17 +1243,27 @@ export default function HomeScreen() {
         onClose={() => setEditRuleCategoryModalOpen(false)}
         title="Select Category"
         ui={ui}
+        layout="tags"
         footer={
-          <View style={styles.fieldGroup}>
+          <View style={styles.footerRow}>
             <TextInput
               value={newCategoryName}
               onChangeText={setNewCategoryName}
               placeholder="New category name"
               placeholderTextColor={ui.mutedText}
-              style={[styles.input, { borderColor: ui.border, backgroundColor: ui.surface, color: ui.text }]}
+              style={[styles.footerInput, { borderColor: ui.border, backgroundColor: ui.surface, color: ui.text }]}
             />
-            <Pressable onPress={createEditCategory} style={[styles.button, { borderColor: ui.border, backgroundColor: ui.surface }]}>
-              <ThemedText type="defaultSemiBold">Add category</ThemedText>
+            <Pressable
+              onPress={createEditCategory}
+              style={({ pressed }) => [
+                styles.footerAddButton,
+                {
+                  backgroundColor: ui.accent,
+                  opacity: pressed ? 0.7 : 1
+                }
+              ]}
+            >
+              <IconSymbol name="plus" size={24} color={ui.surface} />
             </Pressable>
           </View>
         }
@@ -1260,19 +1272,33 @@ export default function HomeScreen() {
           <ThemedText style={{ textAlign: "center", padding: 20 }}>No categories yet.</ThemedText>
         ) : (
           categories.map((cat) => (
-            <View key={cat.id} style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+            <View
+              key={cat.id}
+              style={[
+                styles.tag,
+                {
+                  borderColor: ui.border,
+                  backgroundColor: editRuleSelectedCategory?.id === cat.id ? ui.accentSoft : ui.surface2,
+                }
+              ]}
+            >
               <Pressable
-                style={[styles.modalOption, { borderColor: ui.border, backgroundColor: ui.surface, flex: 1 }]}
+                style={{ paddingVertical: 8, paddingLeft: 16, paddingRight: 8 }}
                 onPress={() => {
                   setEditRuleSelectedCategory(cat);
                   setEditRuleSelectedSubcategory(null);
                   setEditRuleCategoryModalOpen(false);
                 }}
               >
-                <ThemedText>{cat.category_name ?? "Unnamed category"}</ThemedText>
+                <ThemedText style={{ color: editRuleSelectedCategory?.id === cat.id ? ui.accent : ui.text, fontWeight: '500' }}>
+                  {cat.category_name ?? "Unnamed"}
+                </ThemedText>
               </Pressable>
-              <Pressable onPress={() => handleDeleteCategory(cat.id)} style={{ padding: 8 }}>
-                <IconSymbol name="trash" size={20} color="#FF3B30" />
+              <Pressable
+                onPress={() => handleDeleteCategory(cat.id)}
+                style={{ padding: 8, paddingRight: 10 }}
+              >
+                <Feather name="x" size={16} color={ui.mutedText} />
               </Pressable>
             </View>
           ))
@@ -1285,17 +1311,27 @@ export default function HomeScreen() {
         onClose={() => setEditRuleSubcategoryModalOpen(false)}
         title="Select Subcategory"
         ui={ui}
+        layout="tags"
         footer={
-          <View style={styles.fieldGroup}>
+          <View style={styles.footerRow}>
             <TextInput
               value={newSubcategoryName}
               onChangeText={setNewSubcategoryName}
               placeholder="New subcategory name"
               placeholderTextColor={ui.mutedText}
-              style={[styles.input, { borderColor: ui.border, backgroundColor: ui.surface, color: ui.text }]}
+              style={[styles.footerInput, { borderColor: ui.border, backgroundColor: ui.surface, color: ui.text }]}
             />
-            <Pressable onPress={createEditSubcategory} style={[styles.button, { borderColor: ui.border, backgroundColor: ui.surface }]}>
-              <ThemedText type="defaultSemiBold">Add subcategory</ThemedText>
+            <Pressable
+              onPress={createEditSubcategory}
+              style={({ pressed }) => [
+                styles.footerAddButton,
+                {
+                  backgroundColor: ui.accent,
+                  opacity: pressed ? 0.7 : 1
+                }
+              ]}
+            >
+              <IconSymbol name="plus" size={24} color={ui.surface} />
             </Pressable>
           </View>
         }
@@ -1304,18 +1340,32 @@ export default function HomeScreen() {
           <ThemedText style={{ textAlign: "center", padding: 20 }}>No subcategories found.</ThemedText>
         ) : (
           editRuleSubcategories.map((sub) => (
-            <View key={sub.id} style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+            <View
+              key={sub.id}
+              style={[
+                styles.tag,
+                {
+                  borderColor: ui.border,
+                  backgroundColor: editRuleSelectedSubcategory?.id === sub.id ? ui.accentSoft : ui.surface2,
+                }
+              ]}
+            >
               <Pressable
-                style={[styles.modalOption, { borderColor: ui.border, backgroundColor: ui.surface, flex: 1 }]}
+                style={{ paddingVertical: 8, paddingLeft: 16, paddingRight: 8 }}
                 onPress={() => {
                   setEditRuleSelectedSubcategory(sub);
                   setEditRuleSubcategoryModalOpen(false);
                 }}
               >
-                <ThemedText>{sub.category_name ?? "Unnamed subcategory"}</ThemedText>
+                <ThemedText style={{ color: editRuleSelectedSubcategory?.id === sub.id ? ui.accent : ui.text, fontWeight: '500' }}>
+                  {sub.category_name ?? "Unnamed"}
+                </ThemedText>
               </Pressable>
-              <Pressable onPress={() => handleDeleteSubcategory(sub.id)} style={{ padding: 8 }}>
-                <IconSymbol name="trash" size={20} color="#FF3B30" />
+              <Pressable
+                onPress={() => handleDeleteSubcategory(sub.id)}
+                style={{ padding: 8, paddingRight: 10 }}
+              >
+                <Feather name="x" size={16} color={ui.mutedText} />
               </Pressable>
             </View>
           ))
@@ -1368,6 +1418,25 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingHorizontal: 12,
     paddingVertical: 10,
+  },
+  footerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  footerInput: {
+    flex: 1,
+    padding: 12,
+    borderRadius: 16,
+    borderWidth: StyleSheet.hairlineWidth,
+    fontSize: 16,
+  },
+  footerAddButton: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: "center",
+    justifyContent: "center",
   },
   dropdownButton: {
     borderWidth: StyleSheet.hairlineWidth,
@@ -1425,17 +1494,20 @@ const styles = StyleSheet.create({
   },
   fab: {
     position: "absolute",
-    right: 20,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    zIndex: 100,
     alignItems: "center",
     justifyContent: "center",
     shadowColor: "#000",
-    shadowOpacity: 0.3,
     shadowOffset: { width: 0, height: 4 },
-    shadowRadius: 6,
-    elevation: 6,
+    shadowOpacity: 0.3,
+    shadowRadius: 4.65,
+  },
+  tag: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderRadius: 20,
+    borderWidth: StyleSheet.hairlineWidth,
+    overflow: "hidden",
   },
   titleContainer: {
     flexDirection: "row",

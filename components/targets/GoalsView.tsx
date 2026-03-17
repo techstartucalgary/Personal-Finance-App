@@ -79,6 +79,8 @@ export function GoalsView({ filterAccountId = null, refreshKey = 0, createReques
             mutedText: isDark ? "rgba(235,235,245,0.6)" : "rgba(60,60,67,0.6)",
             backdrop: "rgba(0,0,0,0.45)",
             destructive: "#D32F2F",
+            accent: isDark ? "#10B981" : "#059669",
+            accentSoft: isDark ? "rgba(16,185,129,0.15)" : "rgba(5,150,105,0.1)",
         }),
         [isDark]
     );
@@ -527,19 +529,28 @@ export function GoalsView({ filterAccountId = null, refreshKey = 0, createReques
                                     {
                                         backgroundColor:
                                             selectedAccount?.id === account.id
-                                                ? ui.surface2
-                                                : "transparent",
+                                                ? ui.accentSoft
+                                                : ui.surface2,
                                         opacity: pressed ? 0.7 : 1,
                                         borderColor: ui.border,
+                                        flexDirection: 'row',
+                                        alignItems: 'center',
+                                        justifyContent: 'space-between',
+                                        borderRadius: 16,
                                     },
                                 ]}
                             >
-                                <ThemedText style={{ flexWrap: 'wrap', marginBottom: 2 }}>
-                                    {account.name}{account.isPlaid ? " (Plaid)" : ""}
-                                </ThemedText>
-                                <ThemedText style={{ fontSize: 12, opacity: 0.6 }}>
-                                    {account.type} • ${account.balance}
-                                </ThemedText>
+                                <View style={{ flex: 1 }}>
+                                    <ThemedText style={{ flexWrap: 'wrap', marginBottom: 2, color: selectedAccount?.id === account.id ? ui.accent : ui.text }}>
+                                        {account.name}{account.isPlaid ? " (Plaid)" : ""}
+                                    </ThemedText>
+                                    <ThemedText style={{ fontSize: 12, opacity: 0.6, color: selectedAccount?.id === account.id ? ui.accent : ui.text }}>
+                                        {account.type} • ${account.balance}
+                                    </ThemedText>
+                                </View>
+                                {selectedAccount?.id === account.id && (
+                                    <IconSymbol name="checkmark" size={18} color={ui.accent} />
+                                )}
                             </Pressable>
                         ))}
                     </SelectionModal>

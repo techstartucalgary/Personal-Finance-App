@@ -9,10 +9,9 @@ import {
   RefreshControl,
   ScrollView,
   StyleSheet,
-  Switch,
   TextInput,
   useColorScheme,
-  View,
+  View
 } from "react-native";
 
 import SegmentedControl from "@react-native-segmented-control/segmented-control";
@@ -24,14 +23,14 @@ import { ThemedView } from "@/components/themed-view";
 import { useTheme } from "react-native-paper";
 
 import { AddTransactionModal } from "@/components/AddTransactionModal";
-import { TransactionDetailModal } from "@/components/TransactionDetailModal";
 import { EditTransactionModal } from "@/components/EditTransactionModal";
+import { TransactionDetailModal } from "@/components/TransactionDetailModal";
 import { DateTimePickerField } from "@/components/ui/DateTimePickerField";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { SelectionModal } from "@/components/ui/SelectionModal";
 import { Tokens } from "@/constants/authTokens";
 import { useAuthContext } from "@/hooks/use-auth-context";
-import { getAccountById, listAccounts, updateAccount } from "@/utils/accounts";
+import { listAccounts } from "@/utils/accounts";
 import {
   addCategory,
   addSubcategory,
@@ -42,16 +41,14 @@ import {
 } from "@/utils/categories";
 import { parseLocalDate, toLocalISOString } from "@/utils/date";
 import {
-  addExpense,
-  listExpenses,
+  listExpenses
 } from "@/utils/expenses";
 import type { PlaidAccount, PlaidTransaction } from "@/utils/plaid";
 import { getPlaidAccounts, getPlaidTransactions } from "@/utils/plaid";
 import {
-  createRecurringRule,
   deleteRecurringRule,
   getRecurringRules,
-  updateRecurringRule,
+  updateRecurringRule
 } from "@/utils/recurring";
 
 import { useFocusEffect, useNavigation, useRouter } from "expo-router";
@@ -162,7 +159,7 @@ export default function HomeScreen() {
   const [editRuleSelectedCategory, setEditRuleSelectedCategory] = useState<CategoryRow | null>(null);
   const [editRuleSubcategories, setEditRuleSubcategories] = useState<SubcategoryRow[]>([]);
   const [editRuleSelectedSubcategory, setEditRuleSelectedSubcategory] = useState<SubcategoryRow | null>(null);
-  
+
   // Modal visibility for Recurring Rule Editing
   const [editRuleFrequencyModalOpen, setEditRuleFrequencyModalOpen] = useState(false);
   const [editRuleCategoryModalOpen, setEditRuleCategoryModalOpen] = useState(false);
@@ -406,15 +403,15 @@ export default function HomeScreen() {
             text: "Delete",
             style: "destructive",
             onPress: async () => {
-                try {
-                  await deleteCategory({ id: categoryId, profile_id: userId });
-                  await loadCategories();
-                  if (editRuleSelectedCategory?.id === categoryId) {
-                    setEditRuleSelectedCategory(null);
-                    setEditRuleSubcategories([]);
-                    setEditRuleSelectedSubcategory(null);
-                  }
-                } catch (error) {
+              try {
+                await deleteCategory({ id: categoryId, profile_id: userId });
+                await loadCategories();
+                if (editRuleSelectedCategory?.id === categoryId) {
+                  setEditRuleSelectedCategory(null);
+                  setEditRuleSubcategories([]);
+                  setEditRuleSelectedSubcategory(null);
+                }
+              } catch (error) {
                 console.error("Error deleting category:", error);
                 Alert.alert("Error", "Could not delete category.");
               }
@@ -438,23 +435,23 @@ export default function HomeScreen() {
             text: "Delete",
             style: "destructive",
             onPress: async () => {
-                try {
-                  await deleteSubcategory({
-                    id: subcategoryId,
+              try {
+                await deleteSubcategory({
+                  id: subcategoryId,
+                  profile_id: userId,
+                });
+                if (editRuleSelectedCategory) {
+                  const editSubs = await listSubcategories({
                     profile_id: userId,
+                    category_id: editRuleSelectedCategory.id,
                   });
-                  if (editRuleSelectedCategory) {
-                    const editSubs = await listSubcategories({
-                      profile_id: userId,
-                      category_id: editRuleSelectedCategory.id,
-                    });
-                    setEditRuleSubcategories(editSubs);
-                  }
+                  setEditRuleSubcategories(editSubs);
+                }
 
-                  if (editRuleSelectedSubcategory?.id === subcategoryId) {
-                    setEditRuleSelectedSubcategory(null);
-                  }
-                } catch (error) {
+                if (editRuleSelectedSubcategory?.id === subcategoryId) {
+                  setEditRuleSelectedSubcategory(null);
+                }
+              } catch (error) {
                 console.error("Error deleting subcategory:", error);
                 Alert.alert("Error", "Could not delete subcategory.");
               }
@@ -655,7 +652,7 @@ export default function HomeScreen() {
                     backgroundColor: isSelected
                       ? (isDark ? "#1F6F5B" : "#2A8A6E")
                       : ui.surface2,
-                    borderColor: isDark ? "rgba(140,242,209,0.3)" : "rgba(31,111,91,0.2)",
+                    borderColor: ui.border,
                   },
                 ]}
               >
@@ -815,7 +812,7 @@ export default function HomeScreen() {
                       style={({ pressed }) => [
                         styles.row,
                         {
-                          borderColor: isDark ? "rgba(140,242,209,0.2)" : "rgba(31,111,91,0.15)",
+                          borderColor: ui.border,
                           backgroundColor: ui.surface2,
                           opacity: pressed ? 0.7 : 1,
                         },
@@ -996,6 +993,7 @@ export default function HomeScreen() {
         onEdit={(expense) => {
           setEditingExpense(expense);
         }}
+        recurringRules={recurringRules}
       >
         <EditTransactionModal
           visible={!!editingExpense}

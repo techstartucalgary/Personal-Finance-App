@@ -42,6 +42,7 @@ interface TransactionDetailModalProps {
     transaction: ExpenseRow | PlaidTransaction | null;
     accounts?: AccountRow[];
     onEdit?: (expense: ExpenseRow) => void;
+    recurringRules?: any[];
     children?: React.ReactNode;
 }
 
@@ -51,6 +52,7 @@ export function TransactionDetailModal({
     transaction,
     accounts = [],
     onEdit,
+    recurringRules = [],
     children,
 }: TransactionDetailModalProps) {
     const insets = useSafeAreaInsets();
@@ -170,6 +172,17 @@ export function TransactionDetailModal({
                             },
                         ]
                             .filter(Boolean)
+                            .concat(
+                                !isPlaid && (transaction as ExpenseRow).recurring_rule_id
+                                    ? (() => {
+                                        const rule = recurringRules.find(r => r.id === (transaction as ExpenseRow).recurring_rule_id);
+                                        return rule ? [
+                                            { label: "Frequency", value: rule.frequency || "Monthly" },
+                                            { label: "Next Run", value: formatDate(rule.next_run_date) }
+                                        ] : [];
+                                    })()
+                                    : []
+                            )
                             .concat([{ label: "Source", value: isPlaid ? "Plaid Synchronization" : "Manual Transaction" }])
                             .map((row: any, index, array) => (
                                 <DetailRow

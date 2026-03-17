@@ -1,6 +1,7 @@
 import Feather from "@expo/vector-icons/Feather";
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
+  ActivityIndicator,
   Alert,
   Modal,
   Platform,
@@ -10,7 +11,6 @@ import {
   Switch,
   TextInput,
   View,
-  ActivityIndicator,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -93,6 +93,7 @@ export function EditTransactionModal({
   userId,
 }: EditTransactionModalProps) {
   const insets = useSafeAreaInsets();
+  const amountInputRef = useRef<TextInput>(null);
 
   const [isLoading, setIsLoading] = useState(false);
   const [editAmount, setEditAmount] = useState("");
@@ -118,7 +119,7 @@ export function EditTransactionModal({
   // Sync state when expense changes
   useEffect(() => {
     if (expense) {
-      setEditAmount(expense.amount?.toString() ?? "");
+      setEditAmount(expense.amount != null ? Number(expense.amount.toFixed(2)).toString() : "");
       setEditDescription(expense.description ?? "");
       setEditTransactionDate(expense.transaction_date || "");
 
@@ -543,65 +544,86 @@ export function EditTransactionModal({
         style={{
           flex: 1,
           backgroundColor: ui.surface,
-          padding: 16,
-          paddingTop: Platform.OS === "ios" ? 12 : (16 + insets.top),
-          paddingBottom: 16 + insets.bottom,
         }}
       >
-        <View style={styles.modalHeader}>
-          <View style={styles.modalHeaderLeft} />
+        <View style={[styles.modalHeader, { paddingTop: Platform.OS === "ios" ? 20 : (insets.top + 12) }]}>
+          <Pressable onPress={onClose} style={styles.headerButton}>
+            <ThemedText style={{ color: ui.accent, fontSize: 17 }}>Cancel</ThemedText>
+          </Pressable>
           <ThemedText type="defaultSemiBold" style={styles.modalHeaderTitle}>Edit Transaction</ThemedText>
-          <View style={styles.modalHeaderRight}>
-            <Pressable
-              onPress={onClose}
-              hitSlop={20}
-              style={[styles.modalCloseButton, { backgroundColor: isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.05)" }]}
-            >
-              <Feather name="x" size={18} color={ui.text} />
-            </Pressable>
-          </View>
+          <Pressable onPress={updateTransaction} disabled={isLoading} style={styles.headerButton}>
+            {isLoading ? (
+              <ActivityIndicator size="small" color={ui.accent} />
+            ) : (
+              <ThemedText style={{ color: ui.accent, fontSize: 17, fontWeight: "600" }}>Done</ThemedText>
+            )}
+          </Pressable>
         </View>
 
-        <ScrollView contentContainerStyle={{ gap: 12, paddingBottom: 24 }} showsVerticalScrollIndicator={false}>
-          <View style={styles.fieldGroup}>
-            <ThemedText type="defaultSemiBold">Account</ThemedText>
-            <Pressable
-              onPress={() => setEditAccountModalOpen(true)}
-              style={[
-                styles.dropdownButton,
-                { borderColor: ui.border, backgroundColor: ui.surface2 },
-              ]}
-            >
-              <ThemedText>
-                {editSelectedAccount?.account_name ?? "Select an account"}
-              </ThemedText>
-            </Pressable>
+        <ScrollView contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: insets.bottom + 40 }} showsVerticalScrollIndicator={false}>
+          {/* Amount Section */}
+          <Pressable
+            onPress={() => amountInputRef.current?.focus()}
+            style={[styles.amountContainer, { backgroundColor: ui.accentSoft, borderColor: ui.accent + '60' }]}
+          >
+            <ThemedText style={[styles.currencySymbol, { color: ui.accent }]}>$</ThemedText>
+            <TextInput
+              ref={amountInputRef}
+              value={editAmount}
+              onChangeText={setEditAmount}
+              keyboardType="decimal-pad"
+              placeholder="0.00"
+              placeholderTextColor={ui.accent + "80"}
+              style={[styles.amountInput, { color: ui.accent }]}
+            />
+          </Pressable>
+
+          <View style={styles.sectionHeader}>
+            <ThemedText style={[styles.sectionHeaderText, { color: ui.mutedText }]}>DETAILS</ThemedText>
           </View>
 
-          <DateTimePickerField
-            label="Transaction Date"
-            value={parseLocalDate(editTransactionDate)}
-            onChange={(date) => setEditTransactionDate(toLocalISOString(date))}
-            ui={ui}
-          />
-
-          <View style={styles.fieldGroup}>
-            <ThemedText type="defaultSemiBold">Category</ThemedText>
-            <Pressable
-              onPress={() => setEditCategoryModalOpen(true)}
-              style={[
-                styles.dropdownButton,
-                { borderColor: ui.border, backgroundColor: ui.surface2 },
-              ]}
-            >
-              <ThemedText>
-                {editSelectedCategory?.category_name ?? "Select a category"}
-              </ThemedText>
-            </Pressable>
+          <View style={[styles.groupCard, { backgroundColor: ui.surface2, borderColor: ui.border }]}>
+            <View style={styles.inputRow}>
+              <IconSymbol name="signature" size={20} color={ui.mutedText} />
+              <TextInput
+                value={editDescription}
+                onChangeText={setEditDescription}
+                placeholder="Description"
+                placeholderTextColor={ui.mutedText}
+                style={[styles.rowInput, { color: ui.text }]}
+              />
+            </View>
+            <View style={[styles.rowSeparator, { backgroundColor: ui.border }]} />
+            <DateTimePickerField
+              label="Date"
+              value={parseLocalDate(editTransactionDate)}
+              onChange={(date) => setEditTransactionDate(toLocalISOString(date))}
+              ui={ui}
+              icon="calendar"
+            />
           </View>
 
-          <View style={styles.fieldGroup}>
-            <ThemedText type="defaultSemiBold">Subcategory</ThemedText>
+          <View style={styles.sectionHeader}>
+            <ThemedText style={[styles.sectionHeaderText, { color: ui.mutedText }]}>ACCOUNT & CATEGORY</ThemedText>
+          </View>
+
+          <View style={[styles.groupCard, { backgroundColor: ui.surface2, borderColor: ui.border }]}>
+            <Pressable onPress={() => setEditAccountModalOpen(true)} style={styles.inputRow}>
+              <IconSymbol name="creditcard" size={20} color={ui.mutedText} />
+              <ThemedText style={[styles.rowValue, !editSelectedAccount && { color: ui.mutedText }]}>
+                {editSelectedAccount?.account_name ?? "Select Account"}
+              </ThemedText>
+              <Feather name="chevron-right" size={16} color={ui.mutedText} />
+            </Pressable>
+            <View style={[styles.rowSeparator, { backgroundColor: ui.border }]} />
+            <Pressable onPress={() => setEditCategoryModalOpen(true)} style={styles.inputRow}>
+              <IconSymbol name="tag" size={20} color={ui.mutedText} />
+              <ThemedText style={[styles.rowValue, !editSelectedCategory && { color: ui.mutedText }]}>
+                {editSelectedCategory?.category_name ?? "Select Category"}
+              </ThemedText>
+              <Feather name="chevron-right" size={16} color={ui.mutedText} />
+            </Pressable>
+            <View style={[styles.rowSeparator, { backgroundColor: ui.border }]} />
             <Pressable
               onPress={() => {
                 if (!editSelectedCategory) {
@@ -610,144 +632,74 @@ export function EditTransactionModal({
                 }
                 setEditSubcategoryModalOpen(true);
               }}
-              style={[
-                styles.dropdownButton,
-                { borderColor: ui.border, backgroundColor: ui.surface2 },
-                !editSelectedCategory && { opacity: 0.5 },
-              ]}
+              style={[styles.inputRow, !editSelectedCategory && { opacity: 0.5 }]}
             >
-              <ThemedText style={!editSelectedCategory ? { color: ui.mutedText } : undefined}>
-                {editSelectedSubcategory?.category_name ?? (editSelectedCategory ? "Select subcategory" : "Select category first")}
+              <IconSymbol name="list.bullet" size={20} color={ui.mutedText} />
+              <ThemedText style={[styles.rowValue, !editSelectedSubcategory && { color: ui.mutedText }]}>
+                {editSelectedSubcategory?.category_name ?? (editSelectedCategory ? "Select Subcategory" : "Category First")}
               </ThemedText>
+              <Feather name="chevron-right" size={16} color={ui.mutedText} />
             </Pressable>
           </View>
 
-          <View style={styles.fieldGroup}>
-            <ThemedText type="defaultSemiBold">Amount</ThemedText>
-            <TextInput
-              value={editAmount}
-              onChangeText={setEditAmount}
-              keyboardType="decimal-pad"
-              placeholder="0.00"
-              placeholderTextColor={ui.mutedText}
-              style={[
-                styles.input,
-                {
-                  borderColor: ui.border,
-                  backgroundColor: ui.surface2,
-                  color: ui.text,
-                },
-              ]}
-            />
+          <View style={styles.sectionHeader}>
+            <ThemedText style={[styles.sectionHeaderText, { color: ui.mutedText }]}>RECURRING</ThemedText>
           </View>
 
-          <View style={styles.fieldGroup}>
-            <ThemedText type="defaultSemiBold">Description</ThemedText>
-            <TextInput
-              value={editDescription}
-              onChangeText={setEditDescription}
-              placeholder="e.g. Grocery run"
-              placeholderTextColor={ui.mutedText}
-              style={[
-                styles.input,
-                {
-                  borderColor: ui.border,
-                  backgroundColor: ui.surface2,
-                  color: ui.text,
-                },
-              ]}
-            />
-          </View>
-
-          <View
-            style={[
-              styles.fieldGroup,
-              {
-                flexDirection: "row",
-                alignItems: "center",
-                justifyContent: "space-between",
-              },
-            ]}
-          >
-            <ThemedText type="defaultSemiBold">Make Recurring</ThemedText>
-            <Switch
-              value={editTransactionIsRecurring}
-              onValueChange={setEditTransactionIsRecurring}
-              trackColor={{ false: ui.border, true: "#34C759" }}
-            />
-          </View>
-
-          {editTransactionIsRecurring && (
-            <View style={styles.fieldGroup}>
-              <ThemedText type="defaultSemiBold">Frequency</ThemedText>
-              <Pressable
-                onPress={() => setEditFrequencyModalOpen(true)}
-                style={[
-                  styles.dropdownButton,
-                  { borderColor: ui.border, backgroundColor: ui.surface2 },
-                ]}
-              >
-                <ThemedText>{editTransactionRecurringFrequency}</ThemedText>
-              </Pressable>
+          <View style={[styles.groupCard, { backgroundColor: ui.surface2, borderColor: ui.border }]}>
+            <View style={styles.inputRow}>
+              <IconSymbol name="arrow.2.squarepath" size={20} color={ui.mutedText} />
+              <ThemedText style={styles.rowLabel}>Repeat Transaction</ThemedText>
+              <Switch
+                value={editTransactionIsRecurring}
+                onValueChange={setEditTransactionIsRecurring}
+                trackColor={{ false: ui.border, true: "#34C759" }}
+              />
             </View>
-          )}
-
-          {editTransactionIsRecurring && (
-            <DateTimePickerField
-              label="Next Run Date"
-              value={parseLocalDate(editTransactionRuleNextRunDate)}
-              onChange={(date) => setEditTransactionRuleNextRunDate(toLocalISOString(date))}
-              ui={ui}
-            />
-          )}
-
-          {editTransactionIsRecurring && (
-            <DateTimePickerField
-              label="Ends On (Optional)"
-              value={parseLocalDate(editTransactionRuleEndsOn)}
-              onChange={(date) => setEditTransactionRuleEndsOn(toLocalISOString(date))}
-              ui={ui}
-            />
-          )}
-
-          <Pressable
-            onPress={updateTransaction}
-            disabled={isLoading}
-            style={[
-              styles.button,
-              {
-                backgroundColor: ui.text,
-                borderColor: ui.border,
-                alignSelf: "center",
-                width: "100%",
-                alignItems: "center",
-                paddingVertical: 12,
-                borderRadius: 24,
-                marginTop: 16,
-              },
-              isLoading && styles.buttonDisabled,
-            ]}
-          >
-            {isLoading ? (
-              <ActivityIndicator color={ui.surface} />
-            ) : (
-              <ThemedText type="defaultSemiBold" style={{ color: ui.surface }}>
-                Save changes
-              </ThemedText>
+            {editTransactionIsRecurring && (
+              <>
+                <View style={[styles.rowSeparator, { backgroundColor: ui.border }]} />
+                <Pressable onPress={() => setEditFrequencyModalOpen(true)} style={styles.inputRow}>
+                  <IconSymbol name="arrow.triangle.2.circlepath" size={20} color={ui.mutedText} />
+                  <ThemedText style={styles.rowLabel}>Frequency</ThemedText>
+                  <ThemedText style={{ color: ui.accent }}>{editTransactionRecurringFrequency}</ThemedText>
+                  <Feather name="chevron-right" size={16} color={ui.mutedText} style={{ marginLeft: 4 }} />
+                </Pressable>
+                <View style={[styles.rowSeparator, { backgroundColor: ui.border }]} />
+                <DateTimePickerField
+                  label="Next Run"
+                  value={parseLocalDate(editTransactionRuleNextRunDate)}
+                  onChange={(date) => setEditTransactionRuleNextRunDate(toLocalISOString(date))}
+                  ui={ui}
+                  icon="calendar.badge.clock"
+                />
+                <View style={[styles.rowSeparator, { backgroundColor: ui.border }]} />
+                <DateTimePickerField
+                  label="Ends On"
+                  value={parseLocalDate(editTransactionRuleEndsOn)}
+                  onChange={(date) => setEditTransactionRuleEndsOn(toLocalISOString(date))}
+                  ui={ui}
+                  icon="calendar.badge.minus"
+                  placeholder="Optional"
+                />
+              </>
             )}
-          </Pressable>
+          </View>
 
           <Pressable
             onPress={deleteTransaction}
             disabled={isLoading}
             style={[
-              styles.deleteAction,
-              { borderColor: ui.border, backgroundColor: ui.surface2 },
-              isLoading && styles.buttonDisabled,
+              styles.deleteButton,
+              {
+                borderColor: ui.border,
+                backgroundColor: ui.surface2,
+                marginTop: 32,
+              },
             ]}
           >
-            <ThemedText style={{ color: ui.danger, fontWeight: "600" }}>
-              Delete transaction
+            <ThemedText type="defaultSemiBold" style={{ color: ui.danger }}>
+              Delete Transaction
             </ThemedText>
           </Pressable>
         </ScrollView>
@@ -765,6 +717,17 @@ export function EditTransactionModal({
               style={[styles.modalOption, { borderColor: ui.border, backgroundColor: ui.surface }]}
               onPress={() => {
                 setEditTransactionRecurringFrequency(freq);
+                
+                // Automatically calculate next run date
+                const baseDate = editTransactionDate ? parseLocalDate(editTransactionDate) : new Date();
+                const nextDate = new Date(baseDate);
+                
+                if (freq === "Daily") nextDate.setDate(nextDate.getDate() + 1);
+                else if (freq === "Weekly") nextDate.setDate(nextDate.getDate() + 7);
+                else if (freq === "Monthly") nextDate.setMonth(nextDate.getMonth() + 1);
+                else if (freq === "Yearly") nextDate.setFullYear(nextDate.getFullYear() + 1);
+                
+                setEditTransactionRuleNextRunDate(toLocalISOString(nextDate));
                 setEditFrequencyModalOpen(false);
               }}
             >
@@ -898,28 +861,102 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingVertical: 12,
-    marginBottom: 8,
+    paddingTop: Platform.OS === "ios" ? 20 : 12, // More space for the drag bar on iOS
+    paddingBottom: 12,
+    paddingHorizontal: 12,
   },
   modalHeaderTitle: {
     fontSize: 17,
-    flex: 1,
-    textAlign: "center",
+    fontWeight: "700",
   },
-  modalHeaderLeft: { width: 44 },
-  modalHeaderRight: { width: 44, alignItems: "flex-end" },
-  modalCloseButton: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
+  headerButton: {
+    paddingHorizontal: 8,
+    minWidth: 60,
+  },
+  amountContainer: {
+    flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
+    paddingVertical: 32,
+    borderRadius: 24,
+    marginBottom: 24,
+    borderWidth: StyleSheet.hairlineWidth,
   },
-  dropdownButton: {
-    padding: 12,
+  currencySymbol: {
+    fontSize: 48,
+    fontWeight: "800",
+    marginRight: 4,
+    lineHeight: 56,
+    paddingVertical: 8,
+    includeFontPadding: false,
+  },
+  amountInput: {
+    fontSize: 48,
+    fontWeight: "800",
+    lineHeight: 56,
+    paddingVertical: 8,
+  },
+  sectionHeader: {
+    paddingHorizontal: 4,
+    marginBottom: 10,
+    marginTop: 8,
+  },
+  sectionHeaderText: {
+    fontSize: 12,
+    fontWeight: "700",
+    letterSpacing: 1.2,
+    opacity: 0.6,
+  },
+  groupCard: {
+    borderRadius: 24,
+    borderWidth: StyleSheet.hairlineWidth,
+    overflow: "hidden",
+  },
+  inputRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    gap: 12,
+  },
+  rowLabel: {
+    flex: 1,
+    fontSize: 16,
+  },
+  rowValue: {
+    flex: 1,
+    fontSize: 16,
+    textAlign: "right",
+    marginRight: 8,
+  },
+  rowInput: {
+    flex: 1,
+    fontSize: 16,
+    padding: 0,
+  },
+  rowSeparator: {
+    height: StyleSheet.hairlineWidth,
+    marginLeft: 48,
+  },
+  deleteButton: {
+    alignSelf: "center",
+    width: "100%",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 12,
+    borderRadius: 24,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  modalOption: {
+    padding: 16,
     borderRadius: 12,
     borderWidth: StyleSheet.hairlineWidth,
-    justifyContent: "center",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  fieldGroup: {
+    gap: 6,
   },
   input: {
     padding: 12,
@@ -933,44 +970,5 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     alignItems: "center",
     justifyContent: "center",
-  },
-  buttonDisabled: {
-    opacity: 0.5,
-  },
-  deleteAction: {
-    padding: 12,
-    alignItems: "center",
-    justifyContent: "center",
-    marginTop: 8,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: 24,
-  },
-  modalBackdrop: {
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 24,
-  },
-  modalCard: {
-    width: "100%",
-    borderRadius: 24,
-    padding: 20,
-    gap: 12,
-    borderWidth: StyleSheet.hairlineWidth,
-    maxHeight: "80%",
-  },
-  modalOption: {
-    padding: 16,
-    borderRadius: 12,
-    borderWidth: StyleSheet.hairlineWidth,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  modalCancel: {
-    marginTop: 4,
-    justifyContent: "center",
-  },
-  fieldGroup: {
-    gap: 6,
   },
 });

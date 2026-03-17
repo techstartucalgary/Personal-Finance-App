@@ -106,6 +106,7 @@ export function EditTransactionModal({
 
   const [editTransactionIsRecurring, setEditTransactionIsRecurring] = useState(false);
   const [editTransactionRecurringFrequency, setEditTransactionRecurringFrequency] = useState("Monthly");
+  const [editTransactionHasEndDate, setEditTransactionHasEndDate] = useState(false);
   const [editTransactionRuleEndsOn, setEditTransactionRuleEndsOn] = useState("");
   const [editTransactionRuleNextRunDate, setEditTransactionRuleNextRunDate] = useState("");
 
@@ -135,11 +136,13 @@ export function EditTransactionModal({
       if (rule) {
         setEditTransactionIsRecurring(true);
         setEditTransactionRecurringFrequency(rule.frequency || "Monthly");
+        setEditTransactionHasEndDate(!!rule.end_date);
         setEditTransactionRuleEndsOn(rule.end_date || "");
         setEditTransactionRuleNextRunDate(rule.next_run_date || "");
       } else {
         setEditTransactionIsRecurring(false);
         setEditTransactionRecurringFrequency("Monthly");
+        setEditTransactionHasEndDate(false);
         setEditTransactionRuleEndsOn("");
         setEditTransactionRuleNextRunDate("");
       }
@@ -222,7 +225,7 @@ export function EditTransactionModal({
           name: ruleName,
           amount: parsed,
           frequency: editTransactionRecurringFrequency,
-          end_date: editTransactionRuleEndsOn.trim() ? editTransactionRuleEndsOn.trim() : null,
+          end_date: (editTransactionIsRecurring && editTransactionHasEndDate && editTransactionRuleEndsOn.trim()) ? editTransactionRuleEndsOn.trim() : null,
           next_run_date: finalNextRunDate,
           is_active: true,
           account_id: editSelectedAccount.id,
@@ -261,7 +264,7 @@ export function EditTransactionModal({
           update: {
             frequency: editTransactionRecurringFrequency as any,
             next_run_date: editTransactionRuleNextRunDate.trim() || undefined,
-            end_date: editTransactionRuleEndsOn.trim() ? editTransactionRuleEndsOn.trim() : null,
+            end_date: (editTransactionIsRecurring && editTransactionHasEndDate && editTransactionRuleEndsOn.trim()) ? editTransactionRuleEndsOn.trim() : null,
           },
         });
       }
@@ -688,14 +691,36 @@ export function EditTransactionModal({
                   icon="calendar.badge.clock"
                 />
                 <View style={[styles.rowSeparator, { backgroundColor: ui.border }]} />
-                <DateTimePickerField
-                  label="Ends On"
-                  value={parseLocalDate(editTransactionRuleEndsOn)}
-                  onChange={(date) => setEditTransactionRuleEndsOn(toLocalISOString(date))}
-                  ui={ui}
-                  icon="calendar.badge.minus"
-                  placeholder="Optional"
-                />
+                <View style={styles.inputRow}>
+                  <IconSymbol name="calendar.badge.minus" size={20} color={ui.mutedText} />
+                  <ThemedText style={styles.rowLabel}>Ends</ThemedText>
+                  <Switch
+                    value={editTransactionHasEndDate}
+                    onValueChange={(val) => {
+                      setEditTransactionHasEndDate(val);
+                      if (val) {
+                        setEditTransactionRuleEndsOn(editTransactionRuleNextRunDate);
+                      } else {
+                        setEditTransactionRuleEndsOn("");
+                      }
+                    }}
+                    trackColor={{ false: ui.border, true: "#34C759" }}
+                  />
+                </View>
+
+                {editTransactionHasEndDate && (
+                  <>
+                    <View style={[styles.rowSeparator, { backgroundColor: ui.border }]} />
+                    <DateTimePickerField
+                      label="Ends On"
+                      value={parseLocalDate(editTransactionRuleEndsOn)}
+                      onChange={(date) => setEditTransactionRuleEndsOn(toLocalISOString(date))}
+                      ui={ui}
+                      icon="calendar"
+                      placeholder="Select Date"
+                    />
+                  </>
+                )}
               </>
             )}
           </View>

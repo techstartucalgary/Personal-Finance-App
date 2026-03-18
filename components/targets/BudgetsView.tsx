@@ -14,6 +14,8 @@ import {
     getCategorySpending,
     listCategoryBudgets,
 } from "@/utils/categoryBudgets";
+import { listExpenses } from "@/utils/expenses";
+import { supabase } from "@/utils/supabase";
 import { parseLocalDate, toLocalISOString } from "@/utils/date";
 import Feather from "@expo/vector-icons/Feather";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
@@ -150,48 +152,62 @@ export function BudgetsView({ filterAccountId = null, refreshKey = 0, createRequ
         new Intl.NumberFormat("en-CA", { style: "currency", currency: "CAD" }).format(n);
 
     // ── Data loading ───────────────────────────────
-    const loadData = useCallback(async () => {
+    const loadData = useCallback(async (silent = false) => {
         if (!userId) return;
-        setIsLoading(true);
+        
+        const hasData = budgets.length > 0;
+        if (!silent && !hasData) setIsLoading(true);
+
         try {
-            const [budgetRows, catRows] = await Promise.all([
+            // 1. Fetch metadata in parallel
+            const [budgetRows, catRows, allExpenses, cbResp] = await Promise.all([
                 listBudgets({ profile_id: userId }),
                 listCategories({ profile_id: userId }),
+                listExpenses({ profile_id: userId }),
+                supabase.from("Expense_category_budget").select("*")
             ]);
-            setCategories(catRows as CategoryRow[]);
 
-            const enriched: BudgetWithCategories[] = await Promise.all(
-                (budgetRows as BudgetRow[]).map(async (b) => {
-                    const cbRows = await listCategoryBudgets({ budget_id: b.id });
-                    const withSpending = await Promise.all(
-                        cbRows.map(async (cb) => {
-                            const spent = await getCategorySpending({
-                                profile_id: userId,
-                                expense_category_id: cb.expense_category_id,
-                                start_date: b.start_date,
-                                end_date: b.end_date,
-                                account_id: filterAccountId,
-                            });
-                            const cat = (catRows as CategoryRow[]).find(
-                                (c) => c.id === cb.expense_category_id,
-                            );
-                            return {
-                                ...cb,
-                                spent,
-                                category_name: cat?.category_name ?? "Unknown",
-                            };
-                        }),
-                    );
-                    return { ...b, categoryBudgets: withSpending };
-                }),
-            );
+            if (cbResp.error) throw cbResp.error;
+
+            const bRows = budgetRows as BudgetRow[];
+            const cRows = catRows as CategoryRow[];
+            const eRows = (allExpenses as any[]) || [];
+            const linkRows = (cbResp.data as CategoryBudgetRow[]) || [];
+
+            setCategories(cRows);
+
+            // 2. Build enriched budgets in memory
+            const enriched: BudgetWithCategories[] = bRows.map((b) => {
+                // Filter links for this budget
+                const relevantLinks = linkRows.filter(link => link.budget_id === b.id);
+                
+                const withSpending = relevantLinks.map((cb) => {
+                    // Calculate spending locally to avoid N+1 queries
+                    const spent = eRows.filter((ex: any) => {
+                        const dateToUse = ex.transaction_date || ex.created_at?.split("T")[0];
+                        const inDateRange = dateToUse >= b.start_date && dateToUse <= b.end_date;
+                        const matchesCategory = Number(ex.expense_categoryid) === Number(cb.expense_category_id);
+                        const matchesAccount = filterAccountId === null || Number(ex.account_id) === Number(filterAccountId);
+                        return inDateRange && matchesCategory && matchesAccount;
+                    }).reduce((sum, ex: any) => sum + (ex.amount ?? 0), 0);
+
+                    const cat = cRows.find((c) => c.id === cb.expense_category_id);
+                    return {
+                        ...cb,
+                        spent,
+                        category_name: cat?.category_name ?? "Unknown",
+                    };
+                });
+                return { ...b, categoryBudgets: withSpending };
+            });
+
             setBudgets(enriched);
         } catch (e) {
             console.error("Budget load error:", e);
         } finally {
             setIsLoading(false);
         }
-    }, [userId, filterAccountId]);
+    }, [userId, filterAccountId, budgets.length]);
 
     useFocusEffect(
         useCallback(() => {

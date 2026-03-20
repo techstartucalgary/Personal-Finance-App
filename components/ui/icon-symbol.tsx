@@ -38,6 +38,9 @@ const MAPPING = {
   trash: "delete",
   checkmark: "check",
   pencil: "edit",
+  "dollarsign.circle": "attach-money",
+  percent: "percent",
+  "building.2": "business",
 } as IconMapping;
 
 const FEATHER_MAPPING: FeatherMapping = {
@@ -46,6 +49,8 @@ const FEATHER_MAPPING: FeatherMapping = {
   "list.bullet": "list",
   "trash": "trash-2",
   "plus": "plus",
+  "globe": "globe",
+  "lock": "lock",
 };
 
 /**

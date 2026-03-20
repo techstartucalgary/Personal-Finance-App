@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { Platform, Pressable, RefreshControl, ScrollView, StyleSheet, useColorScheme } from "react-native";
+import { Platform, Pressable, RefreshControl, ScrollView, StyleSheet, View, useColorScheme } from "react-native";
 
 import SegmentedControl from "@react-native-segmented-control/segmented-control";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
@@ -229,11 +229,14 @@ export default function TargetsScreen() {
           })}
         </ScrollView>
 
-        {activeTab === "goals" ? (
-          <GoalsView filterAccountId={filterAccountId} refreshKey={refreshKey} createRequested={createRequested} searchQuery={searchQuery} />
-        ) : (
-          <BudgetsView filterAccountId={filterAccountId} refreshKey={refreshKey} createRequested={createRequested} searchQuery={searchQuery} />
-        )}
+        <View style={{ flex: 1 }}>
+          <View style={{ display: activeTab === "goals" ? "flex" : "none" }}>
+            <GoalsView filterAccountId={filterAccountId} refreshKey={refreshKey} createRequested={createRequested} searchQuery={searchQuery} />
+          </View>
+          <View style={{ display: activeTab === "budgets" ? "flex" : "none" }}>
+            <BudgetsView filterAccountId={filterAccountId} refreshKey={refreshKey} createRequested={createRequested} searchQuery={searchQuery} />
+          </View>
+        </View>
       </ScrollView>
 
       {/* FAB - outside ScrollView for fixed positioning */}

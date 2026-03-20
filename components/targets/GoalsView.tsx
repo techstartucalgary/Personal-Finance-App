@@ -101,9 +101,12 @@ export function GoalsView({ filterAccountId = null, refreshKey = 0, createReques
     const [allocationModalOpen, setAllocationModalOpen] = useState(false);
     const [allocationAmount, setAllocationAmount] = useState("");
 
-    const loadGoals = useCallback(async () => {
+    const loadGoals = useCallback(async (silent = false) => {
         if (!userId) return;
-        setIsLoading(true);
+        
+        const hasData = goals.length > 0;
+        if (!silent && !hasData) setIsLoading(true);
+
         try {
             const data = await listGoals({ profile_id: userId });
 
@@ -125,12 +128,16 @@ export function GoalsView({ filterAccountId = null, refreshKey = 0, createReques
         } finally {
             setIsLoading(false);
         }
-    }, [userId]);
+    }, [userId, goals.length]);
 
     const loadAccounts = useCallback(async () => {
         if (!userId) return;
         try {
-            const manualData = await listAccounts({ profile_id: userId }) as AccountRow[];
+            const [manualData, plaidData] = await Promise.all([
+                listAccounts({ profile_id: userId }) as Promise<AccountRow[]>,
+                getPlaidAccounts()
+            ]);
+
             const selectableManual: SelectableAccount[] = manualData.map(a => ({
                 id: a.id,
                 isPlaid: false,
@@ -139,7 +146,6 @@ export function GoalsView({ filterAccountId = null, refreshKey = 0, createReques
                 balance: a.balance
             }));
 
-            const plaidData = await getPlaidAccounts();
             const selectablePlaid: SelectableAccount[] = plaidData.map(pa => ({
                 id: pa.account_id,
                 isPlaid: true,
@@ -156,8 +162,8 @@ export function GoalsView({ filterAccountId = null, refreshKey = 0, createReques
 
     useFocusEffect(
         useCallback(() => {
-            loadGoals();
-            loadAccounts();
+            // Parallelize initial load
+            Promise.all([loadGoals(true), loadAccounts()]);
         }, [loadGoals, loadAccounts])
     );
 

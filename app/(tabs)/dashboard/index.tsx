@@ -103,34 +103,37 @@ export default function DashboardScreen() {
 
   const loadData = useCallback(async (silent = false) => {
     if (!userId) return;
-    if (!silent) setIsLoading(true);
+    
+    // Improved loading UX: only show spinner if we have no data at all
+    const hasData = accounts.length > 0 || plaidAccounts.length > 0 || goals.length > 0;
+    if (!silent && !hasData) setIsLoading(true);
 
     try {
-      // 1. Load Manual Accounts
-      const accountsData = await listAccounts({ profile_id: userId });
+      const [
+        accountsData,
+        goalsData,
+        pAccounts,
+        expensesData,
+        pTransactions
+      ] = await Promise.all([
+        listAccounts({ profile_id: userId }),
+        listGoals({ profile_id: userId }),
+        getPlaidAccounts(),
+        listExpenses({ profile_id: userId }),
+        getPlaidTransactions()
+      ]);
+
       setAccounts((accountsData as AccountRow[]) ?? []);
-
-      // 2. Load Goals
-      const goalsData = await listGoals({ profile_id: userId });
       setGoals((goalsData as any[]) ?? []);
-
-      // 3. Load Plaid Accounts
-      const pAccounts = await getPlaidAccounts();
       setPlaidAccounts(pAccounts ?? []);
-
-      // 4. Load Manual Expenses
-      const expensesData = await listExpenses({ profile_id: userId });
       setExpenses((expensesData as ExpenseRow[]) ?? []);
-
-      // 5. Load Plaid Transactions
-      const pTransactions = await getPlaidTransactions();
       setPlaidTransactions(pTransactions ?? []);
     } catch (err) {
       console.error("Error loading dashboard data:", err);
     } finally {
-      if (!silent) setIsLoading(false);
+      setIsLoading(false);
     }
-  }, [userId]);
+  }, [userId, accounts.length, plaidAccounts.length, goals.length]);
 
   useFocusEffect(
     useCallback(() => {

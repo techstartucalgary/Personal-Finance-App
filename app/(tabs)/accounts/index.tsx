@@ -193,27 +193,26 @@ export default function AccountsScreen() {
         return;
       }
 
-      // load accounts from user, where profile id == current user id
-      if (!silent) setIsLoading(true);
-      const { data, error } = await supabase
-        .from("account")
-        .select(
-          "id, profile_id, created_at, account_name, account_type, balance, credit_limit, statement_duedate, payment_duedate, interest_rate, currency",
-        )
-        .eq("profile_id", userId)
-        .order("created_at", { ascending: false });
+      // Improved loading UX: only show spinner if we have no data at all
+      const hasData = accounts.length > 0 || goals.length > 0 || plaidAccounts.length > 0;
+      if (!silent && !hasData) setIsLoading(true);
 
-      if (error) {
-        console.error("Error loading accounts:", error);
-        if (!silent) setIsLoading(false);
-        return;
-      }
-
-      setAccounts((data as AccountRow[]) ?? []);
-
-      // also load goals to calculate available balance
       try {
-        const goalsData = await listGoals({ profile_id: userId });
+        const [accountsResponse, goalsData, pAccounts] = await Promise.all([
+          supabase
+            .from("account")
+            .select(
+              "id, profile_id, created_at, account_name, account_type, balance, credit_limit, statement_duedate, payment_duedate, interest_rate, currency",
+            )
+            .eq("profile_id", userId)
+            .order("created_at", { ascending: false }),
+          listGoals({ profile_id: userId }),
+          getPlaidAccounts()
+        ]);
+
+        if (accountsResponse.error) throw accountsResponse.error;
+
+        setAccounts((accountsResponse.data as AccountRow[]) ?? []);
         setGoals(
           (goalsData as any[])?.map((g) => ({
             id: g.id,
@@ -225,13 +224,14 @@ export default function AccountsScreen() {
             linked_plaid_account: g.linked_plaid_account,
           })) ?? [],
         );
+        setPlaidAccounts(pAccounts ?? []);
       } catch (err) {
-        console.error("Error loading goals for accounts:", err);
+        console.error("Error loading accounts data:", err);
+      } finally {
+        setIsLoading(false);
       }
-
-      if (!silent) setIsLoading(false);
     },
-    [userId],
+    [userId, accounts.length, goals.length, plaidAccounts.length],
   );
 
   // Plaid: connect bank handler (must be after loadAccounts)
@@ -283,13 +283,7 @@ export default function AccountsScreen() {
   useFocusEffect(
     useCallback(() => {
       loadAccounts(true);
-      // Also load Plaid accounts
-      if (userId) {
-        getPlaidAccounts()
-          .then(setPlaidAccounts)
-          .catch((err) => console.error("Error loading Plaid accounts:", err));
-      }
-    }, [loadAccounts, userId]),
+    }, [loadAccounts]),
   );
 
   // Sync edit state when editingAccount changes

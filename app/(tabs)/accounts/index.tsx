@@ -4,7 +4,6 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
   ActivityIndicator,
   Alert,
-  Modal,
   Platform,
   Pressable,
   RefreshControl,
@@ -22,6 +21,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useFocusEffect, useNavigation, useRouter } from "expo-router";
 
 import { AccountCardCarousel, type UnifiedAccount } from "@/components/accounts/AccountCardCarousel";
+import { AddAccountModal } from "@/components/AddAccountModal";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { DateTimePickerField } from "@/components/ui/DateTimePickerField";
@@ -30,7 +30,6 @@ import { SelectionModal } from "@/components/ui/SelectionModal";
 import { Tokens } from "@/constants/authTokens";
 import { useAuthContext } from "@/hooks/use-auth-context";
 import {
-  createAccount as createAccountApi,
   deleteAccount as deleteAccountApi,
   updateAccount as updateAccountApi,
 } from "@/utils/accounts";
@@ -40,7 +39,7 @@ import type { PlaidAccount } from "@/utils/plaid";
 import { exchangePublicToken, getLinkToken, getPlaidAccounts, removePlaidItem } from "@/utils/plaid";
 import { supabase } from "@/utils/supabase";
 
-type AccountType = "credit" | "debit";
+
 
 type AccountRow = {
   id: string;
@@ -134,15 +133,6 @@ export default function AccountsScreen() {
 
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [addSourceModalOpen, setAddSourceModalOpen] = useState(false);
-  const [name, setName] = useState("");
-  const [type, setType] = useState<AccountType>("credit");
-  const [typeModalOpen, setTypeModalOpen] = useState(false);
-  const [createBalance, setCreateBalance] = useState("");
-  const [createLimit, setCreateLimit] = useState("");
-  const [createInterest, setCreateInterest] = useState("");
-  const [createStatementDate, setCreateStatementDate] = useState("");
-  const [createPaymentDate, setCreatePaymentDate] = useState("");
-  const [createCurrency, setCreateCurrency] = useState("CAD");
 
   // ── Inline edit state ──────────────────────────────
 
@@ -161,10 +151,6 @@ export default function AccountsScreen() {
 
   const [isConnecting, setIsConnecting] = useState(false);
 
-  const canCreate = useMemo(
-    () => !!userId && name.trim().length > 0,
-    [userId, name],
-  );
 
   // ── Header search ──────────────────────────────────
 
@@ -272,49 +258,8 @@ export default function AccountsScreen() {
     }
   }, [loadAccounts]);
 
+
   // ── CRUD operations ────────────────────────────────
-
-  const createAccount = useCallback(async () => {
-    if (!userId || !canCreate) return;
-    setIsLoading(true);
-    const cleanNumber = (value: string, fallback?: number) => {
-      const trimmed = value.trim();
-      if (trimmed.length === 0) return fallback ?? 0;
-      const parsed = parseFloat(trimmed);
-      return Number.isFinite(parsed) ? parsed : (fallback ?? 0);
-    };
-    const cleanText = (value: string, fallback?: string) => {
-      const trimmed = value.trim();
-      return trimmed.length > 0 ? trimmed : (fallback ?? "");
-    };
-
-    const payload = {
-      profile_id: userId,
-      account_name: name.trim(),
-      account_type: type,
-      balance: cleanNumber(createBalance, 0),
-      credit_limit: cleanNumber(createLimit, 0),
-      statement_duedate: cleanText(createStatementDate, "2026-01-01"),
-      payment_duedate: cleanText(createPaymentDate, "2026-01-01"),
-      interest_rate: cleanNumber(createInterest, 0),
-      currency: cleanText(createCurrency, "CAD"),
-    };
-
-    try {
-      await createAccountApi(payload);
-    } catch (error) {
-      console.error("Error adding account:", error);
-      Alert.alert("Could not add account", "Please try again.");
-      setIsLoading(false);
-      return;
-    }
-
-    setName(""); setType("credit"); setCreateBalance(""); setCreateLimit("");
-    setCreateInterest(""); setCreateStatementDate(""); setCreatePaymentDate(""); setCreateCurrency("CAD");
-    setCreateModalOpen(false);
-    await loadAccounts();
-    setIsLoading(false);
-  }, [userId, canCreate, name, type, createBalance, createLimit, createInterest, createStatementDate, createPaymentDate, createCurrency, loadAccounts]);
 
   const updateAccount = useCallback(async () => {
     if (!userId) return;
@@ -891,86 +836,14 @@ export default function AccountsScreen() {
       </SelectionModal>
 
       {/* ── Create Account Modal ─────────────────────── */}
-      <Modal
+      <AddAccountModal
         visible={createModalOpen}
-        animationType="slide"
-        presentationStyle="pageSheet"
-        onRequestClose={() => setCreateModalOpen(false)}
-      >
-        <ThemedView style={{ flex: 1, backgroundColor: ui.surface, padding: 16, paddingTop: Platform.OS === "ios" ? 12 : (16 + insets.top), paddingBottom: 16 + insets.bottom }}>
-          <View style={styles.modalHeader}>
-            <View style={styles.modalHeaderLeft} />
-            <ThemedText type="defaultSemiBold" style={styles.modalHeaderTitle}>Add Account</ThemedText>
-            <View style={styles.modalHeaderRight}>
-              <Pressable
-                onPress={() => setCreateModalOpen(false)}
-                hitSlop={20}
-                style={[styles.modalCloseButton, { backgroundColor: isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.05)" }]}
-              >
-                <Feather name="x" size={18} color={ui.text} />
-              </Pressable>
-            </View>
-          </View>
-
-          <ScrollView contentContainerStyle={{ gap: 12, paddingBottom: 24 }}>
-            <ThemedText type="defaultSemiBold">Account name</ThemedText>
-            <TextInput
-              value={name}
-              onChangeText={setName}
-              placeholder="Account name (e.g. TD Credit)"
-              placeholderTextColor={ui.mutedText}
-              autoCapitalize="words"
-              style={[styles.input, { borderColor: ui.border, backgroundColor: ui.surface2, color: ui.text }]}
-            />
-
-            <View style={[styles.pickerContainer, { borderColor: ui.border, backgroundColor: ui.surface }]}>
-              <ThemedText type="defaultSemiBold">Account type</ThemedText>
-              <Pressable
-                onPress={() => setTypeModalOpen(true)}
-                style={[styles.dropdownButton, { borderColor: ui.border, backgroundColor: ui.surface2 }]}
-              >
-                <ThemedText>{type === "credit" ? "Credit" : "Debit"}</ThemedText>
-              </Pressable>
-            </View>
-
-            <ThemedText type="defaultSemiBold">Balance</ThemedText>
-            <TextInput value={createBalance} onChangeText={setCreateBalance} keyboardType="numeric" style={[styles.input, { borderColor: ui.border, backgroundColor: ui.surface2, color: ui.text }]} />
-
-            <ThemedText type="defaultSemiBold">Credit Limit</ThemedText>
-            <TextInput value={createLimit} onChangeText={setCreateLimit} keyboardType="numeric" style={[styles.input, { borderColor: ui.border, backgroundColor: ui.surface2, color: ui.text }]} />
-
-            <ThemedText type="defaultSemiBold">Interest Rate (%)</ThemedText>
-            <TextInput value={createInterest} onChangeText={setCreateInterest} keyboardType="numeric" style={[styles.input, { borderColor: ui.border, backgroundColor: ui.surface2, color: ui.text }]} />
-
-            <ThemedText type="defaultSemiBold">Currency</ThemedText>
-            <TextInput value={createCurrency} onChangeText={setCreateCurrency} autoCapitalize="characters" style={[styles.input, { borderColor: ui.border, backgroundColor: ui.surface2, color: ui.text }]} />
-
-            <DateTimePickerField label="Statement Due Date" value={parseLocalDate(createStatementDate)} onChange={(date) => setCreateStatementDate(toLocalISOString(date))} ui={ui} />
-            <DateTimePickerField label="Payment Due Date" value={parseLocalDate(createPaymentDate)} onChange={(date) => setCreatePaymentDate(toLocalISOString(date))} ui={ui} />
-
-            <Pressable
-              onPress={createAccount}
-              disabled={!canCreate || isLoading}
-              style={[
-                styles.createButton,
-                { borderColor: ui.border, backgroundColor: ui.text },
-                (!canCreate || isLoading) && styles.buttonDisabled,
-              ]}
-            >
-              <ThemedText type="defaultSemiBold" style={{ color: ui.surface }}>Create</ThemedText>
-            </Pressable>
-          </ScrollView>
-
-          <SelectionModal visible={typeModalOpen} onClose={() => setTypeModalOpen(false)} title="Select Account Type" ui={ui}>
-            <Pressable style={[styles.modalOption, { borderColor: ui.border, backgroundColor: ui.surface }]} onPress={() => { setType("credit"); setTypeModalOpen(false); }}>
-              <ThemedText>Credit</ThemedText>
-            </Pressable>
-            <Pressable style={[styles.modalOption, { borderColor: ui.border, backgroundColor: ui.surface }]} onPress={() => { setType("debit"); setTypeModalOpen(false); }}>
-              <ThemedText>Debit</ThemedText>
-            </Pressable>
-          </SelectionModal>
-        </ThemedView>
-      </Modal>
+        onClose={() => setCreateModalOpen(false)}
+        onAccountCreated={loadAccounts}
+        ui={ui}
+        isDark={isDark}
+        userId={userId}
+      />
     </>
   );
 }
@@ -1070,46 +943,5 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     borderRadius: 12,
     borderWidth: StyleSheet.hairlineWidth,
-  },
-  modalHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingVertical: 8,
-  },
-  modalHeaderTitle: {
-    flex: 1,
-    textAlign: "center",
-  },
-  modalHeaderLeft: { width: 44 },
-  modalHeaderRight: { width: 44, alignItems: "flex-end" },
-  modalCloseButton: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  // ── Input styles ──
-  input: {
-    borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontFamily: Tokens.font.family,
-    fontSize: 15.5,
-  },
-  pickerContainer: {
-    borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: 12,
-    paddingHorizontal: 8,
-    paddingVertical: 6,
-    gap: 6,
-  },
-  dropdownButton: {
-    borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
   },
 });

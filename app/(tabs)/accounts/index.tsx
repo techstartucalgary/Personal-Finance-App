@@ -423,6 +423,7 @@ export default function AccountsScreen() {
         balance: formatMoney(acc.balance ?? 0),
         typeLabel: acc.account_type ? acc.account_type.charAt(0).toUpperCase() + acc.account_type.slice(1) : "Account",
         subtitle: acc.currency ?? "CAD",
+        sourceLabel: "Manual",
         data: acc,
       });
       colorIdx++;
@@ -443,22 +444,12 @@ export default function AccountsScreen() {
         balance: formatMoney(pa.balances.current ?? 0),
         typeLabel: pa.type.charAt(0).toUpperCase() + pa.type.slice(1),
         subtitle: pa.subtype ? pa.subtype.charAt(0).toUpperCase() + pa.subtype.slice(1) : "Bank",
+        sourceLabel: "Plaid",
         data: pa,
       });
       colorIdx++;
     });
 
-    // "Add" card at the end
-    list.push({
-      key: "add-card",
-      kind: "add",
-      color: "transparent",
-      name: "",
-      balance: "",
-      typeLabel: "",
-      subtitle: "",
-      data: null,
-    });
 
     return list;
   }, [accounts, plaidAccounts, searchQuery]);
@@ -470,7 +461,7 @@ export default function AccountsScreen() {
     activeItem?.kind === "manual" ? activeItem.data : null;
   const activePlaidAccount: PlaidAccount | null =
     activeItem?.kind === "plaid" ? activeItem.data : null;
-  const isAddCard = activeItem?.kind === "add";
+
 
   // Sync edit fields when active card changes
   useEffect(() => {
@@ -826,10 +817,10 @@ export default function AccountsScreen() {
         )}
 
         {/* Empty state when no accounts */}
-        {isAddCard && accounts.length === 0 && plaidAccounts.length === 0 && (
+        {accounts.length === 0 && plaidAccounts.length === 0 && (
           <View style={{ paddingHorizontal: 16, marginTop: 20, alignItems: "center" }}>
             <ThemedText style={{ color: ui.mutedText, textAlign: "center" }}>
-              No accounts yet. Swipe to add your first account!
+              No accounts yet. Swipe left on the last card to add one!
             </ThemedText>
           </View>
         )}

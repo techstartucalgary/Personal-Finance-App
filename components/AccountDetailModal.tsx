@@ -142,7 +142,7 @@ export function AccountDetailModal({
                             hitSlop={20}
                             style={[
                                 styles.closeButton,
-                                { backgroundColor: isAndroid ? theme.colors.surfaceVariant : (isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.05)") }
+                                { borderWidth: StyleSheet.hairlineWidth, borderColor: ui.border, backgroundColor: isAndroid ? theme.colors.surfaceVariant : (isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.05)") }
                             ]}
                         >
                             <Feather name="x" size={18} color={ui.text} />
@@ -158,8 +158,8 @@ export function AccountDetailModal({
                         <ThemedText style={[styles.accountName, { color: ui.text }]}>
                             {name}
                         </ThemedText>
-                        <View style={styles.typeBadge}>
-                            <ThemedText style={styles.typeText}>{typeDisplay}</ThemedText>
+                        <View style={[styles.typeBadge, { backgroundColor: `${ui.accent}25` }]}>
+                            <ThemedText style={[styles.typeText, { color: ui.accent }]}>{typeDisplay}</ThemedText>
                         </View>
                     </View>
 
@@ -203,7 +203,7 @@ export function AccountDetailModal({
                             onPress={() => {
                                 onUnlink(account as PlaidAccount);
                             }}
-                            style={[styles.actionButton, { backgroundColor: ui.surface2, borderColor: ui.border, borderWidth: 1, paddingVertical: 12, borderRadius: 24 }]}
+                            style={[styles.actionButton, { backgroundColor: ui.surface2, borderColor: ui.border, borderWidth: StyleSheet.hairlineWidth, paddingVertical: 12, borderRadius: 24 }]}
                         >
                             <Feather name="link-2" size={18} color={ui.danger} />
                             <ThemedText style={[styles.actionButtonText, { color: ui.danger, fontSize: 15 }]}>Unlink Plaid Account</ThemedText>
@@ -280,14 +280,12 @@ const styles = StyleSheet.create({
         textAlign: "center",
     },
     typeBadge: {
-        backgroundColor: "rgba(31, 111, 91, 0.15)",
         paddingHorizontal: 10,
         paddingVertical: 4,
-        borderRadius: 6,
+        borderRadius: 20,
         marginTop: 4,
     },
     typeText: {
-        color: "#1F6F5B",
         fontSize: 12,
         fontWeight: "700",
     },

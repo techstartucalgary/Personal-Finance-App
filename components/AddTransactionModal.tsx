@@ -1,6 +1,7 @@
 import Feather from "@expo/vector-icons/Feather";
-import React, { useCallback, useEffect, useState, useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
+  ActivityIndicator,
   Alert,
   Modal,
   Platform,
@@ -10,7 +11,6 @@ import {
   Switch,
   TextInput,
   View,
-  ActivityIndicator,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -387,29 +387,41 @@ export function AddTransactionModal({
 
         <ScrollView contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: insets.bottom + 40 }} showsVerticalScrollIndicator={false}>
           {/* Amount Section */}
-          <Pressable
-            onPress={() => amountInputRef.current?.focus()}
-            style={[styles.amountContainer, { backgroundColor: ui.accentSoft, borderColor: ui.accent + '60' }]}
-          >
-            <ThemedText style={[styles.currencySymbol, { color: ui.accent }]}>$</ThemedText>
-            <TextInput
-              ref={amountInputRef}
-              value={amount}
-              onChangeText={setAmount}
-              onBlur={() => {
-                if (amount) {
-                  const parsed = parseFloat(amount);
-                  if (!isNaN(parsed)) {
-                    setAmount(parsed.toFixed(2));
-                  }
+          <View style={styles.amountSection}>
+            <View style={styles.sectionHeader}>
+              <ThemedText style={[styles.sectionHeaderText, { color: ui.mutedText }]}>AMOUNT</ThemedText>
+            </View>
+            <Pressable
+              onPress={() => amountInputRef.current?.focus()}
+              style={({ pressed }) => [
+                styles.amountContainer,
+                {
+                  backgroundColor: ui.accentSoft,
+                  borderColor: ui.accent + '40',
+                  opacity: pressed ? 0.9 : 1,
                 }
-              }}
-              keyboardType="decimal-pad"
-              placeholder="0.00"
-              placeholderTextColor={ui.accent + "80"}
-              style={[styles.amountInput, { color: ui.accent }]}
-            />
-          </Pressable>
+              ]}
+            >
+              <ThemedText style={[styles.currencySymbol, { color: ui.accent }]}>$</ThemedText>
+              <TextInput
+                ref={amountInputRef}
+                value={amount}
+                onChangeText={setAmount}
+                onBlur={() => {
+                  if (amount) {
+                    const parsed = parseFloat(amount);
+                    if (!isNaN(parsed)) {
+                      setAmount(parsed.toFixed(2));
+                    }
+                  }
+                }}
+                keyboardType="decimal-pad"
+                placeholder="0.00"
+                placeholderTextColor={ui.accent + "80"}
+                style={[styles.amountInput, { color: ui.accent }]}
+              />
+            </Pressable>
+          </View>
 
           <View style={styles.sectionHeader}>
             <ThemedText style={[styles.sectionHeaderText, { color: ui.mutedText }]}>DETAILS</ThemedText>
@@ -812,6 +824,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  amountSection: {
+    marginBottom: 20,
+  },
   amountContainer: {
     flexDirection: "row",
     alignItems: "center",
@@ -912,7 +927,7 @@ const styles = StyleSheet.create({
   footerAddButton: {
     width: 48,
     height: 48,
-    borderRadius: 24,
+    borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
   },

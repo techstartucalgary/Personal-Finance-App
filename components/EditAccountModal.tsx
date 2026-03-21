@@ -1,5 +1,5 @@
 import Feather from "@expo/vector-icons/Feather";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -63,6 +63,10 @@ export function EditAccountModal({
   const [paymentDate, setPaymentDate] = useState("");
   const [currency, setCurrency] = useState("CAD");
   const [typeModalOpen, setTypeModalOpen] = useState(false);
+  const [currencyModalOpen, setCurrencyModalOpen] = useState(false);
+  const [newCurrency, setNewCurrency] = useState("");
+
+  const balanceInputRef = useRef<TextInput>(null);
 
   // Initialize state when account changes or modal opens
   useEffect(() => {
@@ -212,27 +216,41 @@ export function EditAccountModal({
           showsVerticalScrollIndicator={false}
         >
           {/* Balance Section */}
-          <Pressable
-            style={[styles.amountContainer, { backgroundColor: ui.accentSoft, borderColor: ui.accent + '60' }]}
-          >
-            <ThemedText style={[styles.currencySymbol, { color: ui.accent }]}>$</ThemedText>
-            <TextInput
-              value={balance}
-              onChangeText={setBalance}
-              onBlur={() => {
-                if (balance) {
-                  const parsed = parseFloat(balance);
-                  if (!isNaN(parsed)) {
-                    setBalance(parsed.toFixed(2));
-                  }
+          <View style={styles.amountSection}>
+            <View style={styles.sectionHeader}>
+              <ThemedText style={[styles.sectionHeaderText, { color: ui.mutedText }]}>BALANCE</ThemedText>
+            </View>
+            <Pressable
+              onPress={() => balanceInputRef.current?.focus()}
+              style={({ pressed }) => [
+                styles.amountContainer,
+                {
+                  backgroundColor: ui.accentSoft,
+                  borderColor: ui.accent + '40',
+                  opacity: pressed ? 0.9 : 1,
                 }
-              }}
-              keyboardType="decimal-pad"
-              placeholder="0.00"
-              placeholderTextColor={ui.accent + "80"}
-              style={[styles.amountInput, { color: ui.accent }]}
-            />
-          </Pressable>
+              ]}
+            >
+              <ThemedText style={[styles.currencySymbol, { color: ui.accent }]}>$</ThemedText>
+              <TextInput
+                ref={balanceInputRef}
+                value={balance}
+                onChangeText={setBalance}
+                onBlur={() => {
+                  if (balance) {
+                    const parsed = parseFloat(balance);
+                    if (!isNaN(parsed)) {
+                      setBalance(parsed.toFixed(2));
+                    }
+                  }
+                }}
+                keyboardType="decimal-pad"
+                placeholder="0.00"
+                placeholderTextColor={ui.accent + "80"}
+                style={[styles.amountInput, { color: ui.accent }]}
+              />
+            </Pressable>
+          </View>
 
           {/* Account Info Section */}
           <View style={styles.sectionHeader}>
@@ -267,17 +285,13 @@ export function EditAccountModal({
             <View style={[styles.rowSeparator, { backgroundColor: ui.border }]} />
 
             {/* Currency */}
-            <View style={styles.inputRow}>
+            <Pressable onPress={() => setCurrencyModalOpen(true)} style={styles.inputRow}>
               <IconSymbol name="dollarsign.circle" size={20} color={ui.mutedText} />
-              <TextInput
-                value={currency}
-                onChangeText={setCurrency}
-                placeholder="CAD"
-                placeholderTextColor={ui.mutedText}
-                autoCapitalize="characters"
-                style={[styles.rowInput, { color: ui.text }]}
-              />
-            </View>
+              <ThemedText style={[styles.rowValue, { color: ui.text }]}>
+                {currency}
+              </ThemedText>
+              <Feather name="chevron-right" size={16} color={ui.mutedText} />
+            </Pressable>
           </View>
 
           {/* Credit Details Section */}
@@ -419,6 +433,72 @@ export function EditAccountModal({
             </Pressable>
           ))}
         </SelectionModal>
+
+        {/* Currency Picker */}
+        <SelectionModal
+          visible={currencyModalOpen}
+          onClose={() => setCurrencyModalOpen(false)}
+          title="Select Currency"
+          ui={ui}
+          layout="tags"
+          footer={
+            <View style={styles.footerRow}>
+              <TextInput
+                value={newCurrency}
+                onChangeText={setNewCurrency}
+                placeholder="Custom (e.g. JPY)"
+                placeholderTextColor={ui.mutedText}
+                autoCapitalize="characters"
+                style={[styles.footerInput, { borderColor: ui.border, backgroundColor: ui.surface2, color: ui.text }]}
+              />
+              <Pressable
+                onPress={() => {
+                  const trimmed = newCurrency.trim().toUpperCase();
+                  if (trimmed) {
+                    setCurrency(trimmed);
+                    setNewCurrency("");
+                    setCurrencyModalOpen(false);
+                  }
+                }}
+                style={({ pressed }) => [
+                  styles.footerAddButton,
+                  {
+                    backgroundColor: ui.accent,
+                    opacity: pressed ? 0.7 : 1
+                  }
+                ]}
+              >
+                <IconSymbol name="plus" size={24} color={ui.surface} />
+              </Pressable>
+            </View>
+          }
+        >
+          {["CAD", "USD", "EUR", "GBP", "AUD"].map((curr) => (
+            <Pressable
+              key={curr}
+              style={({ pressed }) => [
+                styles.tag,
+                {
+                  borderColor: ui.border,
+                  backgroundColor: currency === curr ? ui.accentSoft : ui.surface2,
+                  opacity: pressed ? 0.7 : 1,
+                  paddingRight: 16,
+                }
+              ]}
+              onPress={() => {
+                setCurrency(curr);
+                setCurrencyModalOpen(false);
+              }}
+            >
+              <ThemedText style={{ color: currency === curr ? ui.accent : ui.text, fontWeight: '500' }}>
+                {curr}
+              </ThemedText>
+              {currency === curr && (
+                <IconSymbol name="checkmark" size={14} color={ui.accent} style={{ marginLeft: 6 }} />
+              )}
+            </Pressable>
+          ))}
+        </SelectionModal>
       </ThemedView>
     </Modal>
   );
@@ -452,6 +532,9 @@ const styles = StyleSheet.create({
     borderRadius: 15,
     alignItems: "center",
     justifyContent: "center",
+  },
+  amountSection: {
+    marginBottom: 20,
   },
   amountContainer: {
     flexDirection: "row",
@@ -552,5 +635,34 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+  },
+  tag: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 8,
+    paddingLeft: 16,
+    borderRadius: 20,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  footerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    marginTop: 8,
+  },
+  footerInput: {
+    flex: 1,
+    height: 44,
+    borderRadius: 12,
+    borderWidth: StyleSheet.hairlineWidth,
+    paddingHorizontal: 16,
+    fontSize: 16,
+  },
+  footerAddButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
   },
 });

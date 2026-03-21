@@ -41,6 +41,7 @@ const MAPPING = {
   "dollarsign.circle": "attach-money",
   percent: "percent",
   "building.2": "business",
+  banknote: "money",
 } as IconMapping;
 
 const FEATHER_MAPPING: FeatherMapping = {

@@ -571,29 +571,41 @@ export function EditTransactionModal({
 
         <ScrollView contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: insets.bottom + 40 }} showsVerticalScrollIndicator={false}>
           {/* Amount Section */}
-          <Pressable
-            onPress={() => amountInputRef.current?.focus()}
-            style={[styles.amountContainer, { backgroundColor: ui.accentSoft, borderColor: ui.accent + '60' }]}
-          >
-            <ThemedText style={[styles.currencySymbol, { color: ui.accent }]}>$</ThemedText>
-            <TextInput
-              ref={amountInputRef}
-              value={editAmount}
-              onChangeText={setEditAmount}
-              onBlur={() => {
-                if (editAmount) {
-                  const parsed = parseFloat(editAmount);
-                  if (!isNaN(parsed)) {
-                    setEditAmount(parsed.toFixed(2));
-                  }
+          <View style={styles.amountSection}>
+            <View style={styles.sectionHeader}>
+              <ThemedText style={[styles.sectionHeaderText, { color: ui.mutedText }]}>AMOUNT</ThemedText>
+            </View>
+            <Pressable
+              onPress={() => amountInputRef.current?.focus()}
+              style={({ pressed }) => [
+                styles.amountContainer,
+                {
+                  backgroundColor: ui.accentSoft,
+                  borderColor: ui.accent + '40',
+                  opacity: pressed ? 0.9 : 1,
                 }
-              }}
-              keyboardType="decimal-pad"
-              placeholder="0.00"
-              placeholderTextColor={ui.accent + "80"}
-              style={[styles.amountInput, { color: ui.accent }]}
-            />
-          </Pressable>
+              ]}
+            >
+              <ThemedText style={[styles.currencySymbol, { color: ui.accent }]}>$</ThemedText>
+              <TextInput
+                ref={amountInputRef}
+                value={editAmount}
+                onChangeText={setEditAmount}
+                onBlur={() => {
+                  if (editAmount) {
+                    const parsed = parseFloat(editAmount);
+                    if (!isNaN(parsed)) {
+                      setEditAmount(parsed.toFixed(2));
+                    }
+                  }
+                }}
+                keyboardType="decimal-pad"
+                placeholder="0.00"
+                placeholderTextColor={ui.accent + "80"}
+                style={[styles.amountInput, { color: ui.accent }]}
+              />
+            </Pressable>
+          </View>
 
           <View style={styles.sectionHeader}>
             <ThemedText style={[styles.sectionHeaderText, { color: ui.mutedText }]}>DETAILS</ThemedText>
@@ -1084,6 +1096,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  amountSection: {
+    marginBottom: 20,
+  },
   saveButton: {
     alignSelf: "center",
     width: "100%",
@@ -1125,7 +1140,7 @@ const styles = StyleSheet.create({
   footerAddButton: {
     width: 48,
     height: 48,
-    borderRadius: 24,
+    borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
   },

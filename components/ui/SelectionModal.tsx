@@ -1,6 +1,8 @@
+import Feather from "@expo/vector-icons/Feather";
 import React from "react";
 import {
   Dimensions,
+  KeyboardAvoidingView,
   Modal,
   Platform,
   Pressable,
@@ -10,7 +12,6 @@ import {
   useColorScheme,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import Feather from "@expo/vector-icons/Feather";
 import { ThemedText } from "../themed-text";
 import { ThemedView } from "../themed-view";
 
@@ -62,7 +63,6 @@ export function SelectionModal({
           {
             backgroundColor: ui.surface,
             paddingTop: isIOS ? 12 : (insets.top + 16),
-            paddingBottom: insets.bottom + 16,
           }
         ]}
       >
@@ -94,15 +94,16 @@ export function SelectionModal({
             { paddingBottom: insets.bottom + 20 }
           ]}
           showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
         >
           {children}
+          
+          {footer && (
+            <View style={[{ paddingTop: 16, marginTop: 8, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: ui.border }, layout === 'tags' && { width: '100%' }]}>
+              {footer}
+            </View>
+          )}
         </ScrollView>
-
-        {footer && (
-          <View style={[styles.footer, { borderTopColor: ui.border, paddingBottom: insets.bottom + 16 }]}>
-            {footer}
-          </View>
-        )}
       </ThemedView>
     </Modal>
   );
@@ -150,9 +151,5 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 10,
-  },
-  footer: {
-    padding: 16,
-    borderTopWidth: StyleSheet.hairlineWidth,
   },
 });

@@ -25,7 +25,7 @@ const CARD_HEIGHT = 230;
 // Width of the scrollable footer zone (generous space for a full pull)
 const FOOTER_WIDTH = ITEM_WIDTH * 1.2;
 // Progressive appearance thresholds
-const ICON_APPEAR_THRESHOLD = 60;     // Show just the "+" icon
+const ICON_APPEAR_THRESHOLD = 55;     // Show just the "+" icon
 const TEXT_APPEAR_THRESHOLD = 120;     // Show icon + "Add Account" text
 // ADD_TRIGGER_THRESHOLD = 100        // Text changes to "Release to add"
 
@@ -131,7 +131,7 @@ function AccountCard({
         {item.sourceLabel && (
           <View style={styles.sourceBadge}>
             <Feather
-              name={item.kind === "manual" ? "edit-2" : "check-circle"}
+              name={item.kind === "manual" ? "edit-2" : "check"}
               size={11}
               color="rgba(255,255,255,0.85)"
             />
@@ -150,19 +150,18 @@ function AddCard({
   overscrollRaw,
   ui,
   marginRightAnim,
+  opacityAnim,
 }: {
   widthAnim: Animated.AnimatedInterpolation<number>;
   overscrollRaw: number;
   ui: any;
   marginRightAnim: Animated.AnimatedInterpolation<number>;
+  opacityAnim: Animated.AnimatedInterpolation<number>;
 }) {
   // Progressive content based on how far the user has pulled
   const showIcon = overscrollRaw >= ICON_APPEAR_THRESHOLD;
   const showText = overscrollRaw >= TEXT_APPEAR_THRESHOLD;
   const pastThreshold = overscrollRaw >= ADD_TRIGGER_THRESHOLD;
-
-  // Overall opacity: fade in starting from 0
-  const opacity = overscrollRaw <= 0 ? 0 : Math.min(1, overscrollRaw / ICON_APPEAR_THRESHOLD);
 
   // Background color based on pull state and theme
   const isDark = ui.text === "#FFFFFF" || ui.background === "#000000" || ui.background === "#1C1C1E";
@@ -176,7 +175,7 @@ function AddCard({
         styles.addCardOuter,
         {
           width: widthAnim,
-          opacity,
+          opacity: opacityAnim,
         },
       ]}
     >
@@ -193,17 +192,13 @@ function AddCard({
         )}
         {showText && !pastThreshold && (
           <View style={{ alignItems: "center", gap: 8 }}>
-            <View style={styles.addIconCircle}>
-              <Feather name="plus" size={28} color="rgba(150,150,150,0.8)" />
-            </View>
+            <Feather name="plus" size={32} color="rgba(150,150,150,0.8)" />
             <ThemedText style={styles.addLabel}>Add Account</ThemedText>
           </View>
         )}
         {pastThreshold && (
           <View style={{ alignItems: "center", gap: 8 }}>
-            <View style={[styles.addIconCircle, { borderColor: "rgba(100,200,100,0.5)" }]}>
-              <Feather name="check" size={24} color="rgba(100,200,100,0.9)" />
-            </View>
+            <Feather name="check" size={32} color="rgba(100,200,100,0.9)" />
             <ThemedText style={[styles.addLabel, { color: "rgba(100,200,100,0.9)" }]}>
               Release to add
             </ThemedText>
@@ -228,6 +223,7 @@ export function AccountCardCarousel({
   const flatListRef = useRef<FlatList>(null);
   const [overscrollRaw, setOverscrollRaw] = useState(0);
   const [isTriggering, setIsTriggering] = useState(false);
+  const hasThresholdHapticFired = useRef(false);
 
   // Animated value for the overscroll distance
   const overscrollAnim = useRef(new Animated.Value(0)).current;
@@ -257,6 +253,13 @@ export function AccountCardCarousel({
     extrapolate: "clamp",
   });
 
+  // Opacity: delay the fade-in so the thin dashed box is hidden initially
+  const addCardOpacity = overscrollAnim.interpolate({
+    inputRange: [0, 40, ICON_APPEAR_THRESHOLD],
+    outputRange: [0, 0, 1],
+    extrapolate: "clamp",
+  });
+
   const handleScroll = Animated.event(
     [{ nativeEvent: { contentOffset: { x: scrollX } } }],
     {
@@ -275,6 +278,15 @@ export function AccountCardCarousel({
         const overscroll = Math.max(0, offsetX - maxScrollOffset);
         overscrollAnim.setValue(overscroll);
         setOverscrollRaw(overscroll);
+
+        // Feedback when threshold is reached
+        if (overscroll >= ADD_TRIGGER_THRESHOLD && !hasThresholdHapticFired.current) {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+          hasThresholdHapticFired.current = true;
+        } else if (overscroll < (ADD_TRIGGER_THRESHOLD - 10) && hasThresholdHapticFired.current) {
+          // Add a small hysteresis to avoid jitter
+          hasThresholdHapticFired.current = false;
+        }
       },
     }
   );
@@ -420,6 +432,7 @@ export function AccountCardCarousel({
           overscrollRaw={overscrollRaw}
           ui={ui}
           marginRightAnim={addCardMarginRight}
+          opacityAnim={addCardOpacity}
         />
       </View>
 
@@ -602,15 +615,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     overflow: "hidden",
-  },
-  addIconCircle: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    borderWidth: 2,
-    borderColor: "rgba(150,150,150,0.35)",
-    alignItems: "center",
-    justifyContent: "center",
   },
   addLabel: {
     fontSize: 13,

@@ -104,11 +104,11 @@ export default function TargetsScreen() {
         headerSearchBarOptions: {
           placeholder: "Search targets...",
           onChangeText: (event: any) => setSearchQuery(event.nativeEvent.text),
-          hideWhenScrolling: true,
+          hideWhenScrolling: false,
           tintColor: ui.text,
           hintTextColor: ui.mutedText,
           headerIconColor: ui.mutedText,
-          shouldShowHintSearchIcon: false,
+          placement: "integratedButton",
         },
       });
     }, [navigation, ui])

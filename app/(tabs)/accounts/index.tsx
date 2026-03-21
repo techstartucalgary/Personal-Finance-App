@@ -1,6 +1,6 @@
 import Feather from "@expo/vector-icons/Feather";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -9,7 +9,6 @@ import {
   RefreshControl,
   ScrollView,
   StyleSheet,
-  TextInput,
   View,
   useColorScheme
 } from "react-native";
@@ -27,7 +26,6 @@ import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { SelectionModal } from "@/components/ui/SelectionModal";
-import { Tokens } from "@/constants/authTokens";
 import { useAuthContext } from "@/hooks/use-auth-context";
 import { listGoals } from "@/utils/goals";
 import type { PlaidAccount } from "@/utils/plaid";
@@ -147,12 +145,12 @@ export default function AccountsScreen() {
         headerSearchBarOptions: {
           placeholder: "Search accounts...",
           onChangeText: (event: any) => setSearchQuery(event.nativeEvent.text),
-          hideWhenScrolling: true,
+          hideWhenScrolling: false,
           tintColor: ui.accent,
           textColor: ui.text,
           hintTextColor: ui.mutedText,
           headerIconColor: ui.mutedText,
-          shouldShowHintSearchIcon: false,
+          placement: "integratedButton",
         },
       });
     }, [navigation, ui]),
@@ -380,7 +378,7 @@ export default function AccountsScreen() {
               {/* Name */}
               <View style={styles.inputRow}>
                 <IconSymbol name="signature" size={20} color={ui.mutedText} />
-                <ThemedText style={styles.rowLabel}>Name</ThemedText>
+                <ThemedText style={[styles.rowLabel, { color: ui.mutedText }]}>Name</ThemedText>
                 <ThemedText style={[styles.rowValue, { color: ui.text }]}>{activeManualAccount.account_name}</ThemedText>
               </View>
               <View style={[styles.rowSeparator, { backgroundColor: ui.border }]} />
@@ -388,7 +386,7 @@ export default function AccountsScreen() {
               {/* Balance */}
               <View style={styles.inputRow}>
                 <IconSymbol name="dollarsign.circle" size={20} color={ui.mutedText} />
-                <ThemedText style={styles.rowLabel}>Balance</ThemedText>
+                <ThemedText style={[styles.rowLabel, { color: ui.mutedText }]}>Balance</ThemedText>
                 <ThemedText style={[styles.rowValue, { color: ui.text }]}>
                   {formatMoney(activeManualAccount.balance ?? 0)}
                 </ThemedText>
@@ -398,7 +396,7 @@ export default function AccountsScreen() {
               {/* Credit Limit */}
               <View style={styles.inputRow}>
                 <IconSymbol name="creditcard" size={20} color={ui.mutedText} />
-                <ThemedText style={styles.rowLabel}>Credit Limit</ThemedText>
+                <ThemedText style={[styles.rowLabel, { color: ui.mutedText }]}>Credit Limit</ThemedText>
                 <ThemedText style={[styles.rowValue, { color: ui.text }]}>
                   {formatMoney(activeManualAccount.credit_limit ?? 0)}
                 </ThemedText>
@@ -408,7 +406,7 @@ export default function AccountsScreen() {
               {/* Interest Rate */}
               <View style={styles.inputRow}>
                 <IconSymbol name="percent" size={20} color={ui.mutedText} />
-                <ThemedText style={styles.rowLabel}>Interest Rate</ThemedText>
+                <ThemedText style={[styles.rowLabel, { color: ui.mutedText }]}>Interest Rate</ThemedText>
                 <ThemedText style={[styles.rowValue, { color: ui.text }]}>
                   {activeManualAccount.interest_rate}%
                 </ThemedText>
@@ -418,7 +416,7 @@ export default function AccountsScreen() {
               {/* Currency */}
               <View style={styles.inputRow}>
                 <IconSymbol name="globe" size={20} color={ui.mutedText} />
-                <ThemedText style={styles.rowLabel}>Currency</ThemedText>
+                <ThemedText style={[styles.rowLabel, { color: ui.mutedText }]}>Currency</ThemedText>
                 <ThemedText style={[styles.rowValue, { color: ui.text }]}>
                   {activeManualAccount.currency ?? "CAD"}
                 </ThemedText>
@@ -433,13 +431,13 @@ export default function AccountsScreen() {
             <View style={[styles.groupCard, { backgroundColor: ui.surface2, borderColor: ui.border }]}>
               <View style={styles.inputRow}>
                 <IconSymbol name="calendar" size={20} color={ui.mutedText} />
-                <ThemedText style={styles.rowLabel}>Statement Due</ThemedText>
+                <ThemedText style={[styles.rowLabel, { color: ui.mutedText }]}>Statement Due</ThemedText>
                 <ThemedText style={[styles.rowValue, { color: ui.text }]}>{activeManualAccount.statement_duedate || "N/A"}</ThemedText>
               </View>
               <View style={[styles.rowSeparator, { backgroundColor: ui.border }]} />
               <View style={styles.inputRow}>
                 <IconSymbol name="calendar.badge.clock" size={20} color={ui.mutedText} />
-                <ThemedText style={styles.rowLabel}>Payment Due</ThemedText>
+                <ThemedText style={[styles.rowLabel, { color: ui.mutedText }]}>Payment Due</ThemedText>
                 <ThemedText style={[styles.rowValue, { color: ui.text }]}>{activeManualAccount.payment_duedate || "N/A"}</ThemedText>
               </View>
             </View>
@@ -569,7 +567,7 @@ export default function AccountsScreen() {
             <ThemedText style={{ color: ui.mutedText, textAlign: "center", paddingHorizontal: 20 }}>
               Add your first account to start tracking your balances and transactions.
             </ThemedText>
-            
+
             <Pressable
               onPress={() => setAddSourceModalOpen(true)}
               style={({ pressed }) => [
@@ -598,61 +596,74 @@ export default function AccountsScreen() {
         title="Add Account"
         ui={ui}
       >
-        <ThemedText style={{ color: ui.mutedText, marginBottom: 12, textAlign: "center" }}>
+        <ThemedText style={{ color: ui.mutedText, marginBottom: 16, textAlign: "center", fontSize: 15 }}>
           How would you like to add your new account?
         </ThemedText>
 
-        <Pressable
-          style={[
-            styles.modalOption,
-            {
-              borderColor: ui.border, backgroundColor: ui.surface,
-              flexDirection: "row", justifyContent: "flex-start",
-              paddingHorizontal: 16, paddingVertical: 14, gap: 12,
-              borderWidth: StyleSheet.hairlineWidth,
-            },
-          ]}
-          onPress={() => { setAddSourceModalOpen(false); setCreateModalOpen(true); }}
-        >
-          <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: ui.surface2, alignItems: "center", justifyContent: "center" }}>
-            <Feather name="edit-2" size={18} color={ui.text} />
-          </View>
-          <View>
-            <ThemedText type="defaultSemiBold">Manual Account</ThemedText>
-            <ThemedText style={{ color: ui.mutedText, fontSize: 13, marginTop: 2 }}>Enter transactions yourself</ThemedText>
-          </View>
-        </Pressable>
+        <View style={{ gap: 12 }}>
+          <Pressable
+            style={({ pressed }) => [
+              styles.modalOption,
+              {
+                borderColor: ui.border,
+                backgroundColor: ui.surface2,
+                opacity: pressed ? 0.7 : 1,
+                flexDirection: "row",
+                alignItems: "center",
+                gap: 16,
+                padding: 16,
+              },
+            ]}
+            onPress={() => {
+              setAddSourceModalOpen(false);
+              setCreateModalOpen(true);
+            }}
+          >
+            <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: ui.surface, alignItems: "center", justifyContent: "center" }}>
+              <Feather name="edit-2" size={20} color={ui.text} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <ThemedText type="defaultSemiBold">Manual Account</ThemedText>
+              <ThemedText style={{ color: ui.mutedText, fontSize: 13, marginTop: 2 }}>Enter transactions yourself</ThemedText>
+            </View>
+            <Feather name="chevron-right" size={18} color={ui.mutedText} />
+          </Pressable>
 
-        <Pressable
-          style={[
-            styles.modalOption,
-            {
-              borderColor: ui.border, backgroundColor: ui.surface,
-              flexDirection: "row", justifyContent: "flex-start",
-              paddingHorizontal: 16, paddingVertical: 14, gap: 12,
-              borderWidth: StyleSheet.hairlineWidth,
-            },
-          ]}
-          disabled={isConnecting}
-          onPress={() => {
-            handleConnectBank({
-              onBeforeOpen: () => setAddSourceModalOpen(false),
-              onError: () => setAddSourceModalOpen(false),
-            });
-          }}
-        >
-          <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: ui.accentSoft, alignItems: "center", justifyContent: "center" }}>
-            {isConnecting ? (
-              <ActivityIndicator size="small" color={ui.accent} />
-            ) : (
-              <Feather name="link" size={18} color={ui.accent} />
-            )}
-          </View>
-          <View>
-            <ThemedText type="defaultSemiBold">{isConnecting ? "Connecting..." : "Connect Bank"}</ThemedText>
-            <ThemedText style={{ color: ui.mutedText, fontSize: 13, marginTop: 2 }}>Sync automatically via Plaid</ThemedText>
-          </View>
-        </Pressable>
+          <Pressable
+            style={({ pressed }) => [
+              styles.modalOption,
+              {
+                borderColor: ui.border,
+                backgroundColor: ui.surface2,
+                opacity: pressed ? 0.7 : 1,
+                flexDirection: "row",
+                alignItems: "center",
+                gap: 16,
+                padding: 16,
+              },
+            ]}
+            disabled={isConnecting}
+            onPress={() => {
+              handleConnectBank({
+                onBeforeOpen: () => setAddSourceModalOpen(false),
+                onError: () => setAddSourceModalOpen(false),
+              });
+            }}
+          >
+            <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: ui.accentSoft, alignItems: "center", justifyContent: "center" }}>
+              {isConnecting ? (
+                <ActivityIndicator size="small" color={ui.accent} />
+              ) : (
+                <Feather name="link" size={20} color={ui.accent} />
+              )}
+            </View>
+            <View style={{ flex: 1 }}>
+              <ThemedText type="defaultSemiBold">{isConnecting ? "Connecting..." : "Connect Bank"}</ThemedText>
+              <ThemedText style={{ color: ui.mutedText, fontSize: 13, marginTop: 2 }}>Sync automatically via Plaid</ThemedText>
+            </View>
+            <Feather name="chevron-right" size={18} color={ui.mutedText} />
+          </Pressable>
+        </View>
       </SelectionModal>
 
       {/* ── Create Account Modal ─────────────────────── */}
@@ -777,9 +788,8 @@ const styles = StyleSheet.create({
   buttonDisabled: { opacity: 0.5 },
   // ── Modal styles ──
   modalOption: {
-    paddingVertical: 12,
-    paddingHorizontal: 10,
-    borderRadius: 12,
+    borderRadius: 20,
     borderWidth: StyleSheet.hairlineWidth,
+    overflow: "hidden",
   },
 });

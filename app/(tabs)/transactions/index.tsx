@@ -242,12 +242,12 @@ export default function HomeScreen() {
         headerSearchBarOptions: {
           placeholder: "Search transactions...",
           onChangeText: (event: any) => setSearchQuery(event.nativeEvent.text),
-          hideWhenScrolling: true,
+          hideWhenScrolling: false,
           tintColor: ui.text,
           textColor: ui.text,
           hintTextColor: ui.mutedText,
           headerIconColor: ui.mutedText,
-          shouldShowHintSearchIcon: false,
+          placement: "integratedButton",
         },
       });
     }, [navigation, ui])

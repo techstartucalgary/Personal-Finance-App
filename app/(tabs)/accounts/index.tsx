@@ -559,10 +559,34 @@ export default function AccountsScreen() {
 
         {/* Empty state when no accounts */}
         {accounts.length === 0 && plaidAccounts.length === 0 && (
-          <View style={{ paddingHorizontal: 16, marginTop: 20, alignItems: "center" }}>
-            <ThemedText style={{ color: ui.mutedText, textAlign: "center" }}>
-              No accounts yet. Swipe left on the last card to add one!
+          <View style={{ paddingHorizontal: 16, marginTop: 40, alignItems: "center", gap: 16 }}>
+            <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: ui.surface2, alignItems: "center", justifyContent: "center" }}>
+              <Feather name="credit-card" size={32} color={ui.mutedText} />
+            </View>
+            <ThemedText style={{ color: ui.text, textAlign: "center", fontSize: 18, fontWeight: "600" }}>
+              No Accounts Yet
             </ThemedText>
+            <ThemedText style={{ color: ui.mutedText, textAlign: "center", paddingHorizontal: 20 }}>
+              Add your first account to start tracking your balances and transactions.
+            </ThemedText>
+            
+            <Pressable
+              onPress={() => setAddSourceModalOpen(true)}
+              style={({ pressed }) => [
+                styles.createButton,
+                {
+                  backgroundColor: ui.text,
+                  marginTop: 16,
+                  opacity: pressed ? 0.8 : 1,
+                  paddingHorizontal: 32,
+                  width: 'auto',
+                },
+              ]}
+            >
+              <ThemedText type="defaultSemiBold" style={{ color: ui.surface }}>
+                Add First Account
+              </ThemedText>
+            </Pressable>
           </View>
         )}
       </ScrollView>

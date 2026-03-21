@@ -5,6 +5,7 @@ import {
   Dimensions,
   FlatList,
   Image,
+  Pressable,
   StyleSheet,
   View,
 } from "react-native";
@@ -56,6 +57,7 @@ type Props = {
   activeIndex: number;
   onIndexChange: (index: number) => void;
   onAddPress: () => void;
+  onAccountPress?: (account: UnifiedAccount) => void;
   ui: any;
 };
 
@@ -66,7 +68,13 @@ function adjustOpacity(rgba: string, opacity: number) {
 
 // ── Account Card ──────────────────────────────────
 
-function AccountCard({ item, isDark }: { item: UnifiedAccount; isDark: boolean }) {
+function AccountCard({
+  item,
+  isDark,
+}: {
+  item: UnifiedAccount;
+  isDark: boolean;
+}) {
   // Use a semi-transparent black for the border to slightly darken the background color
   const borderColor = isDark ? "rgba(0,0,0,0.25)" : "rgba(0,0,0,0.12)";
 
@@ -86,12 +94,12 @@ function AccountCard({ item, isDark }: { item: UnifiedAccount; isDark: boolean }
         shadowRadius: shadowRadius,
       }
     ]}>
-      {/* Decorative elements */}
-      <View style={[styles.glow, { backgroundColor: item.color }]} />
-      <View style={styles.ring} />
-
-      {/* Wave image */}
+      {/* Decorative elements (no interactions) */}
       <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+        <View style={[styles.glow, { backgroundColor: item.color }]} />
+        <View style={styles.ring} />
+
+        {/* Wave image */}
         <Image
           source={require("../../assets/images/accounts-vector.png")}
           style={styles.waveImage}
@@ -213,6 +221,7 @@ export function AccountCardCarousel({
   activeIndex,
   onIndexChange,
   onAddPress,
+  onAccountPress,
   ui,
 }: Props) {
   const isDark = ui.text === "#FFFFFF" || ui.background === "#000000" || ui.background === "#1C1C1E";
@@ -347,11 +356,24 @@ export function AccountCardCarousel({
 
   const renderItem = useCallback(
     ({ item }: { item: UnifiedAccount }) => (
-      <View style={{ width: CARD_WIDTH, marginHorizontal: CARD_HORIZONTAL_MARGIN, paddingBottom: 10 }}>
-        <AccountCard item={item} isDark={isDark} />
+      <View style={{ width: ITEM_WIDTH, justifyContent: 'center' }}>
+        <Pressable
+          onPress={() => onAccountPress?.(item)}
+          style={({ pressed }) => [
+            {
+              width: CARD_WIDTH,
+              marginHorizontal: CARD_HORIZONTAL_MARGIN,
+              paddingBottom: 10,
+              opacity: pressed ? 0.8 : 1,
+              transform: [{ scale: pressed ? 0.98 : 1 }],
+            },
+          ]}
+        >
+          <AccountCard item={item} isDark={isDark} />
+        </Pressable>
       </View>
     ),
-    [isDark],
+    [isDark, onAccountPress],
   );
 
   const getItemLayout = useCallback(

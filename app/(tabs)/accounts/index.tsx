@@ -22,18 +22,13 @@ import { useFocusEffect, useNavigation, useRouter } from "expo-router";
 
 import { AccountCardCarousel, type UnifiedAccount } from "@/components/accounts/AccountCardCarousel";
 import { AddAccountModal } from "@/components/AddAccountModal";
+import { EditAccountModal } from "@/components/EditAccountModal";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
-import { DateTimePickerField } from "@/components/ui/DateTimePickerField";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { SelectionModal } from "@/components/ui/SelectionModal";
 import { Tokens } from "@/constants/authTokens";
 import { useAuthContext } from "@/hooks/use-auth-context";
-import {
-  deleteAccount as deleteAccountApi,
-  updateAccount as updateAccountApi,
-} from "@/utils/accounts";
-import { parseLocalDate, toLocalISOString } from "@/utils/date";
 import { listGoals } from "@/utils/goals";
 import type { PlaidAccount } from "@/utils/plaid";
 import { exchangePublicToken, getLinkToken, getPlaidAccounts, removePlaidItem } from "@/utils/plaid";
@@ -134,18 +129,10 @@ export default function AccountsScreen() {
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [addSourceModalOpen, setAddSourceModalOpen] = useState(false);
 
-  // ── Inline edit state ──────────────────────────────
+  // ── Edit modal state ──────────────────────────────
 
-  const [editName, setEditName] = useState("");
-  const [editBalance, setEditBalance] = useState("");
-  const [editLimit, setEditLimit] = useState("");
-  const [editInterest, setEditInterest] = useState("");
-  const [editStatementDate, setEditStatementDate] = useState("");
-  const [editPaymentDate, setEditPaymentDate] = useState("");
-  const [editCurrency, setEditCurrency] = useState("");
-
-  // Track original values for dirty detection
-  const [origEditValues, setOrigEditValues] = useState<Record<string, string>>({});
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [selectedAccountForEdit, setSelectedAccountForEdit] = useState<UnifiedAccount | null>(null);
 
   // ── Plaid state ────────────────────────────────────
 
@@ -259,92 +246,6 @@ export default function AccountsScreen() {
   }, [loadAccounts]);
 
 
-  // ── CRUD operations ────────────────────────────────
-
-  const updateAccount = useCallback(async () => {
-    if (!userId) return;
-    // Find the current manual account from the carousel state
-    const allAccounts = accounts;
-    const allPlaid = plaidAccounts;
-    const q = searchQuery.trim().toLowerCase();
-    // Build a quick unified list to find the active item
-    let idx = 0;
-    let activeAccount: AccountRow | null = null;
-    for (const acc of allAccounts) {
-      const nameStr = acc.account_name?.toLowerCase() ?? "";
-      const typeStr = acc.account_type?.toLowerCase() ?? "";
-      if (q && !nameStr.includes(q) && !typeStr.includes(q)) continue;
-      if (idx === activeCardIndex) { activeAccount = acc; break; }
-      idx++;
-    }
-    if (!activeAccount) return;
-    setIsLoading(true);
-
-    const cleanText = (value: string, fallback?: string | null) => {
-      const trimmed = value.trim();
-      return trimmed.length > 0 ? trimmed : (fallback ?? undefined);
-    };
-    const cleanNumber = (value: string, fallback?: number | null) => {
-      const trimmed = value.trim();
-      if (trimmed.length === 0) return fallback ?? 0;
-      const parsed = parseFloat(trimmed);
-      return Number.isFinite(parsed) ? parsed : (fallback ?? 0);
-    };
-
-    const payload = {
-      account_name: cleanText(editName, activeAccount.account_name),
-      balance: cleanNumber(editBalance, activeAccount.balance),
-      credit_limit: cleanNumber(editLimit, activeAccount.credit_limit),
-      interest_rate: cleanNumber(editInterest, activeAccount.interest_rate),
-      statement_duedate: cleanText(editStatementDate, activeAccount.statement_duedate),
-      payment_duedate: cleanText(editPaymentDate, activeAccount.payment_duedate),
-      currency: cleanText(editCurrency, activeAccount.currency),
-    };
-
-    try {
-      await updateAccountApi({ id: activeAccount.id, profile_id: userId, update: payload });
-    } catch (error) {
-      console.error("Error updating account:", error);
-      Alert.alert("Could not update account", "Please try again.");
-      setIsLoading(false);
-      return;
-    }
-
-    await loadAccounts();
-    setIsLoading(false);
-  }, [userId, accounts, plaidAccounts, searchQuery, activeCardIndex, editName, editBalance, editLimit, editInterest, editStatementDate, editPaymentDate, editCurrency, loadAccounts]);
-
-  const deleteAccount = useCallback(
-    async (accountId: string) => {
-      if (!userId) return;
-      Alert.alert(
-        "Delete account?",
-        "This will delete all transactions associated with the account.\n\nThis action cannot be undone.",
-        [
-          { text: "Cancel", style: "cancel" },
-          {
-            text: "Delete",
-            style: "destructive",
-            onPress: async () => {
-              setIsLoading(true);
-              try {
-                await deleteAccountApi({ id: accountId, profile_id: userId });
-              } catch (error) {
-                console.error("Error deleting account:", error);
-                Alert.alert("Could not delete account", "Please try again.");
-                setIsLoading(false);
-                return;
-              }
-              await loadAccounts();
-              setActiveCardIndex(0);
-              setIsLoading(false);
-            },
-          },
-        ],
-      );
-    },
-    [userId, loadAccounts],
-  );
 
   // ── Build unified account list ─────────────────────
 
@@ -408,43 +309,6 @@ export default function AccountsScreen() {
     activeItem?.kind === "plaid" ? activeItem.data : null;
 
 
-  // Sync edit fields when active card changes
-  useEffect(() => {
-    if (activeManualAccount) {
-      const vals = {
-        name: activeManualAccount.account_name ?? "",
-        balance: activeManualAccount.balance?.toString() ?? "",
-        limit: activeManualAccount.credit_limit?.toString() ?? "",
-        interest: activeManualAccount.interest_rate?.toString() ?? "",
-        statementDate: activeManualAccount.statement_duedate ?? "",
-        paymentDate: activeManualAccount.payment_duedate ?? "",
-        currency: activeManualAccount.currency ?? "CAD",
-      };
-      setEditName(vals.name);
-      setEditBalance(vals.balance);
-      setEditLimit(vals.limit);
-      setEditInterest(vals.interest);
-      setEditStatementDate(vals.statementDate);
-      setEditPaymentDate(vals.paymentDate);
-      setEditCurrency(vals.currency);
-      setOrigEditValues(vals);
-    }
-  }, [activeManualAccount?.id]);
-
-  // Dirty detection
-  const isDirty = useMemo(() => {
-    if (!activeManualAccount) return false;
-    return (
-      editName !== origEditValues.name ||
-      editBalance !== origEditValues.balance ||
-      editLimit !== origEditValues.limit ||
-      editInterest !== origEditValues.interest ||
-      editStatementDate !== origEditValues.statementDate ||
-      editPaymentDate !== origEditValues.paymentDate ||
-      editCurrency !== origEditValues.currency
-    );
-  }, [editName, editBalance, editLimit, editInterest, editStatementDate, editPaymentDate, editCurrency, origEditValues, activeManualAccount]);
-
   // ── Plaid helpers ──────────────────────────────────
 
   const plaidAvailable = useMemo(() => {
@@ -498,10 +362,14 @@ export default function AccountsScreen() {
           activeIndex={activeCardIndex}
           onIndexChange={setActiveCardIndex}
           onAddPress={() => setAddSourceModalOpen(true)}
+          onAccountPress={(acc) => {
+            setSelectedAccountForEdit(acc);
+            setEditModalOpen(true);
+          }}
           ui={ui}
         />
 
-        {/* ── Detail Section ─────────────────────────── */}
+        {/* ── Manual Detail Section (Read Only) ─────── */}
         {activeManualAccount && (
           <View style={{ paddingHorizontal: 16, marginTop: 8 }}>
             <View style={styles.sectionHeader}>
@@ -512,13 +380,8 @@ export default function AccountsScreen() {
               {/* Name */}
               <View style={styles.inputRow}>
                 <IconSymbol name="signature" size={20} color={ui.mutedText} />
-                <TextInput
-                  value={editName}
-                  onChangeText={setEditName}
-                  placeholder="Account Name"
-                  placeholderTextColor={ui.mutedText}
-                  style={[styles.rowInput, { color: ui.text }]}
-                />
+                <ThemedText style={styles.rowLabel}>Name</ThemedText>
+                <ThemedText style={[styles.rowValue, { color: ui.text }]}>{activeManualAccount.account_name}</ThemedText>
               </View>
               <View style={[styles.rowSeparator, { backgroundColor: ui.border }]} />
 
@@ -526,14 +389,9 @@ export default function AccountsScreen() {
               <View style={styles.inputRow}>
                 <IconSymbol name="dollarsign.circle" size={20} color={ui.mutedText} />
                 <ThemedText style={styles.rowLabel}>Balance</ThemedText>
-                <TextInput
-                  value={editBalance}
-                  onChangeText={setEditBalance}
-                  keyboardType="decimal-pad"
-                  placeholder="0.00"
-                  placeholderTextColor={ui.mutedText}
-                  style={[styles.rowValueInput, { color: ui.text }]}
-                />
+                <ThemedText style={[styles.rowValue, { color: ui.text }]}>
+                  {formatMoney(activeManualAccount.balance ?? 0)}
+                </ThemedText>
               </View>
               <View style={[styles.rowSeparator, { backgroundColor: ui.border }]} />
 
@@ -541,14 +399,9 @@ export default function AccountsScreen() {
               <View style={styles.inputRow}>
                 <IconSymbol name="creditcard" size={20} color={ui.mutedText} />
                 <ThemedText style={styles.rowLabel}>Credit Limit</ThemedText>
-                <TextInput
-                  value={editLimit}
-                  onChangeText={setEditLimit}
-                  keyboardType="decimal-pad"
-                  placeholder="0.00"
-                  placeholderTextColor={ui.mutedText}
-                  style={[styles.rowValueInput, { color: ui.text }]}
-                />
+                <ThemedText style={[styles.rowValue, { color: ui.text }]}>
+                  {formatMoney(activeManualAccount.credit_limit ?? 0)}
+                </ThemedText>
               </View>
               <View style={[styles.rowSeparator, { backgroundColor: ui.border }]} />
 
@@ -556,14 +409,9 @@ export default function AccountsScreen() {
               <View style={styles.inputRow}>
                 <IconSymbol name="percent" size={20} color={ui.mutedText} />
                 <ThemedText style={styles.rowLabel}>Interest Rate</ThemedText>
-                <TextInput
-                  value={editInterest}
-                  onChangeText={setEditInterest}
-                  keyboardType="decimal-pad"
-                  placeholder="0.0"
-                  placeholderTextColor={ui.mutedText}
-                  style={[styles.rowValueInput, { color: ui.text }]}
-                />
+                <ThemedText style={[styles.rowValue, { color: ui.text }]}>
+                  {activeManualAccount.interest_rate}%
+                </ThemedText>
               </View>
               <View style={[styles.rowSeparator, { backgroundColor: ui.border }]} />
 
@@ -571,14 +419,9 @@ export default function AccountsScreen() {
               <View style={styles.inputRow}>
                 <IconSymbol name="globe" size={20} color={ui.mutedText} />
                 <ThemedText style={styles.rowLabel}>Currency</ThemedText>
-                <TextInput
-                  value={editCurrency}
-                  onChangeText={setEditCurrency}
-                  autoCapitalize="characters"
-                  placeholder="CAD"
-                  placeholderTextColor={ui.mutedText}
-                  style={[styles.rowValueInput, { color: ui.text }]}
-                />
+                <ThemedText style={[styles.rowValue, { color: ui.text }]}>
+                  {activeManualAccount.currency ?? "CAD"}
+                </ThemedText>
               </View>
             </View>
 
@@ -588,65 +431,18 @@ export default function AccountsScreen() {
             </View>
 
             <View style={[styles.groupCard, { backgroundColor: ui.surface2, borderColor: ui.border }]}>
-              <DateTimePickerField
-                label="Statement Date"
-                value={parseLocalDate(editStatementDate)}
-                onChange={(date) => setEditStatementDate(toLocalISOString(date))}
-                ui={ui}
-                icon="calendar"
-              />
+              <View style={styles.inputRow}>
+                <IconSymbol name="calendar" size={20} color={ui.mutedText} />
+                <ThemedText style={styles.rowLabel}>Statement Due</ThemedText>
+                <ThemedText style={[styles.rowValue, { color: ui.text }]}>{activeManualAccount.statement_duedate || "N/A"}</ThemedText>
+              </View>
               <View style={[styles.rowSeparator, { backgroundColor: ui.border }]} />
-              <DateTimePickerField
-                label="Payment Date"
-                value={parseLocalDate(editPaymentDate)}
-                onChange={(date) => setEditPaymentDate(toLocalISOString(date))}
-                ui={ui}
-                icon="calendar.badge.clock"
-              />
+              <View style={styles.inputRow}>
+                <IconSymbol name="calendar.badge.clock" size={20} color={ui.mutedText} />
+                <ThemedText style={styles.rowLabel}>Payment Due</ThemedText>
+                <ThemedText style={[styles.rowValue, { color: ui.text }]}>{activeManualAccount.payment_duedate || "N/A"}</ThemedText>
+              </View>
             </View>
-
-            {/* Save + Delete */}
-            {isDirty && (
-              <Pressable
-                onPress={updateAccount}
-                disabled={isLoading}
-                style={({ pressed }) => [
-                  styles.saveButton,
-                  {
-                    backgroundColor: isDark ? "#FFFFFF" : "#000000",
-                    borderColor: ui.border,
-                    marginTop: 24,
-                    opacity: pressed ? 0.8 : 1,
-                  },
-                ]}
-              >
-                {isLoading ? (
-                  <ActivityIndicator size="small" color={isDark ? "#1C1C1E" : "#FFFFFF"} />
-                ) : (
-                  <ThemedText type="defaultSemiBold" style={{ color: isDark ? "#1C1C1E" : "#FFFFFF" }}>
-                    Save Changes
-                  </ThemedText>
-                )}
-              </Pressable>
-            )}
-
-            <Pressable
-              onPress={() => deleteAccount(activeManualAccount.id)}
-              disabled={isLoading}
-              style={({ pressed }) => [
-                styles.deleteButton,
-                {
-                  borderColor: ui.border,
-                  backgroundColor: ui.surface2,
-                  marginTop: isDirty ? 12 : 24,
-                  opacity: pressed ? 0.7 : 1,
-                },
-              ]}
-            >
-              <ThemedText type="defaultSemiBold" style={{ color: ui.danger }}>
-                Delete Account
-              </ThemedText>
-            </Pressable>
           </View>
         )}
 
@@ -840,6 +636,24 @@ export default function AccountsScreen() {
         visible={createModalOpen}
         onClose={() => setCreateModalOpen(false)}
         onAccountCreated={loadAccounts}
+        ui={ui}
+        isDark={isDark}
+        userId={userId}
+      />
+
+      {/* ── Edit Account Modal ─────────────────────── */}
+      <EditAccountModal
+        visible={editModalOpen}
+        onClose={() => {
+          setEditModalOpen(false);
+          setSelectedAccountForEdit(null);
+        }}
+        account={selectedAccountForEdit}
+        onAccountUpdated={loadAccounts}
+        onAccountDeleted={async () => {
+          setActiveCardIndex(0);
+          await loadAccounts();
+        }}
         ui={ui}
         isDark={isDark}
         userId={userId}

@@ -103,7 +103,7 @@ export default function DashboardScreen() {
 
   const loadData = useCallback(async (silent = false) => {
     if (!userId) return;
-    
+
     // Improved loading UX: only show spinner if we have no data at all
     const hasData = accounts.length > 0 || plaidAccounts.length > 0 || goals.length > 0;
     if (!silent && !hasData) setIsLoading(true);
@@ -344,7 +344,7 @@ export default function DashboardScreen() {
         contentInsetAdjustmentBehavior="automatic"
         contentContainerStyle={[
           styles.scrollContent,
-          { paddingBottom: tabBarHeight + 120, paddingTop: 16 },
+          { paddingBottom: tabBarHeight + 120, paddingTop: 24 },
         ]}
         showsVerticalScrollIndicator={false}
         refreshControl={

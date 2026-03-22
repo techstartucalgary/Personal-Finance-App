@@ -1,9 +1,10 @@
 import Feather from "@expo/vector-icons/Feather";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Animated,
   Platform,
   Pressable,
   RefreshControl,
@@ -58,10 +59,26 @@ type GoalRow = {
   linked_plaid_account: string | null;
 };
 
-// ── Color palette ──────────────────────────────────
+// ── Color palettes ─────────────────────────────────
+// Asset/Debit/Checking: Professional deep tones (Blues, Greens, Purples)
+const DEBIT_PALETTE = [
+  "#1A365D", // Deep Navy
+  "#064E3B", // Forest Emerald
+  "#4C1D95", // Royal Purple
+  "#134E4A", // Dark Teal
+  "#1E3A8A", // Cobalt Blue
+  "#312E81", // Deep Indigo
+];
 
-const DEBIT_PALETTE = ["#701D26", "#8A2431", "#5A1520", "#9B2B3A"];
-const CREDIT_PALETTE = ["#D86666", "#E07A7A", "#C95454", "#E39191"];
+// Credit/Liability/Loan: Warm and active tones (Rose, Amber, Gold, Mauve)
+const CREDIT_PALETTE = [
+  "#7F1D1D", // Deep Carmine
+  "#78350F", // Amber Clay
+  "#831843", // Deep Rose
+  "#7C2D12", // Burnt Terra
+  "#581C87", // Dark Violet
+  "#0F172A", // Midnight Slate
+];
 
 function getAccountColor(isLiability: boolean, index: number) {
   const palette = isLiability ? CREDIT_PALETTE : DEBIT_PALETTE;
@@ -254,44 +271,65 @@ export default function AccountsScreen() {
 
     // Manual accounts
     accounts.forEach((acc) => {
-      const nameStr = acc.account_name?.toLowerCase() ?? "";
       const typeStr = acc.account_type?.toLowerCase() ?? "";
+      const isLiability = typeStr === "credit";
+      const currentColor = getAccountColor(isLiability, colorIdx);
+      colorIdx++;
+
+      const nameStr = acc.account_name?.toLowerCase() ?? "";
       if (q && !nameStr.includes(q) && !typeStr.includes(q)) return;
 
-      const isLiability = typeStr === "credit";
+      // Calculate available balance for manual account
+      const accountGoals = goals.filter((g) =>
+        g.linked_account != null && String(g.linked_account) === String(acc.id)
+      );
+      const allocated = accountGoals.reduce((sum, g) => sum + (g.current_amount ?? 0), 0);
+      let available = (acc.balance ?? 0) - allocated;
+      if (isLiability) {
+        available = (acc.credit_limit ?? 0) - (acc.balance ?? 0);
+      }
+
       list.push({
         key: `manual-${acc.id}`,
         kind: "manual",
-        color: getAccountColor(isLiability, colorIdx),
+        color: currentColor,
         name: acc.account_name ?? "Unnamed Account",
         balance: formatMoney(acc.balance ?? 0),
+        availableBalance: formatMoney(available),
         typeLabel: acc.account_type ? acc.account_type.charAt(0).toUpperCase() + acc.account_type.slice(1) : "Account",
         subtitle: acc.currency ?? "CAD",
         sourceLabel: "Manual",
         data: acc,
       });
-      colorIdx++;
     });
 
     // Plaid accounts
     plaidAccounts.forEach((pa) => {
-      const nameStr = pa.name?.toLowerCase() ?? "";
       const typeStr = pa.type?.toLowerCase() ?? "";
+      const isLiability = typeStr === "credit" || typeStr === "loan";
+      const currentColor = getAccountColor(isLiability, colorIdx);
+      colorIdx++;
+
+      const nameStr = pa.name?.toLowerCase() ?? "";
       if (q && !nameStr.includes(q) && !typeStr.includes(q)) return;
 
-      const isLiability = typeStr === "credit" || typeStr === "loan";
+      // Calculate available balance for Plaid account
+      const accountGoals = goals.filter((g) => g.linked_plaid_account === pa.account_id);
+      const allocated = accountGoals.reduce((sum, g) => sum + (g.current_amount ?? 0), 0);
+      const available = (pa.balances.current ?? 0) - allocated;
+
       list.push({
         key: `plaid-${pa.account_id}`,
         kind: "plaid",
-        color: getAccountColor(isLiability, colorIdx),
+        color: currentColor,
         name: pa.name,
         balance: formatMoney(pa.balances.current ?? 0),
+        availableBalance: formatMoney(pa.balances.available ?? available),
         typeLabel: pa.type.charAt(0).toUpperCase() + pa.type.slice(1),
         subtitle: pa.subtype ? pa.subtype.charAt(0).toUpperCase() + pa.subtype.slice(1) : "Bank",
         sourceLabel: "Plaid",
         data: pa,
       });
-      colorIdx++;
     });
 
 
@@ -316,6 +354,51 @@ export default function AccountsScreen() {
     const allocated = accountGoals.reduce((sum, g) => sum + (g.current_amount ?? 0), 0);
     return totalBalance - allocated;
   }, [activePlaidAccount, goals]);
+
+  const manualAvailable = useMemo(() => {
+    if (!activeManualAccount) return null;
+    const totalBalance = activeManualAccount.balance ?? 0;
+    const accountGoals = goals.filter((g) =>
+      g.linked_account != null && String(g.linked_account) === String(activeManualAccount.id)
+    );
+    const allocated = accountGoals.reduce((sum, g) => sum + (g.current_amount ?? 0), 0);
+
+    if (activeManualAccount.account_type === "credit") {
+      const limit = activeManualAccount.credit_limit ?? 0;
+      return limit - totalBalance;
+    }
+
+    return totalBalance - allocated;
+  }, [activeManualAccount, goals]);
+
+  // ── Detail Animation Wrapper ───────────────────────
+  const FadeInView = useCallback(({ children, trigger }: { children: React.ReactNode; trigger: any }) => {
+    const opacity = useRef(new Animated.Value(0.5)).current;
+    const translateY = useRef(new Animated.Value(4)).current;
+
+    useEffect(() => {
+      opacity.setValue(0.5);
+      translateY.setValue(4);
+      Animated.parallel([
+        Animated.timing(opacity, {
+          toValue: 1,
+          duration: 250,
+          useNativeDriver: true,
+        }),
+        Animated.timing(translateY, {
+          toValue: 0,
+          duration: 250,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }, [trigger]);
+
+    return (
+      <Animated.View style={{ opacity, transform: [{ translateY }] }}>
+        {children}
+      </Animated.View>
+    );
+  }, []);
 
   // ── Render ─────────────────────────────────────────
 
@@ -343,7 +426,10 @@ export default function AccountsScreen() {
         contentInsetAdjustmentBehavior="automatic"
         contentContainerStyle={[
           styles.scrollContent,
-          { paddingBottom: tabBarHeight + 80, paddingTop: Platform.OS === "android" ? 16 : 0 },
+          {
+            paddingBottom: tabBarHeight + 120,
+            paddingTop: Platform.OS === "android" ? 24 : 0
+          },
         ]}
         showsVerticalScrollIndicator={false}
         refreshControl={
@@ -355,204 +441,220 @@ export default function AccountsScreen() {
         }
       >
         {/* ── Card Carousel ──────────────────────────── */}
-        <AccountCardCarousel
-          accounts={unifiedAccounts}
-          activeIndex={activeCardIndex}
-          onIndexChange={setActiveCardIndex}
-          onAddPress={() => setAddSourceModalOpen(true)}
-          onAccountPress={(acc) => {
-            setSelectedAccountForEdit(acc);
-            setEditModalOpen(true);
-          }}
-          ui={ui}
-        />
+        {unifiedAccounts.length > 0 && (
+          <AccountCardCarousel
+            accounts={unifiedAccounts}
+            activeIndex={activeCardIndex}
+            onIndexChange={setActiveCardIndex}
+            onAddPress={() => setAddSourceModalOpen(true)}
+            onAccountPress={(acc) => {
+              setSelectedAccountForEdit(acc);
+              setEditModalOpen(true);
+            }}
+            ui={ui}
+          />
+        )}
 
         {/* ── Manual Detail Section (Read Only) ─────── */}
         {activeManualAccount && (
-          <View style={{ paddingHorizontal: 16, marginTop: 8 }}>
-            <View style={styles.sectionHeader}>
-              <ThemedText style={[styles.sectionHeaderText, { color: ui.mutedText }]}>ACCOUNT DETAILS</ThemedText>
+          <FadeInView trigger={activeManualAccount.id}>
+            <View style={{ paddingHorizontal: 16, marginTop: 8 }}>
+              <View style={styles.sectionHeader}>
+                <ThemedText style={[styles.sectionHeaderText, { color: ui.mutedText }]}>ACCOUNT DETAILS</ThemedText>
+              </View>
+
+              <View style={[styles.groupCard, { backgroundColor: ui.surface2, borderColor: ui.border }]}>
+                {/* Name */}
+                <View style={styles.inputRow}>
+                  <IconSymbol name="signature" size={20} color={ui.mutedText} />
+                  <ThemedText style={[styles.rowLabel, { color: ui.mutedText }]}>Name</ThemedText>
+                  <ThemedText style={[styles.rowValue, { color: ui.text }]}>{activeManualAccount.account_name}</ThemedText>
+                </View>
+                <View style={[styles.rowSeparator, { backgroundColor: ui.border }]} />
+
+                {/* Balance */}
+                <View style={styles.inputRow}>
+                  <IconSymbol name="dollarsign.circle" size={20} color={ui.mutedText} />
+                  <ThemedText style={[styles.rowLabel, { color: ui.mutedText }]}>Balance</ThemedText>
+                  <ThemedText style={[styles.rowValue, { color: ui.text }]}>
+                    {formatMoney(activeManualAccount.balance ?? 0)}
+                  </ThemedText>
+                </View>
+                <View style={[styles.rowSeparator, { backgroundColor: ui.border }]} />
+
+                {/* Available */}
+                <View style={styles.inputRow}>
+                  <IconSymbol name="dollarsign.circle" size={20} color={ui.mutedText} />
+                  <ThemedText style={[styles.rowLabel, { color: ui.mutedText }]}>Available</ThemedText>
+                  <ThemedText style={[styles.rowValue, { color: ui.accent }]}>
+                    {formatMoney(manualAvailable ?? 0)}
+                  </ThemedText>
+                </View>
+                <View style={[styles.rowSeparator, { backgroundColor: ui.border }]} />
+
+                {/* Credit Limit */}
+                <View style={styles.inputRow}>
+                  <IconSymbol name="creditcard" size={20} color={ui.mutedText} />
+                  <ThemedText style={[styles.rowLabel, { color: ui.mutedText }]}>Credit Limit</ThemedText>
+                  <ThemedText style={[styles.rowValue, { color: ui.text }]}>
+                    {formatMoney(activeManualAccount.credit_limit ?? 0)}
+                  </ThemedText>
+                </View>
+                <View style={[styles.rowSeparator, { backgroundColor: ui.border }]} />
+
+                {/* Interest Rate */}
+                <View style={styles.inputRow}>
+                  <IconSymbol name="percent" size={20} color={ui.mutedText} />
+                  <ThemedText style={[styles.rowLabel, { color: ui.mutedText }]}>Interest Rate</ThemedText>
+                  <ThemedText style={[styles.rowValue, { color: ui.text }]}>
+                    {activeManualAccount.interest_rate}%
+                  </ThemedText>
+                </View>
+                <View style={[styles.rowSeparator, { backgroundColor: ui.border }]} />
+
+                {/* Currency */}
+                <View style={styles.inputRow}>
+                  <IconSymbol name="globe" size={20} color={ui.mutedText} />
+                  <ThemedText style={[styles.rowLabel, { color: ui.mutedText }]}>Currency</ThemedText>
+                  <ThemedText style={[styles.rowValue, { color: ui.text }]}>
+                    {activeManualAccount.currency ?? "CAD"}
+                  </ThemedText>
+                </View>
+              </View>
+
+              {/* Dates section */}
+              <View style={styles.sectionHeader}>
+                <ThemedText style={[styles.sectionHeaderText, { color: ui.mutedText }]}>DUE DATES</ThemedText>
+              </View>
+
+              <View style={[styles.groupCard, { backgroundColor: ui.surface2, borderColor: ui.border }]}>
+                <View style={styles.inputRow}>
+                  <IconSymbol name="calendar" size={20} color={ui.mutedText} />
+                  <ThemedText style={[styles.rowLabel, { color: ui.mutedText }]}>Statement Due</ThemedText>
+                  <ThemedText style={[styles.rowValue, { color: ui.text }]}>{activeManualAccount.statement_duedate || "N/A"}</ThemedText>
+                </View>
+                <View style={[styles.rowSeparator, { backgroundColor: ui.border }]} />
+                <View style={styles.inputRow}>
+                  <IconSymbol name="calendar.badge.clock" size={20} color={ui.mutedText} />
+                  <ThemedText style={[styles.rowLabel, { color: ui.mutedText }]}>Payment Due</ThemedText>
+                  <ThemedText style={[styles.rowValue, { color: ui.text }]}>{activeManualAccount.payment_duedate || "N/A"}</ThemedText>
+                </View>
+              </View>
             </View>
-
-            <View style={[styles.groupCard, { backgroundColor: ui.surface2, borderColor: ui.border }]}>
-              {/* Name */}
-              <View style={styles.inputRow}>
-                <IconSymbol name="signature" size={20} color={ui.mutedText} />
-                <ThemedText style={[styles.rowLabel, { color: ui.mutedText }]}>Name</ThemedText>
-                <ThemedText style={[styles.rowValue, { color: ui.text }]}>{activeManualAccount.account_name}</ThemedText>
-              </View>
-              <View style={[styles.rowSeparator, { backgroundColor: ui.border }]} />
-
-              {/* Balance */}
-              <View style={styles.inputRow}>
-                <IconSymbol name="dollarsign.circle" size={20} color={ui.mutedText} />
-                <ThemedText style={[styles.rowLabel, { color: ui.mutedText }]}>Balance</ThemedText>
-                <ThemedText style={[styles.rowValue, { color: ui.text }]}>
-                  {formatMoney(activeManualAccount.balance ?? 0)}
-                </ThemedText>
-              </View>
-              <View style={[styles.rowSeparator, { backgroundColor: ui.border }]} />
-
-              {/* Credit Limit */}
-              <View style={styles.inputRow}>
-                <IconSymbol name="creditcard" size={20} color={ui.mutedText} />
-                <ThemedText style={[styles.rowLabel, { color: ui.mutedText }]}>Credit Limit</ThemedText>
-                <ThemedText style={[styles.rowValue, { color: ui.text }]}>
-                  {formatMoney(activeManualAccount.credit_limit ?? 0)}
-                </ThemedText>
-              </View>
-              <View style={[styles.rowSeparator, { backgroundColor: ui.border }]} />
-
-              {/* Interest Rate */}
-              <View style={styles.inputRow}>
-                <IconSymbol name="percent" size={20} color={ui.mutedText} />
-                <ThemedText style={[styles.rowLabel, { color: ui.mutedText }]}>Interest Rate</ThemedText>
-                <ThemedText style={[styles.rowValue, { color: ui.text }]}>
-                  {activeManualAccount.interest_rate}%
-                </ThemedText>
-              </View>
-              <View style={[styles.rowSeparator, { backgroundColor: ui.border }]} />
-
-              {/* Currency */}
-              <View style={styles.inputRow}>
-                <IconSymbol name="globe" size={20} color={ui.mutedText} />
-                <ThemedText style={[styles.rowLabel, { color: ui.mutedText }]}>Currency</ThemedText>
-                <ThemedText style={[styles.rowValue, { color: ui.text }]}>
-                  {activeManualAccount.currency ?? "CAD"}
-                </ThemedText>
-              </View>
-            </View>
-
-            {/* Dates section */}
-            <View style={styles.sectionHeader}>
-              <ThemedText style={[styles.sectionHeaderText, { color: ui.mutedText }]}>DUE DATES</ThemedText>
-            </View>
-
-            <View style={[styles.groupCard, { backgroundColor: ui.surface2, borderColor: ui.border }]}>
-              <View style={styles.inputRow}>
-                <IconSymbol name="calendar" size={20} color={ui.mutedText} />
-                <ThemedText style={[styles.rowLabel, { color: ui.mutedText }]}>Statement Due</ThemedText>
-                <ThemedText style={[styles.rowValue, { color: ui.text }]}>{activeManualAccount.statement_duedate || "N/A"}</ThemedText>
-              </View>
-              <View style={[styles.rowSeparator, { backgroundColor: ui.border }]} />
-              <View style={styles.inputRow}>
-                <IconSymbol name="calendar.badge.clock" size={20} color={ui.mutedText} />
-                <ThemedText style={[styles.rowLabel, { color: ui.mutedText }]}>Payment Due</ThemedText>
-                <ThemedText style={[styles.rowValue, { color: ui.text }]}>{activeManualAccount.payment_duedate || "N/A"}</ThemedText>
-              </View>
-            </View>
-          </View>
+          </FadeInView>
         )}
 
         {/* ── Plaid Account Detail (Read Only) ───────── */}
         {activePlaidAccount && (
-          <View style={{ paddingHorizontal: 16, marginTop: 8 }}>
-            <View style={styles.sectionHeader}>
-              <ThemedText style={[styles.sectionHeaderText, { color: ui.mutedText }]}>ACCOUNT DETAILS</ThemedText>
-            </View>
-
-            <View style={[styles.groupCard, { backgroundColor: ui.surface2, borderColor: ui.border }]}>
-              <View style={styles.inputRow}>
-                <IconSymbol name="signature" size={20} color={ui.mutedText} />
-                <ThemedText style={styles.rowLabel}>Name</ThemedText>
-                <ThemedText style={[styles.rowValue, { color: ui.text }]}>{activePlaidAccount.name}</ThemedText>
-              </View>
-              <View style={[styles.rowSeparator, { backgroundColor: ui.border }]} />
-
-              <View style={styles.inputRow}>
-                <IconSymbol name="creditcard" size={20} color={ui.mutedText} />
-                <ThemedText style={styles.rowLabel}>Type</ThemedText>
-                <ThemedText style={[styles.rowValue, { color: ui.text }]}>
-                  {activePlaidAccount.type.charAt(0).toUpperCase() + activePlaidAccount.type.slice(1)}
-                  {activePlaidAccount.subtype ? ` · ${activePlaidAccount.subtype.charAt(0).toUpperCase() + activePlaidAccount.subtype.slice(1)}` : ""}
-                </ThemedText>
-              </View>
-              <View style={[styles.rowSeparator, { backgroundColor: ui.border }]} />
-
-              <View style={styles.inputRow}>
-                <IconSymbol name="dollarsign.circle" size={20} color={ui.mutedText} />
-                <ThemedText style={styles.rowLabel}>Balance</ThemedText>
-                <ThemedText style={[styles.rowValue, { color: ui.text }]}>
-                  {formatMoney(activePlaidAccount.balances.current ?? 0)}
-                </ThemedText>
-              </View>
-              <View style={[styles.rowSeparator, { backgroundColor: ui.border }]} />
-
-              <View style={styles.inputRow}>
-                <IconSymbol name="dollarsign.circle" size={20} color={ui.mutedText} />
-                <ThemedText style={styles.rowLabel}>Available</ThemedText>
-                <ThemedText style={[styles.rowValue, { color: ui.accent }]}>
-                  {formatMoney(plaidAvailable ?? activePlaidAccount.balances.available ?? 0)}
-                </ThemedText>
+          <FadeInView trigger={activePlaidAccount.account_id}>
+            <View style={{ paddingHorizontal: 16, marginTop: 8 }}>
+              <View style={styles.sectionHeader}>
+                <ThemedText style={[styles.sectionHeaderText, { color: ui.mutedText }]}>ACCOUNT DETAILS</ThemedText>
               </View>
 
-              {activePlaidAccount.mask && (
-                <>
-                  <View style={[styles.rowSeparator, { backgroundColor: ui.border }]} />
-                  <View style={styles.inputRow}>
-                    <IconSymbol name="lock" size={20} color={ui.mutedText} />
-                    <ThemedText style={styles.rowLabel}>Last 4</ThemedText>
-                    <ThemedText style={[styles.rowValue, { color: ui.text }]}>•••• {activePlaidAccount.mask}</ThemedText>
-                  </View>
-                </>
-              )}
+              <View style={[styles.groupCard, { backgroundColor: ui.surface2, borderColor: ui.border }]}>
+                <View style={styles.inputRow}>
+                  <IconSymbol name="signature" size={20} color={ui.mutedText} />
+                  <ThemedText style={styles.rowLabel}>Name</ThemedText>
+                  <ThemedText style={[styles.rowValue, { color: ui.text }]}>{activePlaidAccount.name}</ThemedText>
+                </View>
+                <View style={[styles.rowSeparator, { backgroundColor: ui.border }]} />
 
-              {activePlaidAccount.institution_name && (
-                <>
-                  <View style={[styles.rowSeparator, { backgroundColor: ui.border }]} />
-                  <View style={styles.inputRow}>
-                    <IconSymbol name="building.2" size={20} color={ui.mutedText} />
-                    <ThemedText style={styles.rowLabel}>Institution</ThemedText>
-                    <ThemedText style={[styles.rowValue, { color: ui.text }]}>{activePlaidAccount.institution_name}</ThemedText>
-                  </View>
-                </>
-              )}
-            </View>
+                <View style={styles.inputRow}>
+                  <IconSymbol name="creditcard" size={20} color={ui.mutedText} />
+                  <ThemedText style={styles.rowLabel}>Type</ThemedText>
+                  <ThemedText style={[styles.rowValue, { color: ui.text }]}>
+                    {activePlaidAccount.type.charAt(0).toUpperCase() + activePlaidAccount.type.slice(1)}
+                    {activePlaidAccount.subtype ? ` · ${activePlaidAccount.subtype.charAt(0).toUpperCase() + activePlaidAccount.subtype.slice(1)}` : ""}
+                  </ThemedText>
+                </View>
+                <View style={[styles.rowSeparator, { backgroundColor: ui.border }]} />
 
-            <Pressable
-              onPress={() => {
-                Alert.alert(
-                  "Unlink Account?",
-                  "Are you sure you want to unlink this account? Your data will be removed.",
-                  [
-                    { text: "Cancel", style: "cancel" },
-                    {
-                      text: "Unlink",
-                      style: "destructive",
-                      onPress: async () => {
-                        try {
-                          if (!activePlaidAccount.plaid_item_id) {
-                            Alert.alert("Error", "No item ID found.");
-                            return;
+                <View style={styles.inputRow}>
+                  <IconSymbol name="dollarsign.circle" size={20} color={ui.mutedText} />
+                  <ThemedText style={styles.rowLabel}>Balance</ThemedText>
+                  <ThemedText style={[styles.rowValue, { color: ui.text }]}>
+                    {formatMoney(activePlaidAccount.balances.current ?? 0)}
+                  </ThemedText>
+                </View>
+                <View style={[styles.rowSeparator, { backgroundColor: ui.border }]} />
+
+                <View style={styles.inputRow}>
+                  <IconSymbol name="dollarsign.circle" size={20} color={ui.mutedText} />
+                  <ThemedText style={styles.rowLabel}>Available</ThemedText>
+                  <ThemedText style={[styles.rowValue, { color: ui.accent }]}>
+                    {formatMoney(plaidAvailable ?? activePlaidAccount.balances.available ?? 0)}
+                  </ThemedText>
+                </View>
+
+                {activePlaidAccount.mask && (
+                  <>
+                    <View style={[styles.rowSeparator, { backgroundColor: ui.border }]} />
+                    <View style={styles.inputRow}>
+                      <IconSymbol name="lock" size={20} color={ui.mutedText} />
+                      <ThemedText style={styles.rowLabel}>Last 4</ThemedText>
+                      <ThemedText style={[styles.rowValue, { color: ui.text }]}>•••• {activePlaidAccount.mask}</ThemedText>
+                    </View>
+                  </>
+                )}
+
+                {activePlaidAccount.institution_name && (
+                  <>
+                    <View style={[styles.rowSeparator, { backgroundColor: ui.border }]} />
+                    <View style={styles.inputRow}>
+                      <IconSymbol name="building.2" size={20} color={ui.mutedText} />
+                      <ThemedText style={styles.rowLabel}>Institution</ThemedText>
+                      <ThemedText style={[styles.rowValue, { color: ui.text }]}>{activePlaidAccount.institution_name}</ThemedText>
+                    </View>
+                  </>
+                )}
+              </View>
+
+              <Pressable
+                onPress={() => {
+                  Alert.alert(
+                    "Unlink Account?",
+                    "Are you sure you want to unlink this account? Your data will be removed.",
+                    [
+                      { text: "Cancel", style: "cancel" },
+                      {
+                        text: "Unlink",
+                        style: "destructive",
+                        onPress: async () => {
+                          try {
+                            if (!activePlaidAccount.plaid_item_id) {
+                              Alert.alert("Error", "No item ID found.");
+                              return;
+                            }
+                            await removePlaidItem(activePlaidAccount.plaid_item_id);
+                            await loadAccounts();
+                            setActiveCardIndex(0);
+                            getPlaidAccounts().then(setPlaidAccounts).catch(console.error);
+                          } catch (e) {
+                            console.error("Error unlinking:", e);
+                            Alert.alert("Error", "Could not unlink account.");
                           }
-                          await removePlaidItem(activePlaidAccount.plaid_item_id);
-                          await loadAccounts();
-                          setActiveCardIndex(0);
-                          getPlaidAccounts().then(setPlaidAccounts).catch(console.error);
-                        } catch (e) {
-                          console.error("Error unlinking:", e);
-                          Alert.alert("Error", "Could not unlink account.");
-                        }
+                        },
                       },
-                    },
-                  ],
-                );
-              }}
-              style={({ pressed }) => [
-                styles.deleteButton,
-                {
-                  borderColor: ui.border,
-                  backgroundColor: ui.surface2,
-                  marginTop: 24,
-                  opacity: pressed ? 0.7 : 1,
-                },
-              ]}
-            >
-              <ThemedText type="defaultSemiBold" style={{ color: ui.danger }}>
-                Unlink Account
-              </ThemedText>
-            </Pressable>
-          </View>
+                    ],
+                  );
+                }}
+                style={({ pressed }) => [
+                  styles.deleteButton,
+                  {
+                    borderColor: ui.border,
+                    backgroundColor: ui.surface2,
+                    marginTop: 24,
+                    opacity: pressed ? 0.7 : 1,
+                  },
+                ]}
+              >
+                <ThemedText type="defaultSemiBold" style={{ color: ui.danger }}>
+                  Unlink Account
+                </ThemedText>
+              </Pressable>
+            </View>
+          </FadeInView>
         )}
 
         {/* Empty state when no accounts */}

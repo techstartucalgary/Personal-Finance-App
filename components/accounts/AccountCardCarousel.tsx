@@ -9,6 +9,7 @@ import {
   StyleSheet,
   View,
 } from "react-native";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
   Extrapolation,
   interpolate,
@@ -266,15 +267,56 @@ const AccountCardCarouselComponent = ({
   // Continuous scroll position for pagination dots
   const scrollX = useSharedValue(0);
   // Tracks the last index we fired a haptic for
-  const lastHapticIndex = useRef(activeIndex);
+  const lastHapticIndex = useSharedValue(activeIndex);
+
+  const [dotsContainerWidth, setDotsContainerWidth] = React.useState(0);
+
+  const scrollToIndex = useCallback((index: number) => {
+    if (index >= 0 && index < accounts.length) {
+      if (index !== lastHapticIndex.value) {
+        lastHapticIndex.value = index;
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      }
+      flatListRef.current?.scrollToOffset({
+        offset: index * ITEM_WIDTH,
+        animated: false,
+      });
+    }
+  }, [accounts.length]);
+
+  const panGesture = useMemo(() => {
+    return Gesture.Pan()
+      .minDistance(0)
+      .runOnJS(true)
+      .onBegin((e) => {
+        if (dotsContainerWidth === 0 || accounts.length === 0) return;
+        const boundedX = Math.max(0, Math.min(e.x, dotsContainerWidth));
+        const percentage = boundedX / dotsContainerWidth;
+        const targetIndex = Math.min(
+          accounts.length - 1,
+          Math.max(0, Math.round(percentage * (accounts.length - 1)))
+        );
+        scrollToIndex(targetIndex);
+      })
+      .onUpdate((e) => {
+        if (dotsContainerWidth === 0 || accounts.length === 0) return;
+        const boundedX = Math.max(0, Math.min(e.x, dotsContainerWidth));
+        const percentage = boundedX / dotsContainerWidth;
+        const targetIndex = Math.min(
+          accounts.length - 1,
+          Math.max(0, Math.round(percentage * (accounts.length - 1)))
+        );
+        scrollToIndex(targetIndex);
+      });
+  }, [dotsContainerWidth, accounts.length, scrollToIndex]);
 
   const handleScroll = useAnimatedScrollHandler({
     onScroll: (event) => {
       scrollX.value = event.contentOffset.x;
 
       const idx = Math.round(event.contentOffset.x / ITEM_WIDTH);
-      if (idx !== lastHapticIndex.current && idx >= 0 && idx < accounts.length) {
-        lastHapticIndex.current = idx;
+      if (idx !== lastHapticIndex.value && idx >= 0 && idx < accounts.length) {
+        lastHapticIndex.value = idx;
         runOnJS(onIndexChange)(idx);
         runOnJS(Haptics.impactAsync)(Haptics.ImpactFeedbackStyle.Light);
       }
@@ -290,13 +332,28 @@ const AccountCardCarouselComponent = ({
     [],
   );
 
+  const keyExtractor = useCallback((item: UnifiedAccount) => item.key, []);
+
+  const renderItem = useCallback(
+    ({ item, index }: { item: UnifiedAccount; index: number }) => (
+      <AccountCardItem
+        item={item}
+        index={index}
+        scrollX={scrollX}
+        isDark={isDark}
+        onAccountPress={onAccountPress}
+      />
+    ),
+    [scrollX, isDark, onAccountPress]
+  );
+
   return (
     <View style={styles.container}>
       {/* The real account cards */}
       <Animated.FlatList
         ref={flatListRef as any}
         data={accounts}
-        keyExtractor={(item) => item.key}
+        keyExtractor={keyExtractor}
         horizontal={true}
         showsHorizontalScrollIndicator={false}
         pagingEnabled={Platform.OS === "ios"}
@@ -308,32 +365,34 @@ const AccountCardCarouselComponent = ({
         onScroll={handleScroll}
         scrollEventThrottle={16}
         bounces={false}
+        initialNumToRender={3}
+        windowSize={5}
+        maxToRenderPerBatch={3}
+        removeClippedSubviews={Platform.OS === "android"}
         contentContainerStyle={{ paddingRight: 0 }}
         style={{ overflow: "visible" }}
-        renderItem={({ item, index }) => (
-          <AccountCardItem
-            item={item}
-            index={index}
-            scrollX={scrollX}
-            isDark={isDark}
-            onAccountPress={onAccountPress}
-          />
-        )}
+        renderItem={renderItem}
       />
 
       {/* Post-carousel footer controls */}
       <View style={styles.paginationContainer}>
         {accounts.length > 1 && (
-          <View style={styles.dotsRow}>
-            {accounts.map((acc, idx) => (
-              <PaginationDot
-                key={acc.key}
-                index={idx}
-                scrollX={scrollX}
-                ui={ui}
-              />
-            ))}
-          </View>
+          <GestureDetector gesture={panGesture}>
+            <View 
+              style={styles.dotsRow}
+              onLayout={(e) => setDotsContainerWidth(e.nativeEvent.layout.width)}
+              hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}
+            >
+              {accounts.map((acc, idx) => (
+                <PaginationDot
+                  key={acc.key}
+                  index={idx}
+                  scrollX={scrollX}
+                  ui={ui}
+                />
+              ))}
+            </View>
+          </GestureDetector>
         )}
 
         {accounts.length > 0 && (

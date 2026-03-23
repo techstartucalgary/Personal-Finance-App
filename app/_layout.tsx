@@ -14,6 +14,7 @@ import { useAuthContext } from "@/hooks/use-auth-context";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import AuthProvider from "@/providers/auth-provider";
 import { useFonts } from "expo-font";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 
 // This component handles the protection logic
 function ProtectedLayout() {
@@ -154,14 +155,16 @@ export default function RootLayout() {
   };
 
   return (
-    <PaperProvider theme={paperTheme}>
-      <ThemeProvider value={colorScheme === "dark" ? CustomDarkTheme : CustomDefaultTheme}>
-        <AuthProvider>
-          <SplashScreenController />
-          <ProtectedLayout />
-          <StatusBar style="auto" />
-        </AuthProvider>
-      </ThemeProvider>
-    </PaperProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <PaperProvider theme={paperTheme}>
+        <ThemeProvider value={colorScheme === "dark" ? CustomDarkTheme : CustomDefaultTheme}>
+          <AuthProvider>
+            <SplashScreenController />
+            <ProtectedLayout />
+            <StatusBar style="auto" />
+          </AuthProvider>
+        </ThemeProvider>
+      </PaperProvider>
+    </GestureHandlerRootView>
   );
 }

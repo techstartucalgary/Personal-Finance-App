@@ -27,6 +27,7 @@
     "dotenv": "^17.2.3",
     "expo": "^55.0.8",
     "expo-auth-session": "~55.0.9",
+    "expo-blur": "~55.0.10",
     "expo-checkbox": "~55.0.3",
     "expo-constants": "~55.0.9",
     "expo-crypto": "~55.0.10",

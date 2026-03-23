@@ -1,10 +1,6 @@
 import Feather from "@expo/vector-icons/Feather";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
-import {
-  Icon,
-  NativeTabs,
-  VectorIcon,
-} from "expo-router/unstable-native-tabs";
+import { NativeTabs } from "expo-router/unstable-native-tabs";
 import React from "react";
 import { useTheme } from "react-native-paper";
 
@@ -17,76 +13,40 @@ export default function TabLayout() {
 
   return (
     <NativeTabs
-      tintColor={Colors[colorScheme ?? "light"].tint}
+      tintColor={Colors[colorScheme === 'dark' ? 'dark' : 'light'].tint}
       indicatorColor={colorScheme === "dark" ? theme.colors.surfaceVariant : theme.colors.surfaceDisabled}
       backgroundColor={colorScheme === "dark" ? theme.colors.surface : theme.colors.surfaceVariant}
       labelVisibilityMode="labeled"
     >
-      <NativeTabs.Trigger
-        name="dashboard"
-        options={{
-          title: "Dashboard",
-        }}
-      >
-        <Icon
+      <NativeTabs.Trigger name="dashboard">
+        <NativeTabs.Trigger.Label>Dashboard</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Icon
           sf="chart.pie"
-          androidSrc={
-            <VectorIcon
-              family={Feather}
-              name="pie-chart"
-            />
-          }
+          src={<NativeTabs.Trigger.VectorIcon family={Feather} name="pie-chart" />}
         />
       </NativeTabs.Trigger>
 
-      <NativeTabs.Trigger
-        name="accounts"
-        options={{
-          title: "Accounts",
-        }}
-      >
-        <Icon
+      <NativeTabs.Trigger name="accounts">
+        <NativeTabs.Trigger.Label>Accounts</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Icon
           sf="wallet.bifold"
-          androidSrc={
-            <VectorIcon
-              family={MaterialIcons}
-              name="wallet"
-            />
-          }
+          src={<NativeTabs.Trigger.VectorIcon family={MaterialIcons} name="wallet" />}
         />
       </NativeTabs.Trigger>
 
-      <NativeTabs.Trigger
-        name="transactions"
-        options={{
-          title: "Transactions",
-        }}
-      >
-        <Icon
+      <NativeTabs.Trigger name="transactions">
+        <NativeTabs.Trigger.Label>Transactions</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Icon
           sf="list.bullet"
-          androidSrc={
-            <VectorIcon
-              family={Feather}
-              name="list"
-            />
-          }
+          src={<NativeTabs.Trigger.VectorIcon family={Feather} name="list" />}
         />
       </NativeTabs.Trigger>
 
-      <NativeTabs.Trigger
-        name="targets"
-        options={{
-          title: "Targets",
-        }}
-      >
-        <Icon
+      <NativeTabs.Trigger name="targets">
+        <NativeTabs.Trigger.Label>Targets</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Icon
           sf="target"
-          androidSrc={
-            <VectorIcon
-              family={Feather}
-              name="target"
-            />
-          }
+          src={<NativeTabs.Trigger.VectorIcon family={Feather} name="target" />}
         />
       </NativeTabs.Trigger>
     </NativeTabs>

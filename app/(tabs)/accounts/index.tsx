@@ -29,6 +29,7 @@ import { IconSymbol } from "@/components/ui/icon-symbol";
 import { SelectionModal } from "@/components/ui/SelectionModal";
 import { useAuthContext } from "@/hooks/use-auth-context";
 import { listGoals } from "@/utils/goals";
+import { formatMoney } from "@/utils/money";
 import type { PlaidAccount } from "@/utils/plaid";
 import { exchangePublicToken, getLinkToken, getPlaidAccounts, removePlaidItem } from "@/utils/plaid";
 import { supabase } from "@/utils/supabase";
@@ -85,10 +86,7 @@ function getAccountColor(isLiability: boolean, index: number) {
   return palette[index % palette.length];
 }
 
-// ── Format helpers ─────────────────────────────────
 
-const formatMoney = (amount: number) =>
-  new Intl.NumberFormat("en-CA", { style: "currency", currency: "CAD" }).format(amount);
 
 // ── Main Screen ────────────────────────────────────
 

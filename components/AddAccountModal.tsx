@@ -21,6 +21,7 @@ import { SelectionModal } from "./ui/SelectionModal";
 
 import { createAccount as createAccountApi } from "@/utils/accounts";
 import { parseLocalDate, toLocalISOString } from "@/utils/date";
+import { formatBalanceAsYouType, formatBalanceOnBlur, cleanMoneyInput } from "@/utils/money";
 
 // ── Types ──────────────────────────────────────────
 
@@ -34,6 +35,8 @@ interface AddAccountModalProps {
   isDark: boolean;
   userId: string | undefined;
 }
+
+
 
 // ── Component ──────────────────────────────────────
 
@@ -89,12 +92,6 @@ export function AddAccountModal({
     if (!userId || !canCreate) return;
     setIsLoading(true);
 
-    const cleanNumber = (value: string, fallback?: number) => {
-      const trimmed = value.trim();
-      if (trimmed.length === 0) return fallback ?? 0;
-      const parsed = parseFloat(trimmed);
-      return Number.isFinite(parsed) ? parsed : (fallback ?? 0);
-    };
     const cleanText = (value: string, fallback?: string) => {
       const trimmed = value.trim();
       return trimmed.length > 0 ? trimmed : (fallback ?? "");
@@ -104,11 +101,11 @@ export function AddAccountModal({
       profile_id: userId,
       account_name: name.trim(),
       account_type: type,
-      balance: cleanNumber(balance, 0),
-      credit_limit: cleanNumber(creditLimit, 0),
+      balance: cleanMoneyInput(balance, 0),
+      credit_limit: cleanMoneyInput(creditLimit, 0),
       statement_duedate: cleanText(statementDate, "2026-01-01"),
       payment_duedate: cleanText(paymentDate, "2026-01-01"),
-      interest_rate: cleanNumber(interestRate, 0),
+      interest_rate: cleanMoneyInput(interestRate, 0),
       currency: cleanText(currency, "CAD"),
     };
 
@@ -181,15 +178,8 @@ export function AddAccountModal({
               <TextInput
                 ref={balanceInputRef}
                 value={balance}
-                onChangeText={setBalance}
-                onBlur={() => {
-                  if (balance) {
-                    const parsed = parseFloat(balance);
-                    if (!isNaN(parsed)) {
-                      setBalance(parsed.toFixed(2));
-                    }
-                  }
-                }}
+                onChangeText={(text) => setBalance(formatBalanceAsYouType(text))}
+                onBlur={() => setBalance(formatBalanceOnBlur(balance))}
                 keyboardType="decimal-pad"
                 placeholder="0.00"
                 placeholderTextColor={ui.accent + "80"}
@@ -222,6 +212,7 @@ export function AddAccountModal({
             {/* Type */}
             <Pressable onPress={() => setTypeModalOpen(true)} style={styles.inputRow}>
               <IconSymbol name="creditcard" size={20} color={ui.mutedText} />
+              <ThemedText style={styles.rowLabel}>Type</ThemedText>
               <ThemedText style={[styles.rowValue, { color: ui.text }]}>
                 {type === "credit" ? "Credit" : "Debit"}
               </ThemedText>
@@ -233,6 +224,7 @@ export function AddAccountModal({
             {/* Currency */}
             <Pressable onPress={() => setCurrencyModalOpen(true)} style={styles.inputRow}>
               <IconSymbol name="dollarsign.circle" size={20} color={ui.mutedText} />
+              <ThemedText style={styles.rowLabel}>Currency</ThemedText>
               <ThemedText style={[styles.rowValue, { color: ui.text }]}>
                 {currency}
               </ThemedText>

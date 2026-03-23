@@ -30,6 +30,7 @@ import {
 } from "@/utils/categories";
 import { parseLocalDate, toLocalISOString } from "@/utils/date";
 import { addExpense } from "@/utils/expenses";
+import { formatBalanceAsYouType, formatBalanceOnBlur, cleanMoneyInput } from "@/utils/money";
 import { createRecurringRule } from "@/utils/recurring";
 
 export type AccountRow = {
@@ -152,13 +153,12 @@ export function AddTransactionModal({
   }, [userId, selectedCategory]);
 
   const canCreate = useMemo(() => {
-    const parsed = parseFloat(amount);
+    const parsed = cleanMoneyInput(amount);
     return (
       !!userId &&
       !!selectedAccount &&
       !!selectedCategory &&
       description.trim().length > 0 &&
-      Number.isFinite(parsed) &&
       parsed > 0
     );
   }, [userId, selectedAccount, selectedCategory, amount, description]);
@@ -166,8 +166,8 @@ export function AddTransactionModal({
   const createTransaction = async () => {
     if (!userId || !selectedAccount) return;
 
-    const parsed = parseFloat(amount.trim());
-    if (!Number.isFinite(parsed) || parsed <= 0) {
+    const parsed = cleanMoneyInput(amount);
+    if (parsed <= 0) {
       Alert.alert("Invalid amount", "Enter a valid amount greater than 0.");
       return;
     }
@@ -406,15 +406,8 @@ export function AddTransactionModal({
               <TextInput
                 ref={amountInputRef}
                 value={amount}
-                onChangeText={setAmount}
-                onBlur={() => {
-                  if (amount) {
-                    const parsed = parseFloat(amount);
-                    if (!isNaN(parsed)) {
-                      setAmount(parsed.toFixed(2));
-                    }
-                  }
-                }}
+                onChangeText={(text) => setAmount(formatBalanceAsYouType(text))}
+                onBlur={() => setAmount(formatBalanceOnBlur(amount))}
                 keyboardType="decimal-pad"
                 placeholder="0.00"
                 placeholderTextColor={ui.accent + "80"}

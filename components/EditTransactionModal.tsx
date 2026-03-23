@@ -30,6 +30,7 @@ import {
 } from "@/utils/categories";
 import { parseLocalDate, toLocalISOString } from "@/utils/date";
 import { deleteExpense, updateExpense } from "@/utils/expenses";
+import { formatBalanceAsYouType, formatBalanceOnBlur, cleanMoneyInput } from "@/utils/money";
 import {
   createRecurringRule,
   deleteRecurringRule,
@@ -120,7 +121,7 @@ export function EditTransactionModal({
   // Sync state when expense changes
   useEffect(() => {
     if (expense) {
-      setEditAmount(expense.amount != null ? expense.amount.toFixed(2) : "");
+      setEditAmount(expense.amount != null ? formatBalanceOnBlur(expense.amount.toString()) : "");
       setEditDescription(expense.description ?? "");
       setEditTransactionDate(expense.transaction_date || "");
 
@@ -191,8 +192,8 @@ export function EditTransactionModal({
   const updateTransaction = async () => {
     if (!userId || !expense) return;
 
-    const parsed = parseFloat(editAmount.trim());
-    if (!Number.isFinite(parsed) || parsed <= 0) {
+    const parsed = cleanMoneyInput(editAmount);
+    if (parsed <= 0) {
       Alert.alert("Invalid amount", "Enter a valid amount greater than 0.");
       return;
     }
@@ -590,15 +591,8 @@ export function EditTransactionModal({
               <TextInput
                 ref={amountInputRef}
                 value={editAmount}
-                onChangeText={setEditAmount}
-                onBlur={() => {
-                  if (editAmount) {
-                    const parsed = parseFloat(editAmount);
-                    if (!isNaN(parsed)) {
-                      setEditAmount(parsed.toFixed(2));
-                    }
-                  }
-                }}
+                onChangeText={(text) => setEditAmount(formatBalanceAsYouType(text))}
+                onBlur={() => setEditAmount(formatBalanceOnBlur(editAmount))}
                 keyboardType="decimal-pad"
                 placeholder="0.00"
                 placeholderTextColor={ui.accent + "80"}

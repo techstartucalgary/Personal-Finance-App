@@ -219,7 +219,7 @@ export default function AccountsScreen() {
 
   // ── Plaid connect ──────────────────────────────────
 
-  const handleConnectBank = useCallback(async (options?: { onBeforeOpen?: () => void; onError?: () => void }) => {
+  const handleConnectBank = useCallback(async (options?: { onBeforeOpen?: () => void; onError?: () => void; onFinished?: () => void }) => {
     try {
       setIsConnecting(true);
       const token = await getLinkToken();
@@ -231,6 +231,7 @@ export default function AccountsScreen() {
           options?.onBeforeOpen?.();
           plaidOpen({
             onSuccess: async (success: LinkSuccess) => {
+              options?.onFinished?.();
               try {
                 setIsConnecting(true);
                 const institutionName = success.metadata?.institution?.name;
@@ -247,6 +248,7 @@ export default function AccountsScreen() {
             },
             onExit: (exit: LinkExit) => {
               console.log("Plaid Link exited:", exit);
+              options?.onFinished?.();
               setIsConnecting(false);
             },
           });
@@ -470,15 +472,15 @@ export default function AccountsScreen() {
                 <View style={styles.inputRow}>
                   <IconSymbol name="signature" size={20} color={ui.mutedText} />
                   <ThemedText style={[styles.rowLabel, { color: ui.mutedText }]}>Name</ThemedText>
-                  <ThemedText style={[styles.rowValue, { color: ui.text }]}>{activeManualAccount.account_name}</ThemedText>
+                  <ThemedText type="defaultSemiBold" style={[styles.rowValue, { color: ui.text }]}>{activeManualAccount.account_name}</ThemedText>
                 </View>
                 <View style={[styles.rowSeparator, { backgroundColor: ui.border }]} />
 
                 {/* Balance */}
                 <View style={styles.inputRow}>
                   <IconSymbol name="dollarsign.circle" size={20} color={ui.mutedText} />
-                  <ThemedText style={[styles.rowLabel, { color: ui.mutedText }]}>Balance</ThemedText>
-                  <ThemedText style={[styles.rowValue, { color: ui.text }]}>
+                  <ThemedText style={[styles.rowLabel, { color: ui.mutedText }]}>Current Balance</ThemedText>
+                  <ThemedText type="defaultSemiBold" style={[styles.rowValue, { color: ui.text, fontSize: 18 }]}>
                     {formatMoney(activeManualAccount.balance ?? 0)}
                   </ThemedText>
                 </View>
@@ -488,7 +490,7 @@ export default function AccountsScreen() {
                 <View style={styles.inputRow}>
                   <IconSymbol name="dollarsign.circle" size={20} color={ui.mutedText} />
                   <ThemedText style={[styles.rowLabel, { color: ui.mutedText }]}>Available</ThemedText>
-                  <ThemedText style={[styles.rowValue, { color: ui.accent }]}>
+                  <ThemedText type="defaultSemiBold" style={[styles.rowValue, { color: ui.accent, fontSize: 18 }]}>
                     {formatMoney(manualAvailable ?? 0)}
                   </ThemedText>
                 </View>
@@ -498,7 +500,7 @@ export default function AccountsScreen() {
                 <View style={styles.inputRow}>
                   <IconSymbol name="creditcard" size={20} color={ui.mutedText} />
                   <ThemedText style={[styles.rowLabel, { color: ui.mutedText }]}>Credit Limit</ThemedText>
-                  <ThemedText style={[styles.rowValue, { color: ui.text }]}>
+                  <ThemedText type="defaultSemiBold" style={[styles.rowValue, { color: ui.text }]}>
                     {formatMoney(activeManualAccount.credit_limit ?? 0)}
                   </ThemedText>
                 </View>
@@ -508,7 +510,7 @@ export default function AccountsScreen() {
                 <View style={styles.inputRow}>
                   <IconSymbol name="percent" size={20} color={ui.mutedText} />
                   <ThemedText style={[styles.rowLabel, { color: ui.mutedText }]}>Interest Rate</ThemedText>
-                  <ThemedText style={[styles.rowValue, { color: ui.text }]}>
+                  <ThemedText type="defaultSemiBold" style={[styles.rowValue, { color: ui.text }]}>
                     {activeManualAccount.interest_rate}%
                   </ThemedText>
                 </View>
@@ -518,7 +520,7 @@ export default function AccountsScreen() {
                 <View style={styles.inputRow}>
                   <IconSymbol name="globe" size={20} color={ui.mutedText} />
                   <ThemedText style={[styles.rowLabel, { color: ui.mutedText }]}>Currency</ThemedText>
-                  <ThemedText style={[styles.rowValue, { color: ui.text }]}>
+                  <ThemedText type="defaultSemiBold" style={[styles.rowValue, { color: ui.text }]}>
                     {activeManualAccount.currency ?? "CAD"}
                   </ThemedText>
                 </View>
@@ -533,13 +535,13 @@ export default function AccountsScreen() {
                 <View style={styles.inputRow}>
                   <IconSymbol name="calendar" size={20} color={ui.mutedText} />
                   <ThemedText style={[styles.rowLabel, { color: ui.mutedText }]}>Statement Due</ThemedText>
-                  <ThemedText style={[styles.rowValue, { color: ui.text }]}>{activeManualAccount.statement_duedate || "N/A"}</ThemedText>
+                  <ThemedText type="defaultSemiBold" style={[styles.rowValue, { color: ui.text }]}>{activeManualAccount.statement_duedate || "N/A"}</ThemedText>
                 </View>
                 <View style={[styles.rowSeparator, { backgroundColor: ui.border }]} />
                 <View style={styles.inputRow}>
                   <IconSymbol name="calendar.badge.clock" size={20} color={ui.mutedText} />
                   <ThemedText style={[styles.rowLabel, { color: ui.mutedText }]}>Payment Due</ThemedText>
-                  <ThemedText style={[styles.rowValue, { color: ui.text }]}>{activeManualAccount.payment_duedate || "N/A"}</ThemedText>
+                  <ThemedText type="defaultSemiBold" style={[styles.rowValue, { color: ui.text }]}>{activeManualAccount.payment_duedate || "N/A"}</ThemedText>
                 </View>
               </View>
             </View>
@@ -557,15 +559,15 @@ export default function AccountsScreen() {
               <View style={[styles.groupCard, { backgroundColor: ui.surface2, borderColor: ui.border }]}>
                 <View style={styles.inputRow}>
                   <IconSymbol name="signature" size={20} color={ui.mutedText} />
-                  <ThemedText style={styles.rowLabel}>Name</ThemedText>
-                  <ThemedText style={[styles.rowValue, { color: ui.text }]}>{activePlaidAccount.name}</ThemedText>
+                  <ThemedText style={[styles.rowLabel, { color: ui.mutedText }]}>Name</ThemedText>
+                  <ThemedText type="defaultSemiBold" style={[styles.rowValue, { color: ui.text }]}>{activePlaidAccount.name}</ThemedText>
                 </View>
                 <View style={[styles.rowSeparator, { backgroundColor: ui.border }]} />
 
                 <View style={styles.inputRow}>
                   <IconSymbol name="creditcard" size={20} color={ui.mutedText} />
-                  <ThemedText style={styles.rowLabel}>Type</ThemedText>
-                  <ThemedText style={[styles.rowValue, { color: ui.text }]}>
+                  <ThemedText style={[styles.rowLabel, { color: ui.mutedText }]}>Type</ThemedText>
+                  <ThemedText type="defaultSemiBold" style={[styles.rowValue, { color: ui.text }]}>
                     {activePlaidAccount.type.charAt(0).toUpperCase() + activePlaidAccount.type.slice(1)}
                     {activePlaidAccount.subtype ? ` · ${activePlaidAccount.subtype.charAt(0).toUpperCase() + activePlaidAccount.subtype.slice(1)}` : ""}
                   </ThemedText>
@@ -574,8 +576,8 @@ export default function AccountsScreen() {
 
                 <View style={styles.inputRow}>
                   <IconSymbol name="dollarsign.circle" size={20} color={ui.mutedText} />
-                  <ThemedText style={styles.rowLabel}>Balance</ThemedText>
-                  <ThemedText style={[styles.rowValue, { color: ui.text }]}>
+                  <ThemedText style={[styles.rowLabel, { color: ui.mutedText }]}>Current Balance</ThemedText>
+                  <ThemedText type="defaultSemiBold" style={[styles.rowValue, { color: ui.text, fontSize: 18 }]}>
                     {formatMoney(activePlaidAccount.balances.current ?? 0)}
                   </ThemedText>
                 </View>
@@ -583,8 +585,8 @@ export default function AccountsScreen() {
 
                 <View style={styles.inputRow}>
                   <IconSymbol name="dollarsign.circle" size={20} color={ui.mutedText} />
-                  <ThemedText style={styles.rowLabel}>Available</ThemedText>
-                  <ThemedText style={[styles.rowValue, { color: ui.accent }]}>
+                  <ThemedText style={[styles.rowLabel, { color: ui.mutedText }]}>Available</ThemedText>
+                  <ThemedText type="defaultSemiBold" style={[styles.rowValue, { color: ui.accent, fontSize: 18 }]}>
                     {formatMoney(plaidAvailable ?? activePlaidAccount.balances.available ?? 0)}
                   </ThemedText>
                 </View>
@@ -594,8 +596,8 @@ export default function AccountsScreen() {
                     <View style={[styles.rowSeparator, { backgroundColor: ui.border }]} />
                     <View style={styles.inputRow}>
                       <IconSymbol name="lock" size={20} color={ui.mutedText} />
-                      <ThemedText style={styles.rowLabel}>Last 4</ThemedText>
-                      <ThemedText style={[styles.rowValue, { color: ui.text }]}>•••• {activePlaidAccount.mask}</ThemedText>
+                      <ThemedText style={[styles.rowLabel, { color: ui.mutedText }]}>Account Mask</ThemedText>
+                      <ThemedText type="defaultSemiBold" style={[styles.rowValue, { color: ui.text }]}>•••• {activePlaidAccount.mask}</ThemedText>
                     </View>
                   </>
                 )}
@@ -605,8 +607,8 @@ export default function AccountsScreen() {
                     <View style={[styles.rowSeparator, { backgroundColor: ui.border }]} />
                     <View style={styles.inputRow}>
                       <IconSymbol name="building.2" size={20} color={ui.mutedText} />
-                      <ThemedText style={styles.rowLabel}>Institution</ThemedText>
-                      <ThemedText style={[styles.rowValue, { color: ui.text }]}>{activePlaidAccount.institution_name}</ThemedText>
+                      <ThemedText style={[styles.rowLabel, { color: ui.mutedText }]}>Institution</ThemedText>
+                      <ThemedText type="defaultSemiBold" style={[styles.rowValue, { color: ui.text }]}>{activePlaidAccount.institution_name}</ThemedText>
                     </View>
                   </>
                 )}
@@ -749,7 +751,16 @@ export default function AccountsScreen() {
             disabled={isConnecting}
             onPress={() => {
               handleConnectBank({
-                onBeforeOpen: () => setAddSourceModalOpen(false),
+                onBeforeOpen: () => {
+                  if (Platform.OS === 'android') {
+                    setAddSourceModalOpen(false);
+                  }
+                },
+                onFinished: () => {
+                  if (Platform.OS === 'ios') {
+                    setAddSourceModalOpen(false);
+                  }
+                },
                 onError: () => setAddSourceModalOpen(false),
               });
             }}
@@ -835,7 +846,7 @@ const styles = StyleSheet.create({
   inputRow: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 14,
+    paddingVertical: 18,
     paddingHorizontal: 16,
     gap: 12,
   },

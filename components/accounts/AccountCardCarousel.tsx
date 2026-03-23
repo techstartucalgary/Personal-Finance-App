@@ -2,20 +2,20 @@ import Feather from "@expo/vector-icons/Feather";
 import React, { useCallback, useMemo, useRef } from "react";
 import {
   Dimensions,
+  FlatList,
   Image,
   Platform,
   Pressable,
   StyleSheet,
   View,
-  FlatList,
 } from "react-native";
 import Animated, {
-  useSharedValue,
+  Extrapolation,
+  interpolate,
+  runOnJS,
   useAnimatedScrollHandler,
   useAnimatedStyle,
-  interpolate,
-  Extrapolation,
-  runOnJS,
+  useSharedValue,
 } from "react-native-reanimated";
 
 import { ThemedText } from "@/components/themed-text";
@@ -196,7 +196,7 @@ function AccountCard({
           <ThemedText style={styles.cardName}>{item.name}</ThemedText>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
             {item.institutionName ? (
-              <ThemedText style={[styles.typePillText, { fontWeight: '700', color: '#FFFFFF' }]}>
+              <ThemedText style={[styles.typePillText, { fontWeight: '600', color: '#FFFFFF', opacity: 0.9 }]}>
                 {item.institutionName}
               </ThemedText>
             ) : (
@@ -205,7 +205,7 @@ function AccountCard({
             {item.mask && (
               <>
                 <View style={{ width: 3, height: 3, borderRadius: 1.5, backgroundColor: 'rgba(255,255,255,0.4)' }} />
-                <ThemedText style={styles.typePillText}>•••• {item.mask}</ThemedText>
+                <ThemedText style={[styles.typePillText, { opacity: 0.8 }]}>•••• {item.mask}</ThemedText>
               </>
             )}
           </View>
@@ -409,7 +409,6 @@ const AccountCardItem = React.memo(({ item, index, scrollX, isDark, onAccountPre
             width: CARD_WIDTH,
             marginHorizontal: CARD_HORIZONTAL_MARGIN,
             paddingBottom: 10,
-            opacity: pressed ? 0.8 : 1,
             transform: [{ scale: pressed ? 1.02 : 1 }],
           },
         ]}

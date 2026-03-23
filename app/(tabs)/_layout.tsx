@@ -1,5 +1,3 @@
-import Feather from "@expo/vector-icons/Feather";
-import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { NativeTabs } from "expo-router/unstable-native-tabs";
 import React from "react";
 import { useTheme } from "react-native-paper";
@@ -20,34 +18,22 @@ export default function TabLayout() {
     >
       <NativeTabs.Trigger name="dashboard">
         <NativeTabs.Trigger.Label>Dashboard</NativeTabs.Trigger.Label>
-        <NativeTabs.Trigger.Icon
-          sf="chart.pie"
-          src={<NativeTabs.Trigger.VectorIcon family={Feather} name="pie-chart" />}
-        />
+        <NativeTabs.Trigger.Icon sf="chart.pie" md="pie_chart" />
       </NativeTabs.Trigger>
 
       <NativeTabs.Trigger name="accounts">
         <NativeTabs.Trigger.Label>Accounts</NativeTabs.Trigger.Label>
-        <NativeTabs.Trigger.Icon
-          sf="wallet.bifold"
-          src={<NativeTabs.Trigger.VectorIcon family={MaterialIcons} name="wallet" />}
-        />
+        <NativeTabs.Trigger.Icon sf="wallet.bifold" md="account_balance_wallet" />
       </NativeTabs.Trigger>
 
       <NativeTabs.Trigger name="transactions">
         <NativeTabs.Trigger.Label>Transactions</NativeTabs.Trigger.Label>
-        <NativeTabs.Trigger.Icon
-          sf="list.bullet"
-          src={<NativeTabs.Trigger.VectorIcon family={Feather} name="list" />}
-        />
+        <NativeTabs.Trigger.Icon sf="list.bullet" md="format_list_bulleted" />
       </NativeTabs.Trigger>
 
       <NativeTabs.Trigger name="targets">
         <NativeTabs.Trigger.Label>Targets</NativeTabs.Trigger.Label>
-        <NativeTabs.Trigger.Icon
-          sf="target"
-          src={<NativeTabs.Trigger.VectorIcon family={Feather} name="target" />}
-        />
+        <NativeTabs.Trigger.Icon sf="target" md="target" />
       </NativeTabs.Trigger>
     </NativeTabs>
   );

@@ -7,12 +7,12 @@ import React, { ComponentProps } from "react";
 import { OpaqueColorValue, type StyleProp, type TextStyle } from "react-native";
 
 type IconMapping = Record<
-  SymbolViewProps["name"],
+  Extract<SymbolViewProps["name"], string>,
   ComponentProps<typeof MaterialIcons>["name"]
 >;
 
 type FeatherMapping = Partial<
-  Record<SymbolViewProps["name"], ComponentProps<typeof Feather>["name"]>
+  Record<Extract<SymbolViewProps["name"], string>, ComponentProps<typeof Feather>["name"]>
 >;
 
 /**

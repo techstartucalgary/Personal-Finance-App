@@ -328,6 +328,8 @@ export default function AccountsScreen() {
         typeLabel: pa.type.charAt(0).toUpperCase() + pa.type.slice(1),
         subtitle: pa.subtype ? pa.subtype.charAt(0).toUpperCase() + pa.subtype.slice(1) : "Bank",
         sourceLabel: "Plaid",
+        institutionName: pa.institution_name,
+        mask: pa.mask,
         data: pa,
       });
     });

@@ -1,14 +1,22 @@
 import Feather from "@expo/vector-icons/Feather";
 import React, { useCallback, useMemo, useRef } from "react";
 import {
-  Animated,
   Dimensions,
-  FlatList,
   Image,
+  Platform,
   Pressable,
   StyleSheet,
   View,
+  FlatList,
 } from "react-native";
+import Animated, {
+  useSharedValue,
+  useAnimatedScrollHandler,
+  useAnimatedStyle,
+  interpolate,
+  Extrapolation,
+  runOnJS,
+} from "react-native-reanimated";
 
 import { ThemedText } from "@/components/themed-text";
 import { Tokens } from "@/constants/authTokens";
@@ -42,6 +50,10 @@ export type UnifiedAccount = {
   subtitle: string;
   /** e.g. "Manual", "Plaid" */
   sourceLabel?: string;
+  /** e.g. "RBC", "TD", etc. */
+  institutionName?: string | null;
+  /** last 4 digits */
+  mask?: string | null;
   /** Original account data */
   data: any | null;
 };
@@ -72,6 +84,33 @@ function seededRandom(seed: string) {
   };
 }
 
+// ── Brand Logic ────────────────────────────────────
+
+function getBrandStyle(institutionName?: string | null) {
+  if (!institutionName) return null;
+  const name = institutionName.toLowerCase();
+
+  // Canadian Banks
+  if (name.includes("rbc") || name.includes("royal bank")) return { color: "#005DAA", brand: "RBC" };
+  if (name.includes("td") || name.includes("toronto-dominion")) return { color: "#008A00", brand: "TD" };
+  if (name.includes("cibc")) return { color: "#9C2434", brand: "CIBC" };
+  if (name.includes("bmo") || name.includes("bank of montreal")) return { color: "#0079C1", brand: "BMO" };
+  if (name.includes("scotia") || name.includes("scotiabank")) return { color: "#EE0000", brand: "Scotia" };
+  if (name.includes("tangerine")) return { color: "#FF671B", brand: "Tangerine" };
+  if (name.includes("wealthsimple")) return { color: "#000000", brand: "Wealthsimple" };
+  if (name.includes("desjardins")) return { color: "#008135", brand: "Desjardins" };
+
+  // US Banks
+  if (name.includes("chase") || name.includes("jpmorgan")) return { color: "#117ACA", brand: "Chase" };
+  if (name.includes("american express") || name.includes("amex")) return { color: "#0070D2", brand: "AMEX" };
+  if (name.includes("capital one")) return { color: "#003A70", brand: "Cap1" };
+  if (name.includes("bank of america") || name.includes("bofa")) return { color: "#E61A2A", brand: "BofA" };
+  if (name.includes("wells fargo")) return { color: "#D71E28", brand: "Wells" };
+  if (name.includes("citi")) return { color: "#003B70", brand: "Citi" };
+
+  return null;
+}
+
 // ── Account Card ──────────────────────────────────
 
 function AccountCard({
@@ -81,6 +120,9 @@ function AccountCard({
   item: UnifiedAccount;
   isDark: boolean;
 }) {
+  const brand = getBrandStyle(item.institutionName);
+  const cardColor = brand?.color || item.color;
+
   // Use a semi-transparent black for the border to slightly darken the background color
   const borderColor = isDark ? "rgba(0,0,0,0.25)" : "rgba(0,0,0,0.12)";
 
@@ -99,22 +141,23 @@ function AccountCard({
         size: isFirst ? 140 + next() * 100 : 100 + next() * 150,
         top: isFirst ? 10 + next() * 30 : next() * 70 - 10,
         left: isFirst ? 10 + next() * 50 : next() * 80 - 10,
-        opacity: 0.12 + next() * 0.2,
+        opacity: brand ? 0.08 : 0.12 + next() * 0.2, // Subtler patterns for brand cards
         isRing: next() > 0.4,
       };
     });
-  }, [item.key]);
+  }, [item.key, !!brand]);
 
   return (
     <View style={[
       styles.card,
       {
-        backgroundColor: item.color,
+        backgroundColor: cardColor,
         borderColor: borderColor,
         borderWidth: 1,
-        shadowColor: item.color,
+        shadowColor: cardColor,
         shadowOpacity: shadowOpacity,
         shadowRadius: shadowRadius,
+        elevation: 8, // Fix for Android shadows
       }
     ]}>
       {/* Decorative elements (no interactions) */}
@@ -138,18 +181,34 @@ function AccountCard({
         ))}
 
         {/* Wave image */}
-        <Image
-          source={require("../../assets/images/accounts-vector.png")}
-          style={styles.waveImage}
-          resizeMode="cover"
-        />
+        {!brand && (
+          <Image
+            source={require("../../assets/images/accounts-vector.png")}
+            style={styles.waveImage}
+            resizeMode="cover"
+          />
+        )}
       </View>
 
       {/* Top: name & icon */}
       <View style={styles.topRow}>
         <View style={styles.titleGroup}>
           <ThemedText style={styles.cardName}>{item.name}</ThemedText>
-          <ThemedText style={styles.typePillText}>{item.typeLabel}</ThemedText>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            {item.institutionName ? (
+              <ThemedText style={[styles.typePillText, { fontWeight: '700', color: '#FFFFFF' }]}>
+                {item.institutionName}
+              </ThemedText>
+            ) : (
+              <ThemedText style={styles.typePillText}>{item.typeLabel}</ThemedText>
+            )}
+            {item.mask && (
+              <>
+                <View style={{ width: 3, height: 3, borderRadius: 1.5, backgroundColor: 'rgba(255,255,255,0.4)' }} />
+                <ThemedText style={styles.typePillText}>•••• {item.mask}</ThemedText>
+              </>
+            )}
+          </View>
         </View>
         <View style={styles.iconCircle}>
           <Feather
@@ -159,6 +218,9 @@ function AccountCard({
           />
         </View>
       </View>
+
+      {/* Balance Section Allocation Placeholder */}
+      <View style={{ height: 20 }} />
 
       {/* Balance Section */}
       <View>
@@ -190,93 +252,34 @@ function AccountCard({
 
 // ── Carousel ───────────────────────────────────────
 
-export function AccountCardCarousel({
+const AccountCardCarouselComponent = ({
   accounts,
   activeIndex,
   onIndexChange,
   onAddPress,
   onAccountPress,
   ui,
-}: Props) {
+}: Props) => {
   const isDark = ui.text === "#FFFFFF" || ui.background === "#000000" || ui.background === "#1C1C1E";
   const flatListRef = useRef<FlatList>(null);
+
   // Continuous scroll position for pagination dots
-  const scrollX = useRef(new Animated.Value(0)).current;
+  const scrollX = useSharedValue(0);
   // Tracks the last index we fired a haptic for
   const lastHapticIndex = useRef(activeIndex);
 
-  // Snap offsets only at real card positions
-  const snapOffsets = useMemo(
-    () => accounts.map((_, i) => i * ITEM_WIDTH),
-    [accounts.length],
-  );
+  const handleScroll = useAnimatedScrollHandler({
+    onScroll: (event) => {
+      scrollX.value = event.contentOffset.x;
 
-  const handleScroll = Animated.event(
-    [{ nativeEvent: { contentOffset: { x: scrollX } } }],
-    {
-      useNativeDriver: false,
-      listener: (event: any) => {
-        const offsetX = event.nativeEvent.contentOffset.x;
-
-        // Update the active card index in real time
-        const idx = Math.round(offsetX / ITEM_WIDTH);
-        if (idx !== lastHapticIndex.current && idx >= 0 && idx < accounts.length) {
-          lastHapticIndex.current = idx;
-          onIndexChange(idx);
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        }
-
-      },
-    }
-  );
-
-  const renderItem = useCallback(
-    ({ item, index }: { item: UnifiedAccount, index: number }) => {
-      const inputRange = [
-        (index - 1) * ITEM_WIDTH,
-        index * ITEM_WIDTH,
-        (index + 1) * ITEM_WIDTH,
-      ];
-
-      const scale = scrollX.interpolate({
-        inputRange,
-        outputRange: [0.85, 1, 0.85],
-        extrapolate: "clamp",
-      });
-
-      const opacity = scrollX.interpolate({
-        inputRange,
-        outputRange: [0.4, 1, 0.4],
-        extrapolate: "clamp",
-      });
-
-      const rotateY = scrollX.interpolate({
-        inputRange,
-        outputRange: ["-45deg", "0deg", "45deg"],
-        extrapolate: "clamp",
-      });
-
-      return (
-        <Animated.View style={{ width: ITEM_WIDTH, justifyContent: 'center', opacity, transform: [{ perspective: 1000 }, { rotateY }, { scale }] }}>
-          <Pressable
-            onPress={() => onAccountPress?.(item)}
-            style={({ pressed }) => [
-              {
-                width: CARD_WIDTH,
-                marginHorizontal: CARD_HORIZONTAL_MARGIN,
-                paddingBottom: 10,
-                opacity: pressed ? 0.8 : 1,
-                transform: [{ scale: pressed ? 1.02 : 1 }],
-              },
-            ]}
-          >
-            <AccountCard item={item} isDark={isDark} />
-          </Pressable>
-        </Animated.View>
-      );
+      const idx = Math.round(event.contentOffset.x / ITEM_WIDTH);
+      if (idx !== lastHapticIndex.current && idx >= 0 && idx < accounts.length) {
+        lastHapticIndex.current = idx;
+        runOnJS(onIndexChange)(idx);
+        runOnJS(Haptics.impactAsync)(Haptics.ImpactFeedbackStyle.Light);
+      }
     },
-    [isDark, onAccountPress, scrollX]
-  );
+  });
 
   const getItemLayout = useCallback(
     (_: any, index: number) => ({
@@ -290,17 +293,16 @@ export function AccountCardCarousel({
   return (
     <View style={styles.container}>
       {/* The real account cards */}
-      <FlatList
-        ref={flatListRef}
+      <Animated.FlatList
+        ref={flatListRef as any}
         data={accounts}
-        renderItem={renderItem}
         keyExtractor={(item) => item.key}
-        horizontal
+        horizontal={true}
         showsHorizontalScrollIndicator={false}
-        pagingEnabled={true}
-        snapToOffsets={snapOffsets}
+        pagingEnabled={Platform.OS === "ios"}
+        snapToInterval={ITEM_WIDTH}
         snapToAlignment="center"
-        decelerationRate="fast"
+        decelerationRate={Platform.OS === "ios" ? "fast" : 0.985}
         disableIntervalMomentum={true}
         getItemLayout={getItemLayout}
         onScroll={handleScroll}
@@ -308,70 +310,46 @@ export function AccountCardCarousel({
         bounces={false}
         contentContainerStyle={{ paddingRight: 0 }}
         style={{ overflow: "visible" }}
+        renderItem={({ item, index }) => (
+          <AccountCardItem
+            item={item}
+            index={index}
+            scrollX={scrollX}
+            isDark={isDark}
+            onAccountPress={onAccountPress}
+          />
+        )}
       />
 
       {/* Post-carousel footer controls */}
       <View style={styles.paginationContainer}>
         {accounts.length > 1 && (
           <View style={styles.dotsRow}>
-            {accounts.map((acc, idx) => {
-              const inputRange = [
-                (idx - 1) * ITEM_WIDTH,
-                idx * ITEM_WIDTH,
-                (idx + 1) * ITEM_WIDTH,
-              ];
-
-              const dotWidth = scrollX.interpolate({
-                inputRange,
-                outputRange: [8, 22, 8],
-                extrapolate: "clamp",
-              });
-
-              const opacity = scrollX.interpolate({
-                inputRange,
-                outputRange: [0.3, 1, 0.3],
-                extrapolate: "clamp",
-              });
-
-              return (
-                <Animated.View
-                  key={acc.key}
-                  style={[
-                    styles.dot,
-                    {
-                      width: dotWidth,
-                      opacity,
-                      backgroundColor: ui.text,
-                    },
-                  ]}
-                />
-              );
-            })}
+            {accounts.map((acc, idx) => (
+              <PaginationDot
+                key={acc.key}
+                index={idx}
+                scrollX={scrollX}
+                ui={ui}
+              />
+            ))}
           </View>
         )}
 
         {accounts.length > 0 && (
           <Pressable
             onPress={onAddPress}
-            hitSlop={8}
             style={({ pressed }) => [
+              styles.addButton,
               {
-                marginTop: accounts.length > 1 ? 22 : 8,
-                flexDirection: "row",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 8,
-                paddingHorizontal: 28,
-                paddingVertical: 12,
                 backgroundColor: ui.text,
-                borderRadius: 24,
-                opacity: pressed ? 0.85 : 1,
-                alignSelf: 'center',
+                opacity: pressed ? 0.8 : 1,
+                transform: [{ scale: pressed ? 0.98 : 1 }],
               },
             ]}
           >
             <Feather name="plus" size={16} color={isDark ? "#000000" : "#FFFFFF"} />
-            <ThemedText style={{ fontSize: 15, color: isDark ? "#000000" : "#FFFFFF", fontWeight: "700" }}>
+            <ThemedText style={[styles.addButtonText, { color: isDark ? "#000000" : "#FFFFFF" }]}>
               Add New Account
             </ThemedText>
           </Pressable>
@@ -379,7 +357,115 @@ export function AccountCardCarousel({
       </View>
     </View>
   );
-}
+};
+
+// ── Sub-components for Reanimated ─────────────────
+
+const AccountCardItem = React.memo(({ item, index, scrollX, isDark, onAccountPress }: any) => {
+  const animatedStyle = useAnimatedStyle(() => {
+    const inputRange = [
+      (index - 1) * ITEM_WIDTH,
+      index * ITEM_WIDTH,
+      (index + 1) * ITEM_WIDTH,
+    ];
+
+    const scale = interpolate(
+      scrollX.value,
+      inputRange,
+      [0.85, 1, 0.85],
+      Extrapolation.CLAMP
+    );
+
+    const opacity = interpolate(
+      scrollX.value,
+      inputRange,
+      [0.4, 1, 0.4],
+      Extrapolation.CLAMP
+    );
+
+    const rotateY = interpolate(
+      scrollX.value,
+      inputRange,
+      [-25, 0, 25],
+      Extrapolation.CLAMP
+    );
+
+    return {
+      opacity,
+      transform: [
+        { perspective: 1000 },
+        { rotateY: `${rotateY}deg` },
+        { scale },
+      ],
+    };
+  });
+
+  return (
+    <Animated.View style={[{ width: ITEM_WIDTH, justifyContent: 'center' }, animatedStyle]}>
+      <Pressable
+        onPress={() => onAccountPress?.(item)}
+        style={({ pressed }) => [
+          {
+            width: CARD_WIDTH,
+            marginHorizontal: CARD_HORIZONTAL_MARGIN,
+            paddingBottom: 10,
+            opacity: pressed ? 0.8 : 1,
+            transform: [{ scale: pressed ? 1.02 : 1 }],
+          },
+        ]}
+      >
+        <AccountCard item={item} isDark={isDark} />
+      </Pressable>
+    </Animated.View>
+  );
+});
+
+const PaginationDot = React.memo(({ index, scrollX, ui }: any) => {
+  const animatedStyle = useAnimatedStyle(() => {
+    const inputRange = [
+      (index - 1) * ITEM_WIDTH,
+      index * ITEM_WIDTH,
+      (index + 1) * ITEM_WIDTH,
+    ];
+
+    const dotWidth = interpolate(
+      scrollX.value,
+      inputRange,
+      [8, 22, 8],
+      Extrapolation.CLAMP
+    );
+
+    const opacity = interpolate(
+      scrollX.value,
+      inputRange,
+      [0.3, 1, 0.3],
+      Extrapolation.CLAMP
+    );
+
+    return {
+      width: dotWidth,
+      opacity,
+    };
+  });
+
+  return (
+    <Animated.View
+      style={[
+        styles.dot,
+        animatedStyle,
+        { backgroundColor: ui.text },
+      ]}
+    />
+  );
+});
+
+export const AccountCardCarousel = React.memo(
+  AccountCardCarouselComponent,
+  (prev, next) => {
+    // Basic equality check for accounts and ui
+    return prev.accounts === next.accounts && prev.ui === next.ui;
+  }
+);
 
 // ── Styles ─────────────────────────────────────────
 
@@ -492,5 +578,20 @@ const styles = StyleSheet.create({
     width: 7,
     height: 7,
     borderRadius: 3.5,
+  },
+  addButton: {
+    marginTop: 22,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingHorizontal: 28,
+    paddingVertical: 12,
+    borderRadius: 24,
+    alignSelf: 'center',
+  },
+  addButtonText: {
+    fontSize: 15,
+    fontWeight: "700",
   },
 });

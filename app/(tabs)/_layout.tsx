@@ -11,8 +11,16 @@ export default function TabLayout() {
 
   return (
     <NativeTabs
-      tintColor={Colors[colorScheme === 'dark' ? 'dark' : 'light'].tint}
-      indicatorColor={colorScheme === "dark" ? theme.colors.surfaceVariant : theme.colors.surfaceDisabled}
+      iconColor={{
+        default: theme.colors.onSurfaceVariant,
+        selected: Colors[colorScheme === 'dark' ? 'dark' : 'light'].tint
+      }}
+      labelStyle={{
+        default: { color: theme.colors.onSurfaceVariant },
+        selected: { color: Colors[colorScheme === 'dark' ? 'dark' : 'light'].tint }
+      }}
+      indicatorColor={colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 0, 0, 0.08)'}
+      rippleColor={colorScheme === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)'}
       backgroundColor={colorScheme === "dark" ? theme.colors.surface : theme.colors.surfaceVariant}
       labelVisibilityMode="labeled"
     >

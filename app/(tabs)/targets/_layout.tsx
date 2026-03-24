@@ -1,4 +1,3 @@
-import { AndroidAppBar } from "@/components/ui/android-app-bar";
 import { Stack } from "expo-router";
 import React from "react";
 import { Platform, useColorScheme } from "react-native";
@@ -13,21 +12,13 @@ export default function TargetsLayout() {
         <Stack
             screenOptions={{
                 headerShown: true,
-                ...(Platform.OS === "android"
-                    ? {
-                          header: ({ options }) => (
-                              <AndroidAppBar 
-                                title={options.title ?? ""} 
-                                searchBarOptions={(options as any).headerSearchBarOptions}
-                              />
-                          ),
-                      }
-                    : {
-                          headerLargeTitle: true,
-                          headerTransparent: true,
-                          headerShadowVisible: false,
-                          headerLargeStyle: { backgroundColor: "transparent" },
-                      }),
+                headerLargeTitle: Platform.OS === "ios",
+                headerTransparent: Platform.OS === "ios",
+                headerShadowVisible: false,
+                headerStyle: { backgroundColor: Platform.OS === "android" ? (isDark ? theme.colors.surface : theme.colors.surfaceVariant) : "transparent" },
+                headerLargeStyle: { backgroundColor: Platform.OS === "ios" ? "transparent" : (isDark ? theme.colors.surface : theme.colors.surfaceVariant) },
+                headerTitleStyle: { color: isDark ? "#ffffff" : "#111111" },
+                headerLargeTitleStyle: { color: isDark ? "#ffffff" : "#111111" },
             }}
         >
             <Stack.Screen name="index" options={{ title: "Targets" }} />

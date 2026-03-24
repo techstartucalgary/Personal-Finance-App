@@ -18,7 +18,8 @@ export default function ChatAI() {
       fetch: expoFetch as unknown as typeof globalThis.fetch,
       api: apiUrl,
       body: {
-        profile_id: session?.user.id
+        profile_id: session?.user.id,
+        token: session?.access_token
       }
     }),
     onError: error => console.error(error, 'ERROR'),

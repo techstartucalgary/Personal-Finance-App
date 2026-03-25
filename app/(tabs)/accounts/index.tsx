@@ -88,6 +88,53 @@ function getAccountColor(isLiability: boolean, index: number) {
 
 
 
+// ── Detail Animation Wrapper ───────────────────────
+const FadeInView = ({
+  children,
+  trigger,
+  direction,
+}: {
+  children: React.ReactNode;
+  trigger: any;
+  direction: "left" | "right";
+}) => {
+  const opacity = useRef(new Animated.Value(0.5)).current;
+  const translateX = useRef(
+    new Animated.Value(direction === "right" ? 16 : -16)
+  ).current;
+
+  useEffect(() => {
+    // Reset values for the new entrance
+    opacity.setValue(0.5);
+    translateX.setValue(direction === "right" ? 16 : -16);
+
+    const animation = Animated.parallel([
+      Animated.timing(opacity, {
+        toValue: 1,
+        duration: 250,
+        useNativeDriver: true,
+      }),
+      Animated.spring(translateX, {
+        toValue: 0,
+        stiffness: 200,
+        damping: 50,
+        mass: 1,
+        useNativeDriver: true,
+      }),
+    ]);
+
+    animation.start();
+
+    return () => animation.stop();
+  }, [trigger, direction]);
+
+  return (
+    <Animated.View style={{ opacity, transform: [{ translateX }] }}>
+      {children}
+    </Animated.View>
+  );
+};
+
 // ── Main Screen ────────────────────────────────────
 
 export default function AccountsScreen() {
@@ -135,6 +182,7 @@ export default function AccountsScreen() {
   // ── Carousel state ─────────────────────────────────
 
   const [activeCardIndex, setActiveCardIndex] = useState(0);
+  const prevIndexRef = useRef(0);
   const [searchQuery, setSearchQuery] = useState("");
 
   // ── Create form state ──────────────────────────────
@@ -341,6 +389,12 @@ export default function AccountsScreen() {
   // ── Active account derived state ───────────────────
 
   const activeItem = unifiedAccounts[activeCardIndex] ?? null;
+  const direction = activeCardIndex >= prevIndexRef.current ? "right" : "left";
+
+  useEffect(() => {
+    prevIndexRef.current = activeCardIndex;
+  }, [activeCardIndex]);
+
   const activeManualAccount: AccountRow | null =
     activeItem?.kind === "manual" ? activeItem.data : null;
   const activePlaidAccount: PlaidAccount | null =
@@ -373,34 +427,7 @@ export default function AccountsScreen() {
     return totalBalance - allocated;
   }, [activeManualAccount, goals]);
 
-  // ── Detail Animation Wrapper ───────────────────────
-  const FadeInView = useCallback(({ children, trigger }: { children: React.ReactNode; trigger: any }) => {
-    const opacity = useRef(new Animated.Value(0.5)).current;
-    const translateY = useRef(new Animated.Value(4)).current;
 
-    useEffect(() => {
-      opacity.setValue(0.5);
-      translateY.setValue(4);
-      Animated.parallel([
-        Animated.timing(opacity, {
-          toValue: 1,
-          duration: 250,
-          useNativeDriver: true,
-        }),
-        Animated.timing(translateY, {
-          toValue: 0,
-          duration: 250,
-          useNativeDriver: true,
-        }),
-      ]).start();
-    }, [trigger]);
-
-    return (
-      <Animated.View style={{ opacity, transform: [{ translateY }] }}>
-        {children}
-      </Animated.View>
-    );
-  }, []);
 
   // ── Render ─────────────────────────────────────────
 
@@ -459,7 +486,7 @@ export default function AccountsScreen() {
 
         {/* ── Manual Detail Section (Read Only) ─────── */}
         {activeManualAccount && (
-          <FadeInView trigger={activeManualAccount.id}>
+          <FadeInView trigger={activeManualAccount.id} direction={direction}>
             <View style={{ paddingHorizontal: 16, marginTop: 8 }}>
               <View style={styles.sectionHeader}>
                 <ThemedText style={[styles.sectionHeaderText, { color: ui.mutedText }]}>ACCOUNT DETAILS</ThemedText>
@@ -548,7 +575,7 @@ export default function AccountsScreen() {
 
         {/* ── Plaid Account Detail (Read Only) ───────── */}
         {activePlaidAccount && (
-          <FadeInView trigger={activePlaidAccount.account_id}>
+          <FadeInView trigger={activePlaidAccount.account_id} direction={direction}>
             <View style={{ paddingHorizontal: 16, marginTop: 8 }}>
               <View style={styles.sectionHeader}>
                 <ThemedText style={[styles.sectionHeaderText, { color: ui.mutedText }]}>ACCOUNT DETAILS</ThemedText>

@@ -59,11 +59,13 @@
         }
       ],
       "expo-web-browser",
+      [
       "expo-speech-recognition",
-      {
-        "microphonePermission": "Allow Sterling to access your microphone",
+        {
+          "microphonePermission": "Allow Sterling to access your microphone",
           "speechRecognitionPermission": "Allow Sterling to recognize your speech"
-      }
+        }
+      ]  
     ],
     "experiments": {
       "typedRoutes": true,

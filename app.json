@@ -58,7 +58,12 @@
           "iosUrlScheme": "com.googleusercontent.apps.801083441538-653cd41r45k21kd0u6cgrlf4d5km4uf8"
         }
       ],
-      "expo-web-browser"
+      "expo-web-browser",
+      "expo-speech-recognition",
+      {
+        "microphonePermission": "Allow Sterling to access your microphone",
+          "speechRecognitionPermission": "Allow Sterling to recognize your speech"
+      }
     ],
     "experiments": {
       "typedRoutes": true,

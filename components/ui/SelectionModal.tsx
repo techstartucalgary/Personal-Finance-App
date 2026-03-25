@@ -7,7 +7,6 @@ import {
   ScrollView,
   StyleSheet,
   View,
-  useColorScheme,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Feather from "@expo/vector-icons/Feather";
@@ -44,8 +43,6 @@ export function SelectionModal({
   layout = 'list',
 }: SelectionModalProps) {
   const insets = useSafeAreaInsets();
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === "dark";
   const isIOS = Platform.OS === 'ios';
 
   return (
@@ -76,7 +73,7 @@ export function SelectionModal({
               style={({ pressed }) => [
                 styles.closeButton,
                 {
-                  backgroundColor: isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.05)",
+                  backgroundColor: ui.surface2,
                   opacity: pressed ? 0.7 : 1,
                 }
               ]}

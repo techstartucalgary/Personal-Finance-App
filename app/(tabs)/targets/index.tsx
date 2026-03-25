@@ -1,12 +1,13 @@
 import React, { useMemo, useState } from "react";
-import { Platform, Pressable, RefreshControl, ScrollView, StyleSheet, View, useColorScheme } from "react-native";
+import { Platform, Pressable, RefreshControl, ScrollView, StyleSheet, View } from "react-native";
 
 import SegmentedControl from "@react-native-segmented-control/segmented-control";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { ThemedText } from "@/components/themed-text";
-import { useTheme } from "react-native-paper";
+import { tabsTheme } from "@/constants/tabsTheme";
+import { AppHeader } from "@/components/ui/AppHeader";
 
 import { IconSymbol } from "@/components/ui/icon-symbol";
 
@@ -24,23 +25,10 @@ type Tab = "goals" | "budgets";
 export default function TargetsScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === "dark";
-  const theme = useTheme();
-
-  const isAndroid = Platform.OS === "android";
-
-  const ui = useMemo(
-    () => ({
-      surface: isDark ? "#1C1C1E" : "#FFFFFF",
-      surface2: isDark ? "#2C2C2E" : "#F2F2F7",
-      border: isDark ? "rgba(84,84,88,0.65)" : "rgba(60,60,67,0.29)",
-      text: isDark ? "#FFFFFF" : "#000000",
-      mutedText: isDark ? "rgba(235,235,245,0.6)" : "rgba(60,60,67,0.6)",
-      backdrop: "rgba(0,0,0,0.45)",
-    }),
-    [isDark]
-  );
+  const ui = tabsTheme.ui;
+  const handleProfilePress = useCallback(() => {
+    router.push("/profile");
+  }, [router]);
 
   // Dynamic tab bar height for FAB positioning
   let tabBarHeight = 0;
@@ -115,10 +103,10 @@ export default function TargetsScreen() {
   );
 
   return (
-    <>
-
+    <View style={[styles.screen, { backgroundColor: ui.bg }]}>
+      <AppHeader title="Targets" onRightPress={handleProfilePress} />
       <ScrollView
-        style={[styles.container, { backgroundColor: "transparent" }]}
+        style={styles.container}
         contentInsetAdjustmentBehavior="automatic"
         contentContainerStyle={[styles.scrollContent, { paddingBottom: tabBarHeight + 120, paddingTop: 16 }]}
         showsVerticalScrollIndicator={false}
@@ -140,10 +128,10 @@ export default function TargetsScreen() {
             setActiveTab(index === 0 ? "goals" : "budgets");
             setCreateRequested(0);
           }}
-          tintColor={isAndroid ? theme.colors.background : (isDark ? "#3A3A3C" : "#FFFFFF")}
-          backgroundColor={isAndroid ? theme.colors.surface : "transparent"}
+          tintColor={ui.accent}
+          backgroundColor={ui.surface2}
           fontStyle={{ color: ui.text, fontWeight: "500" }}
-          activeFontStyle={{ color: ui.text, fontWeight: "600" }}
+          activeFontStyle={{ color: ui.surface, fontWeight: "600" }}
         />
 
         <ScrollView
@@ -206,12 +194,8 @@ export default function TargetsScreen() {
                 style={[
                   styles.chip,
                   {
-                    backgroundColor: isSelected
-                      ? (isDark ? "#8CF2D1" : "#1F6F5B")
-                      : ui.surface2,
-                    borderColor: isSelected
-                      ? "transparent"
-                      : (isDark ? "rgba(140,242,209,0.2)" : "rgba(31,111,91,0.15)"),
+                    backgroundColor: isSelected ? ui.text : ui.surface2,
+                    borderColor: ui.border,
                   },
                 ]}
               >
@@ -219,7 +203,7 @@ export default function TargetsScreen() {
                   style={{
                     fontSize: 13,
                     fontWeight: "600",
-                    color: isSelected ? "#FFFFFF" : (isDark ? "#8CF2D1" : "#1F6F5B"),
+                    color: isSelected ? ui.surface : ui.text,
                   }}
                 >
                   {pa.name}{pa.mask ? ` ••${pa.mask}` : ""}
@@ -260,11 +244,14 @@ export default function TargetsScreen() {
       >
         <IconSymbol name="plus" size={32} color={ui.surface} />
       </Pressable>
-    </>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  screen: {
+    flex: 1,
+  },
   container: {
     flex: 1,
     paddingHorizontal: 16,

@@ -10,16 +10,15 @@ import {
   RefreshControl,
   ScrollView,
   StyleSheet,
-  useColorScheme,
   View
 } from "react-native";
 
 import { AccountsTrendChart } from "@/components/accounts/AccountsTrendChart";
 import { ThemedText } from "@/components/themed-text";
-import { ThemedView } from "@/components/themed-view";
+import { AppHeader } from "@/components/ui/AppHeader";
 import { Tokens } from "@/constants/authTokens";
+import { tabsTheme } from "@/constants/tabsTheme";
 import { useAuthContext } from "@/hooks/use-auth-context";
-import { useTheme } from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { listAccounts } from "@/utils/accounts";
@@ -59,9 +58,9 @@ export default function DashboardScreen() {
   const userId = session?.user.id;
   const insets = useSafeAreaInsets();
   const router = useRouter();
-
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === "dark";
+  const handleProfilePress = useCallback(() => {
+    router.push("/profile");
+  }, [router]);
 
   // Dynamic tab bar height
   let tabBarHeight = 0;
@@ -71,27 +70,7 @@ export default function DashboardScreen() {
     tabBarHeight = insets.bottom + 60;
   }
 
-  const theme = useTheme();
-
-  const isAndroid = Platform.OS === "android";
-
-  const ui = useMemo(
-    () => ({
-      surface: isAndroid ? theme.colors.surface : (isDark ? "#1C1C1E" : "#F5F5F5"), // neutral gray
-      surface2: isDark ? "#2C2C2E" : "#F2F2F7",
-      border: isAndroid ? theme.colors.outlineVariant : (isDark ? "rgba(84,84,88,0.65)" : "rgba(60,60,67,0.29)"),
-      text: isDark ? "#FFFFFF" : "#000000",
-      mutedText: isDark ? "rgba(235,235,245,0.6)" : "rgba(60,60,67,0.6)",
-      backdrop: "rgba(0,0,0,0.45)",
-      accent: isAndroid ? theme.colors.primary : (isDark ? "#8CF2D1" : "#1F6F5B"),
-      accentSoft: isAndroid ? theme.colors.primaryContainer : (isDark ? "rgba(140,242,209,0.2)" : "rgba(31,111,91,0.12)"),
-      hero: isDark ? "#2C2C2E" : "#F2F2F7",
-      heroAlt: theme.colors.surfaceVariant,
-      negative: isDark ? "#ff6b6b" : "#e03131",
-      positive: isAndroid ? theme.colors.primary : (isDark ? "#8CF2D1" : "#1F6F5B"),
-    }),
-    [isDark, theme, isAndroid],
-  );
+  const ui = tabsTheme.ui;
 
   const [isLoading, setIsLoading] = useState(false);
   const [accounts, setAccounts] = useState<AccountRow[]>([]);
@@ -321,26 +300,32 @@ export default function DashboardScreen() {
 
   if (authLoading && !session) {
     return (
-      <ThemedView style={[styles.container, { paddingTop: 16 + insets.top }]}>
-        <ActivityIndicator color={ui.text} />
-      </ThemedView>
+      <View style={[styles.screen, { backgroundColor: ui.bg }]}>
+        <AppHeader title="Dashboard" onRightPress={handleProfilePress} />
+        <View style={[styles.stateWrap, { paddingTop: 12 }]}>
+          <ActivityIndicator color={ui.text} />
+        </View>
+      </View>
     );
   }
 
   if (!session) {
     return (
-      <ThemedView style={[styles.container, { paddingTop: 16 + insets.top }]}>
-        <ThemedText type="title">Dashboard</ThemedText>
-        <ThemedText>Please sign in to view your dashboard.</ThemedText>
-      </ThemedView>
+      <View style={[styles.screen, { backgroundColor: ui.bg }]}>
+        <AppHeader title="Dashboard" onRightPress={handleProfilePress} />
+        <View style={[styles.stateWrap, { paddingTop: 12 }]}>
+          <ThemedText type="title" style={{ color: ui.text }}>Dashboard</ThemedText>
+          <ThemedText style={{ color: ui.mutedText }}>Please sign in to view your dashboard.</ThemedText>
+        </View>
+      </View>
     );
   }
 
   return (
-    <>
-
+    <View style={[styles.screen, { backgroundColor: ui.bg }]}>
+      <AppHeader title="Dashboard" onRightPress={handleProfilePress} />
       <ScrollView
-        style={[styles.container, { backgroundColor: "transparent" }]}
+        style={styles.container}
         contentInsetAdjustmentBehavior="automatic"
         contentContainerStyle={[
           styles.scrollContent,
@@ -534,17 +519,24 @@ export default function DashboardScreen() {
           )}
         </View>
       </ScrollView>
-    </>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  screen: {
+    flex: 1,
+  },
   container: {
     flex: 1,
   },
   scrollContent: {
     paddingHorizontal: 16,
     gap: 24,
+  },
+  stateWrap: {
+    flex: 1,
+    paddingHorizontal: 16,
   },
   header: {
     marginBottom: 8,

@@ -17,6 +17,7 @@ import {
 import { listExpenses } from "@/utils/expenses";
 import { supabase } from "@/utils/supabase";
 import { parseLocalDate, toLocalISOString } from "@/utils/date";
+import { tabsTheme } from "@/constants/tabsTheme";
 import Feather from "@expo/vector-icons/Feather";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { useFocusEffect } from "expo-router";
@@ -29,10 +30,8 @@ import {
     ScrollView,
     StyleSheet,
     TextInput,
-    View,
-    useColorScheme
+    View
 } from "react-native";
-import { useTheme } from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 // ── Types ──────────────────────────────────────────
@@ -96,10 +95,7 @@ export function BudgetsView({ filterAccountId = null, refreshKey = 0, createRequ
     const { session } = useAuthContext();
     const userId = session?.user.id;
     const insets = useSafeAreaInsets();
-    const colorScheme = useColorScheme();
-    const isDark = colorScheme === "dark";
-    const theme = useTheme();
-    const isAndroid = Platform.OS === "android";
+    const ui = tabsTheme.ui;
 
     let tabBarHeight = 0;
     try {
@@ -109,18 +105,6 @@ export function BudgetsView({ filterAccountId = null, refreshKey = 0, createRequ
     }
     const fabBottom = tabBarHeight + 60;
 
-    const ui = useMemo(
-        () => ({
-            surface: isDark ? "#1C1C1E" : "#FFFFFF",
-            surface2: isDark ? "#2C2C2E" : "#F2F2F7",
-            border: isDark ? "rgba(84,84,88,0.65)" : "rgba(60,60,67,0.29)",
-            text: isDark ? "#FFFFFF" : "#000000",
-            mutedText: isDark ? "rgba(235,235,245,0.6)" : "rgba(60,60,67,0.6)",
-            backdrop: "rgba(0,0,0,0.45)",
-            destructive: "#D32F2F",
-        }),
-        [isDark],
-    );
 
     // ── Data state ─────────────────────────────────
     const [isLoading, setIsLoading] = useState(false);
@@ -491,7 +475,7 @@ export function BudgetsView({ filterAccountId = null, refreshKey = 0, createRequ
                             <Pressable
                                 onPress={closeModal}
                                 hitSlop={20}
-                                style={[styles.modalCloseButton, { backgroundColor: isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.05)" }]}
+                                style={[styles.modalCloseButton, { backgroundColor: ui.surface2 }]}
                             >
                                 <Feather name="x" size={18} color={ui.text} />
                             </Pressable>
@@ -547,7 +531,7 @@ export function BudgetsView({ filterAccountId = null, refreshKey = 0, createRequ
                                         </ThemedText>
                                     </View>
                                     <Pressable onPress={() => removeDraft(d.localKey)} hitSlop={8}>
-                                        <ThemedText style={{ color: ui.destructive, fontSize: 18, fontWeight: "700" }}>✕</ThemedText>
+                                        <ThemedText style={{ color: ui.danger, fontSize: 18, fontWeight: "700" }}>✕</ThemedText>
                                     </Pressable>
                                 </View>
                             ))}
@@ -614,7 +598,7 @@ export function BudgetsView({ filterAccountId = null, refreshKey = 0, createRequ
                                 onPress={handleDelete}
                                 style={[styles.deleteAction, { borderColor: ui.border, backgroundColor: ui.surface2 }]}
                             >
-                                <ThemedText type="defaultSemiBold" style={{ color: ui.destructive }}>
+                                <ThemedText type="defaultSemiBold" style={{ color: ui.danger }}>
                                     Delete Budget
                                 </ThemedText>
                             </Pressable>

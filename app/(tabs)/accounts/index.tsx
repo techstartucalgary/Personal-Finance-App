@@ -12,9 +12,7 @@ import {
   StyleSheet,
   TextInput,
   View,
-  useColorScheme
 } from "react-native";
-import { useTheme } from "react-native-paper";
 import type { LinkExit, LinkSuccess } from "react-native-plaid-link-sdk";
 import { create as plaidCreate, destroy as plaidDestroy, open as plaidOpen } from "react-native-plaid-link-sdk";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -25,10 +23,12 @@ import { AccountDetailModal } from "@/components/AccountDetailModal";
 import { AccountWaveCard } from "@/components/accounts/AccountCards";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
+import { AppHeader } from "@/components/ui/AppHeader";
 import { DateTimePickerField } from "@/components/ui/DateTimePickerField";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { SelectionModal } from "@/components/ui/SelectionModal";
 import { Tokens } from "@/constants/authTokens";
+import { tabsTheme } from "@/constants/tabsTheme";
 import { useAuthContext } from "@/hooks/use-auth-context";
 import {
   createAccount as createAccountApi,
@@ -80,9 +80,6 @@ export default function AccountsScreen() {
 
   const insets = useSafeAreaInsets();
 
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === "dark";
-
   // Dynamic tab bar height
   let tabBarHeight = 0;
   try {
@@ -93,31 +90,14 @@ export default function AccountsScreen() {
     tabBarHeight = insets.bottom + 60;
   }
   const fabBottom = Platform.OS === "android" ? tabBarHeight + 35 : tabBarHeight + 5;
-
-  const theme = useTheme();
-
-  const isAndroid = Platform.OS === "android";
-
-  const ui = useMemo(
-    () => ({
-      surface: isDark ? "#1C1C1E" : "#FFFFFF",
-      surface2: isDark ? "#2C2C2E" : "#F2F2F7",
-      border: isDark ? "rgba(84,84,88,0.65)" : "rgba(60,60,67,0.29)",
-      text: isDark ? "#FFFFFF" : "#000000",
-      mutedText: isDark ? "rgba(235,235,245,0.6)" : "rgba(60,60,67,0.6)",
-      backdrop: "rgba(0,0,0,0.45)",
-      accent: isDark ? "#8CF2D1" : "#1F6F5B",
-      accentSoft: isDark ? "rgba(140,242,209,0.2)" : "rgba(31,111,91,0.12)",
-      hero: isDark ? "#1C1C1E" : "#F2F2F7",
-      heroAlt: isDark ? "#2C2C2E" : "#FFFFFF",
-      danger: "#D32F2F",
-    }),
-    [isDark],
-  );
+  const ui = tabsTheme.ui;
 
 
 
   const userId = session?.user.id;
+  const handleProfilePress = useCallback(() => {
+    router.push("/profile");
+  }, [router]);
 
   const [isLoading, setIsLoading] = useState(false);
   const [accounts, setAccounts] = useState<AccountRow[]>([]);
@@ -175,7 +155,7 @@ export default function AccountsScreen() {
           shouldShowHintSearchIcon: false,
         },
       });
-    }, [navigation, ui, isDark, router])
+    }, [navigation, ui, router])
   );
   const [selectedDetailAccount, setSelectedDetailAccount] = useState<AccountRow | PlaidAccount | null>(null);
 
@@ -598,26 +578,32 @@ export default function AccountsScreen() {
 
   if (authLoading && !session) {
     return (
-      <ThemedView style={[styles.container, { paddingTop: 16 + insets.top }]}>
-        <ThemedText>Loading…</ThemedText>
-      </ThemedView>
+      <View style={[styles.screen, { backgroundColor: ui.bg }]}>
+        <AppHeader title="Accounts" onRightPress={handleProfilePress} />
+        <View style={[styles.stateWrap, { paddingTop: 12 }]}>
+          <ThemedText style={{ color: ui.text }}>Loading…</ThemedText>
+        </View>
+      </View>
     );
   }
 
   if (!session) {
     return (
-      <ThemedView style={[styles.container, { paddingTop: 16 + insets.top }]}>
-        <ThemedText type="title">Accounts</ThemedText>
-        <ThemedText>Please sign in to view accounts.</ThemedText>
-      </ThemedView>
+      <View style={[styles.screen, { backgroundColor: ui.bg }]}>
+        <AppHeader title="Accounts" onRightPress={handleProfilePress} />
+        <View style={[styles.stateWrap, { paddingTop: 12 }]}>
+          <ThemedText type="title" style={{ color: ui.text }}>Accounts</ThemedText>
+          <ThemedText style={{ color: ui.mutedText }}>Please sign in to view accounts.</ThemedText>
+        </View>
+      </View>
     );
   }
 
   return (
-    <>
-
+    <View style={[styles.screen, { backgroundColor: ui.bg }]}>
+      <AppHeader title="Accounts" onRightPress={handleProfilePress} />
       <ScrollView
-        style={[styles.container, { backgroundColor: "transparent" }]}
+        style={styles.container}
         contentInsetAdjustmentBehavior="automatic"
         contentContainerStyle={[
           styles.scrollContent,
@@ -830,7 +816,7 @@ export default function AccountsScreen() {
               <Pressable
                 onPress={() => setCreateModalOpen(false)}
                 hitSlop={20}
-                style={[styles.modalCloseButton, { backgroundColor: isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.05)" }]}
+                style={[styles.modalCloseButton, { backgroundColor: ui.surface2 }]}
               >
                 <Feather name="x" size={18} color={ui.text} />
               </Pressable>
@@ -1075,7 +1061,7 @@ export default function AccountsScreen() {
                 <Pressable
                   onPress={() => setEditingAccount(null)}
                   hitSlop={20}
-                  style={[styles.modalCloseButton, { backgroundColor: isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.05)" }]}
+                  style={[styles.modalCloseButton, { backgroundColor: ui.surface2 }]}
                 >
                   <Feather name="x" size={18} color={ui.text} />
                 </Pressable>
@@ -1223,11 +1209,14 @@ export default function AccountsScreen() {
           </ThemedView>
         </Modal>
       </AccountDetailModal>
-    </>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  screen: {
+    flex: 1,
+  },
   container: {
     flex: 1,
     paddingHorizontal: 16,
@@ -1235,6 +1224,10 @@ const styles = StyleSheet.create({
     gap: 12,
     position: "relative",
     overflow: "hidden",
+  },
+  stateWrap: {
+    flex: 1,
+    paddingHorizontal: 16,
   },
   scrollContent: {
     gap: 14,

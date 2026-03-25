@@ -10,7 +10,6 @@ import {
   ScrollView,
   StyleSheet,
   TextInput,
-  useColorScheme,
   View
 } from "react-native";
 
@@ -20,15 +19,16 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
-import { useTheme } from "react-native-paper";
 
 import { AddTransactionModal } from "@/components/AddTransactionModal";
 import { EditTransactionModal } from "@/components/EditTransactionModal";
 import { TransactionDetailModal } from "@/components/TransactionDetailModal";
+import { AppHeader } from "@/components/ui/AppHeader";
 import { DateTimePickerField } from "@/components/ui/DateTimePickerField";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { SelectionModal } from "@/components/ui/SelectionModal";
 import { Tokens } from "@/constants/authTokens";
+import { tabsTheme } from "@/constants/tabsTheme";
 import { useAuthContext } from "@/hooks/use-auth-context";
 import { listAccounts } from "@/utils/accounts";
 import {
@@ -58,8 +58,9 @@ export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const navigation = useNavigation();
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === "dark";
+  const handleProfilePress = useCallback(() => {
+    router.push("/profile");
+  }, [router]);
 
   // Dynamic tab bar height
   let tabBarHeight = 0;
@@ -69,24 +70,7 @@ export default function HomeScreen() {
     tabBarHeight = insets.bottom + 60;
   }
   const fabBottom = Platform.OS === "android" ? tabBarHeight + 35 : tabBarHeight + 5;
-  const theme = useTheme();
-
-  const isAndroid = Platform.OS === "android";
-
-  const ui = useMemo(
-    () => ({
-      surface: isDark ? "#1C1C1E" : "#FFFFFF",
-      surface2: isDark ? "#2C2C2E" : "#F2F2F7",
-      border: isDark ? "rgba(84,84,88,0.65)" : "rgba(60,60,67,0.29)",
-      text: isDark ? "#FFFFFF" : "#000000",
-      mutedText: isDark ? "rgba(235,235,245,0.6)" : "rgba(60,60,67,0.6)",
-      backdrop: "rgba(0,0,0,0.45)",
-      accent: isDark ? "#8CF2D1" : "#1F6F5B",
-      accentSoft: isDark ? "rgba(140,242,209,0.2)" : "rgba(31,111,91,0.12)",
-      danger: "#D32F2F",
-    }),
-    [isDark],
-  );
+  const ui = tabsTheme.ui;
 
   const userId = session?.user.id;
 
@@ -555,10 +539,10 @@ export default function HomeScreen() {
   );
 
   return (
-    <>
-
+    <View style={[styles.screen, { backgroundColor: ui.bg }]}>
+      <AppHeader title="Transactions" onRightPress={handleProfilePress} />
       <ScrollView
-        style={[styles.container, { backgroundColor: "transparent" }]}
+        style={styles.container}
         contentInsetAdjustmentBehavior="automatic"
         contentContainerStyle={[styles.scrollContent, { paddingBottom: tabBarHeight + 120, paddingTop: 16 }]}
         showsVerticalScrollIndicator={false}
@@ -584,10 +568,10 @@ export default function HomeScreen() {
             const index = event.nativeEvent.selectedSegmentIndex;
             setActiveTab(index === 0 ? "transactions" : "recurrences");
           }}
-          tintColor={isAndroid ? theme.colors.background : (isDark ? "#3A3A3C" : "#FFFFFF")}
-          backgroundColor={isAndroid ? theme.colors.surface : "transparent"}
+          tintColor={ui.accent}
+          backgroundColor={ui.surface2}
           fontStyle={{ color: ui.text, fontWeight: "500" }}
-          activeFontStyle={{ color: ui.text, fontWeight: "600" }}
+          activeFontStyle={{ color: ui.surface, fontWeight: "600" }}
         />
 
         <ScrollView
@@ -600,7 +584,7 @@ export default function HomeScreen() {
             style={[
               styles.chip,
               {
-                backgroundColor: filterAccountId === null ? (isAndroid ? theme.colors.tertiary : ui.text) : ui.surface2,
+                backgroundColor: filterAccountId === null ? ui.text : ui.surface2,
                 borderColor: ui.border,
               },
             ]}
@@ -609,7 +593,7 @@ export default function HomeScreen() {
               style={{
                 fontSize: 13,
                 fontWeight: "600",
-                color: filterAccountId === null ? (isAndroid ? theme.colors.onTertiary : ui.surface) : ui.text,
+                color: filterAccountId === null ? ui.surface : ui.text,
               }}
             >
               All
@@ -623,7 +607,7 @@ export default function HomeScreen() {
                 styles.chip,
                 {
                   backgroundColor:
-                    filterAccountId === acct.id ? (isAndroid ? theme.colors.tertiary : ui.text) : ui.surface2,
+                    filterAccountId === acct.id ? ui.text : ui.surface2,
                   borderColor: ui.border,
                 },
               ]}
@@ -632,7 +616,7 @@ export default function HomeScreen() {
                 style={{
                   fontSize: 13,
                   fontWeight: "600",
-                  color: filterAccountId === acct.id ? (isAndroid ? theme.colors.onTertiary : ui.surface) : ui.text,
+                  color: filterAccountId === acct.id ? ui.surface : ui.text,
                 }}
               >
                 {acct.account_name ?? "Account"}
@@ -649,9 +633,7 @@ export default function HomeScreen() {
                 style={[
                   styles.chip,
                   {
-                    backgroundColor: isSelected
-                      ? (isDark ? "#1F6F5B" : "#2A8A6E")
-                      : ui.surface2,
+                    backgroundColor: isSelected ? ui.text : ui.surface2,
                     borderColor: ui.border,
                   },
                 ]}
@@ -660,7 +642,7 @@ export default function HomeScreen() {
                   style={{
                     fontSize: 13,
                     fontWeight: "600",
-                    color: isSelected ? "#FFFFFF" : (isDark ? "#8CF2D1" : "#1F6F5B"),
+                    color: isSelected ? ui.surface : ui.text,
                   }}
                 >
                   {pa.name}{pa.mask ? ` ••${pa.mask}` : ""}
@@ -681,7 +663,7 @@ export default function HomeScreen() {
                   e.amount?.toString().includes(searchQuery));
               return matchesAccount && matchesSearch;
             }).length === 0 ? (
-              <ThemedText>
+              <ThemedText style={{ color: ui.mutedText }}>
                 {isLoading ? "Loading…" : "No transactions found."}
               </ThemedText>
             ) : (
@@ -825,7 +807,7 @@ export default function HomeScreen() {
                           </ThemedText>
                           {tx.pending && (
                             <View style={{
-                              backgroundColor: isDark ? "rgba(255,165,0,0.2)" : "rgba(255,165,0,0.15)",
+                              backgroundColor: "rgba(255,165,0,0.15)",
                               paddingHorizontal: 6,
                               paddingVertical: 2,
                               borderRadius: 4,
@@ -840,7 +822,7 @@ export default function HomeScreen() {
                         {tx.institution_name && (
                           <ThemedText style={{
                             fontSize: 10,
-                            color: isDark ? "#8CF2D1" : "#1F6F5B",
+                            color: ui.accent,
                             fontWeight: "700",
                             letterSpacing: 0.5,
                             marginTop: 1,
@@ -871,9 +853,7 @@ export default function HomeScreen() {
                         )}
                       </View>
                       <ThemedText type="defaultSemiBold" style={{
-                        color: tx.amount > 0
-                          ? (isDark ? "#FF6B6B" : "#D32F2F")
-                          : (isDark ? "#69F0AE" : "#2E7D32"),
+                        color: tx.amount > 0 ? ui.danger : ui.accent,
                       }}>
                         {tx.amount > 0 ? "-" : "+"}{formatMoney(Math.abs(tx.amount))}
                       </ThemedText>
@@ -893,7 +873,7 @@ export default function HomeScreen() {
             })
             .sort((a, b) => (a.is_active === b.is_active ? 0 : a.is_active ? -1 : 1))
             .length === 0 ? (
-            <ThemedText style={{ padding: 16 }}>
+            <ThemedText style={{ padding: 16, color: ui.mutedText }}>
               {isLoading ? "Loading…" : "No recurrences found."}
             </ThemedText>
           ) : (
@@ -959,7 +939,7 @@ export default function HomeScreen() {
             backgroundColor: ui.text,
             opacity: pressed ? 0.8 : 1,
             bottom: fabBottom,
-            elevation: isAndroid ? 5 : 6,
+            elevation: Platform.OS === "android" ? 5 : 6,
           },
         ]}
       >
@@ -978,7 +958,7 @@ export default function HomeScreen() {
           await loadRecurringRules();
         }}
         ui={ui}
-        isDark={isDark}
+        isDark={false}
         userId={userId}
       />
 
@@ -1010,7 +990,7 @@ export default function HomeScreen() {
             await loadRecurringRules();
           }}
           ui={ui}
-          isDark={isDark}
+          isDark={false}
           userId={userId}
         />
       </TransactionDetailModal>
@@ -1039,7 +1019,7 @@ export default function HomeScreen() {
               <Pressable
                 onPress={() => setEditingRule(null)}
                 hitSlop={20}
-                style={[styles.modalCloseButton, { backgroundColor: isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.05)" }]}
+                style={[styles.modalCloseButton, { backgroundColor: ui.surface2 }]}
               >
                 <Feather name="x" size={18} color={ui.text} />
               </Pressable>
@@ -1371,11 +1351,14 @@ export default function HomeScreen() {
           ))
         )}
       </SelectionModal>
-    </>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  screen: {
+    flex: 1,
+  },
   container: {
     flex: 1,
     paddingHorizontal: 16,

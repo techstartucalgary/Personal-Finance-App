@@ -1,6 +1,7 @@
 import Feather from "@expo/vector-icons/Feather";
+import { usePathname, useRouter } from "expo-router";
 import React from "react";
-import { Alert, Pressable, StyleSheet, View } from "react-native";
+import { Pressable, StyleSheet, View, type TextStyle } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { tabsTheme } from "@/constants/tabsTheme";
@@ -12,7 +13,8 @@ type AppHeaderProps = {
   onLeftPress?: () => void;
   onRightPress?: () => void;
   leftIcon?: React.ComponentProps<typeof Feather>["name"];
-  rightIcon?: React.ComponentProps<typeof Feather>["name"];
+  rightIcon?: React.ComponentProps<typeof Feather>["name"] | null;
+  titleStyle?: TextStyle;
 };
 
 export function AppHeader({
@@ -21,11 +23,17 @@ export function AppHeader({
   onRightPress,
   leftIcon = "bell",
   rightIcon = "user",
+  titleStyle,
 }: AppHeaderProps) {
   const insets = useSafeAreaInsets();
   const ui = tabsTheme.ui;
+  const router = useRouter();
+  const pathname = usePathname();
   const handleLeftPress =
-    onLeftPress ?? (() => Alert.alert("Notifications", "You have no new notifications."));
+    onLeftPress ??
+    (() => {
+      router.push({ pathname: "/notifications", params: { from: pathname } });
+    });
 
   return (
     <View style={[styles.container, { paddingTop: insets.top + 14, backgroundColor: ui.bg }]}>
@@ -40,19 +48,25 @@ export function AppHeader({
         <Feather name={leftIcon} size={24} color={ui.text} />
       </Pressable>
 
-      <ThemedText style={[styles.title, { color: ui.text }]}>{title}</ThemedText>
+      <ThemedText style={[styles.title, { color: ui.text }, titleStyle]}>
+        {title}
+      </ThemedText>
 
-      <Pressable
-        onPress={onRightPress}
-        hitSlop={10}
-        disabled={!onRightPress}
-        style={({ pressed }) => [
-          styles.iconButton,
-          { opacity: pressed ? 0.6 : 1 },
-        ]}
-      >
-        <Feather name={rightIcon} size={24} color={ui.text} />
-      </Pressable>
+      {rightIcon === null ? (
+        <View style={styles.iconButton} />
+      ) : (
+        <Pressable
+          onPress={onRightPress}
+          hitSlop={10}
+          disabled={!onRightPress}
+          style={({ pressed }) => [
+            styles.iconButton,
+            { opacity: pressed ? 0.6 : 1 },
+          ]}
+        >
+          <Feather name={rightIcon} size={24} color={ui.text} />
+        </Pressable>
+      )}
     </View>
   );
 }

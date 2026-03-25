@@ -2,7 +2,9 @@ import Feather from "@expo/vector-icons/Feather";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
+  Animated,
   Alert,
+  InteractionManager,
   Modal,
   Platform,
   Pressable,
@@ -12,6 +14,7 @@ import {
   TextInput,
   View
 } from "react-native";
+import { PanGestureHandler } from "react-native-gesture-handler";
 
 import SegmentedControl from "@react-native-segmented-control/segmented-control";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
@@ -27,6 +30,8 @@ import { AppHeader } from "@/components/ui/AppHeader";
 import { DateTimePickerField } from "@/components/ui/DateTimePickerField";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { SelectionModal } from "@/components/ui/SelectionModal";
+import { useTabTransition } from "@/components/ui/useTabTransition";
+import { useTabSwipe } from "@/components/ui/useTabSwipe";
 import { Tokens } from "@/constants/authTokens";
 import { tabsTheme } from "@/constants/tabsTheme";
 import { useAuthContext } from "@/hooks/use-auth-context";
@@ -61,6 +66,8 @@ export default function HomeScreen() {
   const handleProfilePress = useCallback(() => {
     router.push("/profile");
   }, [router]);
+  const transition = useTabTransition();
+  const swipe = useTabSwipe(2);
 
   // Dynamic tab bar height
   let tabBarHeight = 0;
@@ -305,19 +312,22 @@ export default function HomeScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      loadAccounts(true);
-      loadCategories();
-      loadExpenses();
-      loadRecurringRules();
-      // Also load Plaid transactions and accounts
-      if (userId) {
-        getPlaidTransactions()
-          .then(setPlaidTransactions)
-          .catch((err: any) => console.error("Error loading Plaid transactions:", err));
-        getPlaidAccounts()
-          .then(setPlaidAccounts)
-          .catch((err: any) => console.error("Error loading Plaid accounts:", err));
-      }
+      const task = InteractionManager.runAfterInteractions(() => {
+        loadAccounts(true);
+        loadCategories();
+        loadExpenses();
+        loadRecurringRules();
+        // Also load Plaid transactions and accounts
+        if (userId) {
+          getPlaidTransactions()
+            .then(setPlaidTransactions)
+            .catch((err: any) => console.error("Error loading Plaid transactions:", err));
+          getPlaidAccounts()
+            .then(setPlaidAccounts)
+            .catch((err: any) => console.error("Error loading Plaid accounts:", err));
+        }
+      });
+      return () => task.cancel();
     }, [loadAccounts, loadCategories, loadExpenses, loadRecurringRules, userId]),
   );
 
@@ -539,26 +549,37 @@ export default function HomeScreen() {
   );
 
   return (
-    <View style={[styles.screen, { backgroundColor: ui.bg }]}>
-      <AppHeader title="Transactions" onRightPress={handleProfilePress} />
-      <ScrollView
-        style={styles.container}
-        contentInsetAdjustmentBehavior="automatic"
-        contentContainerStyle={[styles.scrollContent, { paddingBottom: tabBarHeight + 120, paddingTop: 16 }]}
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl
-            refreshing={isLoading}
-            onRefresh={() => {
-              loadAccounts();
-              loadCategories();
-              loadExpenses();
-              loadRecurringRules();
-            }}
-            tintColor={ui.text}
-          />
-        }
-      >
+    <PanGestureHandler
+      onGestureEvent={swipe.onGestureEvent}
+      onHandlerStateChange={swipe.onHandlerStateChange}
+      activeOffsetX={[-20, 20]}
+      failOffsetY={[-15, 15]}
+    >
+      <View style={[styles.screen, { backgroundColor: ui.bg }]}>
+        <AppHeader title="Transactions" onRightPress={handleProfilePress} />
+        <Animated.View
+          style={[styles.contentWrap, transition.style, swipe.style]}
+          renderToHardwareTextureAndroid
+          shouldRasterizeIOS
+        >
+        <ScrollView
+          style={styles.container}
+          contentInsetAdjustmentBehavior="automatic"
+          contentContainerStyle={[styles.scrollContent, { paddingBottom: tabBarHeight + 120, paddingTop: 16 }]}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={isLoading}
+              onRefresh={() => {
+                loadAccounts();
+                loadCategories();
+                loadExpenses();
+                loadRecurringRules();
+              }}
+              tintColor={ui.text}
+            />
+          }
+        >
 
         {/* Native Segmented Control */}
         <SegmentedControl
@@ -923,7 +944,8 @@ export default function HomeScreen() {
               ))
           )
         )}
-      </ScrollView>
+        </ScrollView>
+      </Animated.View>
 
       <Pressable
         onPress={() => setAddModalOpen(true)}
@@ -1352,11 +1374,15 @@ export default function HomeScreen() {
         )}
       </SelectionModal>
     </View>
+    </PanGestureHandler>
   );
 }
 
 const styles = StyleSheet.create({
   screen: {
+    flex: 1,
+  },
+  contentWrap: {
     flex: 1,
   },
   container: {

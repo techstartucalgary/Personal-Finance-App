@@ -5,6 +5,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
   ActivityIndicator,
   Animated,
+  InteractionManager,
   Platform,
   Pressable,
   RefreshControl,
@@ -12,10 +13,13 @@ import {
   StyleSheet,
   View
 } from "react-native";
+import { PanGestureHandler } from "react-native-gesture-handler";
 
 import { AccountsTrendChart } from "@/components/accounts/AccountsTrendChart";
 import { ThemedText } from "@/components/themed-text";
 import { AppHeader } from "@/components/ui/AppHeader";
+import { useTabTransition } from "@/components/ui/useTabTransition";
+import { useTabSwipe } from "@/components/ui/useTabSwipe";
 import { Tokens } from "@/constants/authTokens";
 import { tabsTheme } from "@/constants/tabsTheme";
 import { useAuthContext } from "@/hooks/use-auth-context";
@@ -61,6 +65,8 @@ export default function DashboardScreen() {
   const handleProfilePress = useCallback(() => {
     router.push("/profile");
   }, [router]);
+  const transition = useTabTransition();
+  const swipe = useTabSwipe(0);
 
   // Dynamic tab bar height
   let tabBarHeight = 0;
@@ -116,7 +122,10 @@ export default function DashboardScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      loadData(true);
+      const task = InteractionManager.runAfterInteractions(() => {
+        loadData(true);
+      });
+      return () => task.cancel();
     }, [loadData])
   );
 
@@ -322,24 +331,35 @@ export default function DashboardScreen() {
   }
 
   return (
-    <View style={[styles.screen, { backgroundColor: ui.bg }]}>
-      <AppHeader title="Dashboard" onRightPress={handleProfilePress} />
-      <ScrollView
-        style={styles.container}
-        contentInsetAdjustmentBehavior="automatic"
-        contentContainerStyle={[
-          styles.scrollContent,
-          { paddingBottom: tabBarHeight + 120, paddingTop: 16 },
-        ]}
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl
-            refreshing={isLoading}
-            onRefresh={() => loadData(false)}
-            tintColor={ui.text}
-          />
-        }
+    <PanGestureHandler
+      onGestureEvent={swipe.onGestureEvent}
+      onHandlerStateChange={swipe.onHandlerStateChange}
+      activeOffsetX={[-20, 20]}
+      failOffsetY={[-15, 15]}
+    >
+      <View style={[styles.screen, { backgroundColor: ui.bg }]}>
+        <AppHeader title="Dashboard" onRightPress={handleProfilePress} />
+      <Animated.View
+        style={[styles.contentWrap, transition.style, swipe.style]}
+        renderToHardwareTextureAndroid
+        shouldRasterizeIOS
       >
+        <ScrollView
+          style={styles.container}
+          contentInsetAdjustmentBehavior="automatic"
+          contentContainerStyle={[
+            styles.scrollContent,
+            { paddingBottom: tabBarHeight + 120, paddingTop: 16 },
+          ]}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={isLoading}
+              onRefresh={() => loadData(false)}
+              tintColor={ui.text}
+            />
+          }
+        >
 
         <Animated.View style={heroAnimatedStyle}>
           <View
@@ -518,13 +538,18 @@ export default function DashboardScreen() {
             </ThemedText>
           )}
         </View>
-      </ScrollView>
-    </View>
+        </ScrollView>
+      </Animated.View>
+      </View>
+    </PanGestureHandler>
   );
 }
 
 const styles = StyleSheet.create({
   screen: {
+    flex: 1,
+  },
+  contentWrap: {
     flex: 1,
   },
   container: {

@@ -3,7 +3,9 @@ import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
+  Animated,
   Alert,
+  InteractionManager,
   Modal,
   Platform,
   Pressable,
@@ -13,6 +15,7 @@ import {
   TextInput,
   View,
 } from "react-native";
+import { PanGestureHandler } from "react-native-gesture-handler";
 import type { LinkExit, LinkSuccess } from "react-native-plaid-link-sdk";
 import { create as plaidCreate, destroy as plaidDestroy, open as plaidOpen } from "react-native-plaid-link-sdk";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -27,6 +30,8 @@ import { AppHeader } from "@/components/ui/AppHeader";
 import { DateTimePickerField } from "@/components/ui/DateTimePickerField";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { SelectionModal } from "@/components/ui/SelectionModal";
+import { useTabTransition } from "@/components/ui/useTabTransition";
+import { useTabSwipe } from "@/components/ui/useTabSwipe";
 import { Tokens } from "@/constants/authTokens";
 import { tabsTheme } from "@/constants/tabsTheme";
 import { useAuthContext } from "@/hooks/use-auth-context";
@@ -91,6 +96,8 @@ export default function AccountsScreen() {
   }
   const fabBottom = Platform.OS === "android" ? tabBarHeight + 35 : tabBarHeight + 5;
   const ui = tabsTheme.ui;
+  const transition = useTabTransition();
+  const swipe = useTabSwipe(1);
 
 
 
@@ -262,7 +269,10 @@ export default function AccountsScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      loadAccounts(true);
+      const task = InteractionManager.runAfterInteractions(() => {
+        loadAccounts(true);
+      });
+      return () => task.cancel();
     }, [loadAccounts]),
   );
 
@@ -600,24 +610,35 @@ export default function AccountsScreen() {
   }
 
   return (
-    <View style={[styles.screen, { backgroundColor: ui.bg }]}>
+    <PanGestureHandler
+      onGestureEvent={swipe.onGestureEvent}
+      onHandlerStateChange={swipe.onHandlerStateChange}
+      activeOffsetX={[-20, 20]}
+      failOffsetY={[-15, 15]}
+    >
+      <View style={[styles.screen, { backgroundColor: ui.bg }]}>
       <AppHeader title="Accounts" onRightPress={handleProfilePress} />
-      <ScrollView
-        style={styles.container}
-        contentInsetAdjustmentBehavior="automatic"
-        contentContainerStyle={[
-          styles.scrollContent,
-          { paddingBottom: tabBarHeight + 120, paddingTop: Platform.OS === 'android' ? 16 : 0 },
-        ]}
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl
-            refreshing={isLoading}
-            onRefresh={loadAccounts}
-            tintColor={ui.text}
-          />
-        }
+      <Animated.View
+        style={[styles.contentWrap, transition.style, swipe.style]}
+        renderToHardwareTextureAndroid
+        shouldRasterizeIOS
       >
+        <ScrollView
+          style={styles.container}
+          contentInsetAdjustmentBehavior="automatic"
+          contentContainerStyle={[
+            styles.scrollContent,
+            { paddingBottom: tabBarHeight + 120, paddingTop: Platform.OS === 'android' ? 16 : 0 },
+          ]}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={isLoading}
+              onRefresh={loadAccounts}
+              tintColor={ui.text}
+            />
+          }
+        >
 
 
 
@@ -695,7 +716,8 @@ export default function AccountsScreen() {
             })}
           </View>
         )}
-      </ScrollView>
+        </ScrollView>
+      </Animated.View>
 
       <Pressable
         onPress={() => setAddSourceModalOpen(true)}
@@ -1210,11 +1232,15 @@ export default function AccountsScreen() {
         </Modal>
       </AccountDetailModal>
     </View>
+    </PanGestureHandler>
   );
 }
 
 const styles = StyleSheet.create({
   screen: {
+    flex: 1,
+  },
+  contentWrap: {
     flex: 1,
   },
   container: {

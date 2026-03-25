@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from "react";
-import { Platform, Pressable, RefreshControl, ScrollView, StyleSheet, View } from "react-native";
+import { Animated, InteractionManager, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, View } from "react-native";
+import { PanGestureHandler } from "react-native-gesture-handler";
 
 import SegmentedControl from "@react-native-segmented-control/segmented-control";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
@@ -8,6 +9,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ThemedText } from "@/components/themed-text";
 import { tabsTheme } from "@/constants/tabsTheme";
 import { AppHeader } from "@/components/ui/AppHeader";
+import { useTabTransition } from "@/components/ui/useTabTransition";
+import { useTabSwipe } from "@/components/ui/useTabSwipe";
 
 import { IconSymbol } from "@/components/ui/icon-symbol";
 
@@ -29,6 +32,8 @@ export default function TargetsScreen() {
   const handleProfilePress = useCallback(() => {
     router.push("/profile");
   }, [router]);
+  const transition = useTabTransition();
+  const swipe = useTabSwipe(3);
 
   // Dynamic tab bar height for FAB positioning
   let tabBarHeight = 0;
@@ -73,8 +78,11 @@ export default function TargetsScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      loadAccounts();
-      loadPlaidAccounts();
+      const task = InteractionManager.runAfterInteractions(() => {
+        loadAccounts();
+        loadPlaidAccounts();
+      });
+      return () => task.cancel();
     }, [loadAccounts, loadPlaidAccounts])
   );
 
@@ -103,21 +111,32 @@ export default function TargetsScreen() {
   );
 
   return (
-    <View style={[styles.screen, { backgroundColor: ui.bg }]}>
+    <PanGestureHandler
+      onGestureEvent={swipe.onGestureEvent}
+      onHandlerStateChange={swipe.onHandlerStateChange}
+      activeOffsetX={[-20, 20]}
+      failOffsetY={[-15, 15]}
+    >
+      <View style={[styles.screen, { backgroundColor: ui.bg }]}>
       <AppHeader title="Targets" onRightPress={handleProfilePress} />
-      <ScrollView
-        style={styles.container}
-        contentInsetAdjustmentBehavior="automatic"
-        contentContainerStyle={[styles.scrollContent, { paddingBottom: tabBarHeight + 120, paddingTop: 16 }]}
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl
-            refreshing={isRefreshing}
-            onRefresh={handleRefresh}
-            tintColor={ui.text}
-          />
-        }
+      <Animated.View
+        style={[styles.contentWrap, transition.style, swipe.style]}
+        renderToHardwareTextureAndroid
+        shouldRasterizeIOS
       >
+        <ScrollView
+          style={styles.container}
+          contentInsetAdjustmentBehavior="automatic"
+          contentContainerStyle={[styles.scrollContent, { paddingBottom: tabBarHeight + 120, paddingTop: 16 }]}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={isRefreshing}
+              onRefresh={handleRefresh}
+              tintColor={ui.text}
+            />
+          }
+        >
 
         {/* Native Segmented Control */}
         <SegmentedControl
@@ -221,7 +240,8 @@ export default function TargetsScreen() {
             <BudgetsView filterAccountId={filterAccountId} refreshKey={refreshKey} createRequested={createRequested} searchQuery={searchQuery} />
           </View>
         </View>
-      </ScrollView>
+        </ScrollView>
+      </Animated.View>
 
       {/* FAB - outside ScrollView for fixed positioning */}
       <Pressable
@@ -245,11 +265,15 @@ export default function TargetsScreen() {
         <IconSymbol name="plus" size={32} color={ui.surface} />
       </Pressable>
     </View>
+    </PanGestureHandler>
   );
 }
 
 const styles = StyleSheet.create({
   screen: {
+    flex: 1,
+  },
+  contentWrap: {
     flex: 1,
   },
   container: {

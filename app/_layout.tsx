@@ -8,6 +8,9 @@ import { SplashScreen, Stack, useRouter, useSegments } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import React, { useEffect, useMemo } from "react";
 import { MD3DarkTheme, MD3LightTheme, PaperProvider } from "react-native-paper";
+import * as NavigationBar from "expo-navigation-bar";
+import { Platform } from "react-native";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 
 import { SplashScreenController } from "@/components/splash-screen-controller";
 import { useAuthContext } from "@/hooks/use-auth-context";
@@ -72,6 +75,7 @@ export default function RootLayout() {
     "Avenir LT Std 85 Heavy": require("../assets/fonts/AvenirLTStd-Heavy.otf"),
     "Avenir LT Std 95 Black": require("../assets/fonts/AvenirLTStd-Black.otf"),
     "Lato-Bold": require("../assets/fonts/Lato-Bold.ttf"),
+    "Lato-Light": require("../assets/fonts/Lato-Light.ttf"),
   });
   const colorScheme = useColorScheme() ?? "light";
 
@@ -137,6 +141,14 @@ export default function RootLayout() {
     }
   }, [loaded]);
 
+  useEffect(() => {
+    if (Platform.OS !== "android") return;
+    NavigationBar.setVisibilityAsync("hidden");
+    NavigationBar.setBehaviorAsync("overlay-swipe");
+    NavigationBar.setPositionAsync("absolute");
+    NavigationBar.setBackgroundColorAsync("#00000000");
+  }, []);
+
   if (!loaded) return null;
 
   const lightBg = "#FFFFFF";
@@ -154,14 +166,16 @@ export default function RootLayout() {
   };
 
   return (
-    <PaperProvider theme={paperTheme}>
-      <ThemeProvider value={colorScheme === "dark" ? CustomDarkTheme : CustomDefaultTheme}>
-        <AuthProvider>
-          <SplashScreenController />
-          <ProtectedLayout />
-          <StatusBar style="auto" />
-        </AuthProvider>
-      </ThemeProvider>
-    </PaperProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <PaperProvider theme={paperTheme}>
+        <ThemeProvider value={colorScheme === "dark" ? CustomDarkTheme : CustomDefaultTheme}>
+          <AuthProvider>
+            <SplashScreenController />
+            <ProtectedLayout />
+            <StatusBar style="auto" />
+          </AuthProvider>
+        </ThemeProvider>
+      </PaperProvider>
+    </GestureHandlerRootView>
   );
 }

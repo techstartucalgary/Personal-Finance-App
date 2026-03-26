@@ -29,6 +29,7 @@ const MAPPING = {
   "chevron.right": "chevron-right",
   "arrow.triangle.2.circlepath": "repeat",
   calendar: "calendar-today",
+  "calendar.circle": "event",
   "calendar.badge.clock": "schedule",
   "calendar.badge.minus": "event-busy",
   creditcard: "payment",

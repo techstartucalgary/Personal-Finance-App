@@ -1,7 +1,8 @@
 import DateTimePicker, { DateTimePickerAndroid, DateTimePickerEvent } from "@react-native-community/datetimepicker";
 import React from "react";
-import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
+import { Modal, Platform, Pressable, StyleSheet, TextInput, View } from "react-native";
 import { ThemedText } from "../themed-text";
+import { Tokens } from "@/constants/authTokens";
 import { IconSymbol } from "./icon-symbol";
 
 interface DateTimePickerFieldProps {
@@ -15,18 +16,58 @@ interface DateTimePickerFieldProps {
 }
 
 export function DateTimePickerField({ label, value, onChange, ui, hideLabel, icon, placeholder }: DateTimePickerFieldProps) {
+    const [inputValue, setInputValue] = React.useState("");
+    const [showIOSPicker, setShowIOSPicker] = React.useState(false);
+
+    const formatDate = React.useCallback((date?: Date | null) => {
+        if (!date) return "";
+        const month = `${date.getMonth() + 1}`.padStart(2, "0");
+        const day = `${date.getDate()}`.padStart(2, "0");
+        const year = `${date.getFullYear()}`;
+        return `${month}/${day}/${year}`;
+    }, []);
+
+    const parseInput = React.useCallback((text: string): Date | null => {
+        const trimmed = text.trim();
+        if (!trimmed) return null;
+        if (trimmed.includes("-")) {
+            const [y, m, d] = trimmed.split("-").map((part) => parseInt(part, 10));
+            if (!y || !m || !d) return null;
+            const date = new Date(y, m - 1, d);
+            if (date.getFullYear() !== y || date.getMonth() !== m - 1 || date.getDate() !== d) return null;
+            return date;
+        }
+        if (trimmed.includes("/")) {
+            const [m, d, y] = trimmed.split("/").map((part) => parseInt(part, 10));
+            if (!y || !m || !d) return null;
+            const date = new Date(y, m - 1, d);
+            if (date.getFullYear() !== y || date.getMonth() !== m - 1 || date.getDate() !== d) return null;
+            return date;
+        }
+        return null;
+    }, []);
+
+    React.useEffect(() => {
+        setInputValue(formatDate(value));
+    }, [formatDate, value]);
+
     const onPickerChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
         if (selectedDate) {
             onChange(selectedDate);
+            setInputValue(formatDate(selectedDate));
         }
     };
 
-    const showAndroidPicker = () => {
-        DateTimePickerAndroid.open({
-            value,
-            onChange: onPickerChange,
-            mode: "date",
-        });
+    const showPicker = () => {
+        if (Platform.OS === "android") {
+            DateTimePickerAndroid.open({
+                value,
+                onChange: onPickerChange,
+                mode: "date",
+            });
+            return;
+        }
+        setShowIOSPicker(true);
     };
 
     return (
@@ -34,30 +75,62 @@ export function DateTimePickerField({ label, value, onChange, ui, hideLabel, ico
             <View style={styles.rowContainer}>
                 {icon && <IconSymbol name={icon as any} size={20} color={ui.mutedText} style={{ marginRight: 12 }} />}
                 {!hideLabel && <ThemedText style={[styles.rowLabel, { color: ui.text }]}>{label}</ThemedText>}
-                
-                {Platform.OS === "ios" ? (
-                    <View style={styles.pickerWrapper}>
-                        {placeholder && !value && <ThemedText style={{ color: ui.mutedText, marginRight: 8 }}>{placeholder}</ThemedText>}
+
+                <View style={styles.inputWrap}>
+                    <TextInput
+                        value={inputValue}
+                        onChangeText={setInputValue}
+                        placeholder={placeholder || "MM/DD/YYYY"}
+                        placeholderTextColor={ui.mutedText}
+                        keyboardType="numbers-and-punctuation"
+                        onSubmitEditing={() => {
+                            const parsed = parseInput(inputValue);
+                            if (parsed) {
+                                onChange(parsed);
+                                setInputValue(formatDate(parsed));
+                            } else {
+                                setInputValue(formatDate(value));
+                            }
+                        }}
+                        onBlur={() => {
+                            const parsed = parseInput(inputValue);
+                            if (parsed) {
+                                onChange(parsed);
+                                setInputValue(formatDate(parsed));
+                            } else {
+                                setInputValue(formatDate(value));
+                            }
+                        }}
+                        style={[styles.input, { color: ui.text, fontFamily: Tokens.font.family }]}
+                    />
+                    <Pressable onPress={showPicker} style={styles.calendarButton} hitSlop={8}>
+                        <IconSymbol name="calendar.circle" size={18} color={ui.mutedText} />
+                    </Pressable>
+                </View>
+            </View>
+
+            {Platform.OS === "ios" && (
+                <Modal transparent visible={showIOSPicker} animationType="fade" onRequestClose={() => setShowIOSPicker(false)}>
+                    <Pressable style={styles.backdrop} onPress={() => setShowIOSPicker(false)} />
+                    <View style={[styles.iosPickerCard, { backgroundColor: ui.surface2, borderColor: ui.border }]}>
                         <DateTimePicker
                             value={value || new Date()}
                             mode="date"
-                            display="compact"
-                            onChange={onPickerChange}
+                            display="inline"
+                            onChange={(event, selectedDate) => {
+                                if (selectedDate) {
+                                    onChange(selectedDate);
+                                    setInputValue(formatDate(selectedDate));
+                                }
+                            }}
                             accentColor={ui.accent}
-                            style={{ alignSelf: "flex-end" }}
                         />
+                        <Pressable onPress={() => setShowIOSPicker(false)} style={styles.doneButton}>
+                            <ThemedText style={{ color: ui.accent, fontWeight: "600" }}>Done</ThemedText>
+                        </Pressable>
                     </View>
-                ) : (
-                    <Pressable
-                        onPress={showAndroidPicker}
-                        style={styles.pickerWrapper}
-                    >
-                        <Text style={{ color: ui.text, fontSize: 16 }}>
-                            {value ? value.toLocaleDateString() : (placeholder || label)}
-                        </Text>
-                    </Pressable>
-                )}
-            </View>
+                </Modal>
+            )}
         </View>
     );
 }
@@ -74,19 +147,47 @@ const styles = StyleSheet.create({
         minHeight: 52,
     },
     rowLabel: {
-        fontSize: 16,
+        fontSize: 15,
         color: undefined, // Uses default theme color
         flex: 1,
+        fontFamily: Tokens.font.boldFamily ?? Tokens.font.semiFamily ?? Tokens.font.family,
     },
-    pickerWrapper: {
+    inputWrap: {
         flex: 1,
         flexDirection: "row",
         alignItems: "center",
         justifyContent: "flex-end",
+        gap: 6,
     },
-    androidInput: {
-        borderWidth: 1,
+    input: {
+        flex: 1,
+        fontSize: 15,
+        textAlign: "right",
+        paddingVertical: 0,
+    },
+    calendarButton: {
+        width: 28,
+        height: 28,
+        borderRadius: 8,
+        alignItems: "center",
+        justifyContent: "center",
+    },
+    backdrop: {
+        flex: 1,
+        backgroundColor: "rgba(0,0,0,0.35)",
+    },
+    iosPickerCard: {
+        position: "absolute",
+        left: 16,
+        right: 16,
+        bottom: 32,
+        borderRadius: 20,
+        borderWidth: StyleSheet.hairlineWidth,
         padding: 12,
-        borderRadius: 12,
+    },
+    doneButton: {
+        alignSelf: "flex-end",
+        paddingVertical: 6,
+        paddingHorizontal: 8,
     },
 });

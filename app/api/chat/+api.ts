@@ -15,7 +15,7 @@ export async function POST(req: Request) {
 
   const supabase = createClient(
     process.env.EXPO_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!, // latest supabase document recommends using a supabase secret key instead of service role key
+    process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!, // latest supabase document recommends using a supabase secret key instead of service role key
   );
 
   // validate token
@@ -60,7 +60,7 @@ export async function POST(req: Request) {
       } as RequestInit),
   });
   const result = streamText({
-    model: gateway("google/gemini-2.0-flash"),
+    model: gateway("openai/gpt-5-nano"),
     messages: await convertToModelMessages(messages),
     system: `You are the Sterling Financial Engine, a high-precision financial analyzer and advisor. 
     Your goal is to help users manage their wealth through accurate data entry, insightful analysis, and proactive coaching.`,

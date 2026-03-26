@@ -20,7 +20,6 @@ import { ThemedText } from "./themed-text";
 import { ThemedView } from "./themed-view";
 import { DateTimePickerField } from "./ui/DateTimePickerField";
 import { IconSymbol } from "./ui/icon-symbol";
-import { SelectionModal } from "./ui/SelectionModal";
 
 import { Tokens } from "@/constants/authTokens";
 import { getAccountById, updateAccount } from "@/utils/accounts";
@@ -32,8 +31,12 @@ import {
   listSubcategories,
 } from "@/utils/categories";
 import { parseLocalDate, toLocalISOString } from "@/utils/date";
-import { addExpense } from "@/utils/expenses";
-import { createRecurringRule } from "@/utils/recurring";
+import { addExpense, updateExpense } from "@/utils/expenses";
+import {
+  createRecurringRule,
+  deleteRecurringRule,
+  updateRecurringRule,
+} from "@/utils/recurring";
 
 export type AccountRow = {
   id: number;
@@ -54,6 +57,18 @@ export type SubcategoryRow = {
   expense_categoryid: number | null;
 };
 
+export type ExpenseRow = {
+  id: string;
+  amount: number | null;
+  description?: string | null;
+  created_at?: string | null;
+  account_id?: number | null;
+  expense_categoryid?: number | null;
+  subcategory_id?: number | null;
+  transaction_date?: string | null;
+  recurring_rule_id?: number | null;
+};
+
 type CategorySuggestion = {
   label: string;
   icon: React.ComponentProps<typeof Feather>["name"];
@@ -62,20 +77,41 @@ type CategorySuggestion = {
 
 type SubcategoryMap = Record<string, string[]>;
 
-const DEFAULT_CATEGORY_SUGGESTIONS: CategorySuggestion[] = [
+const EXPENSE_CATEGORY_SUGGESTIONS: CategorySuggestion[] = [
+  { label: "Auto & Transport", icon: "truck", color: "#4C6EF5" },
+  { label: "Housing", icon: "home", color: "#1971C2" },
+  { label: "Bills & Utilities", icon: "zap", color: "#15AABF" },
+  { label: "Food & Dining", icon: "coffee", color: "#F08C00" },
   { label: "Groceries", icon: "shopping-cart", color: "#2F9E44" },
-  { label: "Dining", icon: "coffee", color: "#F08C00" },
-  { label: "Health", icon: "activity", color: "#E03131" },
-  { label: "Leisure", icon: "sun", color: "#F59F00" },
-  { label: "Home", icon: "home", color: "#1971C2" },
-  { label: "Utilities", icon: "zap", color: "#15AABF" },
-  { label: "Transportation", icon: "truck", color: "#4C6EF5" },
   { label: "Shopping", icon: "shopping-bag", color: "#E8590C" },
+  { label: "Health & Fitness", icon: "activity", color: "#E03131" },
   { label: "Entertainment", icon: "film", color: "#845EF7" },
   { label: "Travel", icon: "map-pin", color: "#F06595" },
+  { label: "Gifts & Donations", icon: "gift", color: "#BE4BDB" },
 ];
 
-const QUICK_PICK_SUGGESTIONS = DEFAULT_CATEGORY_SUGGESTIONS.slice(0, 3);
+const INCOME_CATEGORY_SUGGESTIONS: CategorySuggestion[] = [
+  { label: "Salary", icon: "briefcase", color: "#2F9E44" },
+  { label: "Business Income", icon: "dollar-sign", color: "#12B886" },
+  { label: "Freelance", icon: "pen-tool", color: "#15AABF" },
+  { label: "Investments", icon: "trending-up", color: "#1C7ED6" },
+  { label: "Interest", icon: "percent", color: "#5C7CFA" },
+  { label: "Gifts", icon: "gift", color: "#F06595" },
+  { label: "Rental Income", icon: "home", color: "#1971C2" },
+  { label: "Refunds", icon: "refresh-cw", color: "#ADB5BD" },
+  { label: "Bonuses", icon: "award", color: "#F59F00" },
+  { label: "Other Income", icon: "layers", color: "#845EF7" },
+];
+
+const ALL_CATEGORY_SUGGESTIONS = [
+  ...EXPENSE_CATEGORY_SUGGESTIONS,
+  ...INCOME_CATEGORY_SUGGESTIONS,
+].filter(
+  (item, index, arr) =>
+    arr.findIndex(
+      (entry) => entry.label.toLowerCase() === item.label.toLowerCase(),
+    ) === index,
+);
 const ICON_GROUPS: { title: string; icons: CategorySuggestion[] }[] = [
   {
     title: "Essentials",
@@ -167,20 +203,37 @@ const EXPENSE_SUBCATEGORIES: SubcategoryMap = {
     "Parking & Tolls",
     "Taxi & Ride Shares",
   ],
-  Housing: ["Mortgage", "Rent", "Home Improvement"],
-  "Bills & Utilities": ["Electricity", "Water", "Internet", "Phone", "Garbage"],
-  "Food & Dining": ["Restaurants", "Cafe", "Groceries", "Takeout"],
-  "Gifts & Donations": ["Charity", "Gifts"],
-  Health: ["Pharmacy", "Doctor", "Dental", "Gym"],
+  Housing: ["Mortgage", "Rent", "Home Improvement", "HOA Fees", "Property Tax"],
+  "Bills & Utilities": [
+    "Electricity",
+    "Water",
+    "Internet",
+    "Phone",
+    "Gas",
+    "Garbage",
+  ],
+  "Food & Dining": ["Restaurants", "Cafe", "Takeout", "Delivery"],
+  Groceries: ["Supermarket", "Farmers Market", "Snacks", "Household"],
   Shopping: ["Clothing", "Electronics", "Home Goods", "Personal Care"],
+  "Health & Fitness": ["Pharmacy", "Doctor", "Dental", "Gym"],
+  Entertainment: ["Movies", "Games", "Streaming", "Events"],
+  Travel: ["Flights", "Hotels", "Transit", "Car Rental"],
+  "Gifts & Donations": ["Charity", "Gifts"],
   Other: ["Misc", "One-time", "Recurring"],
 };
 
 const INCOME_SUBCATEGORIES: SubcategoryMap = {
-  Income: ["Paychecks", "Interests", "Business Income", "Other Income"],
   Salary: ["Paychecks", "Bonuses", "Commission"],
   "Business Income": ["Sales", "Services", "Other"],
-  Other: ["Refunds", "Gifts", "Other Income"],
+  Freelance: ["Projects", "Consulting", "Contract"],
+  Investments: ["Dividends", "Capital Gains", "Interest"],
+  Interest: ["Bank Interest", "Cashback", "Savings Interest"],
+  Gifts: ["Gifts", "Donations", "Support"],
+  "Rental Income": ["Rent", "Lease", "Airbnb"],
+  Refunds: ["Returns", "Reimbursements", "Tax Refund"],
+  Bonuses: ["Annual Bonus", "Performance Bonus", "Referral Bonus"],
+  "Other Income": ["Other", "Misc", "One-time"],
+  Other: ["Other", "Misc", "One-time"],
 };
 
 type CategoryPickerModalProps = {
@@ -325,7 +378,8 @@ function CategoryPickerModal({
                           />
                         </View>
                         <ThemedText
-                          numberOfLines={1}
+                          numberOfLines={2}
+                          ellipsizeMode="tail"
                           style={[
                             styles.quickPickText,
                             { color: isSelected ? (ui.accent ?? ui.text) : ui.text },
@@ -732,6 +786,11 @@ interface AddTransactionModalProps {
   ui: any;
   isDark: boolean;
   userId: string | undefined;
+  mode?: "add" | "view";
+  initialTransaction?: ExpenseRow | null;
+  recurringRules?: any[];
+  onEditRequest?: () => void;
+  onDeleteRequest?: () => void;
 }
 
 export function AddTransactionModal({
@@ -743,11 +802,18 @@ export function AddTransactionModal({
   ui,
   isDark,
   userId,
+  mode = "add",
+  initialTransaction = null,
+  recurringRules = [],
+  onEditRequest,
+  onDeleteRequest,
 }: AddTransactionModalProps) {
   const insets = useSafeAreaInsets();
   const amountInputRef = React.useRef<TextInput>(null);
   const togglePadding = 2;
   const keyboardShift = React.useRef(new Animated.Value(0)).current;
+  const isViewMode = mode === "view";
+  const isEditMode = mode === "edit";
 
   const [isLoading, setIsLoading] = useState(false);
   const [amount, setAmount] = useState("");
@@ -775,6 +841,7 @@ export function AddTransactionModal({
   const [hasEndDate, setHasEndDate] = useState(false);
   const [addRuleEndsOn, setAddRuleEndsOn] = useState("");
   const [addRuleNextRunDate, setAddRuleNextRunDate] = useState("");
+  const [recurrenceTouched, setRecurrenceTouched] = useState(false);
 
   const [accountModalOpen, setAccountModalOpen] = useState(false);
   const [categoryModalOpen, setCategoryModalOpen] = useState(false);
@@ -798,16 +865,24 @@ export function AddTransactionModal({
   const toggleTranslate = React.useRef(new Animated.Value(0)).current;
   const toggleOptions = ["income", "expense", "transfer"] as const;
 
+  const categorySuggestions = useMemo(
+    () =>
+      transactionType === "income"
+        ? INCOME_CATEGORY_SUGGESTIONS
+        : EXPENSE_CATEGORY_SUGGESTIONS,
+    [transactionType],
+  );
+
   const suggestedCategories = useMemo(() => {
     const existing = new Set(
       categories
         .map((cat) => (cat.category_name ?? "").trim().toLowerCase())
         .filter(Boolean),
     );
-    return DEFAULT_CATEGORY_SUGGESTIONS.filter(
+    return categorySuggestions.filter(
       (item) => !existing.has(item.label.toLowerCase()),
     );
-  }, [categories]);
+  }, [categories, categorySuggestions]);
 
   const subcategoryOptions = useMemo(() => {
     const name = (selectedCategory?.category_name ?? "").trim();
@@ -830,13 +905,40 @@ export function AddTransactionModal({
     (category: CategoryRow) => {
       const override = categoryIconOverrides[category.id];
       if (override) return override;
-      const match = DEFAULT_CATEGORY_SUGGESTIONS.find(
-        (item) => item.label.toLowerCase() === (category.category_name ?? "").trim().toLowerCase(),
+      const match = ALL_CATEGORY_SUGGESTIONS.find(
+        (item) =>
+          item.label.toLowerCase() ===
+          (category.category_name ?? "").trim().toLowerCase(),
       );
       return match ?? null;
     },
     [categoryIconOverrides],
   );
+
+  const quickPickOptions = useMemo(() => {
+    const selectedName = (selectedCategory?.category_name ?? "").trim();
+    const selectedLower = selectedName.toLowerCase();
+    const picks: CategorySuggestion[] = [];
+
+    if (selectedName) {
+      const resolved =
+        (selectedCategory && resolveCategoryIcon(selectedCategory)) ?? null;
+      const fallbackIcon = "tag" as React.ComponentProps<typeof Feather>["name"];
+      picks.push({
+        label: selectedName,
+        icon: resolved?.icon ?? fallbackIcon,
+        color: resolved?.color ?? (ui.accent ?? "#4C6EF5"),
+      });
+    }
+
+    for (const item of categorySuggestions) {
+      if (picks.length >= 3) break;
+      if (item.label.toLowerCase() === selectedLower) continue;
+      picks.push(item);
+    }
+
+    return picks;
+  }, [categorySuggestions, resolveCategoryIcon, selectedCategory, ui.accent]);
 
   const getAccountColor = useCallback(
     (account: AccountRow, fallbackIndex: number) => {
@@ -879,6 +981,17 @@ export function AddTransactionModal({
     },
     [isDark],
   );
+
+  const applyTransactionToBalance = useCallback(
+    (account: AccountRow, transactionAmount: number) => {
+      const currentBalance = account.balance ?? 0;
+      const isCredit = account.account_type === "credit";
+      return isCredit
+        ? currentBalance + transactionAmount
+        : currentBalance - transactionAmount;
+    },
+    [],
+  );
   const orderedAccounts = useMemo(() => {
     const source = accounts ?? [];
     return [...source].sort((a, b) => {
@@ -906,7 +1019,7 @@ export function AddTransactionModal({
           profile_id: userId,
           category_name: label,
         });
-        const match = DEFAULT_CATEGORY_SUGGESTIONS.find(
+        const match = categorySuggestions.find(
           (item) => item.label.toLowerCase() === label.toLowerCase(),
         );
         if (match) {
@@ -923,35 +1036,90 @@ export function AddTransactionModal({
         Alert.alert("Could not create category", "Please try again.");
       }
     },
-    [categories, onRefresh, userId, setCategoryIconOverrides],
+    [categories, onRefresh, userId, setCategoryIconOverrides, categorySuggestions],
   );
 
   // Reset state when modal opens
   useEffect(() => {
-    if (visible) {
-      setAmount("");
-      setDescription("");
+    if (!visible) return;
+
+    if ((isViewMode || isEditMode) && initialTransaction) {
+      const signedAmount = initialTransaction.amount ?? 0;
+      const derivedType = signedAmount < 0 ? "income" : "expense";
+      const formattedAmount =
+        initialTransaction.amount != null
+          ? Math.abs(initialTransaction.amount).toFixed(2)
+          : "";
+      const accountMatch = accounts.find(
+        (account) => account.id === initialTransaction.account_id,
+      );
+      const categoryMatch = categories.find(
+        (category) => category.id === initialTransaction.expense_categoryid,
+      );
+      const ruleMatch = initialTransaction.recurring_rule_id
+        ? recurringRules.find(
+            (rule) => rule.id === initialTransaction.recurring_rule_id,
+          )
+        : null;
+
+      setAmount(formattedAmount);
+      setDescription(initialTransaction.description ?? "");
       setNotes("");
       setNotesModalOpen(false);
-      setTransactionDate(toLocalISOString(new Date()));
-      setTransactionType("expense");
-      setSelectedAccount(null);
-      setSelectedCategory(null);
+      setTransactionDate(
+        initialTransaction.transaction_date || toLocalISOString(new Date()),
+      );
+      setTransactionType(derivedType);
+      setSelectedAccount(accountMatch ?? null);
+      setSelectedCategory(categoryMatch ?? null);
       setSelectedSubcategory(null);
       setSubcategories([]);
-      setIsRecurring(false);
-      setRecurringFrequency("Monthly");
-      setHasEndDate(false);
-      setAddRuleEndsOn("");
-      setAddRuleNextRunDate("");
+      setIsRecurring(!!ruleMatch);
+      setRecurringFrequency(ruleMatch?.frequency ?? "Monthly");
+      setHasEndDate(!!ruleMatch?.end_date);
+      setAddRuleEndsOn(ruleMatch?.end_date ?? "");
+      setAddRuleNextRunDate(ruleMatch?.next_run_date ?? "");
+      setRecurrenceTouched(false);
       setNewCategoryIcon(ICON_CHOICES[0]);
       setNewCategoryColor(COLOR_CHOICES[0]);
       setNewSubcategoryName("");
       setCreateCategoryModalOpen(false);
       setSubcategoryModalOpen(false);
       setCreateSubcategoryModalOpen(false);
+      return;
     }
-  }, [visible]);
+
+    setAmount("");
+    setDescription("");
+    setNotes("");
+    setNotesModalOpen(false);
+    setTransactionDate(toLocalISOString(new Date()));
+    setTransactionType("expense");
+    setSelectedAccount(null);
+    setSelectedCategory(null);
+    setSelectedSubcategory(null);
+    setSubcategories([]);
+    setIsRecurring(false);
+    setRecurringFrequency("Monthly");
+    setHasEndDate(false);
+    setAddRuleEndsOn("");
+    setAddRuleNextRunDate("");
+    setRecurrenceTouched(false);
+    setNewCategoryIcon(ICON_CHOICES[0]);
+    setNewCategoryColor(COLOR_CHOICES[0]);
+    setNewSubcategoryName("");
+    setCreateCategoryModalOpen(false);
+    setSubcategoryModalOpen(false);
+    setCreateSubcategoryModalOpen(false);
+  }, [
+    visible,
+    isViewMode,
+    isEditMode,
+    initialTransaction,
+    accounts,
+    categories,
+    recurringRules,
+  ]);
 
   useEffect(() => {
     if (!visible) return;
@@ -990,8 +1158,32 @@ export function AddTransactionModal({
     loadSubcategories();
   }, [userId, selectedCategory?.id]);
 
+  useEffect(() => {
+    if (
+      !visible ||
+      !isViewMode ||
+      !initialTransaction?.subcategory_id ||
+      subcategories.length === 0
+    ) {
+      return;
+    }
+    const match = subcategories.find(
+      (sub) => sub.id === initialTransaction.subcategory_id,
+    );
+    if (match) {
+      setSelectedSubcategory(match);
+    }
+  }, [
+    subcategories,
+    initialTransaction?.subcategory_id,
+    visible,
+    isViewMode,
+  ]);
+
   // Recalculate default Next Run Date when Frequency or IsRecurring changes
   useEffect(() => {
+    if (isViewMode) return;
+    if (isEditMode && !recurrenceTouched) return;
     if (isRecurring) {
       const nextDate = new Date();
       if (recurringFrequency === "Daily")
@@ -1006,10 +1198,11 @@ export function AddTransactionModal({
     } else {
       setAddRuleNextRunDate("");
     }
-  }, [isRecurring, recurringFrequency]);
+  }, [isRecurring, recurringFrequency, isViewMode, isEditMode, recurrenceTouched]);
 
   // TODO(backend): Allow transfer flow once accounts-to-accounts transfers are supported.
   const canCreate = useMemo(() => {
+    if (isViewMode) return false;
     const parsed = parseFloat(amount);
     return (
       !!userId &&
@@ -1027,9 +1220,19 @@ export function AddTransactionModal({
     amount,
     description,
     transactionType,
+    isViewMode,
   ]);
 
+  const handleSubmit = async () => {
+    if (isEditMode) {
+      await updateTransaction();
+      return;
+    }
+    await createTransaction();
+  };
+
   const createTransaction = async () => {
+    if (isViewMode || isEditMode) return;
     if (!userId || !selectedAccount) return;
 
     const parsed = parseFloat(amount.trim());
@@ -1155,6 +1358,172 @@ export function AddTransactionModal({
       } catch (error) {
       console.error("Error creating category:", error);
       Alert.alert("Could not create category", "Please try again.");
+    }
+  };
+
+  const updateTransaction = async () => {
+    if (!userId || !initialTransaction) return;
+    if (!selectedAccount || !selectedCategory) return;
+
+    const parsed = parseFloat(amount.trim());
+    if (!Number.isFinite(parsed) || parsed <= 0) {
+      Alert.alert("Invalid amount", "Enter a valid amount greater than 0.");
+      return;
+    }
+    if (!description.trim()) {
+      Alert.alert("Missing description", "Enter a description.");
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      let finalRecurringRuleId = initialTransaction.recurring_rule_id ?? null;
+
+      if (initialTransaction.recurring_rule_id && !isRecurring) {
+        const confirmed = await new Promise<boolean>((resolve) => {
+          Alert.alert(
+            "Remove recurrence?",
+            "This will stop this transaction from recurring.",
+            [
+              { text: "Cancel", style: "cancel", onPress: () => resolve(false) },
+              { text: "Remove", style: "destructive", onPress: () => resolve(true) },
+            ],
+          );
+        });
+
+        if (!confirmed) {
+          setIsLoading(false);
+          return;
+        }
+
+        await deleteRecurringRule({
+          id: initialTransaction.recurring_rule_id,
+          profile_id: userId,
+        });
+        finalRecurringRuleId = null;
+      } else if (isRecurring && initialTransaction.recurring_rule_id) {
+        await updateRecurringRule({
+          id: initialTransaction.recurring_rule_id,
+          profile_id: userId,
+          update: {
+            frequency: recurringFrequency as any,
+            next_run_date: addRuleNextRunDate.trim() || undefined,
+            end_date:
+              isRecurring && hasEndDate && addRuleEndsOn.trim()
+                ? addRuleEndsOn.trim()
+                : null,
+          },
+        });
+      } else if (isRecurring && !initialTransaction.recurring_rule_id) {
+        let finalNextRunDate = addRuleNextRunDate.trim();
+        if (!finalNextRunDate) {
+          const fallbackDate = new Date();
+          if (recurringFrequency === "Daily")
+            fallbackDate.setDate(fallbackDate.getDate() + 1);
+          else if (recurringFrequency === "Weekly")
+            fallbackDate.setDate(fallbackDate.getDate() + 7);
+          else if (recurringFrequency === "Monthly")
+            fallbackDate.setMonth(fallbackDate.getMonth() + 1);
+          else if (recurringFrequency === "Yearly")
+            fallbackDate.setFullYear(fallbackDate.getFullYear() + 1);
+          finalNextRunDate = toLocalISOString(fallbackDate);
+        }
+
+        const ruleName =
+          description.trim() || `${selectedCategory.category_name} expense`;
+        const rule = await createRecurringRule({
+          profile_id: userId,
+          name: ruleName,
+          amount: parsed,
+          frequency: recurringFrequency,
+          end_date:
+            isRecurring && hasEndDate && addRuleEndsOn.trim()
+              ? addRuleEndsOn.trim()
+              : null,
+          next_run_date: finalNextRunDate,
+          is_active: true,
+          account_id: selectedAccount.id,
+          expense_categoryid: selectedCategory.id,
+          subcategory_id: selectedSubcategory ? selectedSubcategory.id : null,
+        });
+        finalRecurringRuleId = rule.id;
+      }
+
+      const signedAmount = parsed * (transactionType === "income" ? -1 : 1);
+
+      await updateExpense({
+        id: initialTransaction.id,
+        profile_id: userId,
+        update: {
+          account_id: selectedAccount.id,
+          expense_categoryid: selectedCategory.id,
+          subcategory_id: selectedSubcategory ? selectedSubcategory.id : null,
+          amount: signedAmount,
+          recurring_rule_id: finalRecurringRuleId,
+          description: description.trim().length ? description.trim() : null,
+          transaction_date: transactionDate || undefined,
+        },
+      });
+
+      const originalAmount = initialTransaction.amount ?? 0;
+      const originalAccountId = initialTransaction.account_id;
+      const updatedAccountId = selectedAccount.id;
+
+      if (originalAccountId != null && originalAccountId === updatedAccountId) {
+        const originalAccount = await getAccountById({
+          id: originalAccountId,
+          profile_id: userId,
+        });
+        if (originalAccount) {
+          const netAmount = signedAmount - originalAmount;
+          const nextBalance = applyTransactionToBalance(originalAccount, netAmount);
+          await updateAccount({
+            id: String(originalAccount.id),
+            profile_id: userId,
+            update: { balance: nextBalance },
+          });
+        }
+      } else {
+        if (originalAccountId != null) {
+          const originalAccount = await getAccountById({
+            id: originalAccountId,
+            profile_id: userId,
+          });
+          if (originalAccount) {
+            const revertedBalance = applyTransactionToBalance(
+              originalAccount,
+              -originalAmount,
+            );
+            await updateAccount({
+              id: String(originalAccount.id),
+              profile_id: userId,
+              update: { balance: revertedBalance },
+            });
+          }
+        }
+
+        const updatedAccount = await getAccountById({
+          id: updatedAccountId,
+          profile_id: userId,
+        });
+        if (updatedAccount) {
+          const updatedBalance = applyTransactionToBalance(updatedAccount, signedAmount);
+          await updateAccount({
+            id: String(updatedAccount.id),
+            profile_id: userId,
+            update: { balance: updatedBalance },
+          });
+        }
+      }
+
+      await onRefresh();
+      onClose();
+    } catch (error) {
+      console.error("Error updating transaction:", error);
+      Alert.alert("Could not update transaction", "Please try again.");
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -1354,7 +1723,7 @@ export function AddTransactionModal({
               type="defaultSemiBold"
               style={[styles.modalHeaderTitle, { color: ui.text }]}
             >
-              Add Transaction
+              {isViewMode ? "Transaction Details" : isEditMode ? "Edit Transaction" : "Add Transaction"}
             </ThemedText>
             <View style={styles.headerRight}>
               <Pressable
@@ -1390,7 +1759,10 @@ export function AddTransactionModal({
               <View style={styles.formStack}>
                 <View style={styles.heroBlock}>
                   <Pressable
-                    onPress={() => amountInputRef.current?.focus()}
+                    onPress={() => {
+                      if (!isViewMode) amountInputRef.current?.focus();
+                    }}
+                    disabled={isViewMode}
                     style={[
                       styles.amountContainer,
                       { backgroundColor: ui.surface, borderColor: ui.border },
@@ -1405,6 +1777,7 @@ export function AddTransactionModal({
                       ref={amountInputRef}
                       value={amount}
                       onChangeText={setAmount}
+                      editable={!isViewMode}
                       onBlur={() => {
                         if (amount) {
                           const parsed = parseFloat(amount);
@@ -1451,7 +1824,10 @@ export function AddTransactionModal({
                       return (
                         <Pressable
                           key={type}
-                          onPress={() => handleTypeChange(type)}
+                          onPress={() => {
+                            if (!isViewMode) handleTypeChange(type);
+                          }}
+                          disabled={isViewMode}
                           style={styles.typeToggleItem}
                         >
                           <ThemedText
@@ -1498,6 +1874,7 @@ export function AddTransactionModal({
                       onChangeText={setDescription}
                       placeholder="Name"
                       placeholderTextColor={ui.mutedText}
+                      editable={!isViewMode}
                       style={[styles.rowInputRight, { color: ui.text }]}
                     />
                   </View>
@@ -1510,7 +1887,10 @@ export function AddTransactionModal({
                   />
 
                   <Pressable
-                    onPress={() => setAccountModalOpen(true)}
+                    onPress={() => {
+                      if (!isViewMode) setAccountModalOpen(true);
+                    }}
+                    disabled={isViewMode}
                     style={styles.inputRow}
                   >
                     <View style={styles.rowLeft}>
@@ -1528,6 +1908,10 @@ export function AddTransactionModal({
                         style={[
                           styles.rowValueRight,
                           !selectedAccount && { color: ui.mutedText },
+                          selectedAccount && {
+                            color: ui.accent ?? ui.text,
+                            fontWeight: "600",
+                          },
                         ]}
                       >
                         {selectedAccount?.account_name ?? "Select"}
@@ -1555,6 +1939,7 @@ export function AddTransactionModal({
                     }
                     ui={ui}
                     icon="calendar"
+                    disabled={isViewMode}
                   />
                 </View>
 
@@ -1569,7 +1954,10 @@ export function AddTransactionModal({
                   ]}
                 >
                   <Pressable
-                    onPress={() => setCategoryModalOpen(true)}
+                    onPress={() => {
+                      if (!isViewMode) setCategoryModalOpen(true);
+                    }}
+                    disabled={isViewMode}
                     style={styles.inputRow}
                   >
                     <View style={styles.rowLeft}>
@@ -1583,6 +1971,10 @@ export function AddTransactionModal({
                         style={[
                           styles.rowValueRight,
                           !selectedCategory && { color: ui.mutedText },
+                          selectedCategory && {
+                            color: ui.accent ?? ui.text,
+                            fontWeight: "600",
+                          },
                         ]}
                       >
                         {selectedCategory?.category_name ?? "Select"}
@@ -1595,83 +1987,89 @@ export function AddTransactionModal({
                     </View>
                   </Pressable>
 
-                  <View style={styles.quickPickWrap}>
-                    <ThemedText
-                      style={[styles.quickPickLabel, { color: ui.mutedText }]}
-                    >
-                      Quick picks
-                    </ThemedText>
-                    <View style={styles.quickPickRow}>
-                      {QUICK_PICK_SUGGESTIONS.map((item) => {
-                        const isSelected =
-                          (selectedCategory?.category_name ?? "")
-                            .trim()
-                            .toLowerCase() === item.label.toLowerCase();
-                        return (
-                          <Pressable
-                            key={item.label}
-                            onPress={() => handleSuggestedCategory(item.label)}
-                            style={({ pressed }) => [
-                              styles.quickPickItem,
-                              { opacity: pressed ? 0.7 : 1 },
-                            ]}
-                          >
-                            <View
-                              style={[
-                                styles.quickPickIcon,
-                                {
-                                  backgroundColor: item.color,
-                                  borderWidth: isSelected ? 2 : 0,
-                                  borderColor: isSelected
-                                    ? (ui.accent ?? ui.text)
-                                    : "transparent",
-                                },
+                  {!isViewMode && (
+                    <View style={styles.quickPickWrap}>
+                      <ThemedText
+                        style={[styles.quickPickLabel, { color: ui.mutedText }]}
+                      >
+                        Quick picks
+                      </ThemedText>
+                      <View style={styles.quickPickRow}>
+                        {quickPickOptions.map((item) => {
+                          const isSelected =
+                            (selectedCategory?.category_name ?? "")
+                              .trim()
+                              .toLowerCase() === item.label.toLowerCase();
+                          return (
+                            <Pressable
+                              key={item.label}
+                              onPress={() => handleSuggestedCategory(item.label)}
+                              style={({ pressed }) => [
+                                styles.quickPickItem,
+                                { opacity: pressed ? 0.7 : 1 },
                               ]}
                             >
-                              <Feather
-                                name={item.icon}
-                                size={22}
-                                color="#FFFFFF"
-                              />
-                            </View>
-                            <ThemedText
-                              style={[styles.quickPickText, { color: ui.text }]}
-                            >
-                              {item.label}
-                            </ThemedText>
-                          </Pressable>
-                        );
-                      })}
-                      <Pressable
-                        onPress={() => setCategoryModalOpen(true)}
-                        style={({ pressed }) => [
-                          styles.quickPickItem,
-                          { opacity: pressed ? 0.7 : 1 },
-                        ]}
-                      >
-                        <View
-                          style={[
-                            styles.quickPickIcon,
-                            styles.quickPickMoreIcon,
-                            {
-                              backgroundColor: ui.surface2,
-                              borderColor: ui.border,
-                            },
+                              <View
+                                style={[
+                                  styles.quickPickIcon,
+                                  {
+                                    backgroundColor: item.color,
+                                    borderWidth: isSelected ? 2 : 0,
+                                    borderColor: isSelected
+                                      ? (ui.accent ?? ui.text)
+                                      : "transparent",
+                                  },
+                                ]}
+                              >
+                                <Feather
+                                  name={item.icon}
+                                  size={22}
+                                  color="#FFFFFF"
+                                />
+                              </View>
+                              <ThemedText
+                                numberOfLines={2}
+                                ellipsizeMode="tail"
+                                style={[styles.quickPickText, { color: ui.text }]}
+                              >
+                                {item.label}
+                              </ThemedText>
+                            </Pressable>
+                          );
+                        })}
+                        <Pressable
+                          onPress={() => setCategoryModalOpen(true)}
+                          style={({ pressed }) => [
+                            styles.quickPickItem,
+                            { opacity: pressed ? 0.7 : 1 },
                           ]}
                         >
-                          <Feather name="plus" size={22} color={ui.mutedText} />
-                        </View>
-                        <ThemedText
-                          style={[
-                            styles.quickPickText,
-                            { color: ui.mutedText },
-                          ]}
-                        >
-                          More
-                        </ThemedText>
-                      </Pressable>
+                          <View
+                            style={[
+                              styles.quickPickIcon,
+                              styles.quickPickMoreIcon,
+                              {
+                                backgroundColor: ui.surface2,
+                                borderColor: ui.border,
+                              },
+                            ]}
+                          >
+                            <Feather name="plus" size={22} color={ui.mutedText} />
+                          </View>
+                          <ThemedText
+                            numberOfLines={2}
+                            ellipsizeMode="tail"
+                            style={[
+                              styles.quickPickText,
+                              { color: ui.mutedText },
+                            ]}
+                          >
+                            More
+                          </ThemedText>
+                        </Pressable>
+                      </View>
                     </View>
-                  </View>
+                  )}
                   <View
                     style={[
                       styles.rowSeparator,
@@ -1681,13 +2079,19 @@ export function AddTransactionModal({
 
                   <Pressable
                     onPress={() => {
+                      if (isViewMode) return;
                       if (!selectedCategory) {
                         Alert.alert("Category required", "Please select a category first.");
                         return;
                       }
                       setSubcategoryModalOpen(true);
                     }}
-                    style={[styles.inputRow, !selectedCategory && { opacity: 0.55 }]}
+                    disabled={isViewMode}
+                    style={[
+                      styles.inputRow,
+                      !selectedCategory && { opacity: 0.55 },
+                      isViewMode && { opacity: 0.75 },
+                    ]}
                   >
                     <View style={styles.rowLeft}>
                       <Feather name="layers" size={18} color={ui.mutedText} />
@@ -1700,6 +2104,10 @@ export function AddTransactionModal({
                         style={[
                           styles.rowValueRight,
                           !selectedSubcategory && { color: ui.mutedText },
+                          selectedSubcategory && {
+                            color: ui.accent ?? ui.text,
+                            fontWeight: "600",
+                          },
                         ]}
                       >
                         {selectedSubcategory?.category_name ?? "Select"}
@@ -1716,7 +2124,10 @@ export function AddTransactionModal({
                   />
 
                   <Pressable
-                    onPress={() => setAddFrequencyModalOpen(true)}
+                    onPress={() => {
+                      if (!isViewMode) setAddFrequencyModalOpen(true);
+                    }}
+                    disabled={isViewMode}
                     style={styles.inputRow}
                   >
                     <View style={styles.rowLeft}>
@@ -1727,7 +2138,14 @@ export function AddTransactionModal({
                     </View>
                     <View style={styles.rowRight}>
                       <ThemedText
-                        style={[styles.rowValueRight, { color: ui.mutedText }]}
+                        style={[
+                          styles.rowValueRight,
+                          !isRecurring && { color: ui.text },
+                          isRecurring && {
+                            color: ui.accent ?? ui.text,
+                            fontWeight: "600",
+                          },
+                        ]}
                       >
                         {isRecurring ? recurringFrequency : "Once"}
                       </ThemedText>
@@ -1766,12 +2184,16 @@ export function AddTransactionModal({
                         placeholderTextColor={ui.mutedText}
                         multiline
                         textAlignVertical="top"
+                        editable={!isViewMode}
                         style={[styles.notesInput, { color: ui.text }]}
                       />
                       <Pressable
                         style={styles.notesExpand}
                         hitSlop={8}
-                        onPress={() => setNotesModalOpen(true)}
+                        onPress={() => {
+                          if (!isViewMode) setNotesModalOpen(true);
+                        }}
+                        disabled={isViewMode}
                       >
                         <Feather
                           name="maximize-2"
@@ -1798,6 +2220,7 @@ export function AddTransactionModal({
                         }
                         ui={ui}
                         icon="calendar.badge.clock"
+                        disabled={isViewMode}
                       />
 
                       <View
@@ -1817,6 +2240,7 @@ export function AddTransactionModal({
                         </ThemedText>
                         <Switch
                           value={hasEndDate}
+                          disabled={isViewMode}
                           onValueChange={(val) => {
                             setHasEndDate(val);
                             if (val) {
@@ -1846,6 +2270,7 @@ export function AddTransactionModal({
                             ui={ui}
                             icon="calendar"
                             placeholder="Select Date"
+                            disabled={isViewMode}
                           />
                         </>
                       )}
@@ -1853,32 +2278,77 @@ export function AddTransactionModal({
                   )}
                 </View>
                 <View style={styles.footerStack}>
-                  <Pressable
-                    onPress={createTransaction}
-                    disabled={!canCreate || isLoading}
-                    style={({ pressed }) => [
-                      styles.button,
-                      {
-                        backgroundColor: isDark ? "#FFFFFF" : "#000000",
-                        borderColor: ui.border,
-                        opacity: pressed ? 0.8 : 1,
-                      },
-                      (!canCreate || isLoading) && styles.buttonDisabled,
-                    ]}
-                  >
-                    {isLoading ? (
-                      <ActivityIndicator
-                        color={isDark ? "#1C1C1E" : "#FFFFFF"}
-                      />
-                    ) : (
-                      <ThemedText
-                        type="defaultSemiBold"
-                        style={{ color: isDark ? "#1C1C1E" : "#FFFFFF" }}
+                  {isViewMode ? (
+                    <View style={styles.viewActionRow}>
+                      <Pressable
+                        onPress={onEditRequest}
+                        disabled={!onEditRequest}
+                        style={({ pressed }) => [
+                          styles.viewActionButton,
+                          {
+                            backgroundColor: isDark ? "#FFFFFF" : "#000000",
+                            borderColor: ui.border,
+                            opacity: pressed ? 0.8 : 1,
+                          },
+                          !onEditRequest && styles.buttonDisabled,
+                        ]}
                       >
-                        Submit
-                      </ThemedText>
-                    )}
-                  </Pressable>
+                        <ThemedText
+                          type="defaultSemiBold"
+                          style={{ color: isDark ? "#1C1C1E" : "#FFFFFF" }}
+                        >
+                          Edit
+                        </ThemedText>
+                      </Pressable>
+                      <Pressable
+                        onPress={onDeleteRequest}
+                        disabled={!onDeleteRequest}
+                        style={({ pressed }) => [
+                          styles.viewActionButton,
+                          styles.viewActionDanger,
+                          {
+                            borderColor: ui.border,
+                            opacity: pressed ? 0.8 : 1,
+                          },
+                          !onDeleteRequest && styles.buttonDisabled,
+                        ]}
+                      >
+                        <ThemedText
+                          type="defaultSemiBold"
+                          style={styles.viewActionDangerText}
+                        >
+                          Delete
+                        </ThemedText>
+                      </Pressable>
+                    </View>
+                  ) : (
+                    <Pressable
+                      onPress={handleSubmit}
+                      disabled={!canCreate || isLoading}
+                      style={({ pressed }) => [
+                        styles.button,
+                        {
+                          backgroundColor: isDark ? "#FFFFFF" : "#000000",
+                          borderColor: ui.border,
+                          opacity: pressed ? 0.8 : 1,
+                        },
+                        (!canCreate || isLoading) && styles.buttonDisabled,
+                      ]}
+                    >
+                      {isLoading ? (
+                        <ActivityIndicator
+                          color={isDark ? "#1C1C1E" : "#FFFFFF"}
+                        />
+                      ) : (
+                        <ThemedText
+                          type="defaultSemiBold"
+                          style={{ color: isDark ? "#1C1C1E" : "#FFFFFF" }}
+                        >
+                          {isEditMode ? "Save Changes" : "Submit"}
+                        </ThemedText>
+                      )}
+                    </Pressable>
+                  )}
                 </View>
               </View>
             </ScrollView>
@@ -1886,63 +2356,89 @@ export function AddTransactionModal({
         </View>
 
         {/* Frequency Picker */}
-        <SelectionModal
+        <Modal
           visible={addFrequencyModalOpen}
-          onClose={() => setAddFrequencyModalOpen(false)}
-          title="Select Frequency"
-          ui={ui}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setAddFrequencyModalOpen(false)}
         >
-          {["Once", "Daily", "Weekly", "Monthly", "Yearly"].map((freq) => (
+          <View style={styles.popupOverlay}>
             <Pressable
-              key={freq}
-              style={({ pressed }) => [
-                styles.modalOption,
-                {
-                  borderColor: ui.border,
-                  backgroundColor:
-                    freq === "Once"
-                      ? !isRecurring
-                        ? ui.accentSoft
-                        : ui.surface2
-                      : recurringFrequency === freq
-                        ? ui.accentSoft
-                        : ui.surface2,
-                  opacity: pressed ? 0.7 : 1,
-                },
+              style={[
+                styles.popupBackdrop,
+                { backgroundColor: ui.backdrop ?? "rgba(0,0,0,0.35)" },
               ]}
-              onPress={() => {
-                if (freq === "Once") {
-                  setIsRecurring(false);
-                  setAddFrequencyModalOpen(false);
-                  return;
-                }
-                setIsRecurring(true);
-                setRecurringFrequency(freq);
-                setAddFrequencyModalOpen(false);
-              }}
+              onPress={() => setAddFrequencyModalOpen(false)}
+            />
+            <View
+              style={[
+                styles.popupCard,
+                { backgroundColor: ui.surface, borderColor: ui.border },
+              ]}
             >
-              <ThemedText
-                style={{
-                  color:
+              <View style={styles.popupHeader}>
+                <ThemedText type="defaultSemiBold" style={{ color: ui.text }}>
+                  Select Recurrence
+                </ThemedText>
+                <Pressable
+                  onPress={() => setAddFrequencyModalOpen(false)}
+                  hitSlop={12}
+                  style={[styles.popupClose, { backgroundColor: ui.surface2 }]}
+                >
+                  <Feather name="x" size={16} color={ui.text} />
+                </Pressable>
+              </View>
+
+              <View style={styles.frequencyPillWrap}>
+                {["Once", "Daily", "Weekly", "Monthly", "Yearly"].map((freq) => {
+                  const isSelected =
                     freq === "Once"
                       ? !isRecurring
-                        ? ui.accent
-                        : ui.text
-                      : recurringFrequency === freq
-                        ? ui.accent
-                        : ui.text,
-                }}
-              >
-                {freq}
-              </ThemedText>
-              {(freq === "Once"
-                ? !isRecurring
-                : recurringFrequency === freq) && (
-                <IconSymbol name="checkmark" size={18} color={ui.accent} />
-              )}
-            </Pressable>
-          ))}
-        </SelectionModal>
+                      : isRecurring && recurringFrequency === freq;
+                  return (
+                    <Pressable
+                      key={freq}
+                      style={({ pressed }) => [
+                        styles.frequencyPill,
+                        {
+                          borderColor: isSelected ? (ui.accent ?? ui.text) : ui.border,
+                          backgroundColor: isSelected ? ui.accentSoft : ui.surface2,
+                          opacity: pressed ? 0.7 : 1,
+                        },
+                      ]}
+                      onPress={() => {
+                        if (isEditMode) {
+                          setRecurrenceTouched(true);
+                        }
+                        if (freq === "Once") {
+                          setIsRecurring(false);
+                          setAddFrequencyModalOpen(false);
+                          return;
+                        }
+                        setIsRecurring(true);
+                        setRecurringFrequency(freq);
+                        setAddFrequencyModalOpen(false);
+                      }}
+                    >
+                      <ThemedText
+                        numberOfLines={1}
+                        style={[
+                          styles.frequencyPillText,
+                          { color: isSelected ? (ui.accent ?? ui.text) : ui.text },
+                        ]}
+                      >
+                        {freq}
+                      </ThemedText>
+                      {isSelected && (
+                        <Feather name="check" size={14} color={ui.accent ?? ui.text} />
+                      )}
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </View>
+          </View>
+        </Modal>
 
         {/* Account Picker */}
         <Modal
@@ -2152,6 +2648,7 @@ export function AddTransactionModal({
                 placeholderTextColor={ui.mutedText}
                 multiline
                 textAlignVertical="top"
+                editable={!isViewMode}
                 style={[
                   styles.notesModalInput,
                   { color: ui.text, backgroundColor: ui.surface },
@@ -2388,6 +2885,24 @@ const styles = StyleSheet.create({
   buttonDisabled: {
     opacity: 0.5,
   },
+  viewActionRow: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  viewActionButton: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 12,
+    borderRadius: 30,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  viewActionDanger: {
+    backgroundColor: "transparent",
+  },
+  viewActionDangerText: {
+    color: "#D32F2F",
+  },
   modalOption: {
     padding: 16,
     borderRadius: 16,
@@ -2468,6 +2983,34 @@ const styles = StyleSheet.create({
   },
   accountPillText: {
     flex: 1,
+    flexShrink: 1,
+    fontSize: 14.5,
+    fontFamily: Tokens.font.semiFamily ?? Tokens.font.family,
+  },
+  frequencyPillWrap: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    alignItems: "flex-start",
+    alignContent: "flex-start",
+    width: "100%",
+    justifyContent: "space-between",
+    rowGap: 10,
+    columnGap: 10,
+    paddingBottom: 6,
+  },
+  frequencyPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 18,
+    borderWidth: StyleSheet.hairlineWidth,
+    width: "48%",
+    minHeight: 44,
+  },
+  frequencyPillText: {
     flexShrink: 1,
     fontSize: 14.5,
     fontFamily: Tokens.font.semiFamily ?? Tokens.font.family,
@@ -2596,6 +3139,7 @@ const styles = StyleSheet.create({
   quickPickText: {
     fontSize: 12,
     textAlign: "center",
+    lineHeight: 14,
     fontFamily: Tokens.font.family,
   },
   subcategoryChips: {

@@ -13,9 +13,19 @@ interface DateTimePickerFieldProps {
     hideLabel?: boolean;
     icon?: string;
     placeholder?: string;
+    disabled?: boolean;
 }
 
-export function DateTimePickerField({ label, value, onChange, ui, hideLabel, icon, placeholder }: DateTimePickerFieldProps) {
+export function DateTimePickerField({
+    label,
+    value,
+    onChange,
+    ui,
+    hideLabel,
+    icon,
+    placeholder,
+    disabled = false,
+}: DateTimePickerFieldProps) {
     const [inputValue, setInputValue] = React.useState("");
     const [showIOSPicker, setShowIOSPicker] = React.useState(false);
 
@@ -59,6 +69,7 @@ export function DateTimePickerField({ label, value, onChange, ui, hideLabel, ico
     };
 
     const showPicker = () => {
+        if (disabled) return;
         if (Platform.OS === "android") {
             DateTimePickerAndroid.open({
                 value,
@@ -83,7 +94,9 @@ export function DateTimePickerField({ label, value, onChange, ui, hideLabel, ico
                         placeholder={placeholder || "MM/DD/YYYY"}
                         placeholderTextColor={ui.mutedText}
                         keyboardType="numbers-and-punctuation"
+                        editable={!disabled}
                         onSubmitEditing={() => {
+                            if (disabled) return;
                             const parsed = parseInput(inputValue);
                             if (parsed) {
                                 onChange(parsed);
@@ -93,6 +106,7 @@ export function DateTimePickerField({ label, value, onChange, ui, hideLabel, ico
                             }
                         }}
                         onBlur={() => {
+                            if (disabled) return;
                             const parsed = parseInput(inputValue);
                             if (parsed) {
                                 onChange(parsed);
@@ -103,7 +117,12 @@ export function DateTimePickerField({ label, value, onChange, ui, hideLabel, ico
                         }}
                         style={[styles.input, { color: ui.text, fontFamily: Tokens.font.family }]}
                     />
-                    <Pressable onPress={showPicker} style={styles.calendarButton} hitSlop={8}>
+                    <Pressable
+                        onPress={showPicker}
+                        style={[styles.calendarButton, disabled && { opacity: 0.4 }]}
+                        hitSlop={8}
+                        disabled={disabled}
+                    >
                         <IconSymbol name="calendar.circle" size={18} color={ui.mutedText} />
                     </Pressable>
                 </View>
@@ -150,7 +169,7 @@ const styles = StyleSheet.create({
         fontSize: 15,
         color: undefined, // Uses default theme color
         flex: 1,
-        fontFamily: Tokens.font.boldFamily ?? Tokens.font.semiFamily ?? Tokens.font.family,
+        fontFamily: Tokens.font.boldFamily ? Tokens.font.semiFamily : Tokens.font.family,
     },
     inputWrap: {
         flex: 1,

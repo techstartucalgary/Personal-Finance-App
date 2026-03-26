@@ -23,7 +23,6 @@ import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 
 import { AddTransactionModal } from "@/components/AddTransactionModal";
-import { EditTransactionModal } from "@/components/EditTransactionModal";
 import { TransactionDetailModal } from "@/components/TransactionDetailModal";
 import { TransactionsList } from "@/components/transactions/TransactionsList";
 import { AppHeader } from "@/components/ui/AppHeader";
@@ -35,7 +34,7 @@ import { useTabSwipe } from "@/components/ui/useTabSwipe";
 import { Tokens } from "@/constants/authTokens";
 import { tabsTheme } from "@/constants/tabsTheme";
 import { useAuthContext } from "@/hooks/use-auth-context";
-import { listAccounts } from "@/utils/accounts";
+import { getAccountById, listAccounts, updateAccount } from "@/utils/accounts";
 import {
   addCategory,
   addSubcategory,
@@ -45,9 +44,7 @@ import {
   listSubcategories,
 } from "@/utils/categories";
 import { parseLocalDate, toLocalISOString } from "@/utils/date";
-import {
-  listExpenses
-} from "@/utils/expenses";
+import { deleteExpense, listExpenses } from "@/utils/expenses";
 import type { PlaidAccount, PlaidTransaction } from "@/utils/plaid";
 import { getPlaidAccounts, getPlaidTransactions } from "@/utils/plaid";
 import {
@@ -56,13 +53,14 @@ import {
   updateRecurringRule
 } from "@/utils/recurring";
 
-import { useFocusEffect, useNavigation, useRouter } from "expo-router";
+import { useFocusEffect, useLocalSearchParams, useNavigation, useRouter } from "expo-router";
 
 export default function HomeScreen() {
   const { session } = useAuthContext();
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const navigation = useNavigation();
+  const { openAdd } = useLocalSearchParams<{ openAdd?: string }>();
   const handleProfilePress = useCallback(() => {
     router.push("/profile");
   }, [router]);
@@ -155,6 +153,7 @@ export default function HomeScreen() {
   const [editRuleSubcategoryModalOpen, setEditRuleSubcategoryModalOpen] = useState(false);
 
   const tabFade = useRef(new Animated.Value(1)).current;
+  const lastOpenAddRef = useRef<string | null>(null);
 
   const formatDate = useCallback((value?: string | null) => {
     if (!value) return "";
@@ -188,6 +187,25 @@ export default function HomeScreen() {
       minimumFractionDigits: 2,
     }).format(value);
   }, []);
+
+  const selectedIsPlaid =
+    !!selectedDetailTransaction &&
+    "transaction_id" in selectedDetailTransaction;
+  const selectedManualExpense =
+    !!selectedDetailTransaction && !selectedIsPlaid
+      ? (selectedDetailTransaction as ExpenseRow)
+      : null;
+
+  const applyTransactionToBalance = useCallback(
+    (account: AccountRow, transactionAmount: number) => {
+      const currentBalance = account.balance ?? 0;
+      const isCredit = account.account_type === "credit";
+      return isCredit
+        ? currentBalance + transactionAmount
+        : currentBalance - transactionAmount;
+    },
+    [],
+  );
 
   const loadAccounts = useCallback(
     async (silent = false) => {
@@ -227,6 +245,13 @@ export default function HomeScreen() {
     loadCategories();
   }, [loadCategories]);
 
+  useEffect(() => {
+    if (openAdd && openAdd !== lastOpenAddRef.current) {
+      setAddModalOpen(true);
+      lastOpenAddRef.current = openAdd;
+    }
+  }, [openAdd]);
+
   useFocusEffect(
     useCallback(() => {
       navigation.setOptions({
@@ -259,6 +284,114 @@ export default function HomeScreen() {
       console.error("Error loading expenses:", error);
     }
   }, [userId]);
+
+  const handleDeleteExpense = useCallback(
+    (expense: ExpenseRow) => {
+      if (!userId) return;
+
+      const executeDelete = async () => {
+        try {
+          const originalAmount = expense.amount ?? 0;
+          const originalAccountId = expense.account_id;
+
+          await deleteExpense({ id: expense.id, profile_id: userId });
+
+          if (originalAccountId != null) {
+            const originalAccount = await getAccountById({
+              id: originalAccountId,
+              profile_id: userId,
+            });
+            if (originalAccount) {
+              const revertedBalance = applyTransactionToBalance(
+                originalAccount,
+                -originalAmount,
+              );
+              await updateAccount({
+                id: String(originalAccount.id),
+                profile_id: userId,
+                update: { balance: revertedBalance },
+              });
+            }
+          }
+
+          await loadExpenses();
+          await loadAccounts();
+          await loadCategories();
+          await loadRecurringRules();
+          setIsDetailModalVisible(false);
+          setSelectedDetailTransaction(null);
+        } catch (error) {
+          console.error("Error deleting transaction:", error);
+          Alert.alert("Error", "Could not delete transaction.");
+        } finally {
+          setIsLoading(false);
+        }
+      };
+
+      if (expense.recurring_rule_id) {
+        Alert.alert(
+          "Recurring Transaction",
+          "This transaction is part of a recurring series. What would you like to do?",
+          [
+            { text: "Cancel", style: "cancel" },
+            {
+              text: "Delete and Cancel Future Recurring",
+              style: "destructive",
+              onPress: async () => {
+                setIsLoading(true);
+                try {
+                  await deleteRecurringRule({
+                    id: expense.recurring_rule_id!,
+                    profile_id: userId,
+                  });
+                  await executeDelete();
+                } catch (error) {
+                  console.error("Error updating rule:", error);
+                  Alert.alert(
+                    "Error",
+                    "Could not cancel future recurring transactions.",
+                  );
+                  setIsLoading(false);
+                }
+              },
+            },
+            {
+              text: "Delete This Transaction Only",
+              style: "default",
+              onPress: async () => {
+                setIsLoading(true);
+                await executeDelete();
+              },
+            },
+          ],
+        );
+        return;
+      }
+
+      Alert.alert("Delete transaction?", "This action cannot be undone.", [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            setIsLoading(true);
+            await executeDelete();
+          },
+        },
+      ]);
+    },
+    [
+      applyTransactionToBalance,
+      deleteRecurringRule,
+      getAccountById,
+      loadAccounts,
+      loadCategories,
+      loadExpenses,
+      loadRecurringRules,
+      updateAccount,
+      userId,
+    ],
+  );
 
   const loadRecurringRules = useCallback(async () => {
     if (!userId) {
@@ -800,38 +933,69 @@ export default function HomeScreen() {
         userId={userId}
       />
 
-      {/* Transaction Detail Modal */}
+      <AddTransactionModal
+        visible={isDetailModalVisible && !!selectedManualExpense}
+        onClose={() => {
+          setIsDetailModalVisible(false);
+          setSelectedDetailTransaction(null);
+        }}
+        accounts={accounts}
+        categories={categories}
+        onRefresh={async () => {
+          await loadExpenses();
+          await loadAccounts();
+          await loadCategories();
+          await loadRecurringRules();
+        }}
+        ui={ui}
+        isDark={false}
+        userId={userId}
+        mode="view"
+        initialTransaction={selectedManualExpense}
+        recurringRules={recurringRules}
+        onEditRequest={() => {
+          if (selectedManualExpense) {
+            setEditingExpense(selectedManualExpense);
+            setIsDetailModalVisible(false);
+          }
+        }}
+        onDeleteRequest={() => {
+          if (selectedManualExpense) {
+            handleDeleteExpense(selectedManualExpense);
+          }
+        }}
+      />
+
+      {/* Transaction Detail Modal (Plaid) */}
       <TransactionDetailModal
-        visible={isDetailModalVisible}
+        visible={isDetailModalVisible && !!selectedIsPlaid}
         onClose={() => {
           setIsDetailModalVisible(false);
           setSelectedDetailTransaction(null);
         }}
         transaction={selectedDetailTransaction}
         accounts={accounts}
-        onEdit={(expense) => {
-          setEditingExpense(expense);
-        }}
         recurringRules={recurringRules}
-      >
-        <EditTransactionModal
-          visible={!!editingExpense}
-          onClose={() => setEditingExpense(null)}
-          expense={editingExpense}
-          accounts={accounts}
-          categories={categories}
-          recurringRules={recurringRules}
-          onRefresh={async () => {
-            await loadExpenses();
-            await loadAccounts();
-            await loadCategories();
-            await loadRecurringRules();
-          }}
-          ui={ui}
-          isDark={false}
-          userId={userId}
-        />
-      </TransactionDetailModal>
+      />
+
+      <AddTransactionModal
+        visible={!!editingExpense}
+        onClose={() => setEditingExpense(null)}
+        accounts={accounts}
+        categories={categories}
+        onRefresh={async () => {
+          await loadExpenses();
+          await loadAccounts();
+          await loadCategories();
+          await loadRecurringRules();
+        }}
+        ui={ui}
+        isDark={false}
+        userId={userId}
+        mode="edit"
+        initialTransaction={editingExpense}
+        recurringRules={recurringRules}
+      />
 
 
       {/* Edit Recurrance Modal */}

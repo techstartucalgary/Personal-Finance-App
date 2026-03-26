@@ -7,6 +7,7 @@ import {
   Alert,
   Dimensions,
   InteractionManager,
+  LayoutAnimation,
   Modal,
   Platform,
   Pressable,
@@ -14,6 +15,7 @@ import {
   ScrollView,
   StyleSheet,
   TextInput,
+  UIManager,
   View,
 } from "react-native";
 import { PanGestureHandler } from "react-native-gesture-handler";
@@ -24,7 +26,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useFocusEffect, useNavigation, useRouter } from "expo-router";
 
 import { AccountDetailModal } from "@/components/AccountDetailModal";
-import { AccountWaveCard } from "@/components/accounts/AccountCards";
+import { AccountHeroCard, AccountWaveCard } from "@/components/accounts/AccountCards";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { AppHeader } from "@/components/ui/AppHeader";
@@ -163,6 +165,19 @@ export default function AccountsScreen() {
   >(null);
   const [isTxDetailVisible, setIsTxDetailVisible] = useState(false);
 
+  useEffect(() => {
+    if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental) {
+      UIManager.setLayoutAnimationEnabledExperimental(true);
+    }
+  }, []);
+
+  const openAddTransaction = useCallback(() => {
+    router.push({
+      pathname: "/(tabs)/transactions",
+      params: { openAdd: String(Date.now()) },
+    });
+  }, [router]);
+
   const getAccountColor = (item: AccountRow | PlaidAccount, index: number) => {
     const type = (("account_type" in item ? item.account_type : item.type) ?? "").toLowerCase();
     const isDebit = type === "debit" || type === "depository" || type === "checking" || type === "savings";
@@ -172,8 +187,12 @@ export default function AccountsScreen() {
     return palette[index % palette.length];
   };
 
-  const cardWidth = Math.min(340, Dimensions.get("window").width - 64);
-  const cardSideGap = Math.max(16, (Dimensions.get("window").width - cardWidth) / 2);
+  const screenWidth = Dimensions.get("window").width;
+  const containerGutter = 16;
+  const cardSideGap = 0;
+  const cardGap = 12;
+  const cardWidth = Math.max(280, screenWidth - containerGutter * 2);
+  const cardSnap = cardWidth + cardGap;
 
   useFocusEffect(
     useCallback(() => {
@@ -326,6 +345,16 @@ export default function AccountsScreen() {
       loadTransactions();
     }
   }, [viewMode, loadTransactions]);
+
+  const toggleViewMode = useCallback((nextMode: "all" | "single") => {
+    LayoutAnimation.configureNext({
+      duration: 220,
+      update: { type: LayoutAnimation.Types.easeInEaseOut },
+      create: { type: LayoutAnimation.Types.easeInEaseOut, property: LayoutAnimation.Properties.opacity },
+      delete: { type: LayoutAnimation.Types.easeInEaseOut, property: LayoutAnimation.Properties.opacity },
+    });
+    setViewMode(nextMode);
+  }, []);
 
   // Sync edit state when editingAccount changes
   useEffect(() => {
@@ -663,6 +692,18 @@ export default function AccountsScreen() {
     return combinedAccounts.find((acc) => acc.id === singleAccountId) ?? combinedAccounts[0] ?? null;
   }, [combinedAccounts, singleAccountId]);
 
+  const handleCardSnap = useCallback(
+    (offsetX: number) => {
+      if (!combinedAccounts.length) return;
+      const index = Math.round(offsetX / cardSnap);
+      const next = combinedAccounts[Math.min(Math.max(index, 0), combinedAccounts.length - 1)];
+      if (next && next.id !== singleAccountId) {
+        setSingleAccountId(next.id);
+      }
+    },
+    [combinedAccounts, cardSnap, singleAccountId],
+  );
+
   const selectedFilterId = useMemo(() => {
     if (!selectedAccount) return null;
     if (selectedAccount.kind === "manual") {
@@ -673,6 +714,11 @@ export default function AccountsScreen() {
     const plaid = selectedAccount.raw as PlaidAccount;
     return `plaid:${plaid.account_id}`;
   }, [selectedAccount]);
+
+  const openSingleAccount = useCallback((id: string) => {
+    setSingleAccountId(id);
+    toggleViewMode("single");
+  }, [toggleViewMode]);
 
   const accountsForTx = useMemo(() => {
     return accounts
@@ -695,6 +741,31 @@ export default function AccountsScreen() {
       currency: string | null;
     }[];
   }, [accounts]);
+
+  const filteredExpensesForSingle = useMemo(() => {
+    if (selectedFilterId == null) return expenses;
+    if (typeof selectedFilterId === "number") {
+      return expenses.filter(
+        (exp) => Number(exp.account_id) === selectedFilterId,
+      );
+    }
+    return [];
+  }, [expenses, selectedFilterId]);
+
+  const filteredPlaidForSingle = useMemo(() => {
+    if (selectedFilterId == null) return plaidTransactions;
+    if (typeof selectedFilterId === "string" && selectedFilterId.startsWith("plaid:")) {
+      const plaidId = selectedFilterId.replace("plaid:", "");
+      return plaidTransactions.filter((tx) => tx.account_id === plaidId);
+    }
+    return [];
+  }, [plaidTransactions, selectedFilterId]);
+
+  useEffect(() => {
+    if (viewMode === "single") {
+      setTxSearchQuery("");
+    }
+  }, [viewMode, selectedFilterId]);
 
 
 
@@ -756,53 +827,6 @@ export default function AccountsScreen() {
             />
           }
         >
-
-
-
-        <View
-          style={[
-            styles.viewToggle,
-            { backgroundColor: ui.surface, borderColor: ui.border },
-          ]}
-        >
-          <Pressable
-            onPress={() => setViewMode("all")}
-            style={[
-              styles.viewToggleBtn,
-              {
-                backgroundColor: viewMode === "all" ? ui.text : "transparent",
-              },
-            ]}
-          >
-            <ThemedText
-              style={[
-                styles.viewToggleText,
-                { color: viewMode === "all" ? ui.surface : ui.text },
-              ]}
-            >
-              All Accounts
-            </ThemedText>
-          </Pressable>
-          <Pressable
-            onPress={() => setViewMode("single")}
-            style={[
-              styles.viewToggleBtn,
-              {
-                backgroundColor: viewMode === "single" ? ui.text : "transparent",
-              },
-            ]}
-          >
-            <ThemedText
-              style={[
-                styles.viewToggleText,
-                { color: viewMode === "single" ? ui.surface : ui.text },
-              ]}
-            >
-              Single View
-            </ThemedText>
-          </Pressable>
-        </View>
-
         {viewMode === "single" ? (
           <View style={styles.singleViewWrap}>
             {combinedAccounts.length === 0 ? (
@@ -821,10 +845,14 @@ export default function AccountsScreen() {
                 <ScrollView
                   horizontal
                   showsHorizontalScrollIndicator={false}
-                  snapToInterval={cardWidth + 16}
+                  snapToInterval={cardSnap}
+                  snapToAlignment="start"
                   decelerationRate="fast"
-                  contentContainerStyle={{ paddingHorizontal: cardSideGap, gap: 16 }}
+                  contentContainerStyle={{ paddingHorizontal: cardSideGap, gap: cardGap }}
                   style={styles.singleCarousel}
+                  onMomentumScrollEnd={(event) => {
+                    handleCardSnap(event.nativeEvent.contentOffset.x);
+                  }}
                 >
                   {combinedAccounts.map((item, idx) => {
                     const raw = item.raw as AccountRow | PlaidAccount;
@@ -840,78 +868,39 @@ export default function AccountsScreen() {
                       "credit_limit" in raw ? raw.credit_limit : raw.balances.limit;
                     const paymentDue =
                       "payment_duedate" in raw ? raw.payment_duedate : null;
-                    const statementDue =
-                      "statement_duedate" in raw ? raw.statement_duedate : null;
-                    const mask =
-                      "mask" in raw && raw.mask ? `****${raw.mask}` : "";
-                    const rightPrimary = mask || (statementDue ? formatCardDate(statementDue) : "--/--/--");
-                    const rightSub = statementDue ? `Valid thru ${formatCardDate(statementDue)}` : (("subtype" in raw && raw.subtype) ? raw.subtype : "");
+                    const metaRows = [
+                      {
+                        label: "Credit Limit",
+                        value:
+                          creditLimit != null ? formatMoney(creditLimit) : "--",
+                      },
+                      {
+                        label: "Payment due",
+                        value: paymentDue ? formatCardDate(paymentDue) : "--/--/--",
+                      },
+                      {
+                        label: typeLabel,
+                        value:
+                          "subtype" in raw && raw.subtype
+                            ? raw.subtype
+                            : "Account",
+                      },
+                    ];
 
                     return (
-                      <Pressable
+                      <View
                         key={item.id}
-                        onPress={() => setSingleAccountId(item.id)}
                         style={[styles.singleCardWrap, { width: cardWidth }]}
                       >
-                        <View
-                          style={[
-                            styles.accountCard,
-                            {
-                              backgroundColor: getAccountColor(raw, idx),
-                              borderColor: "rgba(255,255,255,0.18)",
-                              opacity: isSelected ? 1 : 0.85,
-                            },
-                          ]}
-                        >
-                          <View
-                            pointerEvents="none"
-                            style={[styles.cardGlow, { backgroundColor: "rgba(255,255,255,0.12)" }]}
-                          />
-                          <View pointerEvents="none" style={styles.cardRing} />
-                          <View style={styles.cardTopRow}>
-                            <View style={styles.cardTitleGroup}>
-                              <ThemedText style={styles.cardTitle}>
-                                {accountName}
-                              </ThemedText>
-                            </View>
-                            <View style={styles.cardIcon}>
-                              <Feather name="credit-card" size={18} color="#FFFFFF" />
-                            </View>
-                          </View>
-                          <ThemedText style={styles.cardBalance}>
-                            {formatMoney(balance)}
-                          </ThemedText>
-                          <View style={styles.cardDetailRow}>
-                            <ThemedText style={styles.cardDetailLabel}>
-                              Credit Limit
-                            </ThemedText>
-                            <ThemedText style={styles.cardDetailValue}>
-                              {creditLimit != null ? formatMoney(creditLimit) : "--"}
-                            </ThemedText>
-                          </View>
-                          <View style={styles.cardDetailRow}>
-                            <ThemedText style={styles.cardDetailLabel}>
-                              Payment due
-                            </ThemedText>
-                            <ThemedText style={styles.cardDetailValue}>
-                              {paymentDue ? formatCardDate(paymentDue) : "--/--/--"}
-                            </ThemedText>
-                          </View>
-                          <View style={styles.cardDetailRow}>
-                            <ThemedText style={styles.cardDetailLabel}>
-                              {typeLabel}
-                            </ThemedText>
-                            <View style={styles.cardDetailRight}>
-                              <ThemedText style={styles.cardDetailValue}>
-                                {rightPrimary}
-                              </ThemedText>
-                              {rightSub ? (
-                                <ThemedText style={styles.cardSubText}>{rightSub}</ThemedText>
-                              ) : null}
-                            </View>
-                          </View>
-                        </View>
-                      </Pressable>
+                        <AccountHeroCard
+                          title={accountName}
+                          balance={formatMoney(balance)}
+                          color={getAccountColor(raw, idx)}
+                          metaRows={metaRows}
+                          isSelected={isSelected}
+                          onPress={() => setSingleAccountId(item.id)}
+                        />
+                      </View>
                     );
                   })}
                 </ScrollView>
@@ -959,7 +948,7 @@ export default function AccountsScreen() {
                       styles.actionCircle,
                       { backgroundColor: ui.surface, borderColor: ui.border },
                     ]}
-                    onPress={() => setAddSourceModalOpen(true)}
+                    onPress={openAddTransaction}
                   >
                     <Feather name="plus" size={18} color={ui.text} />
                   </Pressable>
@@ -970,11 +959,7 @@ export default function AccountsScreen() {
                     ]}
                     onPress={() => {
                       if (!selectedAccount) return;
-                      if (selectedAccount.kind === "manual") {
-                        setEditingAccount(selectedAccount.raw as AccountRow);
-                        return;
-                      }
-                      setSelectedDetailAccount(selectedAccount.raw as PlaidAccount);
+                      setSelectedDetailAccount(selectedAccount.raw as AccountRow | PlaidAccount);
                       setDetailModalVisible(true);
                     }}
                   >
@@ -986,19 +971,16 @@ export default function AccountsScreen() {
                   <ThemedText style={[styles.sectionTitle, { color: ui.text }]}>
                     Transactions
                   </ThemedText>
-                  <ThemedText style={[styles.sectionSubtitle, { color: ui.mutedText }]}>
-                    Recent activity
-                  </ThemedText>
                 </View>
 
                 <TransactionsList
                   ui={ui}
-                  expenses={expenses}
-                  plaidTransactions={plaidTransactions}
+                  expenses={filteredExpensesForSingle}
+                  plaidTransactions={filteredPlaidForSingle}
                   recurringRules={[]}
                   accounts={accountsForTx}
                   plaidAccounts={plaidAccounts}
-                  filterAccountId={selectedFilterId}
+                  filterAccountId={null}
                   onFilterAccountChange={() => {}}
                   searchQuery={txSearchQuery}
                   onSearchQueryChange={setTxSearchQuery}
@@ -1016,12 +998,22 @@ export default function AccountsScreen() {
           </View>
         ) : (
           <>
+            <Pressable
+              onPress={() => setAddSourceModalOpen(true)}
+              style={[
+                styles.smallActionBtn,
+                { borderColor: ui.border, backgroundColor: ui.surface },
+              ]}
+            >
+              <Feather name="plus" size={16} color={ui.text} />
+              <ThemedText style={[styles.actionText, { color: ui.text }]}>
+                Add Account
+              </ThemedText>
+            </Pressable>
+
             <View style={styles.sectionHeader}>
               <ThemedText style={[styles.sectionTitle, { color: ui.text }]}>
-                Manual Accounts
-              </ThemedText>
-              <ThemedText style={[styles.sectionSubtitle, { color: ui.mutedText }]}>
-                {filteredManualAccounts.length} account{filteredManualAccounts.length !== 1 ? "s" : ""}
+                Self-Managed Accounts
               </ThemedText>
             </View>
 
@@ -1047,8 +1039,7 @@ export default function AccountsScreen() {
                   dateLabel: item.currency ?? "CAD",
                   color: getAccountColor(item, idx),
                   onPress: () => {
-                    setSelectedDetailAccount(item);
-                    setDetailModalVisible(true);
+                    openSingleAccount(`manual:${item.id}`);
                   },
                 };
 
@@ -1080,8 +1071,7 @@ export default function AccountsScreen() {
                     dateLabel: pa.subtype ? pa.subtype.charAt(0).toUpperCase() + pa.subtype.slice(1) : "Bank",
                     color: getAccountColor(pa, idx + accounts.length),
                     onPress: () => {
-                      setSelectedDetailAccount(pa);
-                      setDetailModalVisible(true);
+                      openSingleAccount(`plaid:${pa.account_id}`);
                     },
                   };
                   return (
@@ -1093,10 +1083,29 @@ export default function AccountsScreen() {
           </>
         )}
         </ScrollView>
+        {viewMode === "single" && (
+          <Pressable
+            onPress={() => toggleViewMode("all")}
+            accessibilityRole="button"
+            accessibilityLabel="Back to all accounts"
+            style={({ pressed }) => [
+              styles.backButton,
+              styles.backButtonOverlay,
+              {
+                borderColor: ui.border,
+                backgroundColor: pressed ? ui.surface2 : ui.surface,
+                opacity: pressed ? 0.85 : 1,
+                bottom: tabBarHeight + 8,
+              },
+            ]}
+          >
+            <Feather name="chevron-left" size={18} color={ui.text} />
+          </Pressable>
+        )}
       </Animated.View>
 
       <Pressable
-        onPress={() => setAddSourceModalOpen(true)}
+        onPress={openAddTransaction}
         style={({ pressed }) => [
           styles.fab,
           {
@@ -1149,7 +1158,7 @@ export default function AccountsScreen() {
             <Feather name="edit-2" size={18} color={ui.text} />
           </View>
           <View>
-            <ThemedText type="defaultSemiBold">Manual Account</ThemedText>
+            <ThemedText type="defaultSemiBold">Self-Managed Account</ThemedText>
             <ThemedText style={{ color: ui.mutedText, fontSize: 13, marginTop: 2 }}>Enter transactions yourself</ThemedText>
           </View>
         </Pressable>
@@ -1632,8 +1641,8 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     paddingHorizontal: 16,
-    paddingBottom: 16,
-    gap: 12,
+    paddingBottom: 12,
+    gap: 10,
     position: "relative",
     overflow: "hidden",
   },
@@ -1642,40 +1651,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   scrollContent: {
-    gap: 14,
-    paddingBottom: 16,
-  },
-  viewToggle: {
-    flexDirection: "row",
-    borderRadius: 14,
-    borderWidth: StyleSheet.hairlineWidth,
-    padding: 4,
-    gap: 4,
-  },
-  viewToggleBtn: {
-    flex: 1,
-    paddingVertical: 10,
-    borderRadius: 10,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  viewToggleText: {
-    fontSize: 14,
-    fontFamily: Tokens.font.semiFamily ?? Tokens.font.family,
+    gap: 10,
+    paddingBottom: 12,
   },
   singleViewWrap: {
-    gap: 16,
+    gap: 12,
+    position: "relative",
   },
   singleCarousel: {
-    marginTop: 6,
+    marginTop: 4,
   },
   singleCardWrap: {
     borderRadius: 22,
-    shadowColor: "#000",
-    shadowOpacity: 0.25,
-    shadowRadius: 14,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 6,
   },
   headerRow: {
     flexDirection: "row",
@@ -1816,8 +1803,8 @@ const styles = StyleSheet.create({
     zIndex: 99,
   },
   sectionHeader: {
-    marginTop: 20,
-    marginBottom: 4,
+    marginTop: 14,
+    marginBottom: 2,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
@@ -1834,131 +1821,35 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     borderWidth: StyleSheet.hairlineWidth,
     paddingHorizontal: 14,
-    paddingVertical: 16,
-    marginTop: 4,
-  },
-  accountCard: {
-    borderRadius: 22,
-    paddingHorizontal: 20,
-    paddingTop: 18,
-    paddingBottom: 18,
-    borderWidth: 1,
-    overflow: "hidden",
-  },
-  cardTopRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 12,
-  },
-  cardTitleGroup: {
-    flex: 1,
-    gap: 6,
-  },
-  cardTitle: {
-    color: "#F6F6F6",
-    fontSize: 20,
-    fontFamily: Tokens.font.boldFamily ?? Tokens.font.headingFamily,
-  },
-  cardTag: {
-    alignSelf: "flex-start",
-    borderRadius: 12,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    backgroundColor: "rgba(255,255,255,0.18)",
-  },
-  cardTagText: {
-    color: "rgba(255,255,255,0.92)",
-    fontSize: 11,
-    fontFamily: Tokens.font.semiFamily ?? Tokens.font.family,
-    letterSpacing: 0.3,
-  },
-  cardIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: "rgba(255,255,255,0.18)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  cardGlow: {
-    position: "absolute",
-    top: -60,
-    right: -60,
-    width: 160,
-    height: 160,
-    borderRadius: 20,
-    opacity: 0.7,
-  },
-  cardRing: {
-    position: "absolute",
-    bottom: -80,
-    left: -60,
-    width: 200,
-    height: 200,
-    borderRadius: 100,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.18)",
-    opacity: 0.5,
-  },
-  cardBalance: {
-    color: "#FFFFFF",
-    fontSize: 34,
-    paddingTop: 16,
-    marginTop: -8,
-    fontFamily: Tokens.font.boldFamily ?? Tokens.font.headingFamily,
-  },
-  cardDetailRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginTop: 8,
-  },
-  cardDetailLabel: {
-    color: "rgba(255,255,255,0.88)",
-    fontSize: 12.5,
-    fontFamily: Tokens.font.family,
-  },
-  cardDetailValue: {
-    color: "#FFFFFF",
-    fontSize: 13.5,
-    fontFamily: Tokens.font.semiFamily ?? Tokens.font.family,
-  },
-  cardDetailRight: {
-    alignItems: "flex-end",
-  },
-  cardMetaRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-  },
-  cardMetaPill: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 10,
-    backgroundColor: "rgba(255,255,255,0.16)",
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: "rgba(255,255,255,0.22)",
-  },
-  cardMetaText: {
-    color: "rgba(255,255,255,0.92)",
-    fontSize: 12,
-    fontFamily: Tokens.font.semiFamily ?? Tokens.font.family,
-  },
-  cardSubText: {
-    color: "rgba(255,255,255,0.9)",
-    marginTop: -2,
-    fontSize: 13,
-    fontFamily: Tokens.font.family,
+    paddingVertical: 12,
+    marginTop: 2,
   },
   cardActions: {
     flexDirection: "row",
     justifyContent: "center",
     gap: 12,
-    marginTop: 4,
+    marginTop: 2,
+  },
+  backButton: {
+    alignSelf: "flex-start",
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    borderWidth: StyleSheet.hairlineWidth,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    shadowColor: "#000",
+    shadowOpacity: 0.18,
+    shadowOffset: { width: 0, height: 4 },
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  backButtonOverlay: {
+    position: "absolute",
+    left: 12,
+    zIndex: 5,
   },
   actionCircle: {
     width: 40,

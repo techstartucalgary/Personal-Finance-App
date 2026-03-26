@@ -26,6 +26,7 @@ import { ThemedView } from "@/components/themed-view";
 import { AddTransactionModal } from "@/components/AddTransactionModal";
 import { EditTransactionModal } from "@/components/EditTransactionModal";
 import { TransactionDetailModal } from "@/components/TransactionDetailModal";
+import { TransactionsList } from "@/components/transactions/TransactionsList";
 import { AppHeader } from "@/components/ui/AppHeader";
 import { DateTimePickerField } from "@/components/ui/DateTimePickerField";
 import { IconSymbol } from "@/components/ui/icon-symbol";
@@ -76,7 +77,7 @@ export default function HomeScreen() {
   } catch (e) {
     tabBarHeight = insets.bottom + 60;
   }
-  const fabBottom = Platform.OS === "android" ? tabBarHeight + 35 : tabBarHeight + 5;
+  const fabBottom = Platform.OS === "android" ? tabBarHeight + 12 : tabBarHeight;
   const ui = tabsTheme.ui;
 
   const userId = session?.user.id;
@@ -595,293 +596,27 @@ export default function HomeScreen() {
           activeFontStyle={{ color: ui.surface, fontWeight: "600" }}
         />
 
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ gap: 8, paddingVertical: 8 }}
-        >
-          <Pressable
-            onPress={() => setFilterAccountId(null)}
-            style={[
-              styles.chip,
-              {
-                backgroundColor: filterAccountId === null ? ui.text : ui.surface2,
-                borderColor: ui.border,
-              },
-            ]}
-          >
-            <ThemedText
-              style={{
-                fontSize: 13,
-                fontWeight: "600",
-                color: filterAccountId === null ? ui.surface : ui.text,
-              }}
-            >
-              All
-            </ThemedText>
-          </Pressable>
-          {accounts.map((acct) => (
-            <Pressable
-              key={acct.id}
-              onPress={() => setFilterAccountId(acct.id)}
-              style={[
-                styles.chip,
-                {
-                  backgroundColor:
-                    filterAccountId === acct.id ? ui.text : ui.surface2,
-                  borderColor: ui.border,
-                },
-              ]}
-            >
-              <ThemedText
-                style={{
-                  fontSize: 13,
-                  fontWeight: "600",
-                  color: filterAccountId === acct.id ? ui.surface : ui.text,
-                }}
-              >
-                {acct.account_name ?? "Account"}
-              </ThemedText>
-            </Pressable>
-          ))}
-          {plaidAccounts.map((pa) => {
-            const chipId = `plaid:${pa.account_id}`;
-            const isSelected = filterAccountId === chipId;
-            return (
-              <Pressable
-                key={chipId}
-                onPress={() => setFilterAccountId(chipId)}
-                style={[
-                  styles.chip,
-                  {
-                    backgroundColor: isSelected ? ui.text : ui.surface2,
-                    borderColor: ui.border,
-                  },
-                ]}
-              >
-                <ThemedText
-                  style={{
-                    fontSize: 13,
-                    fontWeight: "600",
-                    color: isSelected ? ui.surface : ui.text,
-                  }}
-                >
-                  {pa.name}{pa.mask ? ` ••${pa.mask}` : ""}
-                </ThemedText>
-              </Pressable>
-            );
-          })}
-        </ScrollView>
+
 
         {activeTab === "transactions" ? (
           <>
-
-
-            {expenses.filter((e) => {
-              const matchesAccount = filterAccountId === null || e.account_id === filterAccountId;
-              const matchesSearch = !searchQuery ||
-                (e.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                  e.amount?.toString().includes(searchQuery));
-              return matchesAccount && matchesSearch;
-            }).length === 0 ? (
-              <ThemedText style={{ color: ui.mutedText }}>
-                {isLoading ? "Loading…" : "No transactions found."}
-              </ThemedText>
-            ) : (
-              expenses
-                .filter((e) => {
-                  const matchesAccount = filterAccountId === null || e.account_id === filterAccountId;
-                  const matchesSearch = !searchQuery ||
-                    (e.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                      e.amount?.toString().includes(searchQuery));
-                  return matchesAccount && matchesSearch;
-                })
-                .sort((a, b) => {
-                  const dateA = new Date(a.transaction_date || a.created_at || 0).getTime();
-                  const dateB = new Date(b.transaction_date || b.created_at || 0).getTime();
-                  return dateB - dateA;
-                })
-                .map((expense) => (
-                  <Pressable
-                    key={expense.id}
-                    onPress={() => {
-                      setSelectedDetailTransaction(expense);
-                      setIsDetailModalVisible(true);
-                    }}
-                    style={({ pressed }) => [
-                      styles.row,
-                      {
-                        borderColor: ui.border,
-                        backgroundColor: ui.surface2,
-                        opacity: pressed ? 0.7 : 1,
-                      },
-                    ]}
-                  >
-                    <View style={{ flex: 1 }}>
-                      <View
-                        style={{
-                          flexDirection: "row",
-                          alignItems: "center",
-                          gap: 6,
-                        }}
-                      >
-                        <ThemedText type="defaultSemiBold">
-                          {expense.description ?? "Transaction"}
-                        </ThemedText>
-                        {expense.recurring_rule_id &&
-                          (() => {
-                            const linkedRule = recurringRules.find(
-                              (r) => r.id === expense.recurring_rule_id,
-                            );
-                            if (!linkedRule) return null;
-                            const color = linkedRule.is_active
-                              ? "#FF9500"
-                              : ui.mutedText;
-                            return (
-                              <View
-                                style={{
-                                  flexDirection: "row",
-                                  alignItems: "center",
-                                  gap: 4,
-                                }}
-                              >
-                                <IconSymbol
-                                  name="arrow.triangle.2.circlepath"
-                                  size={12}
-                                  color={color}
-                                />
-                                <ThemedText
-                                  style={{
-                                    color,
-                                    fontSize: 12,
-                                    fontWeight: "500",
-                                  }}
-                                >
-                                  {linkedRule.is_active ? "Active" : "Inactive"}
-                                </ThemedText>
-                              </View>
-                            );
-                          })()}
-                      </View>
-                      <ThemedText type="default">
-                        {formatDate(expense.transaction_date || expense.created_at)}
-                      </ThemedText>
-                    </View>
-                    <ThemedText type="defaultSemiBold">
-                      {formatMoney(expense.amount ?? 0)}
-                    </ThemedText>
-                  </Pressable>
-                ))
-            )}
-
-            {/* Plaid Bank Transactions */}
-            {plaidTransactions.length > 0 && (filterAccountId === null || (typeof filterAccountId === "string" && filterAccountId.startsWith("plaid:"))) && (
-              <>
-                {filterAccountId === null && (
-                  <View style={{ marginTop: 16, marginBottom: 8 }}>
-                    <ThemedText type="defaultSemiBold" style={{ color: ui.mutedText, fontSize: 13, letterSpacing: 0.5 }}>
-                      BANK TRANSACTIONS
-                    </ThemedText>
-                  </View>
-                )}
-                {plaidTransactions
-                  .filter((t) => {
-                    let matchesAccount = true;
-                    if (filterAccountId !== null) {
-                      if (typeof filterAccountId === "string" && filterAccountId.startsWith("plaid:")) {
-                        matchesAccount = t.account_id === filterAccountId.replace("plaid:", "");
-                      } else {
-                        matchesAccount = false;
-                      }
-                    }
-                    const matchesSearch = !searchQuery ||
-                      ((t.merchant_name || t.name)?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                        t.amount?.toString().includes(searchQuery));
-
-                    return matchesAccount && matchesSearch;
-                  })
-                  .sort((a, b) => {
-                    const dateA = new Date(a.date || 0).getTime();
-                    const dateB = new Date(b.date || 0).getTime();
-                    return dateB - dateA;
-                  })
-                  .map((tx) => (
-                    <Pressable
-                      key={tx.transaction_id}
-                      onPress={() => {
-                        setSelectedDetailTransaction(tx);
-                        setIsDetailModalVisible(true);
-                      }}
-                      style={({ pressed }) => [
-                        styles.row,
-                        {
-                          borderColor: ui.border,
-                          backgroundColor: ui.surface2,
-                          opacity: pressed ? 0.7 : 1,
-                        },
-                      ]}
-                    >
-                      <View style={{ flex: 1 }}>
-                        <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-                          <ThemedText type="defaultSemiBold">
-                            {tx.merchant_name || tx.name}
-                          </ThemedText>
-                          {tx.pending && (
-                            <View style={{
-                              backgroundColor: "rgba(255,165,0,0.15)",
-                              paddingHorizontal: 6,
-                              paddingVertical: 2,
-                              borderRadius: 4,
-                            }}>
-                              <ThemedText style={{ fontSize: 10, color: "#FF9500", fontWeight: "600" }}>
-                                PENDING
-                              </ThemedText>
-                            </View>
-                          )}
-                        </View>
-
-                        {tx.institution_name && (
-                          <ThemedText style={{
-                            fontSize: 10,
-                            color: ui.accent,
-                            fontWeight: "700",
-                            letterSpacing: 0.5,
-                            marginTop: 1,
-                          }}>
-                            {tx.institution_name.toUpperCase()}
-                          </ThemedText>
-                        )}
-
-                        <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 2 }}>
-                          <ThemedText type="default" style={{ color: ui.mutedText, fontSize: 13 }}>
-                            {formatDate(tx.date)}
-                          </ThemedText>
-                          <ThemedText style={{
-                            fontSize: 11,
-                            color: ui.mutedText,
-                            fontWeight: "500",
-                          }}>
-                            {[
-                              tx.account_name,
-                              tx.account_mask ? `••${tx.account_mask}` : null,
-                            ].filter(Boolean).join(" ")}
-                          </ThemedText>
-                        </View>
-                        {tx.category && tx.category.length > 0 && (
-                          <ThemedText style={{ color: ui.mutedText, fontSize: 12, marginTop: 2 }}>
-                            {tx.category.join(" › ")}
-                          </ThemedText>
-                        )}
-                      </View>
-                      <ThemedText type="defaultSemiBold" style={{
-                        color: tx.amount > 0 ? ui.danger : ui.accent,
-                      }}>
-                        {tx.amount > 0 ? "-" : "+"}{formatMoney(Math.abs(tx.amount))}
-                      </ThemedText>
-                    </Pressable>
-                  ))}
-              </>
-            )}
+            <TransactionsList
+              ui={ui}
+              expenses={expenses}
+              plaidTransactions={plaidTransactions}
+              recurringRules={recurringRules}
+              accounts={accounts}
+              plaidAccounts={plaidAccounts}
+              filterAccountId={filterAccountId}
+              onFilterAccountChange={setFilterAccountId}
+              searchQuery={searchQuery}
+              onSearchQueryChange={setSearchQuery}
+              onSelectTransaction={(tx) => {
+                setSelectedDetailTransaction(tx);
+                setIsDetailModalVisible(true);
+              }}
+              isLoading={isLoading}
+            />
           </>
         ) : (
           recurringRules
@@ -952,9 +687,9 @@ export default function HomeScreen() {
         style={({ pressed }) => [
           styles.fab,
           {
-            width: 80,
-            height: 80,
-            borderRadius: 20,
+            width: 60,
+            height: 60,
+            borderRadius: 16,
             right: 16,
           },
           {
@@ -965,7 +700,7 @@ export default function HomeScreen() {
           },
         ]}
       >
-        <IconSymbol name="plus" size={32} color={ui.surface} />
+        <IconSymbol name="plus" size={24} color={ui.surface} />
       </Pressable>
 
       <AddTransactionModal
@@ -1533,12 +1268,6 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     position: "absolute",
-  },
-  chip: {
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderRadius: 20,
-    borderWidth: StyleSheet.hairlineWidth,
   },
   loader: {
     marginVertical: 20,

@@ -75,6 +75,7 @@ export default function RootLayout() {
     "Avenir LT Std 85 Heavy": require("../assets/fonts/AvenirLTStd-Heavy.otf"),
     "Avenir LT Std 95 Black": require("../assets/fonts/AvenirLTStd-Black.otf"),
     "Lato-Bold": require("../assets/fonts/Lato-Bold.ttf"),
+    "Lato-Light": require("../assets/fonts/Lato-Light.ttf"),
   });
   const colorScheme = useColorScheme() ?? "light";
 

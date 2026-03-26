@@ -94,7 +94,7 @@ export default function AccountsScreen() {
     // Fallback if hook fails (e.g. not in tab navigator context)
     tabBarHeight = insets.bottom + 60;
   }
-  const fabBottom = Platform.OS === "android" ? tabBarHeight + 35 : tabBarHeight + 5;
+  const fabBottom = Platform.OS === "android" ? tabBarHeight + 20 : tabBarHeight + 2;
   const ui = tabsTheme.ui;
   const transition = useTabTransition();
   const swipe = useTabSwipe(1);
@@ -724,9 +724,9 @@ export default function AccountsScreen() {
         style={({ pressed }) => [
           styles.fab,
           {
-            width: 80,
-            height: 80,
-            borderRadius: 20,
+            width: 68,
+            height: 68,
+            borderRadius: 18,
             right: 16,
           },
           {
@@ -737,7 +737,7 @@ export default function AccountsScreen() {
           },
         ]}
       >
-        <IconSymbol name="plus" size={32} color={ui.surface} />
+        <IconSymbol name="plus" size={28} color={ui.surface} />
       </Pressable>
       {/* Select Source Modal */}
       <SelectionModal

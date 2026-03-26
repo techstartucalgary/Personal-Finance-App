@@ -42,7 +42,7 @@ export default function TargetsScreen() {
   } catch {
     tabBarHeight = insets.bottom + 60;
   }
-  const fabBottom = Platform.OS === "android" ? tabBarHeight + 35 : tabBarHeight + 5;
+  const fabBottom = Platform.OS === "android" ? tabBarHeight + 20 : tabBarHeight + 2;
 
   const [activeTab, setActiveTab] = useState<Tab>("goals");
   const { session } = useAuthContext();
@@ -249,9 +249,9 @@ export default function TargetsScreen() {
         style={({ pressed }) => [
           styles.fab,
           {
-            width: 80,
-            height: 80,
-            borderRadius: 20,
+            width: 68,
+            height: 68,
+            borderRadius: 18,
             right: 16,
           },
           {
@@ -262,7 +262,7 @@ export default function TargetsScreen() {
           },
         ]}
       >
-        <IconSymbol name="plus" size={32} color={ui.surface} />
+        <IconSymbol name="plus" size={28} color={ui.surface} />
       </Pressable>
     </View>
     </PanGestureHandler>

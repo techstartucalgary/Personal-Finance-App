@@ -1,5 +1,5 @@
 import Feather from "@expo/vector-icons/Feather";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Animated,
@@ -16,7 +16,6 @@ import {
 } from "react-native";
 import { PanGestureHandler } from "react-native-gesture-handler";
 
-import SegmentedControl from "@react-native-segmented-control/segmented-control";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -77,7 +76,7 @@ export default function HomeScreen() {
   } catch (e) {
     tabBarHeight = insets.bottom + 60;
   }
-  const fabBottom = Platform.OS === "android" ? tabBarHeight + 12 : tabBarHeight;
+  const fabBottom = tabBarHeight - 16;
   const ui = tabsTheme.ui;
 
   const userId = session?.user.id;
@@ -121,8 +120,6 @@ export default function HomeScreen() {
   const [newSubcategoryName, setNewSubcategoryName] = useState("");
 
   const [searchQuery, setSearchQuery] = useState("");
-  const [isAndroidSearching, setIsAndroidSearching] = useState(false);
-
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [expenses, setExpenses] = useState<ExpenseRow[]>([]);
   const [plaidTransactions, setPlaidTransactions] = useState<PlaidTransaction[]>([]);
@@ -156,6 +153,8 @@ export default function HomeScreen() {
   const [editRuleFrequencyModalOpen, setEditRuleFrequencyModalOpen] = useState(false);
   const [editRuleCategoryModalOpen, setEditRuleCategoryModalOpen] = useState(false);
   const [editRuleSubcategoryModalOpen, setEditRuleSubcategoryModalOpen] = useState(false);
+
+  const tabFade = useRef(new Animated.Value(1)).current;
 
   const formatDate = useCallback((value?: string | null) => {
     if (!value) return "";
@@ -278,6 +277,15 @@ export default function HomeScreen() {
     loadExpenses();
     loadRecurringRules();
   }, [loadExpenses, loadRecurringRules]);
+
+  useEffect(() => {
+    tabFade.setValue(0);
+    Animated.timing(tabFade, {
+      toValue: 1,
+      duration: 220,
+      useNativeDriver: true,
+    }).start();
+  }, [activeTab, tabFade]);
 
 
 
@@ -582,24 +590,73 @@ export default function HomeScreen() {
           }
         >
 
-        {/* Native Segmented Control */}
-        <SegmentedControl
-          values={["Transactions", "Recurring"]}
-          selectedIndex={activeTab === "transactions" ? 0 : 1}
-          onChange={(event) => {
-            const index = event.nativeEvent.selectedSegmentIndex;
-            setActiveTab(index === 0 ? "transactions" : "recurrences");
-          }}
-          tintColor={ui.accent}
-          backgroundColor={ui.surface2}
-          fontStyle={{ color: ui.text, fontWeight: "500" }}
-          activeFontStyle={{ color: ui.surface, fontWeight: "600" }}
-        />
+        <View
+          style={[
+            styles.segmentedControl,
+            { backgroundColor: ui.surface, borderColor: ui.border },
+          ]}
+        >
+          <Pressable
+            onPress={() => setActiveTab("transactions")}
+            style={({ pressed }) => [
+              styles.segmentButton,
+              {
+                backgroundColor:
+                  activeTab === "transactions" ? ui.text : "transparent",
+                opacity: pressed ? 0.9 : 1,
+              },
+            ]}
+          >
+            <ThemedText
+              style={[
+                styles.segmentText,
+                { color: activeTab === "transactions" ? ui.surface : ui.text },
+              ]}
+            >
+              Transactions
+            </ThemedText>
+          </Pressable>
+          <Pressable
+            onPress={() => setActiveTab("recurrences")}
+            style={({ pressed }) => [
+              styles.segmentButton,
+              {
+                backgroundColor:
+                  activeTab === "recurrences" ? ui.text : "transparent",
+                opacity: pressed ? 0.9 : 1,
+              },
+            ]}
+          >
+            <ThemedText
+              style={[
+                styles.segmentText,
+                { color: activeTab === "recurrences" ? ui.surface : ui.text },
+              ]}
+            >
+              Recurring
+            </ThemedText>
+          </Pressable>
+        </View>
 
 
 
         {activeTab === "transactions" ? (
-          <>
+          <Animated.View
+            style={[
+              styles.tabFade,
+              {
+                opacity: tabFade,
+                transform: [
+                  {
+                    translateY: tabFade.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [8, 0],
+                    }),
+                  },
+                ],
+              },
+            ]}
+          >
             <TransactionsList
               ui={ui}
               expenses={expenses}
@@ -617,68 +674,92 @@ export default function HomeScreen() {
               }}
               isLoading={isLoading}
             />
-          </>
+          </Animated.View>
         ) : (
-          recurringRules
-            .filter((r) => {
-              const matchesAccount = filterAccountId === null || r.account_id === filterAccountId;
-              const matchesSearch = !searchQuery ||
-                (r.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                  r.amount?.toString().includes(searchQuery));
-              return matchesAccount && matchesSearch;
-            })
-            .sort((a, b) => (a.is_active === b.is_active ? 0 : a.is_active ? -1 : 1))
-            .length === 0 ? (
-            <ThemedText style={{ padding: 16, color: ui.mutedText }}>
-              {isLoading ? "Loading…" : "No recurrences found."}
-            </ThemedText>
-          ) : (
-            recurringRules
+          <Animated.View
+            style={[
+              styles.tabFade,
+              {
+                opacity: tabFade,
+                transform: [
+                  {
+                    translateY: tabFade.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [8, 0],
+                    }),
+                  },
+                ],
+              },
+            ]}
+          >
+            {recurringRules
               .filter((r) => {
-                const matchesAccount = filterAccountId === null || r.account_id === filterAccountId;
-                const matchesSearch = !searchQuery ||
+                const matchesAccount =
+                  filterAccountId === null || r.account_id === filterAccountId;
+                const matchesSearch =
+                  !searchQuery ||
                   (r.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
                     r.amount?.toString().includes(searchQuery));
                 return matchesAccount && matchesSearch;
               })
               .sort((a, b) => (a.is_active === b.is_active ? 0 : a.is_active ? -1 : 1))
-              .map((rule) => (
-                <Pressable
-                  key={rule.id}
-                  onPress={() => setEditingRule(rule)}
-                  style={({ pressed }) => [
-                    styles.row,
-                    {
-                      borderColor: ui.border,
-                      backgroundColor: ui.surface2,
-                      opacity: pressed ? 0.7 : (rule.is_active ? 1 : 0.6),
-                    },
-                  ]}
-                >
-                  <View style={{ flex: 1 }}>
-                    <ThemedText type="defaultSemiBold">
-                      {rule.name ?? "Subscription"}
-                    </ThemedText>
-                    <ThemedText type="default" style={{ color: ui.mutedText, fontSize: 13 }}>
-                      {rule.frequency} • {rule.is_active ? "Active" : "Paused"}
-                    </ThemedText>
-                    {(rule.is_active || rule.end_date) && (
-                      <ThemedText type="default" style={{ color: ui.mutedText, fontSize: 13 }}>
-                        {rule.is_active ? `Next: ${formatDate(rule.next_run_date)}` : ""}
-                        {rule.is_active && rule.end_date ? " • " : ""}
-                        {rule.end_date ? `Ends: ${formatDate(rule.end_date)}` : ""}
+              .length === 0 ? (
+              <ThemedText style={{ padding: 16, color: ui.mutedText }}>
+                {isLoading ? "Loading..." : "No recurrences found."}
+              </ThemedText>
+            ) : (
+              recurringRules
+                .filter((r) => {
+                  const matchesAccount =
+                    filterAccountId === null || r.account_id === filterAccountId;
+                  const matchesSearch =
+                    !searchQuery ||
+                    (r.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                      r.amount?.toString().includes(searchQuery));
+                  return matchesAccount && matchesSearch;
+                })
+                .sort((a, b) => (a.is_active === b.is_active ? 0 : a.is_active ? -1 : 1))
+                .map((rule) => (
+                  <Pressable
+                    key={rule.id}
+                    onPress={() => setEditingRule(rule)}
+                    style={({ pressed }) => [
+                      styles.row,
+                      {
+                        borderColor: ui.border,
+                        backgroundColor: ui.surface2,
+                        opacity: pressed ? 0.7 : (rule.is_active ? 1 : 0.6),
+                      },
+                    ]}
+                  >
+                    <View style={{ flex: 1 }}>
+                      <ThemedText type="defaultSemiBold">
+                        {rule.name ?? "Subscription"}
                       </ThemedText>
-                    )}
-                  </View>
-                  <View style={{ alignItems: "flex-end", gap: 8 }}>
-                    <ThemedText type="defaultSemiBold">
-                      {formatMoney(rule.amount ?? 0)}
-                    </ThemedText>
-                  </View>
-                </Pressable>
-              ))
-          )
+                      <ThemedText type="default" style={{ color: ui.mutedText, fontSize: 13 }}>
+                        {rule.frequency} - {rule.is_active ? "Active" : "Paused"}
+                      </ThemedText>
+                      {(rule.is_active || rule.end_date) && (
+                        <ThemedText type="default" style={{ color: ui.mutedText, fontSize: 13 }}>
+                          {rule.is_active ? `Next: ${formatDate(rule.next_run_date)}` : ""}
+                          {rule.is_active && rule.end_date ? " - " : ""}
+                          {rule.end_date ? `Ends: ${formatDate(rule.end_date)}` : ""}
+                        </ThemedText>
+                      )}
+                    </View>
+                    <View style={{ alignItems: "flex-end", gap: 8 }}>
+                      <ThemedText type="defaultSemiBold">
+                        {formatMoney(rule.amount ?? 0)}
+                      </ThemedText>
+                    </View>
+                  </Pressable>
+                ))
+            )}
+          </Animated.View>
         )}
+
+
+
         </ScrollView>
       </Animated.View>
 
@@ -1221,7 +1302,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    borderRadius: 20,
+    borderRadius: 14,
     borderWidth: StyleSheet.hairlineWidth,
     paddingHorizontal: 12,
     paddingVertical: 10,
@@ -1296,5 +1377,31 @@ const styles = StyleSheet.create({
     borderRadius: 15,
     alignItems: "center",
     justifyContent: "center",
+  },
+  segmentedControl: {
+    flexDirection: "row",
+    borderRadius: 10,
+    borderWidth: StyleSheet.hairlineWidth,
+    padding: 4,
+    gap: 4,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.06,
+    shadowRadius: 12,
+    elevation: 2,
+  },
+  segmentButton: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  segmentText: {
+    fontSize: 14.5,
+    fontFamily: Tokens.font.semiFamily ?? Tokens.font.family,
+  },
+  tabFade: {
+    gap: 12,
   },
 });

@@ -5,6 +5,7 @@ import {
   ActivityIndicator,
   Animated,
   Alert,
+  Dimensions,
   InteractionManager,
   Modal,
   Platform,
@@ -30,6 +31,8 @@ import { AppHeader } from "@/components/ui/AppHeader";
 import { DateTimePickerField } from "@/components/ui/DateTimePickerField";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { SelectionModal } from "@/components/ui/SelectionModal";
+import { TransactionDetailModal } from "@/components/TransactionDetailModal";
+import { TransactionsList } from "@/components/transactions/TransactionsList";
 import { useTabTransition } from "@/components/ui/useTabTransition";
 import { useTabSwipe } from "@/components/ui/useTabSwipe";
 import { Tokens } from "@/constants/authTokens";
@@ -40,10 +43,11 @@ import {
   deleteAccount as deleteAccountApi,
   updateAccount as updateAccountApi,
 } from "@/utils/accounts";
+import { listExpenses } from "@/utils/expenses";
 import { parseLocalDate, toLocalISOString } from "@/utils/date";
 import { listGoals } from "@/utils/goals";
-import type { PlaidAccount } from "@/utils/plaid";
-import { exchangePublicToken, getLinkToken, getPlaidAccounts, removePlaidItem } from "@/utils/plaid";
+import type { PlaidAccount, PlaidTransaction } from "@/utils/plaid";
+import { exchangePublicToken, getLinkToken, getPlaidAccounts, getPlaidTransactions, removePlaidItem } from "@/utils/plaid";
 import { supabase } from "@/utils/supabase";
 
 type AccountType = "credit" | "debit";
@@ -77,6 +81,18 @@ type GoalRow = {
   linked_plaid_account: string | null;
 };
 
+type ExpenseRow = {
+  id: string;
+  amount: number | null;
+  description?: string | null;
+  created_at?: string | null;
+  account_id?: number | null;
+  expense_categoryid?: number | null;
+  subcategory_id?: number | null;
+  transaction_date?: string | null;
+  recurring_rule_id?: number | null;
+};
+
 export default function AccountsScreen() {
   const { session, isLoading: authLoading } = useAuthContext();
 
@@ -94,7 +110,7 @@ export default function AccountsScreen() {
     // Fallback if hook fails (e.g. not in tab navigator context)
     tabBarHeight = insets.bottom + 60;
   }
-  const fabBottom = Platform.OS === "android" ? tabBarHeight + 20 : tabBarHeight + 2;
+  const fabBottom = tabBarHeight - 16;
   const ui = tabsTheme.ui;
   const transition = useTabTransition();
   const swipe = useTabSwipe(1);
@@ -133,11 +149,19 @@ export default function AccountsScreen() {
   const [editPaymentDate, setEditPaymentDate] = useState("");
   const [editCurrency, setEditCurrency] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
-  const [isAndroidSearching, setIsAndroidSearching] = useState(false);
 
   const [detailModalVisible, setDetailModalVisible] = useState(false);
   const [addSourceModalOpen, setAddSourceModalOpen] = useState(false);
-  const [viewMode] = useState<"wave">("wave");
+  const [viewMode, setViewMode] = useState<"all" | "single">("all");
+  const [singleAccountId, setSingleAccountId] = useState<string | null>(null);
+
+  const [expenses, setExpenses] = useState<ExpenseRow[]>([]);
+  const [plaidTransactions, setPlaidTransactions] = useState<PlaidTransaction[]>([]);
+  const [txSearchQuery, setTxSearchQuery] = useState("");
+  const [selectedTransaction, setSelectedTransaction] = useState<
+    ExpenseRow | PlaidTransaction | null
+  >(null);
+  const [isTxDetailVisible, setIsTxDetailVisible] = useState(false);
 
   const getAccountColor = (item: AccountRow | PlaidAccount, index: number) => {
     const type = (("account_type" in item ? item.account_type : item.type) ?? "").toLowerCase();
@@ -147,6 +171,9 @@ export default function AccountsScreen() {
       : ["#D86666", "#E07A7A", "#C95454", "#E39191"]; // CREDIT_PALETTE
     return palette[index % palette.length];
   };
+
+  const cardWidth = Math.min(340, Dimensions.get("window").width - 64);
+  const cardSideGap = Math.max(16, (Dimensions.get("window").width - cardWidth) / 2);
 
   useFocusEffect(
     useCallback(() => {
@@ -221,6 +248,24 @@ export default function AccountsScreen() {
     [userId, accounts.length, goals.length, plaidAccounts.length],
   );
 
+  const loadTransactions = useCallback(async () => {
+    if (!userId) {
+      setExpenses([]);
+      setPlaidTransactions([]);
+      return;
+    }
+    try {
+      const [expenseData, plaidData] = await Promise.all([
+        listExpenses({ profile_id: userId }),
+        getPlaidTransactions(),
+      ]);
+      setExpenses((expenseData as ExpenseRow[]) ?? []);
+      setPlaidTransactions(plaidData ?? []);
+    } catch (err) {
+      console.error("Error loading transactions:", err);
+    }
+  }, [userId]);
+
   // Plaid: connect bank handler (must be after loadAccounts)
   const handleConnectBank = useCallback(async (options?: { onBeforeOpen?: () => void; onError?: () => void }) => {
     try {
@@ -275,6 +320,12 @@ export default function AccountsScreen() {
       return () => task.cancel();
     }, [loadAccounts]),
   );
+
+  useEffect(() => {
+    if (viewMode === "single") {
+      loadTransactions();
+    }
+  }, [viewMode, loadTransactions]);
 
   // Sync edit state when editingAccount changes
   useEffect(() => {
@@ -584,6 +635,67 @@ export default function AccountsScreen() {
     });
   }, [plaidAccounts, searchQuery]);
 
+  const combinedAccounts = useMemo(() => {
+    const manual = accounts.map((acc) => ({
+      id: `manual:${acc.id}`,
+      kind: "manual" as const,
+      raw: acc,
+      label: acc.account_name ?? "Account",
+    }));
+    const plaid = plaidAccounts.map((pa) => ({
+      id: `plaid:${pa.account_id}`,
+      kind: "plaid" as const,
+      raw: pa,
+      label: pa.name,
+    }));
+    return [...manual, ...plaid];
+  }, [accounts, plaidAccounts]);
+
+  useEffect(() => {
+    if (!singleAccountId && combinedAccounts.length > 0) {
+      setSingleAccountId(combinedAccounts[0].id);
+    }
+  }, [combinedAccounts, singleAccountId]);
+
+
+  const selectedAccount = useMemo(() => {
+    if (!singleAccountId) return combinedAccounts[0] ?? null;
+    return combinedAccounts.find((acc) => acc.id === singleAccountId) ?? combinedAccounts[0] ?? null;
+  }, [combinedAccounts, singleAccountId]);
+
+  const selectedFilterId = useMemo(() => {
+    if (!selectedAccount) return null;
+    if (selectedAccount.kind === "manual") {
+      const manual = selectedAccount.raw as AccountRow;
+      const numericId = Number(manual.id);
+      return Number.isFinite(numericId) ? numericId : null;
+    }
+    const plaid = selectedAccount.raw as PlaidAccount;
+    return `plaid:${plaid.account_id}`;
+  }, [selectedAccount]);
+
+  const accountsForTx = useMemo(() => {
+    return accounts
+      .map((acc) => {
+        const numericId = Number(acc.id);
+        if (!Number.isFinite(numericId)) return null;
+        return {
+          id: numericId,
+          account_name: acc.account_name,
+          account_type: acc.account_type,
+          balance: acc.balance,
+          currency: acc.currency,
+        };
+      })
+      .filter(Boolean) as {
+      id: number;
+      account_name: string | null;
+      account_type: string | null;
+      balance: number | null;
+      currency: string | null;
+    }[];
+  }, [accounts]);
+
 
 
   if (authLoading && !session) {
@@ -634,7 +746,12 @@ export default function AccountsScreen() {
           refreshControl={
             <RefreshControl
               refreshing={isLoading}
-              onRefresh={loadAccounts}
+              onRefresh={() => {
+                loadAccounts();
+                if (viewMode === "single") {
+                  loadTransactions();
+                }
+              }}
               tintColor={ui.text}
             />
           }
@@ -642,79 +759,338 @@ export default function AccountsScreen() {
 
 
 
-        <View style={styles.sectionHeader}>
-          <ThemedText style={[styles.sectionTitle, { color: ui.text }]}>
-            Manual Accounts
-          </ThemedText>
-          <ThemedText style={[styles.sectionSubtitle, { color: ui.mutedText }]}>
-            {filteredManualAccounts.length} account{filteredManualAccounts.length !== 1 ? "s" : ""}
-          </ThemedText>
-        </View>
-
-        {filteredManualAccounts.length === 0 ? (
-          <View
+        <View
+          style={[
+            styles.viewToggle,
+            { backgroundColor: ui.surface, borderColor: ui.border },
+          ]}
+        >
+          <Pressable
+            onPress={() => setViewMode("all")}
             style={[
-              styles.emptyState,
-              { borderColor: ui.border, backgroundColor: ui.surface2 },
+              styles.viewToggleBtn,
+              {
+                backgroundColor: viewMode === "all" ? ui.text : "transparent",
+              },
             ]}
           >
-            <ThemedText style={{ color: ui.text }}>
-              {isLoading
-                ? "Loading..."
-                : "No matches found."}
+            <ThemedText
+              style={[
+                styles.viewToggleText,
+                { color: viewMode === "all" ? ui.surface : ui.text },
+              ]}
+            >
+              All Accounts
             </ThemedText>
+          </Pressable>
+          <Pressable
+            onPress={() => setViewMode("single")}
+            style={[
+              styles.viewToggleBtn,
+              {
+                backgroundColor: viewMode === "single" ? ui.text : "transparent",
+              },
+            ]}
+          >
+            <ThemedText
+              style={[
+                styles.viewToggleText,
+                { color: viewMode === "single" ? ui.surface : ui.text },
+              ]}
+            >
+              Single View
+            </ThemedText>
+          </Pressable>
+        </View>
+
+        {viewMode === "single" ? (
+          <View style={styles.singleViewWrap}>
+            {combinedAccounts.length === 0 ? (
+              <View
+                style={[
+                  styles.emptyState,
+                  { borderColor: ui.border, backgroundColor: ui.surface2 },
+                ]}
+              >
+                <ThemedText style={{ color: ui.text }}>
+                  {isLoading ? "Loading..." : "No accounts yet."}
+                </ThemedText>
+              </View>
+            ) : (
+              <>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  snapToInterval={cardWidth + 16}
+                  decelerationRate="fast"
+                  contentContainerStyle={{ paddingHorizontal: cardSideGap, gap: 16 }}
+                  style={styles.singleCarousel}
+                >
+                  {combinedAccounts.map((item, idx) => {
+                    const raw = item.raw as AccountRow | PlaidAccount;
+                    const isSelected = selectedAccount?.id === item.id;
+                    const accountName =
+                      "account_name" in raw ? raw.account_name ?? "Account" : raw.name;
+                    const balance = "balance" in raw ? raw.balance ?? 0 : raw.balances.current ?? 0;
+                    const typeValue =
+                      ("account_type" in raw ? raw.account_type : raw.type) ?? "Account";
+                    const typeLabel =
+                      typeValue.charAt(0).toUpperCase() + typeValue.slice(1);
+                    const creditLimit =
+                      "credit_limit" in raw ? raw.credit_limit : raw.balances.limit;
+                    const paymentDue =
+                      "payment_duedate" in raw ? raw.payment_duedate : null;
+                    const statementDue =
+                      "statement_duedate" in raw ? raw.statement_duedate : null;
+                    const mask =
+                      "mask" in raw && raw.mask ? `****${raw.mask}` : "";
+                    const rightPrimary = mask || (statementDue ? formatCardDate(statementDue) : "--/--/--");
+                    const rightSub = statementDue ? `Valid thru ${formatCardDate(statementDue)}` : (("subtype" in raw && raw.subtype) ? raw.subtype : "");
+
+                    return (
+                      <Pressable
+                        key={item.id}
+                        onPress={() => setSingleAccountId(item.id)}
+                        style={[styles.singleCardWrap, { width: cardWidth }]}
+                      >
+                        <View
+                          style={[
+                            styles.accountCard,
+                            {
+                              backgroundColor: getAccountColor(raw, idx),
+                              borderColor: "rgba(255,255,255,0.18)",
+                              opacity: isSelected ? 1 : 0.85,
+                            },
+                          ]}
+                        >
+                          <View
+                            pointerEvents="none"
+                            style={[styles.cardGlow, { backgroundColor: "rgba(255,255,255,0.12)" }]}
+                          />
+                          <View pointerEvents="none" style={styles.cardRing} />
+                          <View style={styles.cardTopRow}>
+                            <View style={styles.cardTitleGroup}>
+                              <ThemedText style={styles.cardTitle}>
+                                {accountName}
+                              </ThemedText>
+                            </View>
+                            <View style={styles.cardIcon}>
+                              <Feather name="credit-card" size={18} color="#FFFFFF" />
+                            </View>
+                          </View>
+                          <ThemedText style={styles.cardBalance}>
+                            {formatMoney(balance)}
+                          </ThemedText>
+                          <View style={styles.cardDetailRow}>
+                            <ThemedText style={styles.cardDetailLabel}>
+                              Credit Limit
+                            </ThemedText>
+                            <ThemedText style={styles.cardDetailValue}>
+                              {creditLimit != null ? formatMoney(creditLimit) : "--"}
+                            </ThemedText>
+                          </View>
+                          <View style={styles.cardDetailRow}>
+                            <ThemedText style={styles.cardDetailLabel}>
+                              Payment due
+                            </ThemedText>
+                            <ThemedText style={styles.cardDetailValue}>
+                              {paymentDue ? formatCardDate(paymentDue) : "--/--/--"}
+                            </ThemedText>
+                          </View>
+                          <View style={styles.cardDetailRow}>
+                            <ThemedText style={styles.cardDetailLabel}>
+                              {typeLabel}
+                            </ThemedText>
+                            <View style={styles.cardDetailRight}>
+                              <ThemedText style={styles.cardDetailValue}>
+                                {rightPrimary}
+                              </ThemedText>
+                              {rightSub ? (
+                                <ThemedText style={styles.cardSubText}>{rightSub}</ThemedText>
+                              ) : null}
+                            </View>
+                          </View>
+                        </View>
+                      </Pressable>
+                    );
+                  })}
+                </ScrollView>
+
+                <View style={styles.cardActions}>
+                  <Pressable
+                    style={[
+                      styles.actionCircle,
+                      { backgroundColor: ui.surface, borderColor: ui.border },
+                    ]}
+                    onPress={() => {
+                      if (!selectedAccount) return;
+                      if (selectedAccount.kind === "manual") {
+                        deleteAccount((selectedAccount.raw as AccountRow).id);
+                        return;
+                      }
+                      const pa = selectedAccount.raw as PlaidAccount;
+                      Alert.alert(
+                        "Unlink Account?",
+                        "Are you sure you want to unlink this account?",
+                        [
+                          { text: "Cancel", style: "cancel" },
+                          {
+                            text: "Unlink",
+                            style: "destructive",
+                            onPress: async () => {
+                              try {
+                                await removePlaidItem(pa.plaid_item_id);
+                                await loadAccounts();
+                                await loadTransactions();
+                              } catch (err) {
+                                console.error("Error unlinking:", err);
+                                Alert.alert("Error", "Could not unlink account.");
+                              }
+                            },
+                          },
+                        ],
+                      );
+                    }}
+                  >
+                    <Feather name="trash-2" size={16} color={ui.danger} />
+                  </Pressable>
+                  <Pressable
+                    style={[
+                      styles.actionCircle,
+                      { backgroundColor: ui.surface, borderColor: ui.border },
+                    ]}
+                    onPress={() => setAddSourceModalOpen(true)}
+                  >
+                    <Feather name="plus" size={18} color={ui.text} />
+                  </Pressable>
+                  <Pressable
+                    style={[
+                      styles.actionCircle,
+                      { backgroundColor: ui.surface, borderColor: ui.border },
+                    ]}
+                    onPress={() => {
+                      if (!selectedAccount) return;
+                      if (selectedAccount.kind === "manual") {
+                        setEditingAccount(selectedAccount.raw as AccountRow);
+                        return;
+                      }
+                      setSelectedDetailAccount(selectedAccount.raw as PlaidAccount);
+                      setDetailModalVisible(true);
+                    }}
+                  >
+                    <Feather name="edit-2" size={16} color={ui.text} />
+                  </Pressable>
+                </View>
+
+                <View style={styles.sectionHeader}>
+                  <ThemedText style={[styles.sectionTitle, { color: ui.text }]}>
+                    Transactions
+                  </ThemedText>
+                  <ThemedText style={[styles.sectionSubtitle, { color: ui.mutedText }]}>
+                    Recent activity
+                  </ThemedText>
+                </View>
+
+                <TransactionsList
+                  ui={ui}
+                  expenses={expenses}
+                  plaidTransactions={plaidTransactions}
+                  recurringRules={[]}
+                  accounts={accountsForTx}
+                  plaidAccounts={plaidAccounts}
+                  filterAccountId={selectedFilterId}
+                  onFilterAccountChange={() => {}}
+                  searchQuery={txSearchQuery}
+                  onSearchQueryChange={setTxSearchQuery}
+                  onSelectTransaction={(tx) => {
+                    setSelectedTransaction(tx);
+                    setIsTxDetailVisible(true);
+                  }}
+                  isLoading={isLoading}
+                  showFilters={false}
+                  showMeta={false}
+                  showBadges={false}
+                />
+              </>
+            )}
           </View>
         ) : (
-          filteredManualAccounts.map((item, idx) => {
-            const cardProps = {
-              title: item.account_name ?? "Unnamed account",
-              balance: formatMoney(item.balance ?? 0),
-              typeLabel: item.account_type ? item.account_type.charAt(0).toUpperCase() + item.account_type.slice(1) : "-",
-              dateLabel: item.currency ?? "CAD",
-              color: getAccountColor(item, idx),
-              onPress: () => {
-                setSelectedDetailAccount(item);
-                setDetailModalVisible(true);
-              },
-            };
-
-            return (
-              <AccountWaveCard key={item.id} {...cardProps} />
-            );
-          })
-        )}
-
-        {/* Linked Banks (Plaid) */}
-        {filteredPlaidAccounts.length > 0 && (
-          <View style={{ marginTop: 20 }}>
+          <>
             <View style={styles.sectionHeader}>
               <ThemedText style={[styles.sectionTitle, { color: ui.text }]}>
-                Linked Banks
+                Manual Accounts
               </ThemedText>
-              <ThemedText
-                style={[styles.sectionSubtitle, { color: ui.mutedText }]}
-              >
-                {filteredPlaidAccounts.length} account{filteredPlaidAccounts.length !== 1 ? "s" : ""}
+              <ThemedText style={[styles.sectionSubtitle, { color: ui.mutedText }]}>
+                {filteredManualAccounts.length} account{filteredManualAccounts.length !== 1 ? "s" : ""}
               </ThemedText>
             </View>
 
-            {filteredPlaidAccounts.map((pa, idx) => {
-              const cardProps = {
-                title: pa.name,
-                balance: formatMoney(pa.balances.current ?? 0),
-                typeLabel: pa.type.charAt(0).toUpperCase() + pa.type.slice(1),
-                dateLabel: pa.subtype ? pa.subtype.charAt(0).toUpperCase() + pa.subtype.slice(1) : "Bank",
-                color: getAccountColor(pa, idx + accounts.length),
-                onPress: () => {
-                  setSelectedDetailAccount(pa);
-                  setDetailModalVisible(true);
-                },
-              };
-              return (
-                <AccountWaveCard key={pa.account_id} {...cardProps} waveAngle={idx % 2 === 0 ? -8 : 8} />
-              );
-            })}
-          </View>
+            {filteredManualAccounts.length === 0 ? (
+              <View
+                style={[
+                  styles.emptyState,
+                  { borderColor: ui.border, backgroundColor: ui.surface2 },
+                ]}
+              >
+                <ThemedText style={{ color: ui.text }}>
+                  {isLoading
+                    ? "Loading..."
+                    : "No matches found."}
+                </ThemedText>
+              </View>
+            ) : (
+              filteredManualAccounts.map((item, idx) => {
+                const cardProps = {
+                  title: item.account_name ?? "Unnamed account",
+                  balance: formatMoney(item.balance ?? 0),
+                  typeLabel: item.account_type ? item.account_type.charAt(0).toUpperCase() + item.account_type.slice(1) : "-",
+                  dateLabel: item.currency ?? "CAD",
+                  color: getAccountColor(item, idx),
+                  onPress: () => {
+                    setSelectedDetailAccount(item);
+                    setDetailModalVisible(true);
+                  },
+                };
+
+                return (
+                  <AccountWaveCard key={item.id} {...cardProps} />
+                );
+              })
+            )}
+
+            {/* Linked Banks (Plaid) */}
+            {filteredPlaidAccounts.length > 0 && (
+              <View style={{ marginTop: 20 }}>
+                <View style={styles.sectionHeader}>
+                  <ThemedText style={[styles.sectionTitle, { color: ui.text }]}>
+                    Linked Banks
+                  </ThemedText>
+                  <ThemedText
+                    style={[styles.sectionSubtitle, { color: ui.mutedText }]}
+                  >
+                    {filteredPlaidAccounts.length} account{filteredPlaidAccounts.length !== 1 ? "s" : ""}
+                  </ThemedText>
+                </View>
+
+                {filteredPlaidAccounts.map((pa, idx) => {
+                  const cardProps = {
+                    title: pa.name,
+                    balance: formatMoney(pa.balances.current ?? 0),
+                    typeLabel: pa.type.charAt(0).toUpperCase() + pa.type.slice(1),
+                    dateLabel: pa.subtype ? pa.subtype.charAt(0).toUpperCase() + pa.subtype.slice(1) : "Bank",
+                    color: getAccountColor(pa, idx + accounts.length),
+                    onPress: () => {
+                      setSelectedDetailAccount(pa);
+                      setDetailModalVisible(true);
+                    },
+                  };
+                  return (
+                    <AccountWaveCard key={pa.account_id} {...cardProps} waveAngle={idx % 2 === 0 ? -8 : 8} />
+                  );
+                })}
+              </View>
+            )}
+          </>
         )}
         </ScrollView>
       </Animated.View>
@@ -724,9 +1100,9 @@ export default function AccountsScreen() {
         style={({ pressed }) => [
           styles.fab,
           {
-            width: 68,
-            height: 68,
-            borderRadius: 18,
+            width: 60,
+            height: 60,
+            borderRadius: 16,
             right: 16,
           },
           {
@@ -737,7 +1113,7 @@ export default function AccountsScreen() {
           },
         ]}
       >
-        <IconSymbol name="plus" size={28} color={ui.surface} />
+        <IconSymbol name="plus" size={24} color={ui.surface} />
       </Pressable>
       {/* Select Source Modal */}
       <SelectionModal
@@ -1013,6 +1389,16 @@ export default function AccountsScreen() {
         </ThemedView>
       </Modal>
 
+      <TransactionDetailModal
+        visible={isTxDetailVisible}
+        onClose={() => {
+          setIsTxDetailVisible(false);
+          setSelectedTransaction(null);
+        }}
+        transaction={selectedTransaction}
+        accounts={accountsForTx}
+      />
+
       {/* Account Detail Modal with nested Edit Account Modal */}
       <AccountDetailModal
         visible={detailModalVisible}
@@ -1259,6 +1645,38 @@ const styles = StyleSheet.create({
     gap: 14,
     paddingBottom: 16,
   },
+  viewToggle: {
+    flexDirection: "row",
+    borderRadius: 14,
+    borderWidth: StyleSheet.hairlineWidth,
+    padding: 4,
+    gap: 4,
+  },
+  viewToggleBtn: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  viewToggleText: {
+    fontSize: 14,
+    fontFamily: Tokens.font.semiFamily ?? Tokens.font.family,
+  },
+  singleViewWrap: {
+    gap: 16,
+  },
+  singleCarousel: {
+    marginTop: 6,
+  },
+  singleCardWrap: {
+    borderRadius: 22,
+    shadowColor: "#000",
+    shadowOpacity: 0.25,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 6,
+  },
   headerRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -1420,12 +1838,11 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   accountCard: {
-    borderRadius: 24,
+    borderRadius: 22,
     paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 22,
-    marginTop: 6,
-    borderWidth: StyleSheet.hairlineWidth,
+    paddingTop: 18,
+    paddingBottom: 18,
+    borderWidth: 1,
     overflow: "hidden",
   },
   cardTopRow: {
@@ -1491,6 +1908,25 @@ const styles = StyleSheet.create({
     marginTop: -8,
     fontFamily: Tokens.font.boldFamily ?? Tokens.font.headingFamily,
   },
+  cardDetailRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginTop: 8,
+  },
+  cardDetailLabel: {
+    color: "rgba(255,255,255,0.88)",
+    fontSize: 12.5,
+    fontFamily: Tokens.font.family,
+  },
+  cardDetailValue: {
+    color: "#FFFFFF",
+    fontSize: 13.5,
+    fontFamily: Tokens.font.semiFamily ?? Tokens.font.family,
+  },
+  cardDetailRight: {
+    alignItems: "flex-end",
+  },
   cardMetaRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -1517,6 +1953,20 @@ const styles = StyleSheet.create({
     marginTop: -2,
     fontSize: 13,
     fontFamily: Tokens.font.family,
+  },
+  cardActions: {
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: 12,
+    marginTop: 4,
+  },
+  actionCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    borderWidth: StyleSheet.hairlineWidth,
+    alignItems: "center",
+    justifyContent: "center",
   },
   card: {
     padding: 12,

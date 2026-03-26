@@ -81,6 +81,8 @@ const FALLBACK_COLORS = [
   "#5F3DC4",
 ];
 
+const INFLOW_GREEN = "#16A34A";
+
 const formatMoney = (value: number) =>
   new Intl.NumberFormat("en-CA", {
     style: "currency",
@@ -173,13 +175,16 @@ export function TransactionsList({
   isLoading = false,
   showSearch = true,
   showFilters = true,
-  defaultFiltersExpanded = false,
+  defaultFiltersExpanded = true,
   showMeta = false,
   showBadges = false,
   emptyLabel = "No transactions found.",
 }: TransactionsListProps) {
   const [filtersExpanded, setFiltersExpanded] = useState(
     showFilters && defaultFiltersExpanded,
+  );
+  const [typeFilter, setTypeFilter] = useState<"all" | "inflow" | "outflow">(
+    "all",
   );
 
   useEffect(() => {
@@ -305,9 +310,17 @@ export function TransactionsList({
     search,
   ]);
 
+  const filtered = useMemo(() => {
+    if (typeFilter === "all") return normalized;
+    return normalized.filter((tx) => {
+      const isInflow = tx.source === "plaid" && tx.amount < 0;
+      return typeFilter === "inflow" ? isInflow : !isInflow;
+    });
+  }, [normalized, typeFilter]);
+
   const sections = useMemo(() => {
     const groups: Record<string, { title: string; items: NormalizedTx[] }> = {};
-    normalized.forEach((tx) => {
+    filtered.forEach((tx) => {
       const dateObj = tx.date ? parseLocalDate(tx.date) : new Date();
       const key = toLocalISOString(dateObj);
       if (!groups[key]) {
@@ -318,12 +331,17 @@ export function TransactionsList({
     return Object.entries(groups)
       .map(([key, value]) => ({ key, ...value }))
       .sort((a, b) => (a.key < b.key ? 1 : -1));
-  }, [normalized]);
+  }, [filtered]);
+
+  const typeFilterLabel =
+    typeFilter === "inflow" ? "Income" : typeFilter === "outflow" ? "Expense" : "All";
+  const typeFilterIcon =
+    typeFilter === "inflow" ? "arrow-up" : typeFilter === "outflow" ? "arrow-down" : "sliders";
 
   return (
     <View style={styles.wrap}>
       {showSearch && (
-        <View style={[styles.searchWrap, { borderColor: ui.border, backgroundColor: ui.surface2 }]}>
+        <View style={[styles.searchWrap, { borderColor: ui.border, backgroundColor: ui.surface }]}>
           <TextInput
             value={searchQuery}
             onChangeText={onSearchQueryChange}
@@ -331,57 +349,58 @@ export function TransactionsList({
             placeholderTextColor={ui.mutedText}
             style={[styles.searchInput, { color: ui.text }]}
           />
-          {showFilters && (
-            <Pressable
-              onPress={() => setFiltersExpanded((prev) => !prev)}
-              style={[styles.filterButton, { borderColor: ui.border }]}
+          <Pressable
+            onPress={() =>
+              setTypeFilter((prev) =>
+                prev === "all" ? "inflow" : prev === "inflow" ? "outflow" : "all",
+              )
+            }
+            style={[
+              styles.typeFilter,
+              {
+                borderColor: ui.border,
+                backgroundColor: typeFilter === "all" ? ui.surface : ui.text,
+              },
+            ]}
+          >
+            <Feather
+              name={typeFilterIcon}
+              size={14}
+              color={typeFilter === "all" ? ui.mutedText : ui.surface}
+            />
+            <ThemedText
+              style={[
+                styles.typeFilterText,
+                { color: typeFilter === "all" ? ui.text : ui.surface },
+              ]}
             >
-              <Feather
-                name="filter"
-                size={16}
-                color={filtersExpanded ? ui.text : ui.mutedText}
-              />
-            </Pressable>
-          )}
+              {typeFilterLabel}
+            </ThemedText>
+          </Pressable>
         </View>
       )}
 
       {showFilters && filtersExpanded && (
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.filtersRow}
+        <View
+          style={[
+            styles.filtersWrap,
+            { backgroundColor: ui.surface, borderColor: ui.border },
+          ]}
         >
-          <Pressable
-            onPress={() => onFilterAccountChange(null)}
-            style={[
-              styles.filterChip,
-              {
-                backgroundColor: filterAccountId === null ? ui.text : ui.surface2,
-                borderColor: ui.border,
-              },
-            ]}
+          <ThemedText style={[styles.filtersLabel, { color: ui.mutedText }]}>
+            Accounts
+          </ThemedText>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.filtersRow}
           >
-            <ThemedText
-              style={{
-                fontSize: 13,
-                fontWeight: "600",
-                color: filterAccountId === null ? ui.surface : ui.text,
-              }}
-            >
-              All
-            </ThemedText>
-          </Pressable>
-
-          {accounts.map((acct) => (
             <Pressable
-              key={`acct-${acct.id}`}
-              onPress={() => onFilterAccountChange(acct.id)}
+              onPress={() => onFilterAccountChange(null)}
               style={[
                 styles.filterChip,
                 {
-                  backgroundColor:
-                    filterAccountId === acct.id ? ui.text : ui.surface2,
+                  backgroundColor: filterAccountId === null ? ui.text : ui.surface2,
                   borderColor: ui.border,
                 },
               ]}
@@ -390,25 +409,22 @@ export function TransactionsList({
                 style={{
                   fontSize: 13,
                   fontWeight: "600",
-                  color: filterAccountId === acct.id ? ui.surface : ui.text,
+                  color: filterAccountId === null ? ui.surface : ui.text,
                 }}
               >
-                {acct.account_name ?? "Account"}
+                All
               </ThemedText>
             </Pressable>
-          ))}
 
-          {plaidAccounts.map((acct) => {
-            const chipId = `plaid:${acct.account_id}`;
-            const isSelected = filterAccountId === chipId;
-            return (
+            {accounts.map((acct) => (
               <Pressable
-                key={chipId}
-                onPress={() => onFilterAccountChange(chipId)}
+                key={`acct-${acct.id}`}
+                onPress={() => onFilterAccountChange(acct.id)}
                 style={[
                   styles.filterChip,
                   {
-                    backgroundColor: isSelected ? ui.text : ui.surface2,
+                    backgroundColor:
+                      filterAccountId === acct.id ? ui.text : ui.surface2,
                     borderColor: ui.border,
                   },
                 ]}
@@ -417,16 +433,44 @@ export function TransactionsList({
                   style={{
                     fontSize: 13,
                     fontWeight: "600",
-                    color: isSelected ? ui.surface : ui.text,
+                    color: filterAccountId === acct.id ? ui.surface : ui.text,
                   }}
                 >
-                  {acct.name}
-                  {acct.mask ? ` ****${acct.mask}` : ""}
+                  {acct.account_name ?? "Account"}
                 </ThemedText>
               </Pressable>
-            );
-          })}
-        </ScrollView>
+            ))}
+
+            {plaidAccounts.map((acct) => {
+              const chipId = `plaid:${acct.account_id}`;
+              const isSelected = filterAccountId === chipId;
+              return (
+                <Pressable
+                  key={chipId}
+                  onPress={() => onFilterAccountChange(chipId)}
+                  style={[
+                    styles.filterChip,
+                    {
+                      backgroundColor: isSelected ? ui.text : ui.surface2,
+                      borderColor: ui.border,
+                    },
+                  ]}
+                >
+                  <ThemedText
+                    style={{
+                      fontSize: 13,
+                      fontWeight: "600",
+                      color: isSelected ? ui.surface : ui.text,
+                    }}
+                  >
+                    {acct.name}
+                    {acct.mask ? ` ****${acct.mask}` : ""}
+                  </ThemedText>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+        </View>
       )}
 
       {sections.length === 0 ? (
@@ -437,14 +481,15 @@ export function TransactionsList({
         sections.map((section) => (
           <View key={section.key} style={styles.sectionBlock}>
             <View style={styles.sectionHeader}>
-              <ThemedText style={[styles.sectionTitle, { color: ui.text }]}>
+              <ThemedText style={[styles.sectionTitle, { color: ui.mutedText }]}>
                 {section.title}
               </ThemedText>
             </View>
-            <View style={[styles.sectionCard, { backgroundColor: ui.surface2, borderColor: ui.border }]}>
+            <View style={[styles.sectionCardShadow, { backgroundColor: ui.surface }]}>
+              <View style={[styles.sectionCard, { backgroundColor: ui.surface, borderColor: ui.border }]}>
               {section.items.map((tx, index) => {
                 const isInflow = tx.source === "plaid" && tx.amount < 0;
-                const amountColor = isInflow ? ui.accent : ui.danger;
+                const arrowColor = isInflow ? INFLOW_GREEN : ui.danger;
                 const amountValue = Math.abs(tx.amount);
                 const showDivider = index !== section.items.length - 1;
 
@@ -509,17 +554,18 @@ export function TransactionsList({
 
                     <View style={styles.amountWrap}>
                       <Feather
-                        name={isInflow ? "arrow-up-right" : "arrow-down-right"}
+                        name={isInflow ? "arrow-up" : "arrow-down"}
                         size={16}
-                        color={amountColor}
+                        color={arrowColor}
                       />
-                      <ThemedText style={[styles.amountText, { color: amountColor }]}>
+                      <ThemedText style={[styles.amountText, { color: ui.text }]}>
                         {formatMoney(amountValue)}
                       </ThemedText>
                     </View>
                   </Pressable>
                 );
               })}
+              </View>
             </View>
           </View>
         ))
@@ -530,16 +576,21 @@ export function TransactionsList({
 
 const styles = StyleSheet.create({
   wrap: {
-    gap: 16,
+    gap: 14,
   },
   searchWrap: {
     borderWidth: 1,
-    borderRadius: 14,
-    paddingHorizontal: 14,
-    height: 46,
+    borderRadius: 10,
+    paddingHorizontal: 16,
+    height: 48,
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
+    gap: 8,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.06,
+    shadowRadius: 12,
+    elevation: 2,
   },
   searchInput: {
     flex: 1,
@@ -547,26 +598,49 @@ const styles = StyleSheet.create({
     paddingVertical: 0,
     fontFamily: Tokens.font.family,
   },
-  filterButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 12,
-    borderWidth: StyleSheet.hairlineWidth,
+  typeFilter: {
+    flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
+    gap: 6,
+    paddingHorizontal: 10,
+    height: 32,
+    borderRadius: 9,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  typeFilterText: {
+    fontSize: 12.5,
+    fontFamily: Tokens.font.semiFamily ?? Tokens.font.family,
+  },
+  filtersWrap: {
+    gap: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    borderWidth: StyleSheet.hairlineWidth,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 1,
+  },
+  filtersLabel: {
+    fontSize: 12,
+    letterSpacing: 0.6,
+    textTransform: "uppercase",
+    fontFamily: Tokens.font.semiFamily ?? Tokens.font.family,
   },
   filtersRow: {
-    gap: 8,
-    paddingVertical: 4,
+    gap: 10,
+    paddingVertical: 2,
   },
   filterChip: {
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 7,
+    borderRadius: 12,
     borderWidth: StyleSheet.hairlineWidth,
   },
   sectionBlock: {
-    gap: 8,
+    gap: 6,
   },
   sectionHeader: {
     flexDirection: "row",
@@ -574,23 +648,32 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   sectionTitle: {
-    fontSize: 15,
-    fontFamily: Tokens.font.semiFamily ?? Tokens.font.family,
+    fontSize: 14,
+    letterSpacing: 0.1,
+    fontFamily: Tokens.font.boldFamily ?? Tokens.font.semiFamily ?? Tokens.font.family,
+  },
+  sectionCardShadow: {
+    borderRadius: 14,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
+    elevation: 2,
   },
   sectionCard: {
-    borderRadius: 18,
+    borderRadius: 14,
     borderWidth: StyleSheet.hairlineWidth,
     overflow: "hidden",
   },
   itemRow: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 13,
   },
   itemBody: {
     flex: 1,
-    gap: 4,
+    gap: 5,
   },
   metaText: {
     fontSize: 12.5,
@@ -630,7 +713,7 @@ const styles = StyleSheet.create({
     marginLeft: 10,
   },
   amountText: {
-    fontSize: 15,
+    fontSize: 16,
     fontFamily: Tokens.font.semiFamily ?? Tokens.font.family,
   },
 });

@@ -9,12 +9,10 @@ import {
   Platform,
   Pressable,
   ScrollView,
-  StyleProp,
   StyleSheet,
   Switch,
   TextInput,
   View,
-  ViewStyle,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -26,7 +24,13 @@ import { SelectionModal } from "./ui/SelectionModal";
 
 import { Tokens } from "@/constants/authTokens";
 import { getAccountById, updateAccount } from "@/utils/accounts";
-import { addCategory, deleteCategory } from "@/utils/categories";
+import {
+  addCategory,
+  addSubcategory,
+  deleteCategory,
+  deleteSubcategory,
+  listSubcategories,
+} from "@/utils/categories";
 import { parseLocalDate, toLocalISOString } from "@/utils/date";
 import { addExpense } from "@/utils/expenses";
 import { createRecurringRule } from "@/utils/recurring";
@@ -44,11 +48,19 @@ export type CategoryRow = {
   category_name: string | null;
 };
 
+export type SubcategoryRow = {
+  id: number;
+  category_name: string | null;
+  expense_categoryid: number | null;
+};
+
 type CategorySuggestion = {
   label: string;
   icon: React.ComponentProps<typeof Feather>["name"];
   color: string;
 };
+
+type SubcategoryMap = Record<string, string[]>;
 
 const DEFAULT_CATEGORY_SUGGESTIONS: CategorySuggestion[] = [
   { label: "Groceries", icon: "shopping-cart", color: "#2F9E44" },
@@ -64,7 +76,112 @@ const DEFAULT_CATEGORY_SUGGESTIONS: CategorySuggestion[] = [
 ];
 
 const QUICK_PICK_SUGGESTIONS = DEFAULT_CATEGORY_SUGGESTIONS.slice(0, 3);
-const ICON_CHOICES = DEFAULT_CATEGORY_SUGGESTIONS;
+const ICON_GROUPS: { title: string; icons: CategorySuggestion[] }[] = [
+  {
+    title: "Essentials",
+    icons: [
+      { label: "Groceries", icon: "shopping-cart", color: "#000000" },
+      { label: "Dining", icon: "coffee", color: "#000000" },
+      { label: "Shopping", icon: "shopping-bag", color: "#000000" },
+      { label: "Bills", icon: "file-text", color: "#000000" },
+    ],
+  },
+  {
+    title: "Home",
+    icons: [
+      { label: "Home", icon: "home", color: "#000000" },
+      { label: "Utilities", icon: "zap", color: "#000000" },
+      { label: "Water", icon: "droplet", color: "#000000" },
+      { label: "Internet", icon: "wifi", color: "#000000" },
+    ],
+  },
+  {
+    title: "Lifestyle",
+    icons: [
+      { label: "Health", icon: "activity", color: "#000000" },
+      { label: "Fitness", icon: "heart", color: "#000000" },
+      { label: "Leisure", icon: "sun", color: "#000000" },
+      { label: "Entertainment", icon: "film", color: "#000000" },
+    ],
+  },
+  {
+    title: "Travel",
+    icons: [
+      { label: "Transport", icon: "truck", color: "#000000" },
+      { label: "Travel", icon: "map-pin", color: "#000000" },
+      { label: "Navigation", icon: "navigation", color: "#000000" },
+      { label: "Compass", icon: "compass", color: "#000000" },
+    ],
+  },
+  {
+    title: "Work & Learn",
+    icons: [
+      { label: "Work", icon: "briefcase", color: "#000000" },
+      { label: "Education", icon: "book", color: "#000000" },
+      { label: "Tech", icon: "cpu", color: "#000000" },
+      { label: "Awards", icon: "award", color: "#000000" },
+    ],
+  },
+  {
+    title: "Social",
+    icons: [
+      { label: "Gifts", icon: "gift", color: "#000000" },
+      { label: "People", icon: "users", color: "#000000" },
+      { label: "Memories", icon: "camera", color: "#000000" },
+      { label: "Smile", icon: "smile", color: "#000000" },
+    ],
+  },
+  {
+    title: "Personal",
+    icons: [
+      { label: "Beauty", icon: "scissors", color: "#000000" },
+      { label: "Music", icon: "music", color: "#000000" },
+      { label: "Phone", icon: "phone", color: "#000000" },
+      { label: "Bookmarks", icon: "bookmark", color: "#000000" },
+    ],
+  },
+];
+
+const ICON_CHOICES = ICON_GROUPS.flatMap((group) => group.icons);
+const COLOR_CHOICES = [
+  "#2F9E44",
+  "#12B886",
+  "#15AABF",
+  "#1C7ED6",
+  "#5C7CFA",
+  "#845EF7",
+  "#BE4BDB",
+  "#F06595",
+  "#E03131",
+  "#F76707",
+  "#F59F00",
+  "#ADB5BD",
+];
+
+const EXPENSE_SUBCATEGORIES: SubcategoryMap = {
+  "Auto & Transport": [
+    "Auto Payment",
+    "Public Transit",
+    "Gas",
+    "Auto Maintenance",
+    "Parking & Tolls",
+    "Taxi & Ride Shares",
+  ],
+  Housing: ["Mortgage", "Rent", "Home Improvement"],
+  "Bills & Utilities": ["Electricity", "Water", "Internet", "Phone", "Garbage"],
+  "Food & Dining": ["Restaurants", "Cafe", "Groceries", "Takeout"],
+  "Gifts & Donations": ["Charity", "Gifts"],
+  Health: ["Pharmacy", "Doctor", "Dental", "Gym"],
+  Shopping: ["Clothing", "Electronics", "Home Goods", "Personal Care"],
+  Other: ["Misc", "One-time", "Recurring"],
+};
+
+const INCOME_SUBCATEGORIES: SubcategoryMap = {
+  Income: ["Paychecks", "Interests", "Business Income", "Other Income"],
+  Salary: ["Paychecks", "Bonuses", "Commission"],
+  "Business Income": ["Sales", "Services", "Other"],
+  Other: ["Refunds", "Gifts", "Other Income"],
+};
 
 type CategoryPickerModalProps = {
   visible: boolean;
@@ -78,7 +195,6 @@ type CategoryPickerModalProps = {
   onDeleteCategory: (categoryId: number) => void;
   onPickSuggested: (label: string) => void;
   onOpenCreate: () => void;
-  cardStyle?: StyleProp<ViewStyle>;
 };
 
 function CategoryPickerModal({
@@ -93,7 +209,6 @@ function CategoryPickerModal({
   onDeleteCategory,
   onPickSuggested,
   onOpenCreate,
-  cardStyle,
 }: CategoryPickerModalProps) {
   const fallbackIcon = "tag" as const;
   const fallbackColor = ui.accent ?? "#4C6EF5";
@@ -170,55 +285,56 @@ function CategoryPickerModal({
                   const isSelected =
                     item.type === "category" && selectedCategoryId === item.id;
                   return (
-                    <Pressable
-                      key={item.key}
-                      onPress={() => {
-                        if (item.type === "suggested") {
-                          onPickSuggested(item.label);
-                          return;
-                        }
-                        if (item.type === "add") {
-                          onOpenCreate();
-                          return;
-                        }
-                        const match = categories.find((cat) => cat.id === item.id);
-                        if (match) onSelectCategory(match);
-                      }}
-                      onLongPress={() => {
-                        if (item.type === "category") onDeleteCategory(item.id);
-                      }}
-                      style={({ pressed }) => [
-                        styles.quickPickItem,
-                        { opacity: pressed ? 0.7 : 1 },
-                      ]}
-                    >
-                      <View
-                        style={[
-                        styles.quickPickIcon,
-                        {
-                          backgroundColor:
-                            item.type === "add" ? ui.surface2 : item.color,
-                          borderColor: isSelected ? (ui.accent ?? ui.text) : "transparent",
-                          borderWidth: isSelected ? 2 : 0,
-                        },
-                      ]}
-                    >
-                      <Feather
-                        name={item.icon}
-                        size={22}
-                        color={item.type === "add" ? ui.mutedText : "#FFFFFF"}
-                      />
-                    </View>
-                      <ThemedText
-                        numberOfLines={1}
-                        style={[
-                          styles.quickPickText,
-                          { color: isSelected ? (ui.accent ?? ui.text) : ui.text },
+                    <View key={item.key} style={styles.categoryGridItem}>
+                      <Pressable
+                        onPress={() => {
+                          if (item.type === "suggested") {
+                            onPickSuggested(item.label);
+                            return;
+                          }
+                          if (item.type === "add") {
+                            onOpenCreate();
+                            return;
+                          }
+                          const match = categories.find((cat) => cat.id === item.id);
+                          if (match) onSelectCategory(match);
+                        }}
+                        onLongPress={() => {
+                          if (item.type === "category") onDeleteCategory(item.id);
+                        }}
+                        style={({ pressed }) => [
+                          styles.quickPickItem,
+                          { opacity: pressed ? 0.7 : 1 },
                         ]}
                       >
-                        {item.label}
-                      </ThemedText>
-                    </Pressable>
+                        <View
+                          style={[
+                            styles.quickPickIcon,
+                            {
+                              backgroundColor:
+                                item.type === "add" ? ui.surface2 : item.color,
+                              borderColor: isSelected ? (ui.accent ?? ui.text) : "transparent",
+                              borderWidth: isSelected ? 2 : 0,
+                            },
+                          ]}
+                        >
+                          <Feather
+                            name={item.icon}
+                            size={22}
+                            color={item.type === "add" ? ui.mutedText : "#FFFFFF"}
+                          />
+                        </View>
+                        <ThemedText
+                          numberOfLines={1}
+                          style={[
+                            styles.quickPickText,
+                            { color: isSelected ? (ui.accent ?? ui.text) : ui.text },
+                          ]}
+                        >
+                          {item.label}
+                        </ThemedText>
+                      </Pressable>
+                    </View>
                   );
                 })}
               </View>
@@ -235,9 +351,12 @@ type CreateCategoryModalProps = {
   visible: boolean;
   onClose: () => void;
   ui: any;
-  iconChoices: CategorySuggestion[];
+  iconGroups: { title: string; icons: CategorySuggestion[] }[];
   newCategoryIcon: CategorySuggestion;
   onSelectNewCategoryIcon: (icon: CategorySuggestion) => void;
+  colorChoices: string[];
+  newCategoryColor: string;
+  onSelectNewCategoryColor: (color: string) => void;
   newCategoryName: string;
   onChangeNewCategoryName: (value: string) => void;
   onCreateCategory: () => void;
@@ -247,9 +366,12 @@ function CreateCategoryModal({
   visible,
   onClose,
   ui,
-  iconChoices,
+  iconGroups,
   newCategoryIcon,
   onSelectNewCategoryIcon,
+  colorChoices,
+  newCategoryColor,
+  onSelectNewCategoryColor,
   newCategoryName,
   onChangeNewCategoryName,
   onCreateCategory,
@@ -290,26 +412,67 @@ function CreateCategoryModal({
             contentContainerStyle={styles.popupListContent}
             showsVerticalScrollIndicator={false}
           >
-            <View style={styles.iconPickerWrap}>
-              <View style={styles.iconPickerRow}>
-                {iconChoices.map((icon) => {
-                  const isActive = icon.icon === newCategoryIcon.icon;
+            <View style={[styles.iconPickerWrap, styles.iconPickerWrapCompact]}>
+              {iconGroups.map((group) => (
+                <View key={group.title} style={[styles.iconGroup, styles.iconGroupCompact]}>
+                  <ThemedText style={[styles.iconGroupTitle, { color: ui.mutedText }]}>
+                    {group.title}
+                  </ThemedText>
+                  <View style={[styles.categoryGrid, styles.categoryGridCompact]}>
+                    {group.icons.map((icon) => {
+                      const isActive = icon.icon === newCategoryIcon.icon;
+                      return (
+                        <View
+                          key={`${group.title}:${icon.label}`}
+                          style={[styles.categoryGridItem, styles.categoryGridItemCompact]}
+                        >
+                          <Pressable
+                            onPress={() => onSelectNewCategoryIcon(icon)}
+                            style={({ pressed }) => [
+                              styles.quickPickItem,
+                              {
+                                opacity: pressed ? 0.7 : 1,
+                              },
+                            ]}
+                          >
+                            <View
+                              style={[
+                                styles.quickPickIcon,
+                                {
+                                  backgroundColor: ui.surface2,
+                                  borderColor: isActive ? (ui.accent ?? ui.text) : "transparent",
+                                  borderWidth: isActive ? 2 : 0,
+                                },
+                              ]}
+                            >
+                              <Feather name={icon.icon} size={22} color={ui.text} />
+                            </View>
+                          </Pressable>
+                        </View>
+                      );
+                    })}
+                  </View>
+                </View>
+              ))}
+              <View style={[styles.colorPickerDivider, { backgroundColor: ui.border }]} />
+              <View style={[styles.colorPickerRow, styles.colorPickerRowCompact]}>
+                {colorChoices.map((color) => {
+                  const isActive = color === newCategoryColor;
                   return (
-                    <Pressable
-                      key={icon.label}
-                      onPress={() => onSelectNewCategoryIcon(icon)}
-                      style={({ pressed }) => [
-                        styles.iconPickerItem,
-                        {
-                          backgroundColor: icon.color,
-                          borderColor: isActive ? (ui.accent ?? ui.text) : "transparent",
-                          borderWidth: isActive ? 2 : 0,
-                          opacity: pressed ? 0.7 : 1,
-                        },
-                      ]}
-                    >
-                      <Feather name={icon.icon} size={18} color="#FFFFFF" />
-                    </Pressable>
+                    <View key={color} style={styles.colorSwatchWrap}>
+                      <Pressable
+                        onPress={() => onSelectNewCategoryColor(color)}
+                        style={({ pressed }) => [
+                          styles.colorSwatch,
+                          {
+                            backgroundColor: color,
+                            borderColor: isActive ? (ui.accent ?? ui.text) : "transparent",
+                            borderWidth: isActive ? 2 : 0,
+                            opacity: pressed ? 0.7 : 1,
+                          },
+                        ]}
+                      />
+                    </View>
                   );
                 })}
               </View>
@@ -330,6 +493,218 @@ function CreateCategoryModal({
               />
               <Pressable
                 onPress={onCreateCategory}
+                style={({ pressed }) => [
+                  styles.footerAddButton,
+                  {
+                    backgroundColor: ui.accent,
+                    opacity: pressed ? 0.7 : 1,
+                  },
+                ]}
+              >
+                <IconSymbol name="plus" size={24} color={ui.surface} />
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+type SubcategoryPickerModalProps = {
+  visible: boolean;
+  onClose: () => void;
+  ui: any;
+  subcategories: SubcategoryRow[];
+  suggestedSubcategories: string[];
+  selectedSubcategoryId: number | null;
+  onSelectSubcategory: (subcategory: SubcategoryRow) => void;
+  onPickSuggested: (label: string) => void;
+  onDeleteSubcategory: (subcategoryId: number) => void;
+  onOpenCreate: () => void;
+};
+
+function SubcategoryPickerModal({
+  visible,
+  onClose,
+  ui,
+  subcategories,
+  suggestedSubcategories,
+  selectedSubcategoryId,
+  onSelectSubcategory,
+  onPickSuggested,
+  onDeleteSubcategory,
+  onOpenCreate,
+}: SubcategoryPickerModalProps) {
+  const combinedOptions = [
+    ...suggestedSubcategories.map((label) => ({
+      type: "suggested" as const,
+      key: `suggested:${label}`,
+      label,
+    })),
+    ...subcategories.map((sub) => ({
+      type: "existing" as const,
+      key: `existing:${sub.id}`,
+      id: sub.id,
+      label: sub.category_name ?? "Unnamed",
+    })),
+  ];
+
+  return (
+    <Modal
+      visible={visible}
+      transparent
+      animationType="fade"
+      onRequestClose={onClose}
+    >
+      <View style={styles.popupOverlay}>
+        <Pressable
+          style={[
+            styles.popupBackdrop,
+            { backgroundColor: ui.backdrop ?? "rgba(0,0,0,0.35)" },
+          ]}
+          onPress={onClose}
+        />
+        <View style={[styles.popupCard, { backgroundColor: ui.surface, borderColor: ui.border }]}>
+          <View style={styles.popupHeader}>
+            <ThemedText type="defaultSemiBold" style={{ color: ui.text }}>
+              Select Subcategory
+            </ThemedText>
+            <Pressable
+              onPress={onClose}
+              hitSlop={12}
+              style={[styles.popupClose, { backgroundColor: ui.surface2 }]}
+            >
+              <Feather name="x" size={16} color={ui.text} />
+            </Pressable>
+          </View>
+
+          <ScrollView
+            style={styles.popupList}
+            contentContainerStyle={styles.popupListContent}
+            showsVerticalScrollIndicator={false}
+          >
+            {combinedOptions.length === 0 ? (
+              <ThemedText style={{ textAlign: "center", padding: 20, color: ui.mutedText }}>
+                No subcategories yet.
+              </ThemedText>
+            ) : (
+              <View style={styles.subcategoryChips}>
+                {combinedOptions.map((item) => {
+                  const isSelected =
+                    item.type === "existing" && selectedSubcategoryId === item.id;
+                  return (
+                    <Pressable
+                      key={item.key}
+                      onPress={() => {
+                        if (item.type === "suggested") {
+                          onPickSuggested(item.label);
+                          return;
+                        }
+                        const match = subcategories.find((sub) => sub.id === item.id);
+                        if (match) onSelectSubcategory(match);
+                      }}
+                      onLongPress={() => {
+                        if (item.type === "existing") onDeleteSubcategory(item.id);
+                      }}
+                      style={({ pressed }) => [
+                        styles.subcategoryChip,
+                        {
+                          borderColor: isSelected ? (ui.accent ?? ui.text) : ui.border,
+                          backgroundColor: isSelected ? ui.accentSoft : ui.surface,
+                          opacity: pressed ? 0.7 : 1,
+                        },
+                      ]}
+                    >
+                      <ThemedText
+                        style={{
+                          color: isSelected ? (ui.accent ?? ui.text) : ui.text,
+                          fontWeight: "500",
+                        }}
+                      >
+                        {item.label}
+                      </ThemedText>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            )}
+          </ScrollView>
+          <Pressable
+            onPress={onOpenCreate}
+            style={({ pressed }) => [
+              styles.fabButton,
+              { backgroundColor: ui.text, opacity: pressed ? 0.8 : 1 },
+            ]}
+          >
+            <Feather name="plus" size={18} color="#FFFFFF" />
+          </Pressable>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+type CreateSubcategoryModalProps = {
+  visible: boolean;
+  onClose: () => void;
+  ui: any;
+  newSubcategoryName: string;
+  onChangeNewSubcategoryName: (value: string) => void;
+  onCreateSubcategory: () => void;
+};
+
+function CreateSubcategoryModal({
+  visible,
+  onClose,
+  ui,
+  newSubcategoryName,
+  onChangeNewSubcategoryName,
+  onCreateSubcategory,
+}: CreateSubcategoryModalProps) {
+  return (
+    <Modal
+      visible={visible}
+      transparent
+      animationType="fade"
+      onRequestClose={onClose}
+    >
+      <View style={styles.popupOverlay}>
+        <Pressable
+          style={[
+            styles.popupBackdrop,
+            { backgroundColor: ui.backdrop ?? "rgba(0,0,0,0.35)" },
+          ]}
+          onPress={onClose}
+        />
+        <View style={[styles.popupCard, { backgroundColor: ui.surface, borderColor: ui.border }]}>
+          <View style={styles.popupHeader}>
+            <ThemedText type="defaultSemiBold" style={{ color: ui.text }}>
+              New Subcategory
+            </ThemedText>
+            <Pressable
+              onPress={onClose}
+              hitSlop={12}
+              style={[styles.popupClose, { backgroundColor: ui.surface2 }]}
+            >
+              <Feather name="x" size={16} color={ui.text} />
+            </Pressable>
+          </View>
+
+          <View style={[styles.popupFooter, { borderTopColor: ui.border }]}>
+            <View style={styles.footerRow}>
+              <TextInput
+                value={newSubcategoryName}
+                onChangeText={onChangeNewSubcategoryName}
+                placeholder="New subcategory name"
+                placeholderTextColor={ui.mutedText}
+                style={[
+                  styles.footerInput,
+                  { borderColor: ui.border, backgroundColor: ui.surface2, color: ui.text },
+                ]}
+              />
+              <Pressable
+                onPress={onCreateSubcategory}
                 style={({ pressed }) => [
                   styles.footerAddButton,
                   {
@@ -390,6 +765,10 @@ export function AddTransactionModal({
   const [selectedCategory, setSelectedCategory] = useState<CategoryRow | null>(
     null,
   );
+  const [selectedSubcategory, setSelectedSubcategory] = useState<SubcategoryRow | null>(
+    null,
+  );
+  const [subcategories, setSubcategories] = useState<SubcategoryRow[]>([]);
 
   const [isRecurring, setIsRecurring] = useState(false);
   const [recurringFrequency, setRecurringFrequency] = useState("Monthly");
@@ -400,11 +779,15 @@ export function AddTransactionModal({
   const [accountModalOpen, setAccountModalOpen] = useState(false);
   const [categoryModalOpen, setCategoryModalOpen] = useState(false);
   const [createCategoryModalOpen, setCreateCategoryModalOpen] = useState(false);
+  const [subcategoryModalOpen, setSubcategoryModalOpen] = useState(false);
+  const [createSubcategoryModalOpen, setCreateSubcategoryModalOpen] = useState(false);
   const [addFrequencyModalOpen, setAddFrequencyModalOpen] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState("");
+  const [newSubcategoryName, setNewSubcategoryName] = useState("");
   const [newCategoryIcon, setNewCategoryIcon] = useState<CategorySuggestion>(
     ICON_CHOICES[0],
   );
+  const [newCategoryColor, setNewCategoryColor] = useState(COLOR_CHOICES[0]);
   const [categoryIconOverrides, setCategoryIconOverrides] = useState<
     Record<number, CategorySuggestion>
   >({});
@@ -425,6 +808,23 @@ export function AddTransactionModal({
       (item) => !existing.has(item.label.toLowerCase()),
     );
   }, [categories]);
+
+  const subcategoryOptions = useMemo(() => {
+    const name = (selectedCategory?.category_name ?? "").trim();
+    if (!name) return [];
+    const source = transactionType === "income"
+      ? INCOME_SUBCATEGORIES
+      : EXPENSE_SUBCATEGORIES;
+    const exact = Object.keys(source).find(
+      (key) => key.toLowerCase() === name.toLowerCase(),
+    );
+    if (exact) return source[exact];
+    const partial = Object.keys(source).find((key) =>
+      name.toLowerCase().includes(key.toLowerCase()),
+    );
+    if (partial) return source[partial];
+    return source.Other ?? [];
+  }, [selectedCategory?.category_name, transactionType]);
 
   const resolveCategoryIcon = useCallback(
     (category: CategoryRow) => {
@@ -537,13 +937,19 @@ export function AddTransactionModal({
       setTransactionType("expense");
       setSelectedAccount(null);
       setSelectedCategory(null);
+      setSelectedSubcategory(null);
+      setSubcategories([]);
       setIsRecurring(false);
       setRecurringFrequency("Monthly");
       setHasEndDate(false);
       setAddRuleEndsOn("");
       setAddRuleNextRunDate("");
       setNewCategoryIcon(ICON_CHOICES[0]);
+      setNewCategoryColor(COLOR_CHOICES[0]);
+      setNewSubcategoryName("");
       setCreateCategoryModalOpen(false);
+      setSubcategoryModalOpen(false);
+      setCreateSubcategoryModalOpen(false);
     }
   }, [visible]);
 
@@ -560,6 +966,29 @@ export function AddTransactionModal({
       setSelectedCategory(categories[0]);
     }
   }, [categories, selectedCategory, visible]);
+
+  useEffect(() => {
+    setSelectedSubcategory(null);
+  }, [selectedCategory?.id, transactionType]);
+
+  useEffect(() => {
+    const loadSubcategories = async () => {
+      if (!userId || !selectedCategory) {
+        setSubcategories([]);
+        return;
+      }
+      try {
+        const data = await listSubcategories({
+          profile_id: userId,
+          category_id: selectedCategory.id,
+        });
+        setSubcategories((data as SubcategoryRow[]) ?? []);
+      } catch (error) {
+        console.error("Error loading subcategories:", error);
+      }
+    };
+    loadSubcategories();
+  }, [userId, selectedCategory?.id]);
 
   // Recalculate default Next Run Date when Frequency or IsRecurring changes
   useEffect(() => {
@@ -648,7 +1077,7 @@ export function AddTransactionModal({
           is_active: true,
           account_id: selectedAccount.id,
           expense_categoryid: selectedCategory.id,
-          subcategory_id: null,
+          subcategory_id: selectedSubcategory ? selectedSubcategory.id : null,
         });
         recurring_rule_id = rule.id;
       }
@@ -663,7 +1092,7 @@ export function AddTransactionModal({
         amount: signedAmount,
         description: description.trim().length ? description.trim() : null,
         expense_categoryid: selectedCategory.id,
-        subcategory_id: null,
+        subcategory_id: selectedSubcategory ? selectedSubcategory.id : null,
         transaction_date: transactionDate || toLocalISOString(new Date()),
         recurring_rule_id,
       });
@@ -711,9 +1140,14 @@ export function AddTransactionModal({
         setNewCategoryName("");
         setCategoryIconOverrides((prev) => ({
           ...prev,
-          [data.id]: newCategoryIcon,
+          [data.id]: {
+            label: newCategoryIcon.label,
+            icon: newCategoryIcon.icon,
+            color: newCategoryColor,
+          },
         }));
         setNewCategoryIcon(ICON_CHOICES[0]);
+        setNewCategoryColor(COLOR_CHOICES[0]);
         setSelectedCategory(data as CategoryRow);
         setCreateCategoryModalOpen(false);
         await onRefresh();
@@ -721,6 +1155,95 @@ export function AddTransactionModal({
       } catch (error) {
       console.error("Error creating category:", error);
       Alert.alert("Could not create category", "Please try again.");
+    }
+  };
+
+  const createSubcategory = async () => {
+    if (!userId || !selectedCategory) return;
+    const trimmed = newSubcategoryName.trim();
+    if (!trimmed) {
+      Alert.alert("Subcategory name required", "Enter a subcategory name.");
+      return;
+    }
+    try {
+      const data = await addSubcategory({
+        profile_id: userId,
+        category_id: selectedCategory.id,
+        category_name: trimmed,
+      });
+      setNewSubcategoryName("");
+      setSelectedSubcategory(data as SubcategoryRow);
+      setCreateSubcategoryModalOpen(false);
+      const subs = await listSubcategories({
+        profile_id: userId,
+        category_id: selectedCategory.id,
+      });
+      setSubcategories((subs as SubcategoryRow[]) ?? []);
+    } catch (error) {
+      console.error("Error creating subcategory:", error);
+      Alert.alert("Could not create subcategory", "Please try again.");
+    }
+  };
+
+  const handleDeleteSubcategory = async (subcategoryId: number) => {
+    if (!userId) return;
+    Alert.alert(
+      "Delete subcategory?",
+      "Transactions using this subcategory will be set to no subcategory.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await deleteSubcategory({ id: subcategoryId, profile_id: userId });
+              if (selectedCategory) {
+                const subs = await listSubcategories({
+                  profile_id: userId,
+                  category_id: selectedCategory.id,
+                });
+                setSubcategories((subs as SubcategoryRow[]) ?? []);
+              }
+              if (selectedSubcategory?.id === subcategoryId) {
+                setSelectedSubcategory(null);
+              }
+            } catch (error) {
+              console.error("Error deleting subcategory:", error);
+              Alert.alert("Error", "Could not delete subcategory.");
+            }
+          },
+        },
+      ],
+    );
+  };
+
+  const handleSuggestedSubcategory = async (label: string) => {
+    if (!userId || !selectedCategory) return;
+    const existing = subcategories.find(
+      (sub) => (sub.category_name ?? "").trim().toLowerCase() === label.toLowerCase(),
+    );
+    if (existing) {
+      setSelectedSubcategory(existing);
+      setSubcategoryModalOpen(false);
+      return;
+    }
+    try {
+      const data = await addSubcategory({
+        profile_id: userId,
+        category_id: selectedCategory.id,
+        category_name: label,
+      });
+      setSelectedSubcategory(data as SubcategoryRow);
+      setSubcategoryModalOpen(false);
+      const subs = await listSubcategories({
+        profile_id: userId,
+        category_id: selectedCategory.id,
+      });
+      setSubcategories((subs as SubcategoryRow[]) ?? []);
+    } catch (error) {
+      console.error("Error creating subcategory:", error);
+      Alert.alert("Could not create subcategory", "Please try again.");
     }
   };
 
@@ -746,6 +1269,8 @@ export function AddTransactionModal({
               });
               if (selectedCategory?.id === categoryId) {
                 setSelectedCategory(null);
+                setSelectedSubcategory(null);
+                setSubcategories([]);
               }
             } catch (error) {
               console.error("Error deleting category:", error);
@@ -1147,6 +1672,41 @@ export function AddTransactionModal({
                       </Pressable>
                     </View>
                   </View>
+                  <View
+                    style={[
+                      styles.rowSeparator,
+                      { backgroundColor: ui.border },
+                    ]}
+                  />
+
+                  <Pressable
+                    onPress={() => {
+                      if (!selectedCategory) {
+                        Alert.alert("Category required", "Please select a category first.");
+                        return;
+                      }
+                      setSubcategoryModalOpen(true);
+                    }}
+                    style={[styles.inputRow, !selectedCategory && { opacity: 0.55 }]}
+                  >
+                    <View style={styles.rowLeft}>
+                      <Feather name="layers" size={18} color={ui.mutedText} />
+                      <ThemedText style={[styles.rowLabel, { color: ui.text }]}>
+                        Subcategory
+                      </ThemedText>
+                    </View>
+                    <View style={styles.rowRight}>
+                      <ThemedText
+                        style={[
+                          styles.rowValueRight,
+                          !selectedSubcategory && { color: ui.mutedText },
+                        ]}
+                      >
+                        {selectedSubcategory?.category_name ?? "Select"}
+                      </ThemedText>
+                      <Feather name="chevron-right" size={16} color={ui.mutedText} />
+                    </View>
+                  </Pressable>
 
                   <View
                     style={[
@@ -1498,7 +2058,6 @@ export function AddTransactionModal({
           categories={categories}
           selectedCategoryId={selectedCategory?.id ?? null}
           resolveCategoryIcon={resolveCategoryIcon}
-          cardStyle={styles.popupCardFull}
           onSelectCategory={(cat) => {
             setSelectedCategory(cat);
             setCategoryModalOpen(false);
@@ -1514,12 +2073,41 @@ export function AddTransactionModal({
           visible={createCategoryModalOpen}
           onClose={() => setCreateCategoryModalOpen(false)}
           ui={ui}
-          iconChoices={ICON_CHOICES}
+          iconGroups={ICON_GROUPS}
           newCategoryIcon={newCategoryIcon}
           onSelectNewCategoryIcon={setNewCategoryIcon}
+          colorChoices={COLOR_CHOICES}
+          newCategoryColor={newCategoryColor}
+          onSelectNewCategoryColor={setNewCategoryColor}
           newCategoryName={newCategoryName}
           onChangeNewCategoryName={setNewCategoryName}
           onCreateCategory={createCategory}
+        />
+        <SubcategoryPickerModal
+          visible={subcategoryModalOpen}
+          onClose={() => setSubcategoryModalOpen(false)}
+          ui={ui}
+          subcategories={subcategories}
+          suggestedSubcategories={subcategoryOptions}
+          selectedSubcategoryId={selectedSubcategory?.id ?? null}
+          onSelectSubcategory={(sub) => {
+            setSelectedSubcategory(sub);
+            setSubcategoryModalOpen(false);
+          }}
+          onPickSuggested={handleSuggestedSubcategory}
+          onDeleteSubcategory={handleDeleteSubcategory}
+          onOpenCreate={() => {
+            setSubcategoryModalOpen(false);
+            setCreateSubcategoryModalOpen(true);
+          }}
+        />
+        <CreateSubcategoryModal
+          visible={createSubcategoryModalOpen}
+          onClose={() => setCreateSubcategoryModalOpen(false)}
+          ui={ui}
+          newSubcategoryName={newSubcategoryName}
+          onChangeNewSubcategoryName={setNewSubcategoryName}
+          onCreateSubcategory={createSubcategory}
         />
 
         {/* Notes Fullscreen Editor */}
@@ -1818,9 +2406,7 @@ const styles = StyleSheet.create({
   },
   popupCard: {
     width: "92%",
-    height: "78%",
-    maxHeight: "78%",
-    minHeight: 320,
+    maxHeight: "88%",
     borderRadius: 20,
     borderWidth: StyleSheet.hairlineWidth,
     padding: 16,
@@ -1836,10 +2422,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
   },
-  popupCardFull: {
-    height: "92%",
-    maxHeight: "92%",
-  },
   popupClose: {
     width: 30,
     height: 30,
@@ -1848,8 +2430,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   popupList: {
-    flex: 1,
-    minHeight: 0,
+    flexShrink: 1,
   },
   popupListContent: {
     gap: 10,
@@ -1920,9 +2501,18 @@ const styles = StyleSheet.create({
   categoryGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    justifyContent: "space-between",
-    rowGap: 12,
-    columnGap: 8,
+    justifyContent: "flex-start",
+  },
+  categoryGridCompact: {
+    marginBottom: 2,
+  },
+  categoryGridItem: {
+    width: "25%",
+    alignItems: "center",
+    paddingBottom: 12,
+  },
+  categoryGridItemCompact: {
+    paddingBottom: 8,
   },
   popupFooter: {
     paddingTop: 10,
@@ -1932,19 +2522,45 @@ const styles = StyleSheet.create({
     gap: 8,
     marginBottom: 10,
   },
-  iconPickerRow: {
+  iconPickerWrapCompact: {
+    gap: 6,
+    marginBottom: 6,
+  },
+  iconGroup: {
+    gap: 8,
+  },
+  iconGroupCompact: {
+    gap: 6,
+  },
+  iconGroupTitle: {
+    fontSize: 13,
+    letterSpacing: 0.4,
+    fontFamily: Tokens.font.semiFamily ? Tokens.font.family : Tokens.font.family,
+  },
+  colorPickerRow: {
     flexDirection: "row",
     flexWrap: "wrap",
-    justifyContent: "space-between",
+    justifyContent: "flex-start",
     rowGap: 12,
-    columnGap: 12,
+    columnGap: 0,
   },
-  iconPickerItem: {
-    width: "22%",
-    aspectRatio: 1,
-    borderRadius: 999,
+  colorPickerRowCompact: {
+    rowGap: 8,
+  },
+  colorPickerDivider: {
+    height: StyleSheet.hairlineWidth,
+    width: "100%",
+    marginTop: 2,
+    marginBottom: 8,
+  },
+  colorSwatchWrap: {
+    width: "16.666%",
     alignItems: "center",
-    justifyContent: "center",
+  },
+  colorSwatch: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
   },
   quickPickWrap: {
     paddingHorizontal: 16,
@@ -1981,6 +2597,42 @@ const styles = StyleSheet.create({
     fontSize: 12,
     textAlign: "center",
     fontFamily: Tokens.font.family,
+  },
+  subcategoryChips: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+    paddingBottom: 4,
+  },
+  subcategoryChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 16,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  fabButton: {
+    position: "absolute",
+    right: 16,
+    bottom: 16,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  subcategoryChips: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+  },
+  subcategoryChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 16,
+    borderWidth: StyleSheet.hairlineWidth,
   },
 });
 

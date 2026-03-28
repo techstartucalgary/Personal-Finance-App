@@ -3,8 +3,8 @@ import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
-  Animated,
   Alert,
+  Animated,
   Dimensions,
   InteractionManager,
   LayoutAnimation,
@@ -20,23 +20,30 @@ import {
 } from "react-native";
 import { PanGestureHandler } from "react-native-gesture-handler";
 import type { LinkExit, LinkSuccess } from "react-native-plaid-link-sdk";
-import { create as plaidCreate, destroy as plaidDestroy, open as plaidOpen } from "react-native-plaid-link-sdk";
+import {
+  create as plaidCreate,
+  destroy as plaidDestroy,
+  open as plaidOpen,
+} from "react-native-plaid-link-sdk";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useFocusEffect, useNavigation, useRouter } from "expo-router";
 
 import { AccountDetailModal } from "@/components/AccountDetailModal";
-import { AccountHeroCard, AccountWaveCard } from "@/components/accounts/AccountCards";
+import {
+  AccountHeroCard,
+  AccountWaveCard,
+} from "@/components/accounts/AccountCards";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
+import { TransactionDetailModal } from "@/components/TransactionDetailModal";
+import { TransactionsList } from "@/components/transactions/TransactionsList";
 import { AppHeader } from "@/components/ui/AppHeader";
 import { DateTimePickerField } from "@/components/ui/DateTimePickerField";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { SelectionModal } from "@/components/ui/SelectionModal";
-import { TransactionDetailModal } from "@/components/TransactionDetailModal";
-import { TransactionsList } from "@/components/transactions/TransactionsList";
-import { useTabTransition } from "@/components/ui/useTabTransition";
 import { useTabSwipe } from "@/components/ui/useTabSwipe";
+import { useTabTransition } from "@/components/ui/useTabTransition";
 import { Tokens } from "@/constants/authTokens";
 import { tabsTheme } from "@/constants/tabsTheme";
 import { useAuthContext } from "@/hooks/use-auth-context";
@@ -45,11 +52,17 @@ import {
   deleteAccount as deleteAccountApi,
   updateAccount as updateAccountApi,
 } from "@/utils/accounts";
-import { listExpenses } from "@/utils/expenses";
 import { parseLocalDate, toLocalISOString } from "@/utils/date";
+import { listExpenses } from "@/utils/expenses";
 import { listGoals } from "@/utils/goals";
 import type { PlaidAccount, PlaidTransaction } from "@/utils/plaid";
-import { exchangePublicToken, getLinkToken, getPlaidAccounts, getPlaidTransactions, removePlaidItem } from "@/utils/plaid";
+import {
+  exchangePublicToken,
+  getLinkToken,
+  getPlaidAccounts,
+  getPlaidTransactions,
+  removePlaidItem,
+} from "@/utils/plaid";
 import { supabase } from "@/utils/supabase";
 
 type AccountType = "credit" | "debit";
@@ -117,8 +130,6 @@ export default function AccountsScreen() {
   const transition = useTabTransition();
   const swipe = useTabSwipe(1);
 
-
-
   const userId = session?.user.id;
   const handleProfilePress = useCallback(() => {
     router.push("/profile");
@@ -158,7 +169,9 @@ export default function AccountsScreen() {
   const [singleAccountId, setSingleAccountId] = useState<string | null>(null);
 
   const [expenses, setExpenses] = useState<ExpenseRow[]>([]);
-  const [plaidTransactions, setPlaidTransactions] = useState<PlaidTransaction[]>([]);
+  const [plaidTransactions, setPlaidTransactions] = useState<
+    PlaidTransaction[]
+  >([]);
   const [txSearchQuery, setTxSearchQuery] = useState("");
   const [selectedTransaction, setSelectedTransaction] = useState<
     ExpenseRow | PlaidTransaction | null
@@ -166,7 +179,10 @@ export default function AccountsScreen() {
   const [isTxDetailVisible, setIsTxDetailVisible] = useState(false);
 
   useEffect(() => {
-    if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental) {
+    if (
+      Platform.OS === "android" &&
+      UIManager.setLayoutAnimationEnabledExperimental
+    ) {
       UIManager.setLayoutAnimationEnabledExperimental(true);
     }
   }, []);
@@ -179,8 +195,14 @@ export default function AccountsScreen() {
   }, [router]);
 
   const getAccountColor = (item: AccountRow | PlaidAccount, index: number) => {
-    const type = (("account_type" in item ? item.account_type : item.type) ?? "").toLowerCase();
-    const isDebit = type === "debit" || type === "depository" || type === "checking" || type === "savings";
+    const type = (
+      ("account_type" in item ? item.account_type : item.type) ?? ""
+    ).toLowerCase();
+    const isDebit =
+      type === "debit" ||
+      type === "depository" ||
+      type === "checking" ||
+      type === "savings";
     const palette = isDebit
       ? ["#701D26", "#8A2431", "#5A1520", "#9B2B3A"] // DEBIT_PALETTE
       : ["#D86666", "#E07A7A", "#C95454", "#E39191"]; // CREDIT_PALETTE
@@ -208,9 +230,11 @@ export default function AccountsScreen() {
           shouldShowHintSearchIcon: false,
         },
       });
-    }, [navigation, ui, router])
+    }, [navigation, ui, router]),
   );
-  const [selectedDetailAccount, setSelectedDetailAccount] = useState<AccountRow | PlaidAccount | null>(null);
+  const [selectedDetailAccount, setSelectedDetailAccount] = useState<
+    AccountRow | PlaidAccount | null
+  >(null);
 
   // Plaid Link state
   const [isConnecting, setIsConnecting] = useState(false);
@@ -227,7 +251,8 @@ export default function AccountsScreen() {
       }
 
       // Improved loading UX: only show spinner if we have no data at all
-      const hasData = accounts.length > 0 || goals.length > 0 || plaidAccounts.length > 0;
+      const hasData =
+        accounts.length > 0 || goals.length > 0 || plaidAccounts.length > 0;
       if (!silent && !hasData) setIsLoading(true);
 
       try {
@@ -240,7 +265,7 @@ export default function AccountsScreen() {
             .eq("profile_id", userId)
             .order("created_at", { ascending: false }),
           listGoals({ profile_id: userId }),
-          getPlaidAccounts()
+          getPlaidAccounts(),
         ]);
 
         if (accountsResponse.error) throw accountsResponse.error;
@@ -286,50 +311,67 @@ export default function AccountsScreen() {
   }, [userId]);
 
   // Plaid: connect bank handler (must be after loadAccounts)
-  const handleConnectBank = useCallback(async (options?: { onBeforeOpen?: () => void; onError?: () => void }) => {
-    try {
-      setIsConnecting(true);
-      const token = await getLinkToken();
+  const handleConnectBank = useCallback(
+    async (options?: { onBeforeOpen?: () => void; onError?: () => void }) => {
+      try {
+        setIsConnecting(true);
+        const token = await getLinkToken();
 
-      // Android requires destroy() before create() to clear stale sessions
-      await plaidDestroy();
+        // Android requires destroy() before create() to clear stale sessions
+        await plaidDestroy();
 
-      // create() initializes the SDK; open() must wait for onLoad
-      plaidCreate({
-        token,
-        noLoadingState: false,
-        onLoad: () => {
-          options?.onBeforeOpen?.();
-          plaidOpen({
-            onSuccess: async (success: LinkSuccess) => {
-              try {
-                setIsConnecting(true);
-                const institutionName = success.metadata?.institution?.name;
-                await exchangePublicToken(success.publicToken, institutionName);
-                Alert.alert("Success!", `${institutionName || "Bank"} connected successfully.`);
-                await loadAccounts();
-                getPlaidAccounts().then(setPlaidAccounts).catch(console.error);
-              } catch (err) {
-                console.error("Error exchanging token:", err);
-                Alert.alert("Connection Error", "Bank connection failed. Please try again.");
-              } finally {
+        // create() initializes the SDK; open() must wait for onLoad
+        plaidCreate({
+          token,
+          noLoadingState: false,
+          onLoad: () => {
+            options?.onBeforeOpen?.();
+            plaidOpen({
+              onSuccess: async (success: LinkSuccess) => {
+                try {
+                  setIsConnecting(true);
+                  const institutionName = success.metadata?.institution?.name;
+                  await exchangePublicToken(
+                    success.publicToken,
+                    institutionName,
+                  );
+                  Alert.alert(
+                    "Success!",
+                    `${institutionName || "Bank"} connected successfully.`,
+                  );
+                  await loadAccounts();
+                  getPlaidAccounts()
+                    .then(setPlaidAccounts)
+                    .catch(console.error);
+                } catch (err) {
+                  console.error("Error exchanging token:", err);
+                  Alert.alert(
+                    "Connection Error",
+                    "Bank connection failed. Please try again.",
+                  );
+                } finally {
+                  setIsConnecting(false);
+                }
+              },
+              onExit: (exit: LinkExit) => {
+                console.log("Plaid Link exited:", exit);
                 setIsConnecting(false);
-              }
-            },
-            onExit: (exit: LinkExit) => {
-              console.log("Plaid Link exited:", exit);
-              setIsConnecting(false);
-            },
-          });
-        },
-      });
-    } catch (err) {
-      console.error("Error getting link token:", err);
-      Alert.alert("Connection Error", "Could not start bank connection. Please try again.");
-      setIsConnecting(false);
-      options?.onError?.();
-    }
-  }, [loadAccounts]);
+              },
+            });
+          },
+        });
+      } catch (err) {
+        console.error("Error getting link token:", err);
+        Alert.alert(
+          "Connection Error",
+          "Could not start bank connection. Please try again.",
+        );
+        setIsConnecting(false);
+        options?.onError?.();
+      }
+    },
+    [loadAccounts],
+  );
 
   useFocusEffect(
     useCallback(() => {
@@ -350,8 +392,14 @@ export default function AccountsScreen() {
     LayoutAnimation.configureNext({
       duration: 220,
       update: { type: LayoutAnimation.Types.easeInEaseOut },
-      create: { type: LayoutAnimation.Types.easeInEaseOut, property: LayoutAnimation.Properties.opacity },
-      delete: { type: LayoutAnimation.Types.easeInEaseOut, property: LayoutAnimation.Properties.opacity },
+      create: {
+        type: LayoutAnimation.Types.easeInEaseOut,
+        property: LayoutAnimation.Properties.opacity,
+      },
+      delete: {
+        type: LayoutAnimation.Types.easeInEaseOut,
+        property: LayoutAnimation.Properties.opacity,
+      },
     });
     setViewMode(nextMode);
   }, []);
@@ -592,7 +640,8 @@ export default function AccountsScreen() {
 
   const totalBalance = useMemo(() => {
     const manualTotal = accounts.reduce((sum, account) => {
-      const isLiability = (account.account_type ?? "").toLowerCase() === "credit";
+      const isLiability =
+        (account.account_type ?? "").toLowerCase() === "credit";
       const bal = account.balance ?? 0;
       return isLiability ? sum - bal : sum + bal;
     }, 0);
@@ -608,7 +657,10 @@ export default function AccountsScreen() {
   }, [accounts, plaidAccounts]);
 
   const totalAvailable = useMemo(() => {
-    const manualAvail = accounts.reduce((sum, account) => sum + calculateAvailable(account), 0);
+    const manualAvail = accounts.reduce(
+      (sum, account) => sum + calculateAvailable(account),
+      0,
+    );
     const plaidAvail = plaidAccounts.reduce((sum, pa) => {
       const type = (pa.type ?? "").toLowerCase();
       const isLiability = type === "credit" || type === "loan";
@@ -619,8 +671,10 @@ export default function AccountsScreen() {
   }, [accounts, plaidAccounts, calculateAvailable, calculatePlaidAvailable]);
 
   const assetsCount = useMemo(() => {
-    const manualAssets = accounts.filter(a => (a.account_type ?? "").toLowerCase() !== "credit").length;
-    const plaidAssets = plaidAccounts.filter(pa => {
+    const manualAssets = accounts.filter(
+      (a) => (a.account_type ?? "").toLowerCase() !== "credit",
+    ).length;
+    const plaidAssets = plaidAccounts.filter((pa) => {
       const type = (pa.type ?? "").toLowerCase();
       return type !== "credit" && type !== "loan";
     }).length;
@@ -628,8 +682,10 @@ export default function AccountsScreen() {
   }, [accounts, plaidAccounts]);
 
   const liabilitiesCount = useMemo(() => {
-    const manualLiabilities = accounts.filter(a => (a.account_type ?? "").toLowerCase() === "credit").length;
-    const plaidLiabilities = plaidAccounts.filter(pa => {
+    const manualLiabilities = accounts.filter(
+      (a) => (a.account_type ?? "").toLowerCase() === "credit",
+    ).length;
+    const plaidLiabilities = plaidAccounts.filter((pa) => {
       const type = (pa.type ?? "").toLowerCase();
       return type === "credit" || type === "loan";
     }).length;
@@ -686,17 +742,23 @@ export default function AccountsScreen() {
     }
   }, [combinedAccounts, singleAccountId]);
 
-
   const selectedAccount = useMemo(() => {
     if (!singleAccountId) return combinedAccounts[0] ?? null;
-    return combinedAccounts.find((acc) => acc.id === singleAccountId) ?? combinedAccounts[0] ?? null;
+    return (
+      combinedAccounts.find((acc) => acc.id === singleAccountId) ??
+      combinedAccounts[0] ??
+      null
+    );
   }, [combinedAccounts, singleAccountId]);
 
   const handleCardSnap = useCallback(
     (offsetX: number) => {
       if (!combinedAccounts.length) return;
       const index = Math.round(offsetX / cardSnap);
-      const next = combinedAccounts[Math.min(Math.max(index, 0), combinedAccounts.length - 1)];
+      const next =
+        combinedAccounts[
+          Math.min(Math.max(index, 0), combinedAccounts.length - 1)
+        ];
       if (next && next.id !== singleAccountId) {
         setSingleAccountId(next.id);
       }
@@ -715,10 +777,13 @@ export default function AccountsScreen() {
     return `plaid:${plaid.account_id}`;
   }, [selectedAccount]);
 
-  const openSingleAccount = useCallback((id: string) => {
-    setSingleAccountId(id);
-    toggleViewMode("single");
-  }, [toggleViewMode]);
+  const openSingleAccount = useCallback(
+    (id: string) => {
+      setSingleAccountId(id);
+      toggleViewMode("single");
+    },
+    [toggleViewMode],
+  );
 
   const accountsForTx = useMemo(() => {
     return accounts
@@ -754,7 +819,10 @@ export default function AccountsScreen() {
 
   const filteredPlaidForSingle = useMemo(() => {
     if (selectedFilterId == null) return plaidTransactions;
-    if (typeof selectedFilterId === "string" && selectedFilterId.startsWith("plaid:")) {
+    if (
+      typeof selectedFilterId === "string" &&
+      selectedFilterId.startsWith("plaid:")
+    ) {
       const plaidId = selectedFilterId.replace("plaid:", "");
       return plaidTransactions.filter((tx) => tx.account_id === plaidId);
     }
@@ -766,8 +834,6 @@ export default function AccountsScreen() {
       setTxSearchQuery("");
     }
   }, [viewMode, selectedFilterId]);
-
-
 
   if (authLoading && !session) {
     return (
@@ -785,8 +851,12 @@ export default function AccountsScreen() {
       <View style={[styles.screen, { backgroundColor: ui.bg }]}>
         <AppHeader title="Accounts" onRightPress={handleProfilePress} />
         <View style={[styles.stateWrap, { paddingTop: 12 }]}>
-          <ThemedText type="title" style={{ color: ui.text }}>Accounts</ThemedText>
-          <ThemedText style={{ color: ui.mutedText }}>Please sign in to view accounts.</ThemedText>
+          <ThemedText type="title" style={{ color: ui.text }}>
+            Accounts
+          </ThemedText>
+          <ThemedText style={{ color: ui.mutedText }}>
+            Please sign in to view accounts.
+          </ThemedText>
         </View>
       </View>
     );
@@ -800,833 +870,960 @@ export default function AccountsScreen() {
       failOffsetY={[-15, 15]}
     >
       <View style={[styles.screen, { backgroundColor: ui.bg }]}>
-      <AppHeader title="Accounts" onRightPress={handleProfilePress} />
-      <Animated.View
-        style={[styles.contentWrap, transition.style, swipe.style]}
-        renderToHardwareTextureAndroid
-        shouldRasterizeIOS
-      >
-        <ScrollView
-          style={styles.container}
-          contentInsetAdjustmentBehavior="automatic"
-          contentContainerStyle={[
-            styles.scrollContent,
-            { paddingBottom: tabBarHeight + 120, paddingTop: Platform.OS === 'android' ? 16 : 0 },
-          ]}
-          showsVerticalScrollIndicator={false}
-          refreshControl={
-            <RefreshControl
-              refreshing={isLoading}
-              onRefresh={() => {
-                loadAccounts();
-                if (viewMode === "single") {
-                  loadTransactions();
-                }
-              }}
-              tintColor={ui.text}
-            />
-          }
+        <AppHeader title="Accounts" onRightPress={handleProfilePress} />
+        <Animated.View
+          style={[styles.contentWrap, transition.style, swipe.style]}
+          renderToHardwareTextureAndroid
+          shouldRasterizeIOS
         >
-        {viewMode === "single" ? (
-          <View style={styles.singleViewWrap}>
-            {combinedAccounts.length === 0 ? (
-              <View
-                style={[
-                  styles.emptyState,
-                  { borderColor: ui.border, backgroundColor: ui.surface2 },
-                ]}
-              >
-                <ThemedText style={{ color: ui.text }}>
-                  {isLoading ? "Loading..." : "No accounts yet."}
-                </ThemedText>
+          <ScrollView
+            style={styles.container}
+            contentInsetAdjustmentBehavior="automatic"
+            contentContainerStyle={[
+              styles.scrollContent,
+              {
+                paddingBottom: tabBarHeight + 120,
+                paddingTop: Platform.OS === "android" ? 16 : 0,
+              },
+            ]}
+            showsVerticalScrollIndicator={false}
+            refreshControl={
+              <RefreshControl
+                refreshing={isLoading}
+                onRefresh={() => {
+                  loadAccounts();
+                  if (viewMode === "single") {
+                    loadTransactions();
+                  }
+                }}
+                tintColor={ui.text}
+              />
+            }
+          >
+            {viewMode === "single" ? (
+              <View style={styles.singleViewWrap}>
+                {combinedAccounts.length === 0 ? (
+                  <View
+                    style={[
+                      styles.emptyState,
+                      { borderColor: ui.border, backgroundColor: ui.surface2 },
+                    ]}
+                  >
+                    <ThemedText style={{ color: ui.text }}>
+                      {isLoading ? "Loading..." : "No accounts yet."}
+                    </ThemedText>
+                  </View>
+                ) : (
+                  <>
+                    <ScrollView
+                      horizontal
+                      showsHorizontalScrollIndicator={false}
+                      snapToInterval={cardSnap}
+                      snapToAlignment="start"
+                      decelerationRate="fast"
+                      contentContainerStyle={{
+                        paddingHorizontal: cardSideGap,
+                        gap: cardGap,
+                      }}
+                      style={styles.singleCarousel}
+                      onMomentumScrollEnd={(event) => {
+                        handleCardSnap(event.nativeEvent.contentOffset.x);
+                      }}
+                    >
+                      {combinedAccounts.map((item, idx) => {
+                        const raw = item.raw as AccountRow | PlaidAccount;
+                        const isSelected = selectedAccount?.id === item.id;
+                        const accountName =
+                          "account_name" in raw
+                            ? (raw.account_name ?? "Account")
+                            : raw.name;
+                        const balance =
+                          "balance" in raw
+                            ? (raw.balance ?? 0)
+                            : (raw.balances.current ?? 0);
+                        const typeValue =
+                          ("account_type" in raw
+                            ? raw.account_type
+                            : raw.type) ?? "Account";
+                        const typeLabel =
+                          typeValue.charAt(0).toUpperCase() +
+                          typeValue.slice(1);
+                        const creditLimit =
+                          "credit_limit" in raw
+                            ? raw.credit_limit
+                            : raw.balances.limit;
+                        const paymentDue =
+                          "payment_duedate" in raw ? raw.payment_duedate : null;
+                        const metaRows = [
+                          {
+                            label: "Credit Limit",
+                            value:
+                              creditLimit != null
+                                ? formatMoney(creditLimit)
+                                : "--",
+                          },
+                          {
+                            label: "Payment due",
+                            value: paymentDue
+                              ? formatCardDate(paymentDue)
+                              : "--/--/--",
+                          },
+                          {
+                            label: typeLabel,
+                            value:
+                              "subtype" in raw && raw.subtype
+                                ? raw.subtype
+                                : "Account",
+                          },
+                        ];
+
+                        return (
+                          <View
+                            key={item.id}
+                            style={[
+                              styles.singleCardWrap,
+                              { width: cardWidth },
+                            ]}
+                          >
+                            <AccountHeroCard
+                              title={accountName}
+                              balance={formatMoney(balance)}
+                              color={getAccountColor(raw, idx)}
+                              metaRows={metaRows}
+                              isSelected={isSelected}
+                              onPress={() => setSingleAccountId(item.id)}
+                            />
+                          </View>
+                        );
+                      })}
+                    </ScrollView>
+
+                    <View style={styles.cardActions}>
+                      <Pressable
+                        style={[
+                          styles.actionCircle,
+                          {
+                            backgroundColor: ui.surface,
+                            borderColor: ui.border,
+                          },
+                        ]}
+                        onPress={() => {
+                          if (!selectedAccount) return;
+                          if (selectedAccount.kind === "manual") {
+                            deleteAccount(
+                              (selectedAccount.raw as AccountRow).id,
+                            );
+                            return;
+                          }
+                          const pa = selectedAccount.raw as PlaidAccount;
+                          Alert.alert(
+                            "Unlink Account?",
+                            "Are you sure you want to unlink this account?",
+                            [
+                              { text: "Cancel", style: "cancel" },
+                              {
+                                text: "Unlink",
+                                style: "destructive",
+                                onPress: async () => {
+                                  try {
+                                    await removePlaidItem(pa.plaid_item_id);
+                                    await loadAccounts();
+                                    await loadTransactions();
+                                  } catch (err) {
+                                    console.error("Error unlinking:", err);
+                                    Alert.alert(
+                                      "Error",
+                                      "Could not unlink account.",
+                                    );
+                                  }
+                                },
+                              },
+                            ],
+                          );
+                        }}
+                      >
+                        <Feather name="trash-2" size={16} color={ui.danger} />
+                      </Pressable>
+                      <Pressable
+                        style={[
+                          styles.actionCircle,
+                          {
+                            backgroundColor: ui.surface,
+                            borderColor: ui.border,
+                          },
+                        ]}
+                        onPress={() => setAddSourceModalOpen(true)}
+                      >
+                        <Feather name="plus" size={18} color={ui.text} />
+                      </Pressable>
+                      <Pressable
+                        style={[
+                          styles.actionCircle,
+                          {
+                            backgroundColor: ui.surface,
+                            borderColor: ui.border,
+                          },
+                        ]}
+                        onPress={() => {
+                          if (!selectedAccount) return;
+                          setSelectedDetailAccount(
+                            selectedAccount.raw as AccountRow | PlaidAccount,
+                          );
+                          setDetailModalVisible(true);
+                        }}
+                      >
+                        <Feather name="edit-2" size={16} color={ui.text} />
+                      </Pressable>
+                    </View>
+
+                    <View style={styles.sectionHeader}>
+                      <ThemedText
+                        style={[styles.sectionTitle, { color: ui.text }]}
+                      >
+                        Transactions
+                      </ThemedText>
+                    </View>
+
+                    <TransactionsList
+                      ui={ui}
+                      expenses={filteredExpensesForSingle}
+                      plaidTransactions={filteredPlaidForSingle}
+                      recurringRules={[]}
+                      accounts={accountsForTx}
+                      plaidAccounts={plaidAccounts}
+                      filterAccountId={null}
+                      onFilterAccountChange={() => {}}
+                      searchQuery={txSearchQuery}
+                      onSearchQueryChange={setTxSearchQuery}
+                      onSelectTransaction={(tx) => {
+                        setSelectedTransaction(tx);
+                        setIsTxDetailVisible(true);
+                      }}
+                      isLoading={isLoading}
+                      showFilters={false}
+                      showMeta={false}
+                      showBadges={false}
+                    />
+                  </>
+                )}
               </View>
             ) : (
               <>
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  snapToInterval={cardSnap}
-                  snapToAlignment="start"
-                  decelerationRate="fast"
-                  contentContainerStyle={{ paddingHorizontal: cardSideGap, gap: cardGap }}
-                  style={styles.singleCarousel}
-                  onMomentumScrollEnd={(event) => {
-                    handleCardSnap(event.nativeEvent.contentOffset.x);
-                  }}
+                <Pressable
+                  onPress={() => setAddSourceModalOpen(true)}
+                  style={[
+                    styles.smallActionBtn,
+                    { borderColor: ui.border, backgroundColor: ui.surface },
+                  ]}
                 >
-                  {combinedAccounts.map((item, idx) => {
-                    const raw = item.raw as AccountRow | PlaidAccount;
-                    const isSelected = selectedAccount?.id === item.id;
-                    const accountName =
-                      "account_name" in raw ? raw.account_name ?? "Account" : raw.name;
-                    const balance = "balance" in raw ? raw.balance ?? 0 : raw.balances.current ?? 0;
-                    const typeValue =
-                      ("account_type" in raw ? raw.account_type : raw.type) ?? "Account";
-                    const typeLabel =
-                      typeValue.charAt(0).toUpperCase() + typeValue.slice(1);
-                    const creditLimit =
-                      "credit_limit" in raw ? raw.credit_limit : raw.balances.limit;
-                    const paymentDue =
-                      "payment_duedate" in raw ? raw.payment_duedate : null;
-                    const metaRows = [
-                      {
-                        label: "Credit Limit",
-                        value:
-                          creditLimit != null ? formatMoney(creditLimit) : "--",
-                      },
-                      {
-                        label: "Payment due",
-                        value: paymentDue ? formatCardDate(paymentDue) : "--/--/--",
-                      },
-                      {
-                        label: typeLabel,
-                        value:
-                          "subtype" in raw && raw.subtype
-                            ? raw.subtype
-                            : "Account",
-                      },
-                    ];
-
-                    return (
-                      <View
-                        key={item.id}
-                        style={[styles.singleCardWrap, { width: cardWidth }]}
-                      >
-                        <AccountHeroCard
-                          title={accountName}
-                          balance={formatMoney(balance)}
-                          color={getAccountColor(raw, idx)}
-                          metaRows={metaRows}
-                          isSelected={isSelected}
-                          onPress={() => setSingleAccountId(item.id)}
-                        />
-                      </View>
-                    );
-                  })}
-                </ScrollView>
-
-                <View style={styles.cardActions}>
-                  <Pressable
-                    style={[
-                      styles.actionCircle,
-                      { backgroundColor: ui.surface, borderColor: ui.border },
-                    ]}
-                    onPress={() => {
-                      if (!selectedAccount) return;
-                      if (selectedAccount.kind === "manual") {
-                        deleteAccount((selectedAccount.raw as AccountRow).id);
-                        return;
-                      }
-                      const pa = selectedAccount.raw as PlaidAccount;
-                      Alert.alert(
-                        "Unlink Account?",
-                        "Are you sure you want to unlink this account?",
-                        [
-                          { text: "Cancel", style: "cancel" },
-                          {
-                            text: "Unlink",
-                            style: "destructive",
-                            onPress: async () => {
-                              try {
-                                await removePlaidItem(pa.plaid_item_id);
-                                await loadAccounts();
-                                await loadTransactions();
-                              } catch (err) {
-                                console.error("Error unlinking:", err);
-                                Alert.alert("Error", "Could not unlink account.");
-                              }
-                            },
-                          },
-                        ],
-                      );
-                    }}
-                  >
-                    <Feather name="trash-2" size={16} color={ui.danger} />
-                  </Pressable>
-                  <Pressable
-                    style={[
-                      styles.actionCircle,
-                      { backgroundColor: ui.surface, borderColor: ui.border },
-                    ]}
-                    onPress={openAddTransaction}
-                  >
-                    <Feather name="plus" size={18} color={ui.text} />
-                  </Pressable>
-                  <Pressable
-                    style={[
-                      styles.actionCircle,
-                      { backgroundColor: ui.surface, borderColor: ui.border },
-                    ]}
-                    onPress={() => {
-                      if (!selectedAccount) return;
-                      setSelectedDetailAccount(selectedAccount.raw as AccountRow | PlaidAccount);
-                      setDetailModalVisible(true);
-                    }}
-                  >
-                    <Feather name="edit-2" size={16} color={ui.text} />
-                  </Pressable>
-                </View>
+                  <Feather name="plus" size={16} color={ui.text} />
+                  <ThemedText style={[styles.actionText, { color: ui.text }]}>
+                    Add Account
+                  </ThemedText>
+                </Pressable>
 
                 <View style={styles.sectionHeader}>
                   <ThemedText style={[styles.sectionTitle, { color: ui.text }]}>
-                    Transactions
+                    Self-Managed Accounts
                   </ThemedText>
                 </View>
 
-                <TransactionsList
-                  ui={ui}
-                  expenses={filteredExpensesForSingle}
-                  plaidTransactions={filteredPlaidForSingle}
-                  recurringRules={[]}
-                  accounts={accountsForTx}
-                  plaidAccounts={plaidAccounts}
-                  filterAccountId={null}
-                  onFilterAccountChange={() => {}}
-                  searchQuery={txSearchQuery}
-                  onSearchQueryChange={setTxSearchQuery}
-                  onSelectTransaction={(tx) => {
-                    setSelectedTransaction(tx);
-                    setIsTxDetailVisible(true);
-                  }}
-                  isLoading={isLoading}
-                  showFilters={false}
-                  showMeta={false}
-                  showBadges={false}
-                />
+                {filteredManualAccounts.length === 0 ? (
+                  <View
+                    style={[
+                      styles.emptyState,
+                      { borderColor: ui.border, backgroundColor: ui.surface2 },
+                    ]}
+                  >
+                    <ThemedText style={{ color: ui.text }}>
+                      {isLoading ? "Loading..." : "No matches found."}
+                    </ThemedText>
+                  </View>
+                ) : (
+                  filteredManualAccounts.map((item, idx) => {
+                    const cardProps = {
+                      title: item.account_name ?? "Unnamed account",
+                      balance: formatMoney(item.balance ?? 0),
+                      typeLabel: item.account_type
+                        ? item.account_type.charAt(0).toUpperCase() +
+                          item.account_type.slice(1)
+                        : "-",
+                      dateLabel: item.currency ?? "CAD",
+                      color: getAccountColor(item, idx),
+                      onPress: () => {
+                        openSingleAccount(`manual:${item.id}`);
+                      },
+                    };
+
+                    return <AccountWaveCard key={item.id} {...cardProps} />;
+                  })
+                )}
+
+                {/* Linked Banks (Plaid) */}
+                {filteredPlaidAccounts.length > 0 && (
+                  <View style={{ marginTop: 20 }}>
+                    <View style={styles.sectionHeader}>
+                      <ThemedText
+                        style={[styles.sectionTitle, { color: ui.text }]}
+                      >
+                        Linked Banks
+                      </ThemedText>
+                      <ThemedText
+                        style={[
+                          styles.sectionSubtitle,
+                          { color: ui.mutedText },
+                        ]}
+                      >
+                        {filteredPlaidAccounts.length} account
+                        {filteredPlaidAccounts.length !== 1 ? "s" : ""}
+                      </ThemedText>
+                    </View>
+
+                    {filteredPlaidAccounts.map((pa, idx) => {
+                      const cardProps = {
+                        title: pa.name,
+                        balance: formatMoney(pa.balances.current ?? 0),
+                        typeLabel:
+                          pa.type.charAt(0).toUpperCase() + pa.type.slice(1),
+                        dateLabel: pa.subtype
+                          ? pa.subtype.charAt(0).toUpperCase() +
+                            pa.subtype.slice(1)
+                          : "Bank",
+                        color: getAccountColor(pa, idx + accounts.length),
+                        onPress: () => {
+                          openSingleAccount(`plaid:${pa.account_id}`);
+                        },
+                      };
+                      return (
+                        <AccountWaveCard
+                          key={pa.account_id}
+                          {...cardProps}
+                          waveAngle={idx % 2 === 0 ? -8 : 8}
+                        />
+                      );
+                    })}
+                  </View>
+                )}
               </>
             )}
-          </View>
-        ) : (
-          <>
+          </ScrollView>
+          {viewMode === "single" && (
             <Pressable
-              onPress={() => setAddSourceModalOpen(true)}
-              style={[
-                styles.smallActionBtn,
-                { borderColor: ui.border, backgroundColor: ui.surface },
+              onPress={() => toggleViewMode("all")}
+              accessibilityRole="button"
+              accessibilityLabel="Back to all accounts"
+              style={({ pressed }) => [
+                styles.backButton,
+                styles.backButtonOverlay,
+                {
+                  borderColor: ui.border,
+                  backgroundColor: pressed ? ui.surface2 : ui.surface,
+                  opacity: pressed ? 0.85 : 1,
+                  bottom: tabBarHeight + 8,
+                },
               ]}
             >
-              <Feather name="plus" size={16} color={ui.text} />
-              <ThemedText style={[styles.actionText, { color: ui.text }]}>
-                Add Account
-              </ThemedText>
+              <Feather name="chevron-left" size={18} color={ui.text} />
             </Pressable>
+          )}
+        </Animated.View>
 
-            <View style={styles.sectionHeader}>
-              <ThemedText style={[styles.sectionTitle, { color: ui.text }]}>
-                Self-Managed Accounts
-              </ThemedText>
-            </View>
+        <Pressable
+          onPress={() => setAddSourceModalOpen(true)}
+          style={({ pressed }) => [
+            styles.fab,
+            {
+              width: 60,
+              height: 60,
+              borderRadius: 16,
+              right: 16,
+            },
+            {
+              backgroundColor: ui.text,
+              opacity: pressed ? 0.8 : 1,
+              bottom: fabBottom,
+              elevation: 5,
+            },
+          ]}
+        >
+          <IconSymbol name="plus" size={24} color={ui.surface} />
+        </Pressable>
+        {/* Select Source Modal */}
+        <SelectionModal
+          visible={addSourceModalOpen}
+          onClose={() => setAddSourceModalOpen(false)}
+          title="Add Account"
+          ui={ui}
+        >
+          <ThemedText
+            style={{
+              color: ui.mutedText,
+              marginBottom: 12,
+              textAlign: "center",
+            }}
+          >
+            How would you like to add your new account?
+          </ThemedText>
 
-            {filteredManualAccounts.length === 0 ? (
-              <View
-                style={[
-                  styles.emptyState,
-                  { borderColor: ui.border, backgroundColor: ui.surface2 },
-                ]}
-              >
-                <ThemedText style={{ color: ui.text }}>
-                  {isLoading
-                    ? "Loading..."
-                    : "No matches found."}
-                </ThemedText>
-              </View>
-            ) : (
-              filteredManualAccounts.map((item, idx) => {
-                const cardProps = {
-                  title: item.account_name ?? "Unnamed account",
-                  balance: formatMoney(item.balance ?? 0),
-                  typeLabel: item.account_type ? item.account_type.charAt(0).toUpperCase() + item.account_type.slice(1) : "-",
-                  dateLabel: item.currency ?? "CAD",
-                  color: getAccountColor(item, idx),
-                  onPress: () => {
-                    openSingleAccount(`manual:${item.id}`);
-                  },
-                };
-
-                return (
-                  <AccountWaveCard key={item.id} {...cardProps} />
-                );
-              })
-            )}
-
-            {/* Linked Banks (Plaid) */}
-            {filteredPlaidAccounts.length > 0 && (
-              <View style={{ marginTop: 20 }}>
-                <View style={styles.sectionHeader}>
-                  <ThemedText style={[styles.sectionTitle, { color: ui.text }]}>
-                    Linked Banks
-                  </ThemedText>
-                  <ThemedText
-                    style={[styles.sectionSubtitle, { color: ui.mutedText }]}
-                  >
-                    {filteredPlaidAccounts.length} account{filteredPlaidAccounts.length !== 1 ? "s" : ""}
-                  </ThemedText>
-                </View>
-
-                {filteredPlaidAccounts.map((pa, idx) => {
-                  const cardProps = {
-                    title: pa.name,
-                    balance: formatMoney(pa.balances.current ?? 0),
-                    typeLabel: pa.type.charAt(0).toUpperCase() + pa.type.slice(1),
-                    dateLabel: pa.subtype ? pa.subtype.charAt(0).toUpperCase() + pa.subtype.slice(1) : "Bank",
-                    color: getAccountColor(pa, idx + accounts.length),
-                    onPress: () => {
-                      openSingleAccount(`plaid:${pa.account_id}`);
-                    },
-                  };
-                  return (
-                    <AccountWaveCard key={pa.account_id} {...cardProps} waveAngle={idx % 2 === 0 ? -8 : 8} />
-                  );
-                })}
-              </View>
-            )}
-          </>
-        )}
-        </ScrollView>
-        {viewMode === "single" && (
           <Pressable
-            onPress={() => toggleViewMode("all")}
-            accessibilityRole="button"
-            accessibilityLabel="Back to all accounts"
-            style={({ pressed }) => [
-              styles.backButton,
-              styles.backButtonOverlay,
+            style={[
+              styles.modalOption,
               {
                 borderColor: ui.border,
-                backgroundColor: pressed ? ui.surface2 : ui.surface,
-                opacity: pressed ? 0.85 : 1,
-                bottom: tabBarHeight + 8,
+                backgroundColor: ui.surface,
+                flexDirection: "row",
+                justifyContent: "flex-start",
+                paddingHorizontal: 16,
+                paddingVertical: 14,
+                gap: 12,
+                borderWidth: StyleSheet.hairlineWidth,
               },
             ]}
+            onPress={() => {
+              setAddSourceModalOpen(false);
+              setCreateModalOpen(true);
+            }}
           >
-            <Feather name="chevron-left" size={18} color={ui.text} />
-          </Pressable>
-        )}
-      </Animated.View>
-
-      <Pressable
-        onPress={openAddTransaction}
-        style={({ pressed }) => [
-          styles.fab,
-          {
-            width: 60,
-            height: 60,
-            borderRadius: 16,
-            right: 16,
-          },
-          {
-            backgroundColor: ui.text,
-            opacity: pressed ? 0.8 : 1,
-            bottom: fabBottom,
-            elevation: 5,
-          },
-        ]}
-      >
-        <IconSymbol name="plus" size={24} color={ui.surface} />
-      </Pressable>
-      {/* Select Source Modal */}
-      <SelectionModal
-        visible={addSourceModalOpen}
-        onClose={() => setAddSourceModalOpen(false)}
-        title="Add Account"
-        ui={ui}
-      >
-        <ThemedText style={{ color: ui.mutedText, marginBottom: 12, textAlign: "center" }}>
-          How would you like to add your new account?
-        </ThemedText>
-
-        <Pressable
-          style={[
-            styles.modalOption,
-            {
-              borderColor: ui.border,
-              backgroundColor: ui.surface,
-              flexDirection: 'row',
-              justifyContent: 'flex-start',
-              paddingHorizontal: 16,
-              paddingVertical: 14,
-              gap: 12,
-              borderWidth: StyleSheet.hairlineWidth,
-            },
-          ]}
-          onPress={() => {
-            setAddSourceModalOpen(false);
-            setCreateModalOpen(true);
-          }}
-        >
-          <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: ui.surface2, alignItems: 'center', justifyContent: 'center' }}>
-            <Feather name="edit-2" size={18} color={ui.text} />
-          </View>
-          <View>
-            <ThemedText type="defaultSemiBold">Self-Managed Account</ThemedText>
-            <ThemedText style={{ color: ui.mutedText, fontSize: 13, marginTop: 2 }}>Enter transactions yourself</ThemedText>
-          </View>
-        </Pressable>
-
-        <Pressable
-          style={[
-            styles.modalOption,
-            {
-              borderColor: ui.border,
-              backgroundColor: ui.surface,
-              flexDirection: 'row',
-              justifyContent: 'flex-start',
-              paddingHorizontal: 16,
-              paddingVertical: 14,
-              gap: 12,
-              borderWidth: StyleSheet.hairlineWidth,
-            },
-          ]}
-          disabled={isConnecting}
-          onPress={() => {
-            handleConnectBank({
-              onBeforeOpen: () => setAddSourceModalOpen(false),
-              onError: () => setAddSourceModalOpen(false)
-            });
-          }}
-        >
-          <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: ui.accentSoft, alignItems: 'center', justifyContent: 'center' }}>
-            {isConnecting ? (
-              <ActivityIndicator size="small" color={ui.accent} />
-            ) : (
-              <Feather name="link" size={18} color={ui.accent} />
-            )}
-          </View>
-          <View>
-            <ThemedText type="defaultSemiBold">
-              {isConnecting ? "Connecting..." : "Connect Bank"}
-            </ThemedText>
-            <ThemedText style={{ color: ui.mutedText, fontSize: 13, marginTop: 2 }}>Sync automatically via Plaid</ThemedText>
-          </View>
-        </Pressable>
-      </SelectionModal>
-
-      <Modal
-        visible={createModalOpen}
-        animationType="slide"
-        presentationStyle="pageSheet"
-        onRequestClose={() => setCreateModalOpen(false)}
-      >
-        <ThemedView
-          style={{
-            flex: 1,
-            backgroundColor: ui.surface,
-            padding: 16,
-            paddingTop: Platform.OS === "ios" ? 12 : (16 + insets.top),
-            paddingBottom: 16 + insets.bottom,
-          }}
-        >
-          <View style={styles.modalHeader}>
-            <View style={styles.modalHeaderLeft} />
-            <ThemedText type="defaultSemiBold" style={styles.modalHeaderTitle}>Add Account</ThemedText>
-            <View style={styles.modalHeaderRight}>
-              <Pressable
-                onPress={() => setCreateModalOpen(false)}
-                hitSlop={20}
-                style={[styles.modalCloseButton, { backgroundColor: ui.surface2 }]}
-              >
-                <Feather name="x" size={18} color={ui.text} />
-              </Pressable>
-            </View>
-          </View>
-
-          <ScrollView contentContainerStyle={{ gap: 12, paddingBottom: 24 }}>
-            <ThemedText type="defaultSemiBold">Account name</ThemedText>
-            <TextInput
-              value={name}
-              onChangeText={setName}
-              placeholder="Account name (e.g. TD Credit)"
-              placeholderTextColor={ui.mutedText}
-              autoCapitalize="words"
-              style={[
-                styles.input,
-                {
-                  borderColor: ui.border,
-                  backgroundColor: ui.surface2,
-                  color: ui.text,
-                },
-              ]}
-            />
-
             <View
-              style={[
-                styles.pickerContainer,
-                { borderColor: ui.border, backgroundColor: ui.surface },
-              ]}
+              style={{
+                width: 36,
+                height: 36,
+                borderRadius: 18,
+                backgroundColor: ui.surface2,
+                alignItems: "center",
+                justifyContent: "center",
+              }}
             >
-              <ThemedText type="defaultSemiBold">Account type</ThemedText>
-              <Pressable
-                onPress={() => setTypeModalOpen(true)}
-                style={[
-                  styles.dropdownButton,
-                  { borderColor: ui.border, backgroundColor: ui.surface2 },
-                ]}
-              >
-                <ThemedText>
-                  {type === "credit" ? "Credit" : "Debit"}
-                </ThemedText>
-              </Pressable>
+              <Feather name="edit-2" size={18} color={ui.text} />
             </View>
-
-            <ThemedText type="defaultSemiBold">Balance</ThemedText>
-            <TextInput
-              value={createBalance}
-              onChangeText={setCreateBalance}
-              keyboardType="numeric"
-              style={[
-                styles.input,
-                {
-                  borderColor: ui.border,
-                  backgroundColor: ui.surface2,
-                  color: ui.text,
-                },
-              ]}
-            />
-
-            <ThemedText type="defaultSemiBold">Credit Limit</ThemedText>
-            <TextInput
-              value={createLimit}
-              onChangeText={setCreateLimit}
-              keyboardType="numeric"
-              style={[
-                styles.input,
-                {
-                  borderColor: ui.border,
-                  backgroundColor: ui.surface2,
-                  color: ui.text,
-                },
-              ]}
-            />
-
-            <ThemedText type="defaultSemiBold">Interest Rate (%)</ThemedText>
-            <TextInput
-              value={createInterest}
-              onChangeText={setCreateInterest}
-              keyboardType="numeric"
-              style={[
-                styles.input,
-                {
-                  borderColor: ui.border,
-                  backgroundColor: ui.surface2,
-                  color: ui.text,
-                },
-              ]}
-            />
-
-            <ThemedText type="defaultSemiBold">Currency</ThemedText>
-            <TextInput
-              value={createCurrency}
-              onChangeText={setCreateCurrency}
-              autoCapitalize="characters"
-              style={[
-                styles.input,
-                {
-                  borderColor: ui.border,
-                  backgroundColor: ui.surface2,
-                  color: ui.text,
-                },
-              ]}
-            />
-
-            <DateTimePickerField
-              label="Statement Due Date"
-              value={parseLocalDate(createStatementDate)}
-              onChange={(date) => setCreateStatementDate(toLocalISOString(date))}
-              ui={ui}
-            />
-
-            <DateTimePickerField
-              label="Payment Due Date"
-              value={parseLocalDate(createPaymentDate)}
-              onChange={(date) => setCreatePaymentDate(toLocalISOString(date))}
-              ui={ui}
-            />
-
-            <Pressable
-              onPress={createAccount}
-              disabled={!canCreate || isLoading}
-              style={[
-                styles.button,
-                {
-                  borderColor: ui.border,
-                  backgroundColor: ui.text,
-                  width: "100%",
-                  alignItems: "center",
-                  borderRadius: 24,
-                },
-                (!canCreate || isLoading) && styles.buttonDisabled,
-              ]}
-            >
-              <ThemedText type="defaultSemiBold" style={{ color: ui.surface }}>
-                Create
+            <View>
+              <ThemedText type="defaultSemiBold">
+                Self-Managed Account
               </ThemedText>
-            </Pressable>
-          </ScrollView>
+              <ThemedText
+                style={{ color: ui.mutedText, fontSize: 13, marginTop: 2 }}
+              >
+                Enter transactions yourself
+              </ThemedText>
+            </View>
+          </Pressable>
 
-          {/* Account Type Selection Modal (Add) */}
-          <SelectionModal
-            visible={typeModalOpen}
-            onClose={() => setTypeModalOpen(false)}
-            title="Select Account Type"
-            ui={ui}
-          >
-            <Pressable
-              style={[
-                styles.modalOption,
-                { borderColor: ui.border, backgroundColor: ui.surface },
-              ]}
-              onPress={() => {
-                setType("credit");
-                setTypeModalOpen(false);
-              }}
-            >
-              <ThemedText>Credit</ThemedText>
-            </Pressable>
-            <Pressable
-              style={[
-                styles.modalOption,
-                { borderColor: ui.border, backgroundColor: ui.surface },
-              ]}
-              onPress={() => {
-                setType("debit");
-                setTypeModalOpen(false);
-              }}
-            >
-              <ThemedText>Debit</ThemedText>
-            </Pressable>
-          </SelectionModal>
-        </ThemedView>
-      </Modal>
-
-      <TransactionDetailModal
-        visible={isTxDetailVisible}
-        onClose={() => {
-          setIsTxDetailVisible(false);
-          setSelectedTransaction(null);
-        }}
-        transaction={selectedTransaction}
-        accounts={accountsForTx}
-      />
-
-      {/* Account Detail Modal with nested Edit Account Modal */}
-      <AccountDetailModal
-        visible={detailModalVisible}
-        onClose={() => {
-          setDetailModalVisible(false);
-          setSelectedDetailAccount(null);
-        }}
-        account={selectedDetailAccount as any}
-        availableBalance={
-          selectedDetailAccount
-            ? "account_id" in selectedDetailAccount
-              ? calculatePlaidAvailable(selectedDetailAccount as PlaidAccount)
-              : calculateAvailable(selectedDetailAccount as AccountRow)
-            : null
-        }
-        onEdit={(acc: any) => {
-          setEditingAccount(acc as AccountRow);
-        }}
-        onUnlink={(pa: any) => {
-          Alert.alert(
-            "Unlink Account?",
-            "Are you sure you want to unlink this account? Your data will be removed.",
-            [
-              { text: "Cancel", style: "cancel" },
+          <Pressable
+            style={[
+              styles.modalOption,
               {
-                text: "Unlink",
-                style: "destructive",
-                onPress: async () => {
-                  setDetailModalVisible(false);
-                  try {
-                    if (!pa.plaid_item_id) {
-                      Alert.alert("Error", "No item ID found.");
-                      return;
-                    }
-                    await removePlaidItem(pa.plaid_item_id);
-                    await loadAccounts();
-                    getPlaidAccounts().then(setPlaidAccounts).catch(console.error);
-                  } catch (e) {
-                    console.error("Error unlinking:", e);
-                    Alert.alert("Error", "Could not unlink account.");
-                  }
-                },
+                borderColor: ui.border,
+                backgroundColor: ui.surface,
+                flexDirection: "row",
+                justifyContent: "flex-start",
+                paddingHorizontal: 16,
+                paddingVertical: 14,
+                gap: 12,
+                borderWidth: StyleSheet.hairlineWidth,
               },
-            ],
-          );
-        }}
-      >
-        {/* Edit Account Modal (Nested) */}
+            ]}
+            disabled={isConnecting}
+            onPress={() => {
+              handleConnectBank({
+                onBeforeOpen: () => setAddSourceModalOpen(false),
+                onError: () => setAddSourceModalOpen(false),
+              });
+            }}
+          >
+            <View
+              style={{
+                width: 36,
+                height: 36,
+                borderRadius: 18,
+                backgroundColor: ui.accentSoft,
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              {isConnecting ? (
+                <ActivityIndicator size="small" color={ui.accent} />
+              ) : (
+                <Feather name="link" size={18} color={ui.accent} />
+              )}
+            </View>
+            <View>
+              <ThemedText type="defaultSemiBold">
+                {isConnecting ? "Connecting..." : "Connect Bank"}
+              </ThemedText>
+              <ThemedText
+                style={{ color: ui.mutedText, fontSize: 13, marginTop: 2 }}
+              >
+                Sync automatically via Plaid
+              </ThemedText>
+            </View>
+          </Pressable>
+        </SelectionModal>
+
         <Modal
-          visible={!!editingAccount}
+          visible={createModalOpen}
           animationType="slide"
           presentationStyle="pageSheet"
-          onRequestClose={() => setEditingAccount(null)}
+          onRequestClose={() => setCreateModalOpen(false)}
         >
           <ThemedView
             style={{
               flex: 1,
               backgroundColor: ui.surface,
               padding: 16,
-              paddingTop: Platform.OS === "ios" ? 12 : (16 + insets.top),
+              paddingTop: Platform.OS === "ios" ? 12 : 16 + insets.top,
               paddingBottom: 16 + insets.bottom,
             }}
           >
             <View style={styles.modalHeader}>
               <View style={styles.modalHeaderLeft} />
-              <ThemedText type="defaultSemiBold" style={styles.modalHeaderTitle}>Edit Account</ThemedText>
+              <ThemedText
+                type="defaultSemiBold"
+                style={styles.modalHeaderTitle}
+              >
+                Add Account
+              </ThemedText>
               <View style={styles.modalHeaderRight}>
                 <Pressable
-                  onPress={() => setEditingAccount(null)}
+                  onPress={() => setCreateModalOpen(false)}
                   hitSlop={20}
-                  style={[styles.modalCloseButton, { backgroundColor: ui.surface2 }]}
+                  style={[
+                    styles.modalCloseButton,
+                    { backgroundColor: ui.surface2 },
+                  ]}
                 >
                   <Feather name="x" size={18} color={ui.text} />
                 </Pressable>
               </View>
             </View>
 
-            <ScrollView contentContainerStyle={{ gap: 16, paddingBottom: 40 }}>
-              <View style={{ gap: 6 }}>
-                <ThemedText type="defaultSemiBold">Account Name</ThemedText>
-                <TextInput
-                  value={editName}
-                  onChangeText={setEditName}
+            <ScrollView contentContainerStyle={{ gap: 12, paddingBottom: 24 }}>
+              <ThemedText type="defaultSemiBold">Account name</ThemedText>
+              <TextInput
+                value={name}
+                onChangeText={setName}
+                placeholder="Account name (e.g. TD Credit)"
+                placeholderTextColor={ui.mutedText}
+                autoCapitalize="words"
+                style={[
+                  styles.input,
+                  {
+                    borderColor: ui.border,
+                    backgroundColor: ui.surface2,
+                    color: ui.text,
+                  },
+                ]}
+              />
+
+              <View
+                style={[
+                  styles.pickerContainer,
+                  { borderColor: ui.border, backgroundColor: ui.surface },
+                ]}
+              >
+                <ThemedText type="defaultSemiBold">Account type</ThemedText>
+                <Pressable
+                  onPress={() => setTypeModalOpen(true)}
                   style={[
-                    styles.input,
-                    {
-                      borderColor: ui.border,
-                      backgroundColor: ui.surface2,
-                      color: ui.text,
-                    },
+                    styles.dropdownButton,
+                    { borderColor: ui.border, backgroundColor: ui.surface2 },
                   ]}
-                />
+                >
+                  <ThemedText>
+                    {type === "credit" ? "Credit" : "Debit"}
+                  </ThemedText>
+                </Pressable>
               </View>
 
-              <View style={{ gap: 6 }}>
-                <ThemedText type="defaultSemiBold">Balance</ThemedText>
-                <TextInput
-                  value={editBalance}
-                  onChangeText={setEditBalance}
-                  keyboardType="numeric"
-                  style={[
-                    styles.input,
-                    {
-                      borderColor: ui.border,
-                      backgroundColor: ui.surface2,
-                      color: ui.text,
-                    },
-                  ]}
-                />
-              </View>
+              <ThemedText type="defaultSemiBold">Balance</ThemedText>
+              <TextInput
+                value={createBalance}
+                onChangeText={setCreateBalance}
+                keyboardType="numeric"
+                style={[
+                  styles.input,
+                  {
+                    borderColor: ui.border,
+                    backgroundColor: ui.surface2,
+                    color: ui.text,
+                  },
+                ]}
+              />
 
-              <View style={{ gap: 6 }}>
-                <ThemedText type="defaultSemiBold">Credit Limit</ThemedText>
-                <TextInput
-                  value={editLimit}
-                  onChangeText={setEditLimit}
-                  keyboardType="numeric"
-                  style={[
-                    styles.input,
-                    {
-                      borderColor: ui.border,
-                      backgroundColor: ui.surface2,
-                      color: ui.text,
-                    },
-                  ]}
-                />
-              </View>
+              <ThemedText type="defaultSemiBold">Credit Limit</ThemedText>
+              <TextInput
+                value={createLimit}
+                onChangeText={setCreateLimit}
+                keyboardType="numeric"
+                style={[
+                  styles.input,
+                  {
+                    borderColor: ui.border,
+                    backgroundColor: ui.surface2,
+                    color: ui.text,
+                  },
+                ]}
+              />
 
-              <View style={{ gap: 6 }}>
-                <ThemedText type="defaultSemiBold">Interest Rate (%)</ThemedText>
-                <TextInput
-                  value={editInterest}
-                  onChangeText={setEditInterest}
-                  keyboardType="numeric"
-                  style={[
-                    styles.input,
-                    {
-                      borderColor: ui.border,
-                      backgroundColor: ui.surface2,
-                      color: ui.text,
-                    },
-                  ]}
-                />
-              </View>
+              <ThemedText type="defaultSemiBold">Interest Rate (%)</ThemedText>
+              <TextInput
+                value={createInterest}
+                onChangeText={setCreateInterest}
+                keyboardType="numeric"
+                style={[
+                  styles.input,
+                  {
+                    borderColor: ui.border,
+                    backgroundColor: ui.surface2,
+                    color: ui.text,
+                  },
+                ]}
+              />
 
-              <View style={{ gap: 6 }}>
-                <ThemedText type="defaultSemiBold">Currency</ThemedText>
-                <TextInput
-                  value={editCurrency}
-                  onChangeText={setEditCurrency}
-                  autoCapitalize="characters"
-                  style={[
-                    styles.input,
-                    {
-                      borderColor: ui.border,
-                      backgroundColor: ui.surface2,
-                      color: ui.text,
-                    },
-                  ]}
-                />
-              </View>
+              <ThemedText type="defaultSemiBold">Currency</ThemedText>
+              <TextInput
+                value={createCurrency}
+                onChangeText={setCreateCurrency}
+                autoCapitalize="characters"
+                style={[
+                  styles.input,
+                  {
+                    borderColor: ui.border,
+                    backgroundColor: ui.surface2,
+                    color: ui.text,
+                  },
+                ]}
+              />
 
-              {/* Native Date Pickers */}
               <DateTimePickerField
                 label="Statement Due Date"
-                value={parseLocalDate(editStatementDate)}
-                onChange={(date) => setEditStatementDate(toLocalISOString(date))}
+                value={parseLocalDate(createStatementDate)}
+                onChange={(date) =>
+                  setCreateStatementDate(toLocalISOString(date))
+                }
                 ui={ui}
               />
 
               <DateTimePickerField
                 label="Payment Due Date"
-                value={parseLocalDate(editPaymentDate)}
-                onChange={(date) => setEditPaymentDate(toLocalISOString(date))}
+                value={parseLocalDate(createPaymentDate)}
+                onChange={(date) =>
+                  setCreatePaymentDate(toLocalISOString(date))
+                }
                 ui={ui}
               />
 
               <Pressable
-                onPress={updateAccount}
+                onPress={createAccount}
+                disabled={!canCreate || isLoading}
                 style={[
                   styles.button,
                   {
-                    backgroundColor: ui.text,
                     borderColor: ui.border,
-                    alignSelf: "center",
+                    backgroundColor: ui.text,
                     width: "100%",
                     alignItems: "center",
-                    marginTop: 16,
-                    paddingVertical: 12,
                     borderRadius: 24,
                   },
+                  (!canCreate || isLoading) && styles.buttonDisabled,
                 ]}
               >
                 <ThemedText
                   type="defaultSemiBold"
                   style={{ color: ui.surface }}
                 >
-                  Save Changes
-                </ThemedText>
-              </Pressable>
-
-              <Pressable
-                onPress={() => editingAccount && deleteAccount(editingAccount.id)}
-                disabled={isLoading}
-                style={[
-                  styles.deleteAction,
-                  { borderColor: ui.border, backgroundColor: ui.surface2, borderRadius: 24 },
-                  isLoading && styles.buttonDisabled,
-                ]}
-              >
-                <ThemedText style={{ color: ui.danger, fontWeight: "600" }}>
-                  Delete Account
+                  Create
                 </ThemedText>
               </Pressable>
             </ScrollView>
+
+            {/* Account Type Selection Modal (Add) */}
+            <SelectionModal
+              visible={typeModalOpen}
+              onClose={() => setTypeModalOpen(false)}
+              title="Select Account Type"
+              ui={ui}
+            >
+              <Pressable
+                style={[
+                  styles.modalOption,
+                  { borderColor: ui.border, backgroundColor: ui.surface },
+                ]}
+                onPress={() => {
+                  setType("credit");
+                  setTypeModalOpen(false);
+                }}
+              >
+                <ThemedText>Credit</ThemedText>
+              </Pressable>
+              <Pressable
+                style={[
+                  styles.modalOption,
+                  { borderColor: ui.border, backgroundColor: ui.surface },
+                ]}
+                onPress={() => {
+                  setType("debit");
+                  setTypeModalOpen(false);
+                }}
+              >
+                <ThemedText>Debit</ThemedText>
+              </Pressable>
+            </SelectionModal>
           </ThemedView>
         </Modal>
-      </AccountDetailModal>
-    </View>
+
+        <TransactionDetailModal
+          visible={isTxDetailVisible}
+          onClose={() => {
+            setIsTxDetailVisible(false);
+            setSelectedTransaction(null);
+          }}
+          transaction={selectedTransaction}
+          accounts={accountsForTx}
+        />
+
+        {/* Account Detail Modal with nested Edit Account Modal */}
+        <AccountDetailModal
+          visible={detailModalVisible}
+          onClose={() => {
+            setDetailModalVisible(false);
+            setSelectedDetailAccount(null);
+          }}
+          account={selectedDetailAccount as any}
+          availableBalance={
+            selectedDetailAccount
+              ? "account_id" in selectedDetailAccount
+                ? calculatePlaidAvailable(selectedDetailAccount as PlaidAccount)
+                : calculateAvailable(selectedDetailAccount as AccountRow)
+              : null
+          }
+          onEdit={(acc: any) => {
+            setEditingAccount(acc as AccountRow);
+          }}
+          onUnlink={(pa: any) => {
+            Alert.alert(
+              "Unlink Account?",
+              "Are you sure you want to unlink this account? Your data will be removed.",
+              [
+                { text: "Cancel", style: "cancel" },
+                {
+                  text: "Unlink",
+                  style: "destructive",
+                  onPress: async () => {
+                    setDetailModalVisible(false);
+                    try {
+                      if (!pa.plaid_item_id) {
+                        Alert.alert("Error", "No item ID found.");
+                        return;
+                      }
+                      await removePlaidItem(pa.plaid_item_id);
+                      await loadAccounts();
+                      getPlaidAccounts()
+                        .then(setPlaidAccounts)
+                        .catch(console.error);
+                    } catch (e) {
+                      console.error("Error unlinking:", e);
+                      Alert.alert("Error", "Could not unlink account.");
+                    }
+                  },
+                },
+              ],
+            );
+          }}
+        >
+          {/* Edit Account Modal (Nested) */}
+          <Modal
+            visible={!!editingAccount}
+            animationType="slide"
+            presentationStyle="pageSheet"
+            onRequestClose={() => setEditingAccount(null)}
+          >
+            <ThemedView
+              style={{
+                flex: 1,
+                backgroundColor: ui.surface,
+                padding: 16,
+                paddingTop: Platform.OS === "ios" ? 12 : 16 + insets.top,
+                paddingBottom: 16 + insets.bottom,
+              }}
+            >
+              <View style={styles.modalHeader}>
+                <View style={styles.modalHeaderLeft} />
+                <ThemedText
+                  type="defaultSemiBold"
+                  style={styles.modalHeaderTitle}
+                >
+                  Edit Account
+                </ThemedText>
+                <View style={styles.modalHeaderRight}>
+                  <Pressable
+                    onPress={() => setEditingAccount(null)}
+                    hitSlop={20}
+                    style={[
+                      styles.modalCloseButton,
+                      { backgroundColor: ui.surface2 },
+                    ]}
+                  >
+                    <Feather name="x" size={18} color={ui.text} />
+                  </Pressable>
+                </View>
+              </View>
+
+              <ScrollView
+                contentContainerStyle={{ gap: 16, paddingBottom: 40 }}
+              >
+                <View style={{ gap: 6 }}>
+                  <ThemedText type="defaultSemiBold">Account Name</ThemedText>
+                  <TextInput
+                    value={editName}
+                    onChangeText={setEditName}
+                    style={[
+                      styles.input,
+                      {
+                        borderColor: ui.border,
+                        backgroundColor: ui.surface2,
+                        color: ui.text,
+                      },
+                    ]}
+                  />
+                </View>
+
+                <View style={{ gap: 6 }}>
+                  <ThemedText type="defaultSemiBold">Balance</ThemedText>
+                  <TextInput
+                    value={editBalance}
+                    onChangeText={setEditBalance}
+                    keyboardType="numeric"
+                    style={[
+                      styles.input,
+                      {
+                        borderColor: ui.border,
+                        backgroundColor: ui.surface2,
+                        color: ui.text,
+                      },
+                    ]}
+                  />
+                </View>
+
+                <View style={{ gap: 6 }}>
+                  <ThemedText type="defaultSemiBold">Credit Limit</ThemedText>
+                  <TextInput
+                    value={editLimit}
+                    onChangeText={setEditLimit}
+                    keyboardType="numeric"
+                    style={[
+                      styles.input,
+                      {
+                        borderColor: ui.border,
+                        backgroundColor: ui.surface2,
+                        color: ui.text,
+                      },
+                    ]}
+                  />
+                </View>
+
+                <View style={{ gap: 6 }}>
+                  <ThemedText type="defaultSemiBold">
+                    Interest Rate (%)
+                  </ThemedText>
+                  <TextInput
+                    value={editInterest}
+                    onChangeText={setEditInterest}
+                    keyboardType="numeric"
+                    style={[
+                      styles.input,
+                      {
+                        borderColor: ui.border,
+                        backgroundColor: ui.surface2,
+                        color: ui.text,
+                      },
+                    ]}
+                  />
+                </View>
+
+                <View style={{ gap: 6 }}>
+                  <ThemedText type="defaultSemiBold">Currency</ThemedText>
+                  <TextInput
+                    value={editCurrency}
+                    onChangeText={setEditCurrency}
+                    autoCapitalize="characters"
+                    style={[
+                      styles.input,
+                      {
+                        borderColor: ui.border,
+                        backgroundColor: ui.surface2,
+                        color: ui.text,
+                      },
+                    ]}
+                  />
+                </View>
+
+                {/* Native Date Pickers */}
+                <DateTimePickerField
+                  label="Statement Due Date"
+                  value={parseLocalDate(editStatementDate)}
+                  onChange={(date) =>
+                    setEditStatementDate(toLocalISOString(date))
+                  }
+                  ui={ui}
+                />
+
+                <DateTimePickerField
+                  label="Payment Due Date"
+                  value={parseLocalDate(editPaymentDate)}
+                  onChange={(date) =>
+                    setEditPaymentDate(toLocalISOString(date))
+                  }
+                  ui={ui}
+                />
+
+                <Pressable
+                  onPress={updateAccount}
+                  style={[
+                    styles.button,
+                    {
+                      backgroundColor: ui.text,
+                      borderColor: ui.border,
+                      alignSelf: "center",
+                      width: "100%",
+                      alignItems: "center",
+                      marginTop: 16,
+                      paddingVertical: 12,
+                      borderRadius: 24,
+                    },
+                  ]}
+                >
+                  <ThemedText
+                    type="defaultSemiBold"
+                    style={{ color: ui.surface }}
+                  >
+                    Save Changes
+                  </ThemedText>
+                </Pressable>
+
+                <Pressable
+                  onPress={() =>
+                    editingAccount && deleteAccount(editingAccount.id)
+                  }
+                  disabled={isLoading}
+                  style={[
+                    styles.deleteAction,
+                    {
+                      borderColor: ui.border,
+                      backgroundColor: ui.surface2,
+                      borderRadius: 24,
+                    },
+                    isLoading && styles.buttonDisabled,
+                  ]}
+                >
+                  <ThemedText style={{ color: ui.danger, fontWeight: "600" }}>
+                    Delete Account
+                  </ThemedText>
+                </Pressable>
+              </ScrollView>
+            </ThemedView>
+          </Modal>
+        </AccountDetailModal>
+      </View>
     </PanGestureHandler>
   );
 }
@@ -1978,6 +2175,3 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
 });
-
-
-

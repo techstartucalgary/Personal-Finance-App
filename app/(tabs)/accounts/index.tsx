@@ -5,7 +5,6 @@ import {
   ActivityIndicator,
   Alert,
   Animated,
-  Dimensions,
   InteractionManager,
   LayoutAnimation,
   Modal,
@@ -27,18 +26,18 @@ import {
 } from "react-native-plaid-link-sdk";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { useFocusEffect, useNavigation, useRouter } from "expo-router";
+import { useFocusEffect, useNavigation } from "expo-router";
 
 import { AccountDetailModal } from "@/components/AccountDetailModal";
 import {
-  AccountHeroCard,
-  AccountWaveCard,
-} from "@/components/accounts/AccountCards";
+  AccountCardCarousel,
+  type UnifiedAccount,
+} from "@/components/accounts/AccountCardCarousel";
+import { AccountWaveCard } from "@/components/accounts/AccountCards";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { TransactionDetailModal } from "@/components/TransactionDetailModal";
 import { TransactionsList } from "@/components/transactions/TransactionsList";
-import { AppHeader } from "@/components/ui/AppHeader";
 import { DateTimePickerField } from "@/components/ui/DateTimePickerField";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { SelectionModal } from "@/components/ui/SelectionModal";
@@ -111,7 +110,6 @@ type ExpenseRow = {
 export default function AccountsScreen() {
   const { session, isLoading: authLoading } = useAuthContext();
 
-  const router = useRouter();
   const navigation = useNavigation();
 
   const insets = useSafeAreaInsets();
@@ -121,7 +119,7 @@ export default function AccountsScreen() {
   try {
     // eslint-disable-next-line react-hooks/rules-of-hooks
     tabBarHeight = useBottomTabBarHeight();
-  } catch (e) {
+  } catch {
     // Fallback if hook fails (e.g. not in tab navigator context)
     tabBarHeight = insets.bottom + 60;
   }
@@ -131,9 +129,6 @@ export default function AccountsScreen() {
   const swipe = useTabSwipe(1);
 
   const userId = session?.user.id;
-  const handleProfilePress = useCallback(() => {
-    router.push("/profile");
-  }, [router]);
 
   const [isLoading, setIsLoading] = useState(false);
   const [accounts, setAccounts] = useState<AccountRow[]>([]);
@@ -187,34 +182,23 @@ export default function AccountsScreen() {
     }
   }, []);
 
-  const openAddTransaction = useCallback(() => {
-    router.push({
-      pathname: "/(tabs)/transactions",
-      params: { openAdd: String(Date.now()) },
-    });
-  }, [router]);
-
-  const getAccountColor = (item: AccountRow | PlaidAccount, index: number) => {
-    const type = (
-      ("account_type" in item ? item.account_type : item.type) ?? ""
-    ).toLowerCase();
-    const isDebit =
-      type === "debit" ||
-      type === "depository" ||
-      type === "checking" ||
-      type === "savings";
-    const palette = isDebit
-      ? ["#701D26", "#8A2431", "#5A1520", "#9B2B3A"] // DEBIT_PALETTE
-      : ["#D86666", "#E07A7A", "#C95454", "#E39191"]; // CREDIT_PALETTE
-    return palette[index % palette.length];
-  };
-
-  const screenWidth = Dimensions.get("window").width;
-  const containerGutter = 16;
-  const cardSideGap = 0;
-  const cardGap = 12;
-  const cardWidth = Math.max(280, screenWidth - containerGutter * 2);
-  const cardSnap = cardWidth + cardGap;
+  const getAccountColor = useCallback(
+    (item: AccountRow | PlaidAccount, index: number) => {
+      const type = (
+        ("account_type" in item ? item.account_type : item.type) ?? ""
+      ).toLowerCase();
+      const isDebit =
+        type === "debit" ||
+        type === "depository" ||
+        type === "checking" ||
+        type === "savings";
+      const palette = isDebit
+        ? ["#701D26", "#8A2431", "#5A1520", "#9B2B3A"] // DEBIT_PALETTE
+        : ["#D86666", "#E07A7A", "#C95454", "#E39191"]; // CREDIT_PALETTE
+      return palette[index % palette.length];
+    },
+    [],
+  );
 
   useFocusEffect(
     useCallback(() => {
@@ -222,15 +206,15 @@ export default function AccountsScreen() {
         headerSearchBarOptions: {
           placeholder: "Search accounts...",
           onChangeText: (event: any) => setSearchQuery(event.nativeEvent.text),
-          hideWhenScrolling: true,
+          hideWhenScrolling: false,
           tintColor: ui.accent,
           textColor: ui.text,
           hintTextColor: ui.mutedText,
           headerIconColor: ui.mutedText,
-          shouldShowHintSearchIcon: false,
+          placement: "integratedButton",
         },
       });
-    }, [navigation, ui, router]),
+    }, [navigation, ui]),
   );
   const [selectedDetailAccount, setSelectedDetailAccount] = useState<
     AccountRow | PlaidAccount | null
@@ -618,79 +602,12 @@ export default function AccountsScreen() {
     [goals],
   );
 
-  const formatMoney = (amount: number) => {
+  const formatMoney = useCallback((amount: number) => {
     return new Intl.NumberFormat("en-CA", {
       style: "currency",
       currency: "CAD",
     }).format(amount);
-  };
-
-  const formatCardDate = (value?: string | null) => {
-    if (!value) return "--/--/--";
-    const parsed = new Date(value);
-    if (Number.isNaN(parsed.getTime())) return value;
-    const userTimezoneOffset = parsed.getTimezoneOffset() * 60000;
-    const adjustedDate = new Date(parsed.getTime() + userTimezoneOffset);
-    return adjustedDate.toLocaleDateString("en-CA", {
-      month: "2-digit",
-      day: "2-digit",
-      year: "2-digit",
-    });
-  };
-
-  const totalBalance = useMemo(() => {
-    const manualTotal = accounts.reduce((sum, account) => {
-      const isLiability =
-        (account.account_type ?? "").toLowerCase() === "credit";
-      const bal = account.balance ?? 0;
-      return isLiability ? sum - bal : sum + bal;
-    }, 0);
-
-    const plaidTotal = plaidAccounts.reduce((sum, pa) => {
-      const type = (pa.type ?? "").toLowerCase();
-      const isLiability = type === "credit" || type === "loan";
-      const bal = pa.balances.current ?? 0;
-      return isLiability ? sum - bal : sum + bal;
-    }, 0);
-
-    return manualTotal + plaidTotal;
-  }, [accounts, plaidAccounts]);
-
-  const totalAvailable = useMemo(() => {
-    const manualAvail = accounts.reduce(
-      (sum, account) => sum + calculateAvailable(account),
-      0,
-    );
-    const plaidAvail = plaidAccounts.reduce((sum, pa) => {
-      const type = (pa.type ?? "").toLowerCase();
-      const isLiability = type === "credit" || type === "loan";
-      const avail = calculatePlaidAvailable(pa);
-      return isLiability ? sum - avail : sum + avail;
-    }, 0);
-    return manualAvail + plaidAvail;
-  }, [accounts, plaidAccounts, calculateAvailable, calculatePlaidAvailable]);
-
-  const assetsCount = useMemo(() => {
-    const manualAssets = accounts.filter(
-      (a) => (a.account_type ?? "").toLowerCase() !== "credit",
-    ).length;
-    const plaidAssets = plaidAccounts.filter((pa) => {
-      const type = (pa.type ?? "").toLowerCase();
-      return type !== "credit" && type !== "loan";
-    }).length;
-    return manualAssets + plaidAssets;
-  }, [accounts, plaidAccounts]);
-
-  const liabilitiesCount = useMemo(() => {
-    const manualLiabilities = accounts.filter(
-      (a) => (a.account_type ?? "").toLowerCase() === "credit",
-    ).length;
-    const plaidLiabilities = plaidAccounts.filter((pa) => {
-      const type = (pa.type ?? "").toLowerCase();
-      return type === "credit" || type === "loan";
-    }).length;
-    return manualLiabilities + plaidLiabilities;
-  }, [accounts, plaidAccounts]);
+  }, []);
 
   const filteredManualAccounts = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
@@ -736,10 +653,74 @@ export default function AccountsScreen() {
     return [...manual, ...plaid];
   }, [accounts, plaidAccounts]);
 
+  const unifiedAccounts: UnifiedAccount[] = useMemo(() => {
+    return combinedAccounts.map((item, index) => {
+      if (item.kind === "manual") {
+        const acc = item.raw as AccountRow;
+        const typeValue = acc.account_type ?? "Account";
+        const typeLabel =
+          typeValue.charAt(0).toUpperCase() + typeValue.slice(1);
+        const available = calculateAvailable(acc);
+
+        return {
+          key: item.id,
+          kind: "manual",
+          color: getAccountColor(acc, index),
+          name: acc.account_name ?? "Unnamed Account",
+          balance: formatMoney(acc.balance ?? 0),
+          availableBalance: formatMoney(available),
+          typeLabel,
+          subtitle: acc.currency ?? "CAD",
+          sourceLabel: "Manual",
+          data: acc,
+        };
+      }
+
+      const pa = item.raw as PlaidAccount;
+      const typeValue = pa.type ?? "Account";
+      const typeLabel =
+        typeValue.charAt(0).toUpperCase() + typeValue.slice(1);
+      const subtitle = pa.subtype
+        ? pa.subtype.charAt(0).toUpperCase() + pa.subtype.slice(1)
+        : "Bank";
+      const available = calculatePlaidAvailable(pa);
+
+      return {
+        key: item.id,
+        kind: "plaid",
+        color: getAccountColor(pa, index),
+        name: pa.name,
+        balance: formatMoney(pa.balances.current ?? 0),
+        availableBalance: formatMoney(pa.balances.available ?? available),
+        typeLabel,
+        subtitle,
+        sourceLabel: "Plaid",
+        institutionName: pa.institution_name,
+        mask: pa.mask,
+        data: pa,
+      };
+    });
+  }, [
+    combinedAccounts,
+    calculateAvailable,
+    calculatePlaidAvailable,
+    formatMoney,
+    getAccountColor,
+  ]);
+
   useEffect(() => {
     if (!singleAccountId && combinedAccounts.length > 0) {
       setSingleAccountId(combinedAccounts[0].id);
     }
+  }, [combinedAccounts, singleAccountId]);
+
+  const activeCardIndex = useMemo(() => {
+    if (!combinedAccounts.length) return 0;
+    if (!singleAccountId) return 0;
+    const idx = combinedAccounts.findIndex(
+      (account) => account.id === singleAccountId,
+    );
+    return idx >= 0 ? idx : 0;
   }, [combinedAccounts, singleAccountId]);
 
   const selectedAccount = useMemo(() => {
@@ -750,21 +731,6 @@ export default function AccountsScreen() {
       null
     );
   }, [combinedAccounts, singleAccountId]);
-
-  const handleCardSnap = useCallback(
-    (offsetX: number) => {
-      if (!combinedAccounts.length) return;
-      const index = Math.round(offsetX / cardSnap);
-      const next =
-        combinedAccounts[
-          Math.min(Math.max(index, 0), combinedAccounts.length - 1)
-        ];
-      if (next && next.id !== singleAccountId) {
-        setSingleAccountId(next.id);
-      }
-    },
-    [combinedAccounts, cardSnap, singleAccountId],
-  );
 
   const selectedFilterId = useMemo(() => {
     if (!selectedAccount) return null;
@@ -837,9 +803,13 @@ export default function AccountsScreen() {
 
   if (authLoading && !session) {
     return (
-      <View style={[styles.screen, { backgroundColor: ui.bg }]}>
-        <AppHeader title="Accounts" onRightPress={handleProfilePress} />
-        <View style={[styles.stateWrap, { paddingTop: 12 }]}>
+      <View
+        style={[
+          styles.screen,
+          { backgroundColor: ui.bg, paddingTop: 16 + insets.top },
+        ]}
+      >
+        <View style={styles.stateWrap}>
           <ThemedText style={{ color: ui.text }}>Loading…</ThemedText>
         </View>
       </View>
@@ -848,9 +818,13 @@ export default function AccountsScreen() {
 
   if (!session) {
     return (
-      <View style={[styles.screen, { backgroundColor: ui.bg }]}>
-        <AppHeader title="Accounts" onRightPress={handleProfilePress} />
-        <View style={[styles.stateWrap, { paddingTop: 12 }]}>
+      <View
+        style={[
+          styles.screen,
+          { backgroundColor: ui.bg, paddingTop: 16 + insets.top },
+        ]}
+      >
+        <View style={styles.stateWrap}>
           <ThemedText type="title" style={{ color: ui.text }}>
             Accounts
           </ThemedText>
@@ -870,7 +844,6 @@ export default function AccountsScreen() {
       failOffsetY={[-15, 15]}
     >
       <View style={[styles.screen, { backgroundColor: ui.bg }]}>
-        <AppHeader title="Accounts" onRightPress={handleProfilePress} />
         <Animated.View
           style={[styles.contentWrap, transition.style, swipe.style]}
           renderToHardwareTextureAndroid
@@ -915,88 +888,26 @@ export default function AccountsScreen() {
                   </View>
                 ) : (
                   <>
-                    <ScrollView
-                      horizontal
-                      showsHorizontalScrollIndicator={false}
-                      snapToInterval={cardSnap}
-                      snapToAlignment="start"
-                      decelerationRate="fast"
-                      contentContainerStyle={{
-                        paddingHorizontal: cardSideGap,
-                        gap: cardGap,
+                    <AccountCardCarousel
+                      accounts={unifiedAccounts}
+                      activeIndex={activeCardIndex}
+                      onIndexChange={(index) => {
+                        const next = combinedAccounts[index];
+                        if (next && next.id !== singleAccountId) {
+                          setSingleAccountId(next.id);
+                        }
                       }}
-                      style={styles.singleCarousel}
-                      onMomentumScrollEnd={(event) => {
-                        handleCardSnap(event.nativeEvent.contentOffset.x);
-                      }}
-                    >
-                      {combinedAccounts.map((item, idx) => {
-                        const raw = item.raw as AccountRow | PlaidAccount;
-                        const isSelected = selectedAccount?.id === item.id;
-                        const accountName =
-                          "account_name" in raw
-                            ? (raw.account_name ?? "Account")
-                            : raw.name;
-                        const balance =
-                          "balance" in raw
-                            ? (raw.balance ?? 0)
-                            : (raw.balances.current ?? 0);
-                        const typeValue =
-                          ("account_type" in raw
-                            ? raw.account_type
-                            : raw.type) ?? "Account";
-                        const typeLabel =
-                          typeValue.charAt(0).toUpperCase() +
-                          typeValue.slice(1);
-                        const creditLimit =
-                          "credit_limit" in raw
-                            ? raw.credit_limit
-                            : raw.balances.limit;
-                        const paymentDue =
-                          "payment_duedate" in raw ? raw.payment_duedate : null;
-                        const metaRows = [
-                          {
-                            label: "Credit Limit",
-                            value:
-                              creditLimit != null
-                                ? formatMoney(creditLimit)
-                                : "--",
-                          },
-                          {
-                            label: "Payment due",
-                            value: paymentDue
-                              ? formatCardDate(paymentDue)
-                              : "--/--/--",
-                          },
-                          {
-                            label: typeLabel,
-                            value:
-                              "subtype" in raw && raw.subtype
-                                ? raw.subtype
-                                : "Account",
-                          },
-                        ];
-
-                        return (
-                          <View
-                            key={item.id}
-                            style={[
-                              styles.singleCardWrap,
-                              { width: cardWidth },
-                            ]}
-                          >
-                            <AccountHeroCard
-                              title={accountName}
-                              balance={formatMoney(balance)}
-                              color={getAccountColor(raw, idx)}
-                              metaRows={metaRows}
-                              isSelected={isSelected}
-                              onPress={() => setSingleAccountId(item.id)}
-                            />
-                          </View>
+                      onAddPress={() => setAddSourceModalOpen(true)}
+                      onAccountPress={(account) => {
+                        const next = combinedAccounts.find(
+                          (acc) => acc.id === account.key,
                         );
-                      })}
-                    </ScrollView>
+                        if (next && next.id !== singleAccountId) {
+                          setSingleAccountId(next.id);
+                        }
+                      }}
+                      ui={ui}
+                    />
 
                     <View style={styles.cardActions}>
                       <Pressable
@@ -1854,50 +1765,6 @@ const styles = StyleSheet.create({
   singleViewWrap: {
     gap: 12,
     position: "relative",
-  },
-  singleCarousel: {
-    marginTop: 4,
-  },
-  singleCardWrap: {
-    borderRadius: 22,
-  },
-  headerRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 10,
-  },
-  iconBtn: {
-    width: 36,
-    height: 36,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: 12,
-  },
-  headerTitle: {
-    flex: 1,
-    textAlign: "center",
-    fontSize: 18,
-    letterSpacing: 0.2,
-    fontFamily: Tokens.font.semiFamily ?? Tokens.font.family,
-  },
-  heroCard: {
-    alignItems: "center",
-    paddingTop: 6,
-    paddingBottom: 6,
-    gap: 4,
-  },
-  heroLabel: {
-    fontFamily: Tokens.font.semiFamily ?? Tokens.font.family,
-    fontSize: 12,
-    letterSpacing: 0.2,
-    textAlign: "center",
-  },
-  heroValue: {
-    fontFamily: "Lato-Bold",
-    fontSize: 38,
-    lineHeight: 40,
-    textAlign: "center",
   },
   chartCard: {
     paddingTop: 2,

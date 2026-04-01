@@ -1,7 +1,6 @@
 import React from "react";
 
 import { AddTransactionModal } from "@/components/AddTransactionModal";
-import { EditTransactionModal } from "@/components/EditTransactionModal";
 import { TransactionDetailModal } from "@/components/TransactionDetailModal";
 import type { PlaidTransaction } from "@/utils/plaid";
 
@@ -14,77 +13,69 @@ import type {
 } from "../types";
 
 type TransactionsModalsProps = {
-  addModalOpen: boolean;
-  onCloseAddModal: () => void;
+  formMode: "add" | "view" | "edit" | null;
+  formTransaction: ExpenseRow | null;
+  onCloseForm: () => void;
+  onRequestEdit: () => void;
+  onRequestDelete: () => void;
   accounts: AccountRow[];
   categories: CategoryRow[];
   recurringRules: RecurringRule[];
-  selectedDetailTransaction: ExpenseRow | PlaidTransaction | null;
-  isDetailModalVisible: boolean;
-  onCloseDetailModal: () => void;
-  onEditExpense: (expense: ExpenseRow) => void;
-  editingExpense: ExpenseRow | null;
-  onCloseEditExpense: () => void;
+  plaidDetailTransaction: PlaidTransaction | null;
+  isPlaidDetailVisible: boolean;
+  onClosePlaidDetail: () => void;
   onRefresh: () => Promise<void>;
   ui: TransactionsUi;
   isDark: boolean;
   userId?: string;
 };
 
-// Groups the add/edit/detail modals so the screen stays uncluttered.
+// Groups the add/view/edit form and Plaid-only detail modal.
 export function TransactionsModals({
-  addModalOpen,
-  onCloseAddModal,
+  formMode,
+  formTransaction,
+  onCloseForm,
+  onRequestEdit,
+  onRequestDelete,
   accounts,
   categories,
   recurringRules,
-  selectedDetailTransaction,
-  isDetailModalVisible,
-  onCloseDetailModal,
-  onEditExpense,
-  editingExpense,
-  onCloseEditExpense,
+  plaidDetailTransaction,
+  isPlaidDetailVisible,
+  onClosePlaidDetail,
   onRefresh,
   ui,
   isDark,
   userId,
 }: TransactionsModalsProps) {
+  const isFormVisible = formMode !== null;
+  const resolvedMode = formMode ?? "add";
+
   return (
     <>
       <AddTransactionModal
-        visible={addModalOpen}
-        onClose={onCloseAddModal}
+        visible={isFormVisible}
+        onClose={onCloseForm}
         accounts={accounts}
         categories={categories}
         onRefresh={onRefresh}
         ui={ui}
         isDark={isDark}
         userId={userId}
+        mode={resolvedMode}
+        initialTransaction={formTransaction}
+        recurringRules={recurringRules}
+        onEditRequest={resolvedMode === "view" ? onRequestEdit : undefined}
+        onDeleteRequest={resolvedMode === "view" ? onRequestDelete : undefined}
       />
 
       <TransactionDetailModal
-        visible={isDetailModalVisible}
-        onClose={onCloseDetailModal}
-        transaction={selectedDetailTransaction}
+        visible={isPlaidDetailVisible}
+        onClose={onClosePlaidDetail}
+        transaction={plaidDetailTransaction}
         accounts={accounts}
-        onEdit={(expense) => {
-          onEditExpense(expense);
-        }}
         recurringRules={recurringRules}
-      >
-        <EditTransactionModal
-          visible={!!editingExpense}
-          onClose={onCloseEditExpense}
-          expense={editingExpense}
-          accounts={accounts}
-          categories={categories}
-          recurringRules={recurringRules}
-          onRefresh={onRefresh}
-          ui={ui}
-          isDark={isDark}
-          userId={userId}
-        />
-      </TransactionDetailModal>
+      />
     </>
   );
 }

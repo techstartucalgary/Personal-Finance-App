@@ -786,7 +786,7 @@ interface AddTransactionModalProps {
   ui: any;
   isDark: boolean;
   userId: string | undefined;
-  mode?: "add" | "view";
+  mode?: "add" | "view" | "edit";
   initialTransaction?: ExpenseRow | null;
   recurringRules?: any[];
   onEditRequest?: () => void;

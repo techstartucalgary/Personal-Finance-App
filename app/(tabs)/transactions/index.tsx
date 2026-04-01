@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  Alert,
   Platform,
   RefreshControl,
   ScrollView,
@@ -11,12 +12,12 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "react-native-paper";
 
 import { useAuthContext } from "@/hooks/use-auth-context";
-import { listAccounts } from "@/utils/accounts";
+import { getAccountById, listAccounts, updateAccount } from "@/utils/accounts";
 import { listCategories } from "@/utils/categories";
-import { listExpenses } from "@/utils/expenses";
+import { deleteExpense, listExpenses } from "@/utils/expenses";
 import type { PlaidAccount, PlaidTransaction } from "@/utils/plaid";
 import { getPlaidAccounts, getPlaidTransactions } from "@/utils/plaid";
-import { getRecurringRules } from "@/utils/recurring";
+import { deleteRecurringRule, getRecurringRules } from "@/utils/recurring";
 
 import { AccountFilterChips } from "./components/AccountFilterChips";
 import { EditRecurrenceSheet } from "./components/EditRecurrenceSheet";
@@ -76,18 +77,20 @@ export default function HomeScreen() {
   const [plaidAccounts, setPlaidAccounts] = useState<PlaidAccount[]>([]);
 
   const [searchQuery, setSearchQuery] = useState("");
-  const [addModalOpen, setAddModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<TransactionsTab>("transactions");
   const [recurringRules, setRecurringRules] = useState<RecurringRule[]>([]);
   const [editingRule, setEditingRule] = useState<RecurringRule | null>(null);
   const [filterAccountId, setFilterAccountId] =
     useState<FilterAccountId>(null);
 
-  const [editingExpense, setEditingExpense] = useState<ExpenseRow | null>(null);
-  const [selectedDetailTransaction, setSelectedDetailTransaction] = useState<
-    ExpenseRow | PlaidTransaction | null
+  const [transactionFormMode, setTransactionFormMode] = useState<
+    "add" | "view" | "edit" | null
   >(null);
-  const [isDetailModalVisible, setIsDetailModalVisible] = useState(false);
+  const [transactionFormExpense, setTransactionFormExpense] =
+    useState<ExpenseRow | null>(null);
+  const [selectedPlaidTransaction, setSelectedPlaidTransaction] =
+    useState<PlaidTransaction | null>(null);
+  const [isPlaidDetailVisible, setIsPlaidDetailVisible] = useState(false);
 
   // Formatters shared across list rows and detail views.
   const formatDate = useCallback((value?: string | null) => {
@@ -244,10 +247,126 @@ export default function HomeScreen() {
     await loadRecurringRules();
   }, [loadAccounts, loadCategories, loadExpenses, loadRecurringRules]);
 
+  const applyTransactionToBalance = useCallback(
+    (account: AccountRow, transactionAmount: number) => {
+      const currentBalance = account.balance ?? 0;
+      const isCredit = account.account_type === "credit";
+      return isCredit
+        ? currentBalance + transactionAmount
+        : currentBalance - transactionAmount;
+    },
+    [],
+  );
+
+  const handleDeleteTransaction = useCallback(
+    async (expense: ExpenseRow) => {
+      if (!userId) return;
+
+      const executeDelete = async () => {
+        if (!userId) return;
+        try {
+          const originalAmount = expense.amount ?? 0;
+          const originalAccountId = expense.account_id;
+
+          await deleteExpense({ id: expense.id, profile_id: userId });
+
+          if (originalAccountId != null) {
+            const originalAccount = await getAccountById({
+              id: originalAccountId,
+              profile_id: userId,
+            });
+            if (originalAccount) {
+              const revertedBalance = applyTransactionToBalance(
+                originalAccount,
+                -originalAmount,
+              );
+              await updateAccount({
+                id: String(originalAccount.id),
+                profile_id: userId,
+                update: { balance: revertedBalance },
+              });
+            }
+          }
+
+          await handleModalRefresh();
+          setTransactionFormMode(null);
+          setTransactionFormExpense(null);
+        } catch (error) {
+          console.error("Error deleting transaction:", error);
+          Alert.alert("Error", "Could not delete transaction.");
+        } finally {
+          setIsLoading(false);
+        }
+      };
+
+      if (expense.recurring_rule_id) {
+        Alert.alert(
+          "Recurring Transaction",
+          "This transaction is part of a recurring series. What would you like to do?",
+          [
+            { text: "Cancel", style: "cancel" },
+            {
+              text: "Delete and Cancel Future Recurring",
+              style: "destructive",
+              onPress: async () => {
+                setIsLoading(true);
+                try {
+                  await deleteRecurringRule({
+                    id: expense.recurring_rule_id!,
+                    profile_id: userId,
+                  });
+                  await executeDelete();
+                } catch (error) {
+                  console.error("Error updating rule:", error);
+                  Alert.alert(
+                    "Error",
+                    "Could not cancel future recurring transactions.",
+                  );
+                  setIsLoading(false);
+                }
+              },
+            },
+            {
+              text: "Delete This Transaction Only",
+              style: "default",
+              onPress: async () => {
+                setIsLoading(true);
+                await executeDelete();
+              },
+            },
+          ],
+        );
+      } else {
+        Alert.alert("Delete transaction?", "This action cannot be undone.", [
+          { text: "Cancel", style: "cancel" },
+          {
+            text: "Delete",
+            style: "destructive",
+            onPress: async () => {
+              setIsLoading(true);
+              await executeDelete();
+            },
+          },
+        ]);
+      }
+    },
+    [
+      applyTransactionToBalance,
+      handleModalRefresh,
+      userId,
+    ],
+  );
+
   const handleSelectTransaction = useCallback(
     (transaction: ExpenseRow | PlaidTransaction) => {
-      setSelectedDetailTransaction(transaction);
-      setIsDetailModalVisible(true);
+      if ("transaction_id" in transaction) {
+        setSelectedPlaidTransaction(transaction);
+        setIsPlaidDetailVisible(true);
+        return;
+      }
+
+      setTransactionFormExpense(transaction);
+      setTransactionFormMode("view");
     },
     [],
   );
@@ -324,27 +443,37 @@ export default function HomeScreen() {
       </ScrollView>
 
       <TransactionsFab
-        onPress={() => setAddModalOpen(true)}
+        onPress={() => {
+          setTransactionFormExpense(null);
+          setTransactionFormMode("add");
+        }}
         bottom={fabBottom}
         ui={ui}
         isAndroid={isAndroid}
       />
 
       <TransactionsModals
-        addModalOpen={addModalOpen}
-        onCloseAddModal={() => setAddModalOpen(false)}
+        formMode={transactionFormMode}
+        formTransaction={transactionFormExpense}
+        onCloseForm={() => {
+          setTransactionFormMode(null);
+          setTransactionFormExpense(null);
+        }}
+        onRequestEdit={() => setTransactionFormMode("edit")}
+        onRequestDelete={() => {
+          if (transactionFormExpense) {
+            handleDeleteTransaction(transactionFormExpense);
+          }
+        }}
         accounts={accounts}
         categories={categories}
         recurringRules={recurringRules}
-        selectedDetailTransaction={selectedDetailTransaction}
-        isDetailModalVisible={isDetailModalVisible}
-        onCloseDetailModal={() => {
-          setIsDetailModalVisible(false);
-          setSelectedDetailTransaction(null);
+        plaidDetailTransaction={selectedPlaidTransaction}
+        isPlaidDetailVisible={isPlaidDetailVisible}
+        onClosePlaidDetail={() => {
+          setIsPlaidDetailVisible(false);
+          setSelectedPlaidTransaction(null);
         }}
-        onEditExpense={(expense) => setEditingExpense(expense)}
-        editingExpense={editingExpense}
-        onCloseEditExpense={() => setEditingExpense(null)}
         onRefresh={handleModalRefresh}
         ui={ui}
         isDark={isDark}

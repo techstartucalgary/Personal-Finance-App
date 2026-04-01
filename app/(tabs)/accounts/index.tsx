@@ -1,5 +1,4 @@
 import Feather from "@expo/vector-icons/Feather";
-import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
@@ -114,15 +113,8 @@ export default function AccountsScreen() {
 
   const insets = useSafeAreaInsets();
 
-  // Dynamic tab bar height
-  let tabBarHeight = 0;
-  try {
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    tabBarHeight = useBottomTabBarHeight();
-  } catch {
-    // Fallback if hook fails (e.g. not in tab navigator context)
-    tabBarHeight = insets.bottom + 60;
-  }
+  // Dynamic tab bar height (NativeTabs-safe)
+  const tabBarHeight = insets.bottom + 60;
   const fabBottom = tabBarHeight - 16;
   const ui = tabsTheme.ui;
   const transition = useTabTransition();

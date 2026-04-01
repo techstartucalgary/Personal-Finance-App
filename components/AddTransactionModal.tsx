@@ -1781,7 +1781,7 @@ export function AddTransactionModal({
                       onBlur={() => {
                         if (amount) {
                           const parsed = parseFloat(amount);
-                          if (!isNaN(parsed)) {
+                          if (!Number.isNaN(parsed)) {
                             setAmount(parsed.toFixed(2));
                           }
                         }
@@ -3166,17 +3166,6 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     alignItems: "center",
     justifyContent: "center",
-  },
-  subcategoryChips: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 10,
-  },
-  subcategoryChip: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 16,
-    borderWidth: StyleSheet.hairlineWidth,
   },
 });
 

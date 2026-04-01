@@ -186,7 +186,7 @@ export default function SignUp() {
               contentContainerStyle={styles.formScroll}
             >
               <Text style={[styles.title, { color: "#000000", marginBottom: titleBottom }]}>
-                Let's get you set up
+                {"Let's get you set up"}
               </Text>
               <View style={[styles.form, { gap: formGap }]}>
                 <View style={styles.fieldBlock}>

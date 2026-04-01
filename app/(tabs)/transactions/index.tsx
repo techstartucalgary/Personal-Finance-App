@@ -1,10 +1,8 @@
 import Feather from "@expo/vector-icons/Feather";
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
-  Animated,
   Alert,
-  InteractionManager,
   Modal,
   Platform,
   Pressable,
@@ -12,29 +10,26 @@ import {
   ScrollView,
   StyleSheet,
   TextInput,
+  useColorScheme,
   View
 } from "react-native";
-import { PanGestureHandler } from "react-native-gesture-handler";
 
-import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
+import SegmentedControl from "@react-native-segmented-control/segmented-control";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
+import { useTheme } from "react-native-paper";
 
 import { AddTransactionModal } from "@/components/AddTransactionModal";
+import { EditTransactionModal } from "@/components/EditTransactionModal";
 import { TransactionDetailModal } from "@/components/TransactionDetailModal";
-import { TransactionsList } from "@/components/transactions/TransactionsList";
-import { AppHeader } from "@/components/ui/AppHeader";
 import { DateTimePickerField } from "@/components/ui/DateTimePickerField";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { SelectionModal } from "@/components/ui/SelectionModal";
-import { useTabTransition } from "@/components/ui/useTabTransition";
-import { useTabSwipe } from "@/components/ui/useTabSwipe";
 import { Tokens } from "@/constants/authTokens";
-import { tabsTheme } from "@/constants/tabsTheme";
 import { useAuthContext } from "@/hooks/use-auth-context";
-import { getAccountById, listAccounts, updateAccount } from "@/utils/accounts";
+import { listAccounts } from "@/utils/accounts";
 import {
   addCategory,
   addSubcategory,
@@ -44,7 +39,9 @@ import {
   listSubcategories,
 } from "@/utils/categories";
 import { parseLocalDate, toLocalISOString } from "@/utils/date";
-import { deleteExpense, listExpenses } from "@/utils/expenses";
+import {
+  listExpenses
+} from "@/utils/expenses";
 import type { PlaidAccount, PlaidTransaction } from "@/utils/plaid";
 import { getPlaidAccounts, getPlaidTransactions } from "@/utils/plaid";
 import {
@@ -53,29 +50,37 @@ import {
   updateRecurringRule
 } from "@/utils/recurring";
 
-import { useFocusEffect, useLocalSearchParams, useNavigation, useRouter } from "expo-router";
+import { useFocusEffect, useNavigation, useRouter } from "expo-router";
 
 export default function HomeScreen() {
   const { session } = useAuthContext();
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const navigation = useNavigation();
-  const { openAdd } = useLocalSearchParams<{ openAdd?: string }>();
-  const handleProfilePress = useCallback(() => {
-    router.push("/profile");
-  }, [router]);
-  const transition = useTabTransition();
-  const swipe = useTabSwipe(2);
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === "dark";
 
-  // Dynamic tab bar height
-  let tabBarHeight = 0;
-  try {
-    tabBarHeight = useBottomTabBarHeight();
-  } catch (e) {
-    tabBarHeight = insets.bottom + 60;
-  }
-  const fabBottom = tabBarHeight - 16;
-  const ui = tabsTheme.ui;
+  // Dynamic tab bar height (NativeTabs-safe)
+  const tabBarHeight = insets.bottom + 60;
+  const fabBottom = Platform.OS === "android" ? tabBarHeight + 35 : tabBarHeight + 5;
+  const theme = useTheme();
+
+  const isAndroid = Platform.OS === "android";
+
+  const ui = useMemo(
+    () => ({
+      surface: isDark ? "#1C1C1E" : "#FFFFFF",
+      surface2: isDark ? "#2C2C2E" : "#F2F2F7",
+      border: isDark ? "rgba(84,84,88,0.65)" : "rgba(60,60,67,0.29)",
+      text: isDark ? "#FFFFFF" : "#000000",
+      mutedText: isDark ? "rgba(235,235,245,0.6)" : "rgba(60,60,67,0.6)",
+      backdrop: "rgba(0,0,0,0.45)",
+      accent: isDark ? "#8CF2D1" : "#1F6F5B",
+      accentSoft: isDark ? "rgba(140,242,209,0.2)" : "rgba(31,111,91,0.12)",
+      danger: "#D32F2F",
+    }),
+    [isDark],
+  );
 
   const userId = session?.user.id;
 
@@ -118,6 +123,8 @@ export default function HomeScreen() {
   const [newSubcategoryName, setNewSubcategoryName] = useState("");
 
   const [searchQuery, setSearchQuery] = useState("");
+  const [isAndroidSearching, setIsAndroidSearching] = useState(false);
+
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [expenses, setExpenses] = useState<ExpenseRow[]>([]);
   const [plaidTransactions, setPlaidTransactions] = useState<PlaidTransaction[]>([]);
@@ -152,9 +159,6 @@ export default function HomeScreen() {
   const [editRuleCategoryModalOpen, setEditRuleCategoryModalOpen] = useState(false);
   const [editRuleSubcategoryModalOpen, setEditRuleSubcategoryModalOpen] = useState(false);
 
-  const tabFade = useRef(new Animated.Value(1)).current;
-  const lastOpenAddRef = useRef<string | null>(null);
-
   const formatDate = useCallback((value?: string | null) => {
     if (!value) return "";
     // Parse YYYY-MM-DD as local time to avoid UTC midnight timezone shift
@@ -187,25 +191,6 @@ export default function HomeScreen() {
       minimumFractionDigits: 2,
     }).format(value);
   }, []);
-
-  const selectedIsPlaid =
-    !!selectedDetailTransaction &&
-    "transaction_id" in selectedDetailTransaction;
-  const selectedManualExpense =
-    !!selectedDetailTransaction && !selectedIsPlaid
-      ? (selectedDetailTransaction as ExpenseRow)
-      : null;
-
-  const applyTransactionToBalance = useCallback(
-    (account: AccountRow, transactionAmount: number) => {
-      const currentBalance = account.balance ?? 0;
-      const isCredit = account.account_type === "credit";
-      return isCredit
-        ? currentBalance + transactionAmount
-        : currentBalance - transactionAmount;
-    },
-    [],
-  );
 
   const loadAccounts = useCallback(
     async (silent = false) => {
@@ -245,25 +230,18 @@ export default function HomeScreen() {
     loadCategories();
   }, [loadCategories]);
 
-  useEffect(() => {
-    if (openAdd && openAdd !== lastOpenAddRef.current) {
-      setAddModalOpen(true);
-      lastOpenAddRef.current = openAdd;
-    }
-  }, [openAdd]);
-
   useFocusEffect(
     useCallback(() => {
       navigation.setOptions({
         headerSearchBarOptions: {
           placeholder: "Search transactions...",
           onChangeText: (event: any) => setSearchQuery(event.nativeEvent.text),
-          hideWhenScrolling: true,
+          hideWhenScrolling: false,
           tintColor: ui.text,
           textColor: ui.text,
           hintTextColor: ui.mutedText,
           headerIconColor: ui.mutedText,
-          shouldShowHintSearchIcon: false,
+          placement: "integratedButton",
         },
       });
     }, [navigation, ui])
@@ -285,114 +263,6 @@ export default function HomeScreen() {
     }
   }, [userId]);
 
-  const handleDeleteExpense = useCallback(
-    (expense: ExpenseRow) => {
-      if (!userId) return;
-
-      const executeDelete = async () => {
-        try {
-          const originalAmount = expense.amount ?? 0;
-          const originalAccountId = expense.account_id;
-
-          await deleteExpense({ id: expense.id, profile_id: userId });
-
-          if (originalAccountId != null) {
-            const originalAccount = await getAccountById({
-              id: originalAccountId,
-              profile_id: userId,
-            });
-            if (originalAccount) {
-              const revertedBalance = applyTransactionToBalance(
-                originalAccount,
-                -originalAmount,
-              );
-              await updateAccount({
-                id: String(originalAccount.id),
-                profile_id: userId,
-                update: { balance: revertedBalance },
-              });
-            }
-          }
-
-          await loadExpenses();
-          await loadAccounts();
-          await loadCategories();
-          await loadRecurringRules();
-          setIsDetailModalVisible(false);
-          setSelectedDetailTransaction(null);
-        } catch (error) {
-          console.error("Error deleting transaction:", error);
-          Alert.alert("Error", "Could not delete transaction.");
-        } finally {
-          setIsLoading(false);
-        }
-      };
-
-      if (expense.recurring_rule_id) {
-        Alert.alert(
-          "Recurring Transaction",
-          "This transaction is part of a recurring series. What would you like to do?",
-          [
-            { text: "Cancel", style: "cancel" },
-            {
-              text: "Delete and Cancel Future Recurring",
-              style: "destructive",
-              onPress: async () => {
-                setIsLoading(true);
-                try {
-                  await deleteRecurringRule({
-                    id: expense.recurring_rule_id!,
-                    profile_id: userId,
-                  });
-                  await executeDelete();
-                } catch (error) {
-                  console.error("Error updating rule:", error);
-                  Alert.alert(
-                    "Error",
-                    "Could not cancel future recurring transactions.",
-                  );
-                  setIsLoading(false);
-                }
-              },
-            },
-            {
-              text: "Delete This Transaction Only",
-              style: "default",
-              onPress: async () => {
-                setIsLoading(true);
-                await executeDelete();
-              },
-            },
-          ],
-        );
-        return;
-      }
-
-      Alert.alert("Delete transaction?", "This action cannot be undone.", [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: async () => {
-            setIsLoading(true);
-            await executeDelete();
-          },
-        },
-      ]);
-    },
-    [
-      applyTransactionToBalance,
-      deleteRecurringRule,
-      getAccountById,
-      loadAccounts,
-      loadCategories,
-      loadExpenses,
-      loadRecurringRules,
-      updateAccount,
-      userId,
-    ],
-  );
-
   const loadRecurringRules = useCallback(async () => {
     if (!userId) {
       setRecurringRules([]);
@@ -410,15 +280,6 @@ export default function HomeScreen() {
     loadExpenses();
     loadRecurringRules();
   }, [loadExpenses, loadRecurringRules]);
-
-  useEffect(() => {
-    tabFade.setValue(0);
-    Animated.timing(tabFade, {
-      toValue: 1,
-      duration: 220,
-      useNativeDriver: true,
-    }).start();
-  }, [activeTab, tabFade]);
 
 
 
@@ -454,22 +315,19 @@ export default function HomeScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      const task = InteractionManager.runAfterInteractions(() => {
-        loadAccounts(true);
-        loadCategories();
-        loadExpenses();
-        loadRecurringRules();
-        // Also load Plaid transactions and accounts
-        if (userId) {
-          getPlaidTransactions()
-            .then(setPlaidTransactions)
-            .catch((err: any) => console.error("Error loading Plaid transactions:", err));
-          getPlaidAccounts()
-            .then(setPlaidAccounts)
-            .catch((err: any) => console.error("Error loading Plaid accounts:", err));
-        }
-      });
-      return () => task.cancel();
+      loadAccounts(true);
+      loadCategories();
+      loadExpenses();
+      loadRecurringRules();
+      // Also load Plaid transactions and accounts
+      if (userId) {
+        getPlaidTransactions()
+          .then(setPlaidTransactions)
+          .catch((err: any) => console.error("Error loading Plaid transactions:", err));
+        getPlaidAccounts()
+          .then(setPlaidAccounts)
+          .catch((err: any) => console.error("Error loading Plaid accounts:", err));
+      }
     }, [loadAccounts, loadCategories, loadExpenses, loadRecurringRules, userId]),
   );
 
@@ -691,230 +549,415 @@ export default function HomeScreen() {
   );
 
   return (
-    <PanGestureHandler
-      onGestureEvent={swipe.onGestureEvent}
-      onHandlerStateChange={swipe.onHandlerStateChange}
-      activeOffsetX={[-20, 20]}
-      failOffsetY={[-15, 15]}
-    >
-      <View style={[styles.screen, { backgroundColor: ui.bg }]}>
-        <AppHeader title="Transactions" onRightPress={handleProfilePress} />
-        <Animated.View
-          style={[styles.contentWrap, transition.style, swipe.style]}
-          renderToHardwareTextureAndroid
-          shouldRasterizeIOS
-        >
+    <>
+
+      <ScrollView
+        style={[styles.container, { backgroundColor: "transparent" }]}
+        contentInsetAdjustmentBehavior="automatic"
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: tabBarHeight + 120, paddingTop: 16 }]}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={isLoading}
+            onRefresh={() => {
+              loadAccounts();
+              loadCategories();
+              loadExpenses();
+              loadRecurringRules();
+            }}
+            tintColor={ui.text}
+          />
+        }
+      >
+
+        {/* Native Segmented Control */}
+        <SegmentedControl
+          values={["Transactions", "Recurring"]}
+          selectedIndex={activeTab === "transactions" ? 0 : 1}
+          onChange={(event) => {
+            const index = event.nativeEvent.selectedSegmentIndex;
+            setActiveTab(index === 0 ? "transactions" : "recurrences");
+          }}
+          tintColor={isAndroid ? theme.colors.background : (isDark ? "#3A3A3C" : "#FFFFFF")}
+          backgroundColor={isAndroid ? theme.colors.surface : "transparent"}
+          fontStyle={{ color: ui.text, fontWeight: "500" }}
+          activeFontStyle={{ color: ui.text, fontWeight: "600" }}
+        />
+
         <ScrollView
-          style={styles.container}
-          contentInsetAdjustmentBehavior="automatic"
-          contentContainerStyle={[styles.scrollContent, { paddingBottom: tabBarHeight + 120, paddingTop: 16 }]}
-          showsVerticalScrollIndicator={false}
-          refreshControl={
-            <RefreshControl
-              refreshing={isLoading}
-              onRefresh={() => {
-                loadAccounts();
-                loadCategories();
-                loadExpenses();
-                loadRecurringRules();
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ gap: 8, paddingVertical: 8 }}
+        >
+          <Pressable
+            onPress={() => setFilterAccountId(null)}
+            style={[
+              styles.chip,
+              {
+                backgroundColor: filterAccountId === null ? (isAndroid ? theme.colors.tertiary : ui.text) : ui.surface2,
+                borderColor: ui.border,
+              },
+            ]}
+          >
+            <ThemedText
+              style={{
+                fontSize: 13,
+                fontWeight: "600",
+                color: filterAccountId === null ? (isAndroid ? theme.colors.onTertiary : ui.surface) : ui.text,
               }}
-              tintColor={ui.text}
-            />
-          }
-        >
-
-        <View
-          style={[
-            styles.segmentedControl,
-            { backgroundColor: ui.surface, borderColor: ui.border },
-          ]}
-        >
-          <Pressable
-            onPress={() => setActiveTab("transactions")}
-            style={({ pressed }) => [
-              styles.segmentButton,
-              {
-                backgroundColor:
-                  activeTab === "transactions" ? ui.text : "transparent",
-                opacity: pressed ? 0.9 : 1,
-              },
-            ]}
-          >
-            <ThemedText
-              style={[
-                styles.segmentText,
-                { color: activeTab === "transactions" ? ui.surface : ui.text },
-              ]}
             >
-              Transactions
+              All
             </ThemedText>
           </Pressable>
-          <Pressable
-            onPress={() => setActiveTab("recurrences")}
-            style={({ pressed }) => [
-              styles.segmentButton,
-              {
-                backgroundColor:
-                  activeTab === "recurrences" ? ui.text : "transparent",
-                opacity: pressed ? 0.9 : 1,
-              },
-            ]}
-          >
-            <ThemedText
+          {accounts.map((acct) => (
+            <Pressable
+              key={acct.id}
+              onPress={() => setFilterAccountId(acct.id)}
               style={[
-                styles.segmentText,
-                { color: activeTab === "recurrences" ? ui.surface : ui.text },
+                styles.chip,
+                {
+                  backgroundColor:
+                    filterAccountId === acct.id ? (isAndroid ? theme.colors.tertiary : ui.text) : ui.surface2,
+                  borderColor: ui.border,
+                },
               ]}
             >
-              Recurring
-            </ThemedText>
-          </Pressable>
-        </View>
-
-
+              <ThemedText
+                style={{
+                  fontSize: 13,
+                  fontWeight: "600",
+                  color: filterAccountId === acct.id ? (isAndroid ? theme.colors.onTertiary : ui.surface) : ui.text,
+                }}
+              >
+                {acct.account_name ?? "Account"}
+              </ThemedText>
+            </Pressable>
+          ))}
+          {plaidAccounts.map((pa) => {
+            const chipId = `plaid:${pa.account_id}`;
+            const isSelected = filterAccountId === chipId;
+            return (
+              <Pressable
+                key={chipId}
+                onPress={() => setFilterAccountId(chipId)}
+                style={[
+                  styles.chip,
+                  {
+                    backgroundColor: isSelected
+                      ? (isDark ? "#1F6F5B" : "#2A8A6E")
+                      : ui.surface2,
+                    borderColor: ui.border,
+                  },
+                ]}
+              >
+                <ThemedText
+                  style={{
+                    fontSize: 13,
+                    fontWeight: "600",
+                    color: isSelected ? "#FFFFFF" : (isDark ? "#8CF2D1" : "#1F6F5B"),
+                  }}
+                >
+                  {pa.name}{pa.mask ? ` ••${pa.mask}` : ""}
+                </ThemedText>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
 
         {activeTab === "transactions" ? (
-          <Animated.View
-            style={[
-              styles.tabFade,
-              {
-                opacity: tabFade,
-                transform: [
-                  {
-                    translateY: tabFade.interpolate({
-                      inputRange: [0, 1],
-                      outputRange: [8, 0],
-                    }),
-                  },
-                ],
-              },
-            ]}
-          >
-            <TransactionsList
-              ui={ui}
-              expenses={expenses}
-              plaidTransactions={plaidTransactions}
-              recurringRules={recurringRules}
-              accounts={accounts}
-              plaidAccounts={plaidAccounts}
-              filterAccountId={filterAccountId}
-              onFilterAccountChange={setFilterAccountId}
-              searchQuery={searchQuery}
-              onSearchQueryChange={setSearchQuery}
-              onSelectTransaction={(tx) => {
-                setSelectedDetailTransaction(tx);
-                setIsDetailModalVisible(true);
-              }}
-              isLoading={isLoading}
-            />
-          </Animated.View>
-        ) : (
-          <Animated.View
-            style={[
-              styles.tabFade,
-              {
-                opacity: tabFade,
-                transform: [
-                  {
-                    translateY: tabFade.interpolate({
-                      inputRange: [0, 1],
-                      outputRange: [8, 0],
-                    }),
-                  },
-                ],
-              },
-            ]}
-          >
-            {recurringRules
-              .filter((r) => {
-                const matchesAccount =
-                  filterAccountId === null || r.account_id === filterAccountId;
-                const matchesSearch =
-                  !searchQuery ||
-                  (r.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                    r.amount?.toString().includes(searchQuery));
-                return matchesAccount && matchesSearch;
-              })
-              .sort((a, b) => (a.is_active === b.is_active ? 0 : a.is_active ? -1 : 1))
-              .length === 0 ? (
-              <ThemedText style={{ padding: 16, color: ui.mutedText }}>
-                {isLoading ? "Loading..." : "No recurrences found."}
+          <>
+
+
+            {expenses.filter((e) => {
+              const matchesAccount = filterAccountId === null || e.account_id === filterAccountId;
+              const matchesSearch = !searchQuery ||
+                (e.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                  e.amount?.toString().includes(searchQuery));
+              return matchesAccount && matchesSearch;
+            }).length === 0 ? (
+              <ThemedText>
+                {isLoading ? "Loading…" : "No transactions found."}
               </ThemedText>
             ) : (
-              recurringRules
-                .filter((r) => {
-                  const matchesAccount =
-                    filterAccountId === null || r.account_id === filterAccountId;
-                  const matchesSearch =
-                    !searchQuery ||
-                    (r.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                      r.amount?.toString().includes(searchQuery));
+              expenses
+                .filter((e) => {
+                  const matchesAccount = filterAccountId === null || e.account_id === filterAccountId;
+                  const matchesSearch = !searchQuery ||
+                    (e.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                      e.amount?.toString().includes(searchQuery));
                   return matchesAccount && matchesSearch;
                 })
-                .sort((a, b) => (a.is_active === b.is_active ? 0 : a.is_active ? -1 : 1))
-                .map((rule) => (
+                .sort((a, b) => {
+                  const dateA = new Date(a.transaction_date || a.created_at || 0).getTime();
+                  const dateB = new Date(b.transaction_date || b.created_at || 0).getTime();
+                  return dateB - dateA;
+                })
+                .map((expense) => (
                   <Pressable
-                    key={rule.id}
-                    onPress={() => setEditingRule(rule)}
+                    key={expense.id}
+                    onPress={() => {
+                      setSelectedDetailTransaction(expense);
+                      setIsDetailModalVisible(true);
+                    }}
                     style={({ pressed }) => [
                       styles.row,
                       {
                         borderColor: ui.border,
                         backgroundColor: ui.surface2,
-                        opacity: pressed ? 0.7 : (rule.is_active ? 1 : 0.6),
+                        opacity: pressed ? 0.7 : 1,
                       },
                     ]}
                   >
                     <View style={{ flex: 1 }}>
-                      <ThemedText type="defaultSemiBold">
-                        {rule.name ?? "Subscription"}
-                      </ThemedText>
-                      <ThemedText type="default" style={{ color: ui.mutedText, fontSize: 13 }}>
-                        {rule.frequency} - {rule.is_active ? "Active" : "Paused"}
-                      </ThemedText>
-                      {(rule.is_active || rule.end_date) && (
-                        <ThemedText type="default" style={{ color: ui.mutedText, fontSize: 13 }}>
-                          {rule.is_active ? `Next: ${formatDate(rule.next_run_date)}` : ""}
-                          {rule.is_active && rule.end_date ? " - " : ""}
-                          {rule.end_date ? `Ends: ${formatDate(rule.end_date)}` : ""}
+                      <View
+                        style={{
+                          flexDirection: "row",
+                          alignItems: "center",
+                          gap: 6,
+                        }}
+                      >
+                        <ThemedText type="defaultSemiBold">
+                          {expense.description ?? "Transaction"}
                         </ThemedText>
-                      )}
-                    </View>
-                    <View style={{ alignItems: "flex-end", gap: 8 }}>
-                      <ThemedText type="defaultSemiBold">
-                        {formatMoney(rule.amount ?? 0)}
+                        {expense.recurring_rule_id &&
+                          (() => {
+                            const linkedRule = recurringRules.find(
+                              (r) => r.id === expense.recurring_rule_id,
+                            );
+                            if (!linkedRule) return null;
+                            const color = linkedRule.is_active
+                              ? "#FF9500"
+                              : ui.mutedText;
+                            return (
+                              <View
+                                style={{
+                                  flexDirection: "row",
+                                  alignItems: "center",
+                                  gap: 4,
+                                }}
+                              >
+                                <IconSymbol
+                                  name="arrow.triangle.2.circlepath"
+                                  size={12}
+                                  color={color}
+                                />
+                                <ThemedText
+                                  style={{
+                                    color,
+                                    fontSize: 12,
+                                    fontWeight: "500",
+                                  }}
+                                >
+                                  {linkedRule.is_active ? "Active" : "Inactive"}
+                                </ThemedText>
+                              </View>
+                            );
+                          })()}
+                      </View>
+                      <ThemedText type="default">
+                        {formatDate(expense.transaction_date || expense.created_at)}
                       </ThemedText>
                     </View>
+                    <ThemedText type="defaultSemiBold">
+                      {formatMoney(expense.amount ?? 0)}
+                    </ThemedText>
                   </Pressable>
                 ))
             )}
-          </Animated.View>
+
+            {/* Plaid Bank Transactions */}
+            {plaidTransactions.length > 0 && (filterAccountId === null || (typeof filterAccountId === "string" && filterAccountId.startsWith("plaid:"))) && (
+              <>
+                {filterAccountId === null && (
+                  <View style={{ marginTop: 16, marginBottom: 8 }}>
+                    <ThemedText type="defaultSemiBold" style={{ color: ui.mutedText, fontSize: 13, letterSpacing: 0.5 }}>
+                      BANK TRANSACTIONS
+                    </ThemedText>
+                  </View>
+                )}
+                {plaidTransactions
+                  .filter((t) => {
+                    let matchesAccount = true;
+                    if (filterAccountId !== null) {
+                      if (typeof filterAccountId === "string" && filterAccountId.startsWith("plaid:")) {
+                        matchesAccount = t.account_id === filterAccountId.replace("plaid:", "");
+                      } else {
+                        matchesAccount = false;
+                      }
+                    }
+                    const matchesSearch = !searchQuery ||
+                      ((t.merchant_name || t.name)?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                        t.amount?.toString().includes(searchQuery));
+
+                    return matchesAccount && matchesSearch;
+                  })
+                  .sort((a, b) => {
+                    const dateA = new Date(a.date || 0).getTime();
+                    const dateB = new Date(b.date || 0).getTime();
+                    return dateB - dateA;
+                  })
+                  .map((tx) => (
+                    <Pressable
+                      key={tx.transaction_id}
+                      onPress={() => {
+                        setSelectedDetailTransaction(tx);
+                        setIsDetailModalVisible(true);
+                      }}
+                      style={({ pressed }) => [
+                        styles.row,
+                        {
+                          borderColor: ui.border,
+                          backgroundColor: ui.surface2,
+                          opacity: pressed ? 0.7 : 1,
+                        },
+                      ]}
+                    >
+                      <View style={{ flex: 1 }}>
+                        <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                          <ThemedText type="defaultSemiBold">
+                            {tx.merchant_name || tx.name}
+                          </ThemedText>
+                          {tx.pending && (
+                            <View style={{
+                              backgroundColor: isDark ? "rgba(255,165,0,0.2)" : "rgba(255,165,0,0.15)",
+                              paddingHorizontal: 6,
+                              paddingVertical: 2,
+                              borderRadius: 4,
+                            }}>
+                              <ThemedText style={{ fontSize: 10, color: "#FF9500", fontWeight: "600" }}>
+                                PENDING
+                              </ThemedText>
+                            </View>
+                          )}
+                        </View>
+
+                        {tx.institution_name && (
+                          <ThemedText style={{
+                            fontSize: 10,
+                            color: isDark ? "#8CF2D1" : "#1F6F5B",
+                            fontWeight: "700",
+                            letterSpacing: 0.5,
+                            marginTop: 1,
+                          }}>
+                            {tx.institution_name.toUpperCase()}
+                          </ThemedText>
+                        )}
+
+                        <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 2 }}>
+                          <ThemedText type="default" style={{ color: ui.mutedText, fontSize: 13 }}>
+                            {formatDate(tx.date)}
+                          </ThemedText>
+                          <ThemedText style={{
+                            fontSize: 11,
+                            color: ui.mutedText,
+                            fontWeight: "500",
+                          }}>
+                            {[
+                              tx.account_name,
+                              tx.account_mask ? `••${tx.account_mask}` : null,
+                            ].filter(Boolean).join(" ")}
+                          </ThemedText>
+                        </View>
+                        {tx.category && tx.category.length > 0 && (
+                          <ThemedText style={{ color: ui.mutedText, fontSize: 12, marginTop: 2 }}>
+                            {tx.category.join(" › ")}
+                          </ThemedText>
+                        )}
+                      </View>
+                      <ThemedText type="defaultSemiBold" style={{
+                        color: tx.amount > 0
+                          ? (isDark ? "#FF6B6B" : "#D32F2F")
+                          : (isDark ? "#69F0AE" : "#2E7D32"),
+                      }}>
+                        {tx.amount > 0 ? "-" : "+"}{formatMoney(Math.abs(tx.amount))}
+                      </ThemedText>
+                    </Pressable>
+                  ))}
+              </>
+            )}
+          </>
+        ) : (
+          recurringRules
+            .filter((r) => {
+              const matchesAccount = filterAccountId === null || r.account_id === filterAccountId;
+              const matchesSearch = !searchQuery ||
+                (r.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                  r.amount?.toString().includes(searchQuery));
+              return matchesAccount && matchesSearch;
+            })
+            .sort((a, b) => (a.is_active === b.is_active ? 0 : a.is_active ? -1 : 1))
+            .length === 0 ? (
+            <ThemedText style={{ padding: 16 }}>
+              {isLoading ? "Loading…" : "No recurrences found."}
+            </ThemedText>
+          ) : (
+            recurringRules
+              .filter((r) => {
+                const matchesAccount = filterAccountId === null || r.account_id === filterAccountId;
+                const matchesSearch = !searchQuery ||
+                  (r.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                    r.amount?.toString().includes(searchQuery));
+                return matchesAccount && matchesSearch;
+              })
+              .sort((a, b) => (a.is_active === b.is_active ? 0 : a.is_active ? -1 : 1))
+              .map((rule) => (
+                <Pressable
+                  key={rule.id}
+                  onPress={() => setEditingRule(rule)}
+                  style={({ pressed }) => [
+                    styles.row,
+                    {
+                      borderColor: ui.border,
+                      backgroundColor: ui.surface2,
+                      opacity: pressed ? 0.7 : (rule.is_active ? 1 : 0.6),
+                    },
+                  ]}
+                >
+                  <View style={{ flex: 1 }}>
+                    <ThemedText type="defaultSemiBold">
+                      {rule.name ?? "Subscription"}
+                    </ThemedText>
+                    <ThemedText type="default" style={{ color: ui.mutedText, fontSize: 13 }}>
+                      {rule.frequency} • {rule.is_active ? "Active" : "Paused"}
+                    </ThemedText>
+                    {(rule.is_active || rule.end_date) && (
+                      <ThemedText type="default" style={{ color: ui.mutedText, fontSize: 13 }}>
+                        {rule.is_active ? `Next: ${formatDate(rule.next_run_date)}` : ""}
+                        {rule.is_active && rule.end_date ? " • " : ""}
+                        {rule.end_date ? `Ends: ${formatDate(rule.end_date)}` : ""}
+                      </ThemedText>
+                    )}
+                  </View>
+                  <View style={{ alignItems: "flex-end", gap: 8 }}>
+                    <ThemedText type="defaultSemiBold">
+                      {formatMoney(rule.amount ?? 0)}
+                    </ThemedText>
+                  </View>
+                </Pressable>
+              ))
+          )
         )}
-
-
-
-        </ScrollView>
-      </Animated.View>
+      </ScrollView>
 
       <Pressable
         onPress={() => setAddModalOpen(true)}
         style={({ pressed }) => [
           styles.fab,
           {
-            width: 60,
-            height: 60,
-            borderRadius: 16,
+            width: 80,
+            height: 80,
+            borderRadius: 20,
             right: 16,
           },
           {
             backgroundColor: ui.text,
             opacity: pressed ? 0.8 : 1,
             bottom: fabBottom,
-            elevation: Platform.OS === "android" ? 5 : 6,
+            elevation: isAndroid ? 5 : 6,
           },
         ]}
       >
-        <IconSymbol name="plus" size={24} color={ui.surface} />
+        <IconSymbol name="plus" size={32} color={ui.surface} />
       </Pressable>
 
       <AddTransactionModal
@@ -929,73 +972,42 @@ export default function HomeScreen() {
           await loadRecurringRules();
         }}
         ui={ui}
-        isDark={false}
+        isDark={isDark}
         userId={userId}
       />
 
-      <AddTransactionModal
-        visible={isDetailModalVisible && !!selectedManualExpense}
-        onClose={() => {
-          setIsDetailModalVisible(false);
-          setSelectedDetailTransaction(null);
-        }}
-        accounts={accounts}
-        categories={categories}
-        onRefresh={async () => {
-          await loadExpenses();
-          await loadAccounts();
-          await loadCategories();
-          await loadRecurringRules();
-        }}
-        ui={ui}
-        isDark={false}
-        userId={userId}
-        mode="view"
-        initialTransaction={selectedManualExpense}
-        recurringRules={recurringRules}
-        onEditRequest={() => {
-          if (selectedManualExpense) {
-            setEditingExpense(selectedManualExpense);
-            setIsDetailModalVisible(false);
-          }
-        }}
-        onDeleteRequest={() => {
-          if (selectedManualExpense) {
-            handleDeleteExpense(selectedManualExpense);
-          }
-        }}
-      />
-
-      {/* Transaction Detail Modal (Plaid) */}
+      {/* Transaction Detail Modal */}
       <TransactionDetailModal
-        visible={isDetailModalVisible && !!selectedIsPlaid}
+        visible={isDetailModalVisible}
         onClose={() => {
           setIsDetailModalVisible(false);
           setSelectedDetailTransaction(null);
         }}
         transaction={selectedDetailTransaction}
         accounts={accounts}
-        recurringRules={recurringRules}
-      />
-
-      <AddTransactionModal
-        visible={!!editingExpense}
-        onClose={() => setEditingExpense(null)}
-        accounts={accounts}
-        categories={categories}
-        onRefresh={async () => {
-          await loadExpenses();
-          await loadAccounts();
-          await loadCategories();
-          await loadRecurringRules();
+        onEdit={(expense) => {
+          setEditingExpense(expense);
         }}
-        ui={ui}
-        isDark={false}
-        userId={userId}
-        mode="edit"
-        initialTransaction={editingExpense}
         recurringRules={recurringRules}
-      />
+      >
+        <EditTransactionModal
+          visible={!!editingExpense}
+          onClose={() => setEditingExpense(null)}
+          expense={editingExpense}
+          accounts={accounts}
+          categories={categories}
+          recurringRules={recurringRules}
+          onRefresh={async () => {
+            await loadExpenses();
+            await loadAccounts();
+            await loadCategories();
+            await loadRecurringRules();
+          }}
+          ui={ui}
+          isDark={isDark}
+          userId={userId}
+        />
+      </TransactionDetailModal>
 
 
       {/* Edit Recurrance Modal */}
@@ -1021,7 +1033,7 @@ export default function HomeScreen() {
               <Pressable
                 onPress={() => setEditingRule(null)}
                 hitSlop={20}
-                style={[styles.modalCloseButton, { backgroundColor: ui.surface2 }]}
+                style={[styles.modalCloseButton, { backgroundColor: isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.05)" }]}
               >
                 <Feather name="x" size={18} color={ui.text} />
               </Pressable>
@@ -1353,18 +1365,11 @@ export default function HomeScreen() {
           ))
         )}
       </SelectionModal>
-    </View>
-    </PanGestureHandler>
+    </>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-  },
-  contentWrap: {
-    flex: 1,
-  },
   container: {
     flex: 1,
     paddingHorizontal: 16,
@@ -1466,7 +1471,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    borderRadius: 14,
+    borderRadius: 20,
     borderWidth: StyleSheet.hairlineWidth,
     paddingHorizontal: 12,
     paddingVertical: 10,
@@ -1514,6 +1519,12 @@ const styles = StyleSheet.create({
     left: 0,
     position: "absolute",
   },
+  chip: {
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 20,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
   loader: {
     marginVertical: 20,
   },
@@ -1541,31 +1552,5 @@ const styles = StyleSheet.create({
     borderRadius: 15,
     alignItems: "center",
     justifyContent: "center",
-  },
-  segmentedControl: {
-    flexDirection: "row",
-    borderRadius: 10,
-    borderWidth: StyleSheet.hairlineWidth,
-    padding: 4,
-    gap: 4,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.06,
-    shadowRadius: 12,
-    elevation: 2,
-  },
-  segmentButton: {
-    flex: 1,
-    paddingVertical: 10,
-    borderRadius: 8,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  segmentText: {
-    fontSize: 14.5,
-    fontFamily: Tokens.font.semiFamily ?? Tokens.font.family,
-  },
-  tabFade: {
-    gap: 12,
   },
 });

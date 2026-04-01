@@ -7,12 +7,12 @@ import React, { ComponentProps } from "react";
 import { OpaqueColorValue, type StyleProp, type TextStyle } from "react-native";
 
 type IconMapping = Record<
-  SymbolViewProps["name"],
+  Extract<SymbolViewProps["name"], string>,
   ComponentProps<typeof MaterialIcons>["name"]
 >;
 
 type FeatherMapping = Partial<
-  Record<SymbolViewProps["name"], ComponentProps<typeof Feather>["name"]>
+  Record<Extract<SymbolViewProps["name"], string>, ComponentProps<typeof Feather>["name"]>
 >;
 
 /**
@@ -39,6 +39,10 @@ const MAPPING = {
   trash: "delete",
   checkmark: "check",
   pencil: "edit",
+  "dollarsign.circle": "attach-money",
+  percent: "percent",
+  "building.2": "business",
+  banknote: "money",
 } as IconMapping;
 
 const FEATHER_MAPPING: FeatherMapping = {
@@ -47,6 +51,8 @@ const FEATHER_MAPPING: FeatherMapping = {
   "list.bullet": "list",
   "trash": "trash-2",
   "plus": "plus",
+  "globe": "globe",
+  "lock": "lock",
 };
 
 /**

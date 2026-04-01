@@ -1,7 +1,6 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Animated, Easing, InteractionManager, ScrollView, StyleSheet, Switch, View } from "react-native";
-import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { AppHeader } from "@/components/ui/AppHeader";
@@ -52,12 +51,7 @@ export default function NotificationSettingsScreen() {
   const { animate } = useLocalSearchParams<{ animate?: string }>();
   const insets = useSafeAreaInsets();
 
-  let tabBarHeight = 0;
-  try {
-    tabBarHeight = useBottomTabBarHeight();
-  } catch {
-    tabBarHeight = insets.bottom + 60;
-  }
+  const tabBarHeight = insets.bottom + 60;
 
   const sections = useMemo<Section[]>(
     () => [

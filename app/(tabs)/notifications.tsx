@@ -2,7 +2,6 @@ import Feather from "@expo/vector-icons/Feather";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import React, { useCallback, useMemo, useRef, useState } from "react";
 import { Animated, Easing, StyleSheet, View } from "react-native";
-import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { AppHeader } from "@/components/ui/AppHeader";
@@ -83,12 +82,7 @@ export default function NotificationsScreen() {
     });
   }, [fadeAnim, translateAnim, isNavigating, router, returnTo]);
 
-  let tabBarHeight = 0;
-  try {
-    tabBarHeight = useBottomTabBarHeight();
-  } catch {
-    tabBarHeight = insets.bottom + 60;
-  }
+  const tabBarHeight = insets.bottom + 60;
 
   return (
     <View style={[styles.screen, { backgroundColor: ui.bg }]}>
@@ -119,7 +113,7 @@ export default function NotificationsScreen() {
           <Feather name="bell" size={64} color={ui.surface} />
         </View>
         <ThemedText style={[styles.title, { color: ui.text }]}>
-          You're all caught up
+          {"You're all caught up"}
         </ThemedText>
         <ThemedText style={[styles.subtitle, { color: ui.mutedText }]}>
           New alerts for transactions, budgets, goals, and credit updates will appear here.

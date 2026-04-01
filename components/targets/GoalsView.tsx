@@ -10,7 +10,6 @@ import { createGoal, deleteGoal, editGoal, listGoals } from "@/utils/goals";
 import { getPlaidAccounts } from "@/utils/plaid";
 import { tabsTheme } from "@/constants/tabsTheme";
 import Feather from "@expo/vector-icons/Feather";
-import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { useFocusEffect } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
@@ -58,12 +57,7 @@ export function GoalsView({ filterAccountId = null, refreshKey = 0, createReques
     const ui = tabsTheme.ui;
 
     // Dynamic tab bar height
-    let tabBarHeight = 0;
-    try {
-        tabBarHeight = useBottomTabBarHeight();
-    } catch (e) {
-        tabBarHeight = insets.bottom + 60;
-    }
+    const tabBarHeight = insets.bottom + 60;
     const fabBottom = tabBarHeight + 60;
 
 
@@ -568,7 +562,7 @@ export function GoalsView({ filterAccountId = null, refreshKey = 0, createReques
                             >
                                 <ThemedText type="subtitle" style={{ marginBottom: 8 }}>Allocate Funds</ThemedText>
                                 <ThemedText style={{ marginBottom: 16, opacity: 0.7 }}>
-                                    Allocation will increase the goal's current amount.
+                                    {"Allocation will increase the goal's current amount."}
                                     {selectedAccount ? `\nFrom: ${selectedAccount.name}` : ""}
                                 </ThemedText>
 

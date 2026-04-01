@@ -27,6 +27,7 @@ export function DateTimePickerField({
     disabled = false,
 }: DateTimePickerFieldProps) {
     const [inputValue, setInputValue] = React.useState("");
+    const [isEditing, setIsEditing] = React.useState(false);
     const [showIOSPicker, setShowIOSPicker] = React.useState(false);
 
     const formatDate = React.useCallback((date?: Date | null) => {
@@ -57,15 +58,15 @@ export function DateTimePickerField({
         return null;
     }, []);
 
-    React.useEffect(() => {
-        const next = formatDate(value);
-        setInputValue((prev) => (prev === next ? prev : next));
-    }, [formatDate, value]);
+    const displayValue = React.useMemo(() => {
+        return isEditing ? inputValue : formatDate(value);
+    }, [formatDate, inputValue, isEditing, value]);
 
     const onPickerChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
         if (selectedDate) {
             onChange(selectedDate);
             setInputValue(formatDate(selectedDate));
+            setIsEditing(false);
         }
     };
 
@@ -90,20 +91,28 @@ export function DateTimePickerField({
 
                 <View style={styles.inputWrap}>
                     <TextInput
-                        value={inputValue}
+                        value={displayValue}
                         onChangeText={setInputValue}
                         placeholder={placeholder || "MM/DD/YYYY"}
                         placeholderTextColor={ui.mutedText}
                         keyboardType="numbers-and-punctuation"
                         editable={!disabled}
+                        onFocus={() => {
+                            if (!disabled) {
+                                setIsEditing(true);
+                                setInputValue(formatDate(value));
+                            }
+                        }}
                         onSubmitEditing={() => {
                             if (disabled) return;
                             const parsed = parseInput(inputValue);
                             if (parsed) {
                                 onChange(parsed);
                                 setInputValue(formatDate(parsed));
+                                setIsEditing(false);
                             } else {
                                 setInputValue(formatDate(value));
+                                setIsEditing(false);
                             }
                         }}
                         onBlur={() => {
@@ -115,6 +124,7 @@ export function DateTimePickerField({
                             } else {
                                 setInputValue(formatDate(value));
                             }
+                            setIsEditing(false);
                         }}
                         style={[styles.input, { color: ui.text, fontFamily: Tokens.font.family }]}
                     />

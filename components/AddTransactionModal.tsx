@@ -793,6 +793,8 @@ interface AddTransactionModalProps {
   onDeleteRequest?: () => void;
 }
 
+const EMPTY_RECURRING_RULES: any[] = [];
+
 export function AddTransactionModal({
   visible,
   onClose,
@@ -804,7 +806,7 @@ export function AddTransactionModal({
   userId,
   mode = "add",
   initialTransaction = null,
-  recurringRules = [],
+  recurringRules = EMPTY_RECURRING_RULES,
   onEditRequest,
   onDeleteRequest,
 }: AddTransactionModalProps) {

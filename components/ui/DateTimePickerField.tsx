@@ -58,7 +58,8 @@ export function DateTimePickerField({
     }, []);
 
     React.useEffect(() => {
-        setInputValue(formatDate(value));
+        const next = formatDate(value);
+        setInputValue((prev) => (prev === next ? prev : next));
     }, [formatDate, value]);
 
     const onPickerChange = (event: DateTimePickerEvent, selectedDate?: Date) => {

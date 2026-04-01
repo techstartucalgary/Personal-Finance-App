@@ -50,13 +50,12 @@ import {
   updateRecurringRule
 } from "@/utils/recurring";
 
-import { useFocusEffect, useNavigation, useRouter } from "expo-router";
+import { Stack, useFocusEffect, useRouter } from "expo-router";
 
 export default function HomeScreen() {
   const { session } = useAuthContext();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const navigation = useNavigation();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
 
@@ -230,21 +229,18 @@ export default function HomeScreen() {
     loadCategories();
   }, [loadCategories]);
 
-  useFocusEffect(
-    useCallback(() => {
-      navigation.setOptions({
-        headerSearchBarOptions: {
-          placeholder: "Search transactions...",
-          onChangeText: (event: any) => setSearchQuery(event.nativeEvent.text),
-          hideWhenScrolling: false,
-          tintColor: ui.text,
-          textColor: ui.text,
-          hintTextColor: ui.mutedText,
-          headerIconColor: ui.mutedText,
-          placement: "integratedButton",
-        },
-      });
-    }, [navigation, ui])
+  const headerSearchBarOptions = useMemo(
+    () => ({
+      placeholder: "Search transactions...",
+      onChangeText: (event: any) => setSearchQuery(event.nativeEvent.text),
+      hideWhenScrolling: false,
+      tintColor: ui.text,
+      textColor: ui.text,
+      hintTextColor: ui.mutedText,
+      headerIconColor: ui.mutedText,
+      placement: "integratedButton",
+    }),
+    [setSearchQuery, ui.mutedText, ui.text],
   );
 
 
@@ -550,7 +546,7 @@ export default function HomeScreen() {
 
   return (
     <>
-
+      <Stack.Screen options={{ headerSearchBarOptions }} />
       <ScrollView
         style={[styles.container, { backgroundColor: "transparent" }]}
         contentInsetAdjustmentBehavior="automatic"

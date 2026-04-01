@@ -25,7 +25,7 @@ import {
 } from "react-native-plaid-link-sdk";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { useFocusEffect, useNavigation } from "expo-router";
+import { Stack, useFocusEffect } from "expo-router";
 
 import { AccountDetailModal } from "@/components/AccountDetailModal";
 import {
@@ -109,7 +109,6 @@ type ExpenseRow = {
 export default function AccountsScreen() {
   const { session, isLoading: authLoading } = useAuthContext();
 
-  const navigation = useNavigation();
 
   const insets = useSafeAreaInsets();
 
@@ -192,21 +191,18 @@ export default function AccountsScreen() {
     [],
   );
 
-  useFocusEffect(
-    useCallback(() => {
-      navigation.setOptions({
-        headerSearchBarOptions: {
-          placeholder: "Search accounts...",
-          onChangeText: (event: any) => setSearchQuery(event.nativeEvent.text),
-          hideWhenScrolling: false,
-          tintColor: ui.accent,
-          textColor: ui.text,
-          hintTextColor: ui.mutedText,
-          headerIconColor: ui.mutedText,
-          placement: "integratedButton",
-        },
-      });
-    }, [navigation, ui]),
+  const headerSearchBarOptions = useMemo(
+    () => ({
+      placeholder: "Search accounts...",
+      onChangeText: (event: any) => setSearchQuery(event.nativeEvent.text),
+      hideWhenScrolling: false,
+      tintColor: ui.accent,
+      textColor: ui.text,
+      hintTextColor: ui.mutedText,
+      headerIconColor: ui.mutedText,
+      placement: "integratedButton",
+    }),
+    [setSearchQuery, ui.accent, ui.mutedText, ui.text],
   );
   const [selectedDetailAccount, setSelectedDetailAccount] = useState<
     AccountRow | PlaidAccount | null
@@ -829,7 +825,9 @@ export default function AccountsScreen() {
   }
 
   return (
-    <PanGestureHandler
+    <>
+      <Stack.Screen options={{ headerSearchBarOptions }} />
+      <PanGestureHandler
       onGestureEvent={swipe.onGestureEvent}
       onHandlerStateChange={swipe.onHandlerStateChange}
       activeOffsetX={[-20, 20]}
@@ -1728,6 +1726,7 @@ export default function AccountsScreen() {
         </AccountDetailModal>
       </View>
     </PanGestureHandler>
+    </>
   );
 }
 

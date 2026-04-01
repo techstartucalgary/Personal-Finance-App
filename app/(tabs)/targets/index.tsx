@@ -15,7 +15,7 @@ import { useAuthContext } from "@/hooks/use-auth-context";
 import { listAccounts } from "@/utils/accounts";
 import type { PlaidAccount } from "@/utils/plaid";
 import { getPlaidAccounts } from "@/utils/plaid";
-import { useFocusEffect, useNavigation, useRouter } from "expo-router";
+import { Stack, useFocusEffect, useRouter } from "expo-router";
 import { useCallback } from "react";
 
 type Tab = "goals" | "budgets";
@@ -56,7 +56,6 @@ export default function TargetsScreen() {
   const [createRequested, setCreateRequested] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
   const [isAndroidSearching, setIsAndroidSearching] = useState(false);
-  const navigation = useNavigation();
 
   const loadAccounts = useCallback(async () => {
     if (!userId) return;
@@ -92,25 +91,22 @@ export default function TargetsScreen() {
     setIsRefreshing(false);
   }, [loadAccounts, loadPlaidAccounts]);
 
-  useFocusEffect(
-    useCallback(() => {
-      navigation.setOptions({
-        headerSearchBarOptions: {
-          placeholder: "Search targets...",
-          onChangeText: (event: any) => setSearchQuery(event.nativeEvent.text),
-          hideWhenScrolling: false,
-          tintColor: ui.text,
-          hintTextColor: ui.mutedText,
-          headerIconColor: ui.mutedText,
-          placement: "integratedButton",
-        },
-      });
-    }, [navigation, ui])
+  const headerSearchBarOptions = useMemo(
+    () => ({
+      placeholder: "Search targets...",
+      onChangeText: (event: any) => setSearchQuery(event.nativeEvent.text),
+      hideWhenScrolling: false,
+      tintColor: ui.text,
+      hintTextColor: ui.mutedText,
+      headerIconColor: ui.mutedText,
+      placement: "integratedButton",
+    }),
+    [setSearchQuery, ui.mutedText, ui.text],
   );
 
   return (
     <>
-
+      <Stack.Screen options={{ headerSearchBarOptions }} />
       <ScrollView
         style={[styles.container, { backgroundColor: "transparent" }]}
         contentInsetAdjustmentBehavior="automatic"

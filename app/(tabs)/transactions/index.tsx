@@ -233,7 +233,7 @@ export default function HomeScreen() {
       textColor: ui.text,
       hintTextColor: ui.mutedText,
       headerIconColor: ui.mutedText,
-      placement: "integratedButton",
+      placement: "inline" as const,
     }),
     [setSearchQuery, ui.mutedText, ui.text],
   );

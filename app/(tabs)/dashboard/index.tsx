@@ -1,28 +1,24 @@
 import Feather from "@expo/vector-icons/Feather";
-import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { useFocusEffect, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Animated,
-  InteractionManager,
   Platform,
   Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
+  useColorScheme,
   View
 } from "react-native";
-import { PanGestureHandler } from "react-native-gesture-handler";
 
 import { AccountsTrendChart } from "@/components/accounts/AccountsTrendChart";
 import { ThemedText } from "@/components/themed-text";
-import { AppHeader } from "@/components/ui/AppHeader";
-import { useTabTransition } from "@/components/ui/useTabTransition";
-import { useTabSwipe } from "@/components/ui/useTabSwipe";
+import { ThemedView } from "@/components/themed-view";
 import { Tokens } from "@/constants/authTokens";
-import { tabsTheme } from "@/constants/tabsTheme";
 import { useAuthContext } from "@/hooks/use-auth-context";
+import { useTheme } from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { listAccounts } from "@/utils/accounts";
@@ -62,21 +58,34 @@ export default function DashboardScreen() {
   const userId = session?.user.id;
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const handleProfilePress = useCallback(() => {
-    router.push("/profile");
-  }, [router]);
-  const transition = useTabTransition();
-  const swipe = useTabSwipe(0);
 
-  // Dynamic tab bar height
-  let tabBarHeight = 0;
-  try {
-    tabBarHeight = useBottomTabBarHeight();
-  } catch (e) {
-    tabBarHeight = insets.bottom + 60;
-  }
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === "dark";
 
-  const ui = tabsTheme.ui;
+  // Dynamic tab bar height (NativeTabs-safe)
+  const tabBarHeight = insets.bottom + 60;
+
+  const theme = useTheme();
+
+  const isAndroid = Platform.OS === "android";
+
+  const ui = useMemo(
+    () => ({
+      surface: isAndroid ? theme.colors.surface : (isDark ? "#1C1C1E" : "#F5F5F5"), // neutral gray
+      surface2: isDark ? "#2C2C2E" : "#F2F2F7",
+      border: isAndroid ? theme.colors.outlineVariant : (isDark ? "rgba(84,84,88,0.65)" : "rgba(60,60,67,0.29)"),
+      text: isDark ? "#FFFFFF" : "#000000",
+      mutedText: isDark ? "rgba(235,235,245,0.6)" : "rgba(60,60,67,0.6)",
+      backdrop: "rgba(0,0,0,0.45)",
+      accent: isAndroid ? theme.colors.primary : (isDark ? "#8CF2D1" : "#1F6F5B"),
+      accentSoft: isAndroid ? theme.colors.primaryContainer : (isDark ? "rgba(140,242,209,0.2)" : "rgba(31,111,91,0.12)"),
+      hero: isDark ? "#2C2C2E" : "#F2F2F7",
+      heroAlt: theme.colors.surfaceVariant,
+      negative: isDark ? "#ff6b6b" : "#e03131",
+      positive: isAndroid ? theme.colors.primary : (isDark ? "#8CF2D1" : "#1F6F5B"),
+    }),
+    [isDark, theme, isAndroid],
+  );
 
   const [isLoading, setIsLoading] = useState(false);
   const [accounts, setAccounts] = useState<AccountRow[]>([]);
@@ -88,7 +97,7 @@ export default function DashboardScreen() {
 
   const loadData = useCallback(async (silent = false) => {
     if (!userId) return;
-    
+
     // Improved loading UX: only show spinner if we have no data at all
     const hasData = accounts.length > 0 || plaidAccounts.length > 0 || goals.length > 0;
     if (!silent && !hasData) setIsLoading(true);
@@ -122,10 +131,7 @@ export default function DashboardScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      const task = InteractionManager.runAfterInteractions(() => {
-        loadData(true);
-      });
-      return () => task.cancel();
+      loadData(true);
     }, [loadData])
   );
 
@@ -309,57 +315,40 @@ export default function DashboardScreen() {
 
   if (authLoading && !session) {
     return (
-      <View style={[styles.screen, { backgroundColor: ui.bg }]}>
-        <AppHeader title="Dashboard" onRightPress={handleProfilePress} />
-        <View style={[styles.stateWrap, { paddingTop: 12 }]}>
-          <ActivityIndicator color={ui.text} />
-        </View>
-      </View>
+      <ThemedView style={[styles.container, { paddingTop: 16 + insets.top }]}>
+        <ActivityIndicator color={ui.text} />
+      </ThemedView>
     );
   }
 
   if (!session) {
     return (
-      <View style={[styles.screen, { backgroundColor: ui.bg }]}>
-        <AppHeader title="Dashboard" onRightPress={handleProfilePress} />
-        <View style={[styles.stateWrap, { paddingTop: 12 }]}>
-          <ThemedText type="title" style={{ color: ui.text }}>Dashboard</ThemedText>
-          <ThemedText style={{ color: ui.mutedText }}>Please sign in to view your dashboard.</ThemedText>
-        </View>
-      </View>
+      <ThemedView style={[styles.container, { paddingTop: 16 + insets.top }]}>
+        <ThemedText type="title">Dashboard</ThemedText>
+        <ThemedText>Please sign in to view your dashboard.</ThemedText>
+      </ThemedView>
     );
   }
 
   return (
-    <PanGestureHandler
-      onGestureEvent={swipe.onGestureEvent}
-      onHandlerStateChange={swipe.onHandlerStateChange}
-      activeOffsetX={[-20, 20]}
-      failOffsetY={[-15, 15]}
-    >
-      <View style={[styles.screen, { backgroundColor: ui.bg }]}>
-        <AppHeader title="Dashboard" onRightPress={handleProfilePress} />
-      <Animated.View
-        style={[styles.contentWrap, transition.style, swipe.style]}
-        renderToHardwareTextureAndroid
-        shouldRasterizeIOS
+    <>
+
+      <ScrollView
+        style={[styles.container, { backgroundColor: "transparent" }]}
+        contentInsetAdjustmentBehavior="automatic"
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingBottom: tabBarHeight + 120, paddingTop: 24 },
+        ]}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={isLoading}
+            onRefresh={() => loadData(false)}
+            tintColor={ui.text}
+          />
+        }
       >
-        <ScrollView
-          style={styles.container}
-          contentInsetAdjustmentBehavior="automatic"
-          contentContainerStyle={[
-            styles.scrollContent,
-            { paddingBottom: tabBarHeight + 120, paddingTop: 16 },
-          ]}
-          showsVerticalScrollIndicator={false}
-          refreshControl={
-            <RefreshControl
-              refreshing={isLoading}
-              onRefresh={() => loadData(false)}
-              tintColor={ui.text}
-            />
-          }
-        >
 
         <Animated.View style={heroAnimatedStyle}>
           <View
@@ -538,30 +527,18 @@ export default function DashboardScreen() {
             </ThemedText>
           )}
         </View>
-        </ScrollView>
-      </Animated.View>
-      </View>
-    </PanGestureHandler>
+      </ScrollView>
+    </>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-  },
-  contentWrap: {
-    flex: 1,
-  },
   container: {
     flex: 1,
   },
   scrollContent: {
     paddingHorizontal: 16,
     gap: 24,
-  },
-  stateWrap: {
-    flex: 1,
-    paddingHorizontal: 16,
   },
   header: {
     marginBottom: 8,

@@ -1,121 +1,58 @@
-import React, { useEffect, useRef } from "react";
-import { Tabs } from "expo-router";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Animated } from "react-native";
+import { NativeTabs } from "expo-router/unstable-native-tabs";
+import React from "react";
+import { useTheme } from "react-native-paper";
 
-import { tabsTheme } from "@/constants/tabsTheme";
-import WalletIcon from "@/assets/images/Icons/bx-wallet.svg";
-import SettingsIcon from "@/assets/images/Icons/settings.svg";
-import HomeIcon from "@/assets/images/Icons/Iconly/Light-Outline/Iconly/Light-Outline/Home.svg";
-import EditSquareIcon from "@/assets/images/Icons/Iconly/Light-Outline/Edit Square.svg";
-
-type SvgIconProps = { width?: number; height?: number; style?: any };
-type SvgIconComponent = React.ComponentType<SvgIconProps>;
-
-function AnimatedTabIcon({
-  Icon,
-  focused,
-  size,
-}: {
-  Icon: SvgIconComponent;
-  focused: boolean;
-  size: number;
-}) {
-  const scale = useRef(new Animated.Value(focused ? 1 : 0.92)).current;
-  const opacity = useRef(new Animated.Value(focused ? 1 : 0.35)).current;
-
-  useEffect(() => {
-    Animated.parallel([
-      Animated.timing(scale, {
-        toValue: focused ? 1 : 0.92,
-        duration: 180,
-        useNativeDriver: true,
-      }),
-      Animated.timing(opacity, {
-        toValue: focused ? 1 : 0.35,
-        duration: 180,
-        useNativeDriver: true,
-      }),
-    ]).start();
-  }, [focused, opacity, scale]);
-
-  return (
-    <Animated.View style={{ transform: [{ scale }], opacity }}>
-      <Icon width={size} height={size} />
-    </Animated.View>
-  );
-}
+import { Colors } from "@/constants/theme";
+import { useColorScheme } from "@/hooks/use-color-scheme";
 
 export default function TabLayout() {
-  const ui = tabsTheme.ui;
-  const insets = useSafeAreaInsets();
-  const iconSize = 30;
-  const bottomPadding = Math.max(insets.bottom, 24);
-  const barHeight = 80 + insets.bottom;
+  const colorScheme = useColorScheme();
+  const theme = useTheme();
 
   return (
-    <Tabs
-      screenOptions={{
-        headerShown: false,
-        tabBarShowLabel: false,
-        tabBarStyle: {
-          backgroundColor: ui.bg,
-          borderTopColor: "rgba(0,0,0,0.08)",
-          borderTopWidth: 1,
-          height: barHeight,
-          paddingTop: 12,
-          paddingBottom: bottomPadding,
-        },
+    <NativeTabs
+      iconColor={{
+        default: theme.colors.onSurfaceVariant,
+        selected: Colors[colorScheme === "dark" ? "dark" : "light"].tint,
       }}
+      labelStyle={{
+        default: { color: theme.colors.onSurfaceVariant },
+        selected: { color: Colors[colorScheme === "dark" ? "dark" : "light"].tint },
+      }}
+      indicatorColor={
+        colorScheme === "dark"
+          ? "rgba(255, 255, 255, 0.12)"
+          : "rgba(0, 0, 0, 0.08)"
+      }
+      rippleColor={
+        colorScheme === "dark"
+          ? "rgba(255, 255, 255, 0.1)"
+          : "rgba(0, 0, 0, 0.05)"
+      }
+      backgroundColor={
+        colorScheme === "dark" ? theme.colors.surface : theme.colors.surfaceVariant
+      }
+      labelVisibilityMode="labeled"
     >
-      <Tabs.Screen
-        name="dashboard"
-        options={{
-          title: "Dashboard",
-          tabBarIcon: ({ focused }) => (
-            <AnimatedTabIcon Icon={HomeIcon} focused={focused} size={iconSize} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="accounts"
-        options={{
-          title: "Accounts",
-          tabBarIcon: ({ focused }) => (
-            <AnimatedTabIcon Icon={WalletIcon} focused={focused} size={iconSize} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="transactions"
-        options={{
-          title: "Transactions",
-          tabBarIcon: ({ focused }) => (
-            <AnimatedTabIcon Icon={EditSquareIcon} focused={focused} size={iconSize} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="targets"
-        options={{
-          title: "Targets",
-          tabBarIcon: ({ focused }) => (
-            <AnimatedTabIcon Icon={SettingsIcon} focused={focused} size={iconSize} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="notifications"
-        options={{
-          href: null,
-        }}
-      />
-      <Tabs.Screen
-        name="notification-settings"
-        options={{
-          href: null,
-        }}
-      />
-    </Tabs>
+      <NativeTabs.Trigger name="dashboard">
+        <NativeTabs.Trigger.Label>Dashboard</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Icon sf="chart.pie" md="pie_chart" />
+      </NativeTabs.Trigger>
+
+      <NativeTabs.Trigger name="accounts">
+        <NativeTabs.Trigger.Label>Accounts</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Icon sf="wallet.bifold" md="account_balance_wallet" />
+      </NativeTabs.Trigger>
+
+      <NativeTabs.Trigger name="transactions">
+        <NativeTabs.Trigger.Label>Transactions</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Icon sf="list.bullet" md="format_list_bulleted" />
+      </NativeTabs.Trigger>
+
+      <NativeTabs.Trigger name="targets">
+        <NativeTabs.Trigger.Label>Targets</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Icon sf="target" md="target" />
+      </NativeTabs.Trigger>
+    </NativeTabs>
   );
 }

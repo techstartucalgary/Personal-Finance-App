@@ -10,13 +10,13 @@ import React, { useEffect, useMemo } from "react";
 import { MD3DarkTheme, MD3LightTheme, PaperProvider } from "react-native-paper";
 import * as NavigationBar from "expo-navigation-bar";
 import { Platform } from "react-native";
-import { GestureHandlerRootView } from "react-native-gesture-handler";
 
 import { SplashScreenController } from "@/components/splash-screen-controller";
 import { useAuthContext } from "@/hooks/use-auth-context";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import AuthProvider from "@/providers/auth-provider";
 import { useFonts } from "expo-font";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 
 // This component handles the protection logic
 function ProtectedLayout() {

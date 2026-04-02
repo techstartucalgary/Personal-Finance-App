@@ -39,7 +39,8 @@ export function InputField({
   containerStyle,
   forceScheme,
 }: Props) {
-  const scheme = (forceScheme ?? useColorScheme() ?? "light") as "light" | "dark";
+  const systemScheme = useColorScheme();
+  const scheme = (forceScheme ?? systemScheme ?? "light") as "light" | "dark";
   const C = getColors(scheme);
 
   return (

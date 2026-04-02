@@ -19,7 +19,6 @@ import { supabase } from "@/utils/supabase";
 import { parseLocalDate, toLocalISOString } from "@/utils/date";
 import { tabsTheme } from "@/constants/tabsTheme";
 import Feather from "@expo/vector-icons/Feather";
-import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { useFocusEffect } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
@@ -97,12 +96,7 @@ export function BudgetsView({ filterAccountId = null, refreshKey = 0, createRequ
     const insets = useSafeAreaInsets();
     const ui = tabsTheme.ui;
 
-    let tabBarHeight = 0;
-    try {
-        tabBarHeight = useBottomTabBarHeight();
-    } catch {
-        tabBarHeight = insets.bottom + 60;
-    }
+    const tabBarHeight = insets.bottom + 60;
     const fabBottom = tabBarHeight + 60;
 
 

@@ -1,3 +1,4 @@
+import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Alert,
@@ -6,7 +7,6 @@ import {
   ScrollView,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 
 import { AccountDetailModal } from "@/components/AccountDetailModal";
 import type { UnifiedAccount } from "@/components/accounts/AccountCardCarousel";
@@ -37,12 +37,12 @@ export default function AccountDetailScreen() {
   const { accountId } = useLocalSearchParams<{ accountId: string }>();
   const id = accountId;
   const router = useRouter();
-  
+
   const { session, isLoading: authLoading } = useAuthContext();
   const insets = useSafeAreaInsets();
-  
-  const tabBarHeight = insets.bottom + 60;
+
   const ui = tabsTheme.ui;
+  const isDark = ui.bg === '#000000' || ui.bg === '#1C1C1E';
 
   const userId = session?.user.id;
 
@@ -60,7 +60,7 @@ export default function AccountDetailScreen() {
   const [editStatementDate, setEditStatementDate] = useState("");
   const [editPaymentDate, setEditPaymentDate] = useState("");
   const [editCurrency, setEditCurrency] = useState("");
-  
+
   const [detailModalVisible, setDetailModalVisible] = useState(false);
   const [selectedDetailAccount, setSelectedDetailAccount] = useState<AccountRow | PlaidAccount | null>(null);
 
@@ -288,14 +288,16 @@ export default function AccountDetailScreen() {
     const pa = selected.raw as PlaidAccount;
     Alert.alert("Unlink", "Are you sure you want to unlink this account?", [
       { text: "Cancel", style: "cancel" },
-      { text: "Unlink", style: "destructive", onPress: async () => {
+      {
+        text: "Unlink", style: "destructive", onPress: async () => {
           try {
             await removePlaidItem(pa.plaid_item_id);
             router.back();
           } catch (e) {
             Alert.alert("Error", "Could not unlink account.");
           }
-      }}
+        }
+      }
     ])
   }, [deleteAccount, router, combinedAccounts, currentSingleAccountId]);
 
@@ -334,8 +336,6 @@ export default function AccountDetailScreen() {
       tintColor: ui.accent,
       textColor: ui.text,
       hintTextColor: ui.mutedText,
-      headerIconColor: ui.mutedText,
-      placement: "integratedButton" as const,
     }),
     [setTxSearchQuery, ui.accent, ui.mutedText, ui.text],
   );
@@ -351,6 +351,13 @@ export default function AccountDetailScreen() {
           headerTitle: "Account Details",
           headerBackButtonDisplayMode: "minimal",
           headerSearchBarOptions,
+          headerTransparent: Platform.OS === "ios",
+          headerShadowVisible: false,
+          headerLargeStyle: { backgroundColor: Platform.OS === "ios" ? "transparent" : undefined },
+          headerStyle: { backgroundColor: Platform.OS === "android" ? ui.bg : "transparent" },
+          headerTitleStyle: { color: isDark ? "#ffffff" : "#111111" },
+          headerLargeTitleStyle: { color: isDark ? "#ffffff" : "#111111" },
+          headerTintColor: ui.accent,
         }}
       />
       <ScrollView
@@ -360,7 +367,7 @@ export default function AccountDetailScreen() {
           styles.scrollContent,
           {
             paddingHorizontal: 16,
-            paddingBottom: tabBarHeight + 60,
+            paddingBottom: insets.bottom + 24,
             paddingTop: 16,
           },
         ]}
@@ -389,7 +396,7 @@ export default function AccountDetailScreen() {
           accountsForTx={accountsForTx}
           plaidAccounts={plaidAccounts}
           onSingleAccountChange={(newId) => setCurrentSingleAccountId(newId)}
-          onOpenAddSource={() => {}} // Remove ability to add source from details since it's cleaner on parent list view
+          onOpenAddSource={() => { }} // Remove ability to add source from details since it's cleaner on parent list view
           onDeleteSelected={handleSingleDelete}
           onEditSelected={handleSingleEdit}
           onTxSearchChange={setTxSearchQuery}

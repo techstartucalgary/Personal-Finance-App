@@ -346,7 +346,7 @@ export default function AccountsScreen() {
 
   const openSingleAccount = useCallback(
     (id: string) => {
-      router.push(`/(tabs)/accounts/${id}`);
+      router.push(`/account/${id}`);
     },
     [router],
   );

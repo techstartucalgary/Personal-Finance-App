@@ -790,82 +790,89 @@ export default function AccountsScreen() {
 
   return (
     <>
-      <Stack.Screen options={{ headerSearchBarOptions }} />
-      <View style={[styles.screen, { backgroundColor: ui.bg }]}>
+      <Stack.Screen
+        options={{
+          headerSearchBarOptions,
+          headerLargeTitle: Platform.OS === "ios",
+        }}
+      />
+      <ScrollView
+        style={[styles.screen, { backgroundColor: ui.bg }]}
+        contentInsetAdjustmentBehavior="automatic"
+        contentContainerStyle={[
+          styles.scrollContent,
+          {
+            paddingHorizontal: 16,
+            paddingBottom: tabBarHeight + 120,
+            paddingTop: Platform.OS === "android" ? 16 : 0,
+          },
+        ]}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={isLoading}
+            onRefresh={() => {
+              loadAccounts();
+              if (viewMode === "single") {
+                loadTransactions();
+              }
+            }}
+            tintColor={ui.text}
+          />
+        }
+      >
         <Animated.View
-          style={[styles.contentWrap, transition.style]}
+          style={transition.style}
           renderToHardwareTextureAndroid
           shouldRasterizeIOS
         >
-            <ScrollView
-              style={styles.container}
-              contentInsetAdjustmentBehavior="automatic"
-              contentContainerStyle={[
-                styles.scrollContent,
-                {
-                  paddingBottom: tabBarHeight + 120,
-                  paddingTop: Platform.OS === "android" ? 16 : 0,
-                },
-              ]}
-              showsVerticalScrollIndicator={false}
-              refreshControl={
-                <RefreshControl
-                  refreshing={isLoading}
-                  onRefresh={() => {
-                    loadAccounts();
-                    if (viewMode === "single") {
-                      loadTransactions();
-                    }
-                  }}
-                  tintColor={ui.text}
-                />
-              }
-            >
-              {viewMode === "single" ? (
-                <AccountsSingleView
-                  ui={ui}
-                  isLoading={isLoading}
-                  combinedAccounts={combinedAccounts}
-                  unifiedAccounts={unifiedAccounts}
-                  activeCardIndex={activeCardIndex}
-                  singleAccountId={singleAccountId}
-                  txSearchQuery={txSearchQuery}
-                  filteredExpenses={filteredExpensesForSingle}
-                  filteredPlaidTransactions={filteredPlaidForSingle}
-                  accountsForTx={accountsForTx}
-                  plaidAccounts={plaidAccounts}
-                  onSingleAccountChange={(id) => setSingleAccountId(id)}
-                  onOpenAddSource={() => setAddSourceModalOpen(true)}
-                  onDeleteSelected={handleSingleDelete}
-                  onEditSelected={handleSingleEdit}
-                  onTxSearchChange={setTxSearchQuery}
-                  onSelectTransaction={(tx) => {
-                    setSelectedTransaction(tx);
-                    setIsTxDetailVisible(true);
-                  }}
-                />
-              ) : (
-                <AccountsAllView
-                  ui={ui}
-                  isLoading={isLoading}
-                  filteredManualAccounts={filteredManualAccounts}
-                  filteredPlaidAccounts={filteredPlaidAccounts}
-                  manualCount={accounts.length}
-                  formatMoney={formatMoney}
-                  getAccountColor={getAccountColor}
-                  onOpenAddSource={() => setAddSourceModalOpen(true)}
-                  onOpenSingleAccount={openSingleAccount}
-                />
-              )}
-            </ScrollView>
-            {viewMode === "single" && (
-              <AccountsBackButton
-                ui={ui}
-                tabBarHeight={tabBarHeight}
-                onPress={() => toggleViewMode("all")}
-              />
-            )}
-          </Animated.View>
+          {viewMode === "single" ? (
+            <AccountsSingleView
+              ui={ui}
+              isLoading={isLoading}
+              combinedAccounts={combinedAccounts}
+              unifiedAccounts={unifiedAccounts}
+              activeCardIndex={activeCardIndex}
+              singleAccountId={singleAccountId}
+              txSearchQuery={txSearchQuery}
+              filteredExpenses={filteredExpensesForSingle}
+              filteredPlaidTransactions={filteredPlaidForSingle}
+              accountsForTx={accountsForTx}
+              plaidAccounts={plaidAccounts}
+              onSingleAccountChange={(id) => setSingleAccountId(id)}
+              onOpenAddSource={() => setAddSourceModalOpen(true)}
+              onDeleteSelected={handleSingleDelete}
+              onEditSelected={handleSingleEdit}
+              onTxSearchChange={setTxSearchQuery}
+              onSelectTransaction={(tx) => {
+                setSelectedTransaction(tx);
+                setIsTxDetailVisible(true);
+              }}
+            />
+          ) : (
+            <AccountsAllView
+              ui={ui}
+              isLoading={isLoading}
+              filteredManualAccounts={filteredManualAccounts}
+              filteredPlaidAccounts={filteredPlaidAccounts}
+              manualCount={accounts.length}
+              formatMoney={formatMoney}
+              getAccountColor={getAccountColor}
+              onOpenAddSource={() => setAddSourceModalOpen(true)}
+              onOpenSingleAccount={openSingleAccount}
+            />
+          )}
+        </Animated.View>
+      </ScrollView>
+      {viewMode === "single" && (
+        <Animated.View style={transition.style}>
+          <AccountsBackButton
+            ui={ui}
+            tabBarHeight={tabBarHeight}
+            onPress={() => toggleViewMode("all")}
+          />
+        </Animated.View>
+      )}
 
           <AccountsFab
             ui={ui}
@@ -1007,7 +1014,6 @@ export default function AccountsScreen() {
               onCurrencyChange={setEditCurrency}
             />
           </AccountDetailModal>
-        </View>
     </>
   );
 }

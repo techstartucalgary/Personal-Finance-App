@@ -4,12 +4,12 @@ import {
   DefaultTheme,
   ThemeProvider,
 } from "@react-navigation/native";
+import * as NavigationBar from "expo-navigation-bar";
 import { SplashScreen, Stack, useRouter, useSegments } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import React, { useEffect, useMemo } from "react";
-import { MD3DarkTheme, MD3LightTheme, PaperProvider } from "react-native-paper";
-import * as NavigationBar from "expo-navigation-bar";
 import { Platform } from "react-native";
+import { MD3DarkTheme, MD3LightTheme, PaperProvider } from "react-native-paper";
 
 import { SplashScreenController } from "@/components/splash-screen-controller";
 import { useAuthContext } from "@/hooks/use-auth-context";
@@ -143,10 +143,9 @@ export default function RootLayout() {
 
   useEffect(() => {
     if (Platform.OS !== "android") return;
-    NavigationBar.setVisibilityAsync("hidden");
-    NavigationBar.setBehaviorAsync("overlay-swipe");
-    NavigationBar.setPositionAsync("absolute");
-    NavigationBar.setBackgroundColorAsync("#00000000");
+    NavigationBar.setVisibilityAsync("visible");
+    NavigationBar.setBehaviorAsync("inset-swipe");
+    NavigationBar.setPositionAsync("relative");
   }, []);
 
   if (!loaded) return null;

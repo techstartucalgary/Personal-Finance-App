@@ -8,8 +8,8 @@ import {
 } from "react-native";
 
 import { Stack, useFocusEffect } from "expo-router";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "react-native-paper";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useAuthContext } from "@/hooks/use-auth-context";
 import { getAccountById, listAccounts, updateAccount } from "@/utils/accounts";
@@ -71,17 +71,16 @@ export default function HomeScreen() {
   const [accounts, setAccounts] = useState<AccountRow[]>([]);
   const [categories, setCategories] = useState<CategoryRow[]>([]);
   const [expenses, setExpenses] = useState<ExpenseRow[]>([]);
-  const [plaidTransactions, setPlaidTransactions] = useState<PlaidTransaction[]>(
-    [],
-  );
+  const [plaidTransactions, setPlaidTransactions] = useState<
+    PlaidTransaction[]
+  >([]);
   const [plaidAccounts, setPlaidAccounts] = useState<PlaidAccount[]>([]);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState<TransactionsTab>("transactions");
   const [recurringRules, setRecurringRules] = useState<RecurringRule[]>([]);
   const [editingRule, setEditingRule] = useState<RecurringRule | null>(null);
-  const [filterAccountId, setFilterAccountId] =
-    useState<FilterAccountId>(null);
+  const [filterAccountId, setFilterAccountId] = useState<FilterAccountId>(null);
 
   const [transactionFormMode, setTransactionFormMode] = useState<
     "add" | "view" | "edit" | null
@@ -215,7 +214,13 @@ export default function HomeScreen() {
             console.error("Error loading Plaid accounts:", err),
           );
       }
-    }, [loadAccounts, loadCategories, loadExpenses, loadRecurringRules, userId]),
+    }, [
+      loadAccounts,
+      loadCategories,
+      loadExpenses,
+      loadRecurringRules,
+      userId,
+    ]),
   );
 
   // iOS header search configuration.
@@ -350,11 +355,7 @@ export default function HomeScreen() {
         ]);
       }
     },
-    [
-      applyTransactionToBalance,
-      handleModalRefresh,
-      userId,
-    ],
+    [applyTransactionToBalance, handleModalRefresh, userId],
   );
 
   const handleSelectTransaction = useCallback(
@@ -397,9 +398,7 @@ export default function HomeScreen() {
           tintColor={
             isAndroid ? theme.colors.background : isDark ? "#3A3A3C" : "#FFFFFF"
           }
-          backgroundColor={
-            isAndroid ? theme.colors.surface : "transparent"
-          }
+          backgroundColor={isAndroid ? theme.colors.surface : "transparent"}
         />
 
         <AccountFilterChips

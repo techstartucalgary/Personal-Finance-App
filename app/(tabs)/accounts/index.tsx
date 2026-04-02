@@ -10,7 +10,6 @@ import {
   UIManager,
   View,
 } from "react-native";
-import { PanGestureHandler } from "react-native-gesture-handler";
 import type { LinkExit, LinkSuccess } from "react-native-plaid-link-sdk";
 import {
   create as plaidCreate,
@@ -24,7 +23,6 @@ import { Stack, useFocusEffect } from "expo-router";
 import { AccountDetailModal } from "@/components/AccountDetailModal";
 import type { UnifiedAccount } from "@/components/accounts/AccountCardCarousel";
 import { TransactionDetailModal } from "@/components/TransactionDetailModal";
-import { useTabSwipe } from "@/components/ui/useTabSwipe";
 import { useTabTransition } from "@/components/ui/useTabTransition";
 import { tabsTheme } from "@/constants/tabsTheme";
 import { useAuthContext } from "@/hooks/use-auth-context";
@@ -69,7 +67,6 @@ export default function AccountsScreen() {
   const fabBottom = tabBarHeight - 16;
   const ui = tabsTheme.ui;
   const transition = useTabTransition();
-  const swipe = useTabSwipe(1);
 
   const userId = session?.user.id;
 
@@ -794,18 +791,12 @@ export default function AccountsScreen() {
   return (
     <>
       <Stack.Screen options={{ headerSearchBarOptions }} />
-      <PanGestureHandler
-        onGestureEvent={swipe.onGestureEvent}
-        onHandlerStateChange={swipe.onHandlerStateChange}
-        activeOffsetX={[-20, 20]}
-        failOffsetY={[-15, 15]}
-      >
-        <View style={[styles.screen, { backgroundColor: ui.bg }]}>
-          <Animated.View
-            style={[styles.contentWrap, transition.style, swipe.style]}
-            renderToHardwareTextureAndroid
-            shouldRasterizeIOS
-          >
+      <View style={[styles.screen, { backgroundColor: ui.bg }]}>
+        <Animated.View
+          style={[styles.contentWrap, transition.style]}
+          renderToHardwareTextureAndroid
+          shouldRasterizeIOS
+        >
             <ScrollView
               style={styles.container}
               contentInsetAdjustmentBehavior="automatic"
@@ -1017,7 +1008,6 @@ export default function AccountsScreen() {
             />
           </AccountDetailModal>
         </View>
-      </PanGestureHandler>
     </>
   );
 }

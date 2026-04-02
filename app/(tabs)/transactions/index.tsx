@@ -19,14 +19,14 @@ import type { PlaidAccount, PlaidTransaction } from "@/utils/plaid";
 import { getPlaidAccounts, getPlaidTransactions } from "@/utils/plaid";
 import { deleteRecurringRule, getRecurringRules } from "@/utils/recurring";
 
-import { AccountFilterChips } from "./components/AccountFilterChips";
-import { EditRecurrenceSheet } from "./components/EditRecurrenceSheet";
-import { RecurringRulesList } from "./components/RecurringRulesList";
-import { TransactionsFab } from "./components/TransactionsFab";
-import { TransactionsList } from "./components/TransactionsList";
-import { TransactionsModals } from "./components/TransactionsModals";
-import { TransactionsSegmentedControl } from "./components/TransactionsSegmentedControl";
-import { styles } from "./styles";
+import { AccountFilterChips } from "@/components/transactions/tab/AccountFilterChips";
+import { EditRecurrenceSheet } from "@/components/transactions/tab/EditRecurrenceSheet";
+import { RecurringRulesList } from "@/components/transactions/tab/RecurringRulesList";
+import { TransactionsFab } from "@/components/transactions/tab/TransactionsFab";
+import { TransactionsList } from "@/components/transactions/tab/TransactionsList";
+import { TransactionsModals } from "@/components/transactions/tab/TransactionsModals";
+import { TransactionsSegmentedControl } from "@/components/transactions/tab/TransactionsSegmentedControl";
+import { styles } from "@/components/transactions/tab/styles";
 import type {
   AccountRow,
   CategoryRow,
@@ -35,7 +35,7 @@ import type {
   RecurringRule,
   TransactionsTab,
   TransactionsUi,
-} from "./types";
+} from "@/components/transactions/tab/types";
 
 export default function HomeScreen() {
   const { session } = useAuthContext();

@@ -3,12 +3,9 @@ import {
   Alert,
   Animated,
   InteractionManager,
-  LayoutAnimation,
   Platform,
   RefreshControl,
   ScrollView,
-  UIManager,
-  View,
 } from "react-native";
 import type { LinkExit, LinkSuccess } from "react-native-plaid-link-sdk";
 import {
@@ -37,16 +34,16 @@ import {
 } from "@/utils/plaid";
 import { supabase } from "@/utils/supabase";
 
-import { AccountsAddSourceModal } from "./components/AccountsAddSourceModal";
-import { AccountsAllView } from "./components/AccountsAllView";
-import { AccountsCreateModal } from "./components/AccountsCreateModal";
-import { AccountsFab } from "./components/AccountsFab";
+import { AccountsAddSourceModal } from "@/components/accounts/tab/AccountsAddSourceModal";
+import { AccountsAllView } from "@/components/accounts/tab/AccountsAllView";
+import { AccountsCreateModal } from "@/components/accounts/tab/AccountsCreateModal";
+import { AccountsFab } from "@/components/accounts/tab/AccountsFab";
 import {
   AccountsLoadingState,
   AccountsSignedOutState,
-} from "./components/AccountsState";
-import { styles } from "./styles";
-import type { AccountRow, AccountType, GoalRow } from "./types";
+} from "@/components/accounts/tab/AccountsState";
+import { styles } from "@/components/accounts/tab/styles";
+import type { AccountRow, AccountType, GoalRow } from "@/components/accounts/tab/types";
 
 export default function AccountsScreen() {
   const { session, isLoading: authLoading } = useAuthContext();
@@ -81,15 +78,6 @@ export default function AccountsScreen() {
 
   const [searchQuery, setSearchQuery] = useState("");
   const [addSourceModalOpen, setAddSourceModalOpen] = useState(false);
-
-  useEffect(() => {
-    if (
-      Platform.OS === "android" &&
-      UIManager.setLayoutAnimationEnabledExperimental
-    ) {
-      UIManager.setLayoutAnimationEnabledExperimental(true);
-    }
-  }, []);
 
   // Palette helper keeps credit/debit cards visually grouped.
   const getAccountColor = useCallback(

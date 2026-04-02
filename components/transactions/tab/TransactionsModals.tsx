@@ -10,7 +10,7 @@ import type {
   ExpenseRow,
   RecurringRule,
   TransactionsUi,
-} from "../types";
+} from "./types";
 
 type TransactionsModalsProps = {
   formMode: "add" | "view" | "edit" | null;

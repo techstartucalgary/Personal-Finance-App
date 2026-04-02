@@ -4,8 +4,8 @@ import { Pressable, ScrollView } from "react-native";
 import { ThemedText } from "@/components/themed-text";
 import type { PlaidAccount } from "@/utils/plaid";
 
-import { styles } from "../styles";
-import type { AccountRow, FilterAccountId, TransactionsUi } from "../types";
+import { styles } from "./styles";
+import type { AccountRow, FilterAccountId, TransactionsUi } from "./types";
 
 type AccountFilterChipsProps = {
   accounts: AccountRow[];

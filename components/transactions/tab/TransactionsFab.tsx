@@ -3,8 +3,8 @@ import { Pressable } from "react-native";
 
 import { IconSymbol } from "@/components/ui/icon-symbol";
 
-import { styles } from "../styles";
-import type { TransactionsUi } from "../types";
+import { styles } from "./styles";
+import type { TransactionsUi } from "./types";
 
 type TransactionsFabProps = {
   onPress: () => void;

@@ -3,8 +3,8 @@ import { Pressable, View } from "react-native";
 
 import { ThemedText } from "@/components/themed-text";
 
-import { styles } from "../styles";
-import type { FilterAccountId, RecurringRule, TransactionsUi } from "../types";
+import { styles } from "./styles";
+import type { FilterAccountId, RecurringRule, TransactionsUi } from "./types";
 
 type RecurringRulesListProps = {
   recurringRules: RecurringRule[];

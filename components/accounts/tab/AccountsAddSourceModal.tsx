@@ -6,7 +6,7 @@ import { ThemedText } from "@/components/themed-text";
 import { SelectionModal } from "@/components/ui/SelectionModal";
 import { tabsTheme } from "@/constants/tabsTheme";
 
-import { styles } from "../styles";
+import { styles } from "./styles";
 
 type Ui = typeof tabsTheme.ui;
 

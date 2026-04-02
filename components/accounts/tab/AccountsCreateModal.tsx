@@ -17,8 +17,8 @@ import { SelectionModal } from "@/components/ui/SelectionModal";
 import { tabsTheme } from "@/constants/tabsTheme";
 import { parseLocalDate, toLocalISOString } from "@/utils/date";
 
-import { styles } from "../styles";
-import type { AccountType } from "../types";
+import { styles } from "./styles";
+import type { AccountType } from "./types";
 
 type Ui = typeof tabsTheme.ui;
 

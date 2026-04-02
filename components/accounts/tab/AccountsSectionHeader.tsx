@@ -4,7 +4,7 @@ import { View } from "react-native";
 import { ThemedText } from "@/components/themed-text";
 import { tabsTheme } from "@/constants/tabsTheme";
 
-import { styles } from "../styles";
+import { styles } from "./styles";
 
 type Ui = typeof tabsTheme.ui;
 

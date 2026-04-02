@@ -4,7 +4,6 @@ import {
   DefaultTheme,
   ThemeProvider,
 } from "@react-navigation/native";
-import * as NavigationBar from "expo-navigation-bar";
 import { SplashScreen, Stack, useRouter, useSegments } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import React, { useEffect, useMemo } from "react";
@@ -140,13 +139,6 @@ export default function RootLayout() {
       SplashScreen.hideAsync();
     }
   }, [loaded]);
-
-  useEffect(() => {
-    if (Platform.OS !== "android") return;
-    NavigationBar.setVisibilityAsync("visible");
-    NavigationBar.setBehaviorAsync("inset-swipe");
-    NavigationBar.setPositionAsync("relative");
-  }, []);
 
   if (!loaded) return null;
 

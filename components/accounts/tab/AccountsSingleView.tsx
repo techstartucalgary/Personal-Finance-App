@@ -12,8 +12,8 @@ import type { PlaidAccount, PlaidTransaction } from "@/utils/plaid";
 
 import { AccountsEmptyState } from "./AccountsEmptyState";
 import { AccountsSectionHeader } from "./AccountsSectionHeader";
-import { styles } from "../styles";
-import type { AccountRow, ExpenseRow } from "../types";
+import { styles } from "./styles";
+import type { AccountRow, ExpenseRow } from "./types";
 
 type Ui = typeof tabsTheme.ui;
 

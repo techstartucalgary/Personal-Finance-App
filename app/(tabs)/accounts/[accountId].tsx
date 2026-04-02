@@ -27,11 +27,11 @@ import {
 } from "@/utils/plaid";
 import { supabase } from "@/utils/supabase";
 
-import { AccountsEditModal } from "./components/AccountsEditModal";
-import { AccountsSingleView } from "./components/AccountsSingleView";
-import { AccountsLoadingState, AccountsSignedOutState } from "./components/AccountsState";
-import { styles } from "./styles";
-import type { AccountRow, ExpenseRow, GoalRow } from "./types";
+import { AccountsEditModal } from "@/components/accounts/tab/AccountsEditModal";
+import { AccountsSingleView } from "@/components/accounts/tab/AccountsSingleView";
+import { AccountsLoadingState, AccountsSignedOutState } from "@/components/accounts/tab/AccountsState";
+import { styles } from "@/components/accounts/tab/styles";
+import type { AccountRow, ExpenseRow, GoalRow } from "@/components/accounts/tab/types";
 
 export default function AccountDetailScreen() {
   const { accountId } = useLocalSearchParams<{ accountId: string }>();

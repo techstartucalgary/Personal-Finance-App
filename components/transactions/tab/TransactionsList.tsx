@@ -5,13 +5,13 @@ import { ThemedText } from "@/components/themed-text";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import type { PlaidTransaction } from "@/utils/plaid";
 
-import { styles } from "../styles";
+import { styles } from "./styles";
 import type {
   ExpenseRow,
   FilterAccountId,
   RecurringRule,
   TransactionsUi,
-} from "../types";
+} from "./types";
 
 type TransactionsListProps = {
   expenses: ExpenseRow[];

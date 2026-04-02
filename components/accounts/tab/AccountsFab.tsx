@@ -4,7 +4,7 @@ import { Pressable } from "react-native";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { tabsTheme } from "@/constants/tabsTheme";
 
-import { styles } from "../styles";
+import { styles } from "./styles";
 
 type Ui = typeof tabsTheme.ui;
 

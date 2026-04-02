@@ -16,7 +16,7 @@ import { DateTimePickerField } from "@/components/ui/DateTimePickerField";
 import { tabsTheme } from "@/constants/tabsTheme";
 import { parseLocalDate, toLocalISOString } from "@/utils/date";
 
-import { styles } from "../styles";
+import { styles } from "./styles";
 
 type Ui = typeof tabsTheme.ui;
 

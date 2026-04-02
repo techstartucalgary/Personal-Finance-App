@@ -142,7 +142,7 @@ export function AccountsSingleView({
         accounts={accountsForTx}
         plaidAccounts={plaidAccounts}
         filterAccountId={null}
-        onFilterAccountChange={() => {}}
+        onFilterAccountChange={() => { }}
         searchQuery={txSearchQuery}
         onSearchQueryChange={onTxSearchChange}
         onSelectTransaction={onSelectTransaction}

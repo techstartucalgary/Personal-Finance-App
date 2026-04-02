@@ -367,6 +367,7 @@ const AccountCardCarouselComponent = ({
         decelerationRate={Platform.OS === "ios" ? "fast" : 0.985}
         disableIntervalMomentum={true}
         getItemLayout={getItemLayout}
+        initialScrollIndex={activeIndex}
         onScroll={handleScroll}
         scrollEventThrottle={16}
         bounces={false}
@@ -520,6 +521,8 @@ const styles = StyleSheet.create({
   container: {
     position: "relative",
     overflow: "visible",
+    width: SCREEN_WIDTH,
+    marginHorizontal: -16,
   },
   card: {
     borderRadius: 24,

@@ -18,7 +18,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Stack, useFocusEffect, useRouter } from "expo-router";
 
 import { useTabTransition } from "@/components/ui/useTabTransition";
-import { tabsTheme } from "@/constants/tabsTheme";
+import { useThemeUI } from "@/hooks/use-theme-ui";
 import { useAuthContext } from "@/hooks/use-auth-context";
 import {
   createAccount as createAccountApi,
@@ -54,7 +54,7 @@ export default function AccountsScreen() {
   // Dynamic tab bar height (NativeTabs-safe)
   const tabBarHeight = insets.bottom + 60;
   const fabBottom = tabBarHeight - 16;
-  const ui = tabsTheme.ui;
+  const ui = useThemeUI();
   const transition = useTabTransition();
 
   const userId = session?.user.id;

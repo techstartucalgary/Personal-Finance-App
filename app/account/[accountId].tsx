@@ -11,7 +11,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { AccountDetailModal } from "@/components/AccountDetailModal";
 import type { UnifiedAccount } from "@/components/accounts/AccountCardCarousel";
 import { TransactionDetailModal } from "@/components/TransactionDetailModal";
-import { tabsTheme } from "@/constants/tabsTheme";
+import { useThemeUI } from "@/hooks/use-theme-ui";
 import { useAuthContext } from "@/hooks/use-auth-context";
 import {
   deleteAccount as deleteAccountApi,
@@ -41,7 +41,7 @@ export default function AccountDetailScreen() {
   const { session, isLoading: authLoading } = useAuthContext();
   const insets = useSafeAreaInsets();
 
-  const ui = tabsTheme.ui;
+  const ui = useThemeUI();
   const isDark = ui.bg === '#000000' || ui.bg === '#1C1C1E';
 
   const userId = session?.user.id;

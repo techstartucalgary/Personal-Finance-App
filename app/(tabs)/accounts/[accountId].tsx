@@ -326,6 +326,20 @@ export default function AccountDetailScreen() {
   }, [plaidTransactions, selectedFilterId]);
 
 
+  const headerSearchBarOptions = useMemo(
+    () => ({
+      placeholder: "Search transactions...",
+      onChangeText: (event: any) => setTxSearchQuery(event.nativeEvent.text),
+      hideWhenScrolling: false,
+      tintColor: ui.accent,
+      textColor: ui.text,
+      hintTextColor: ui.mutedText,
+      headerIconColor: ui.mutedText,
+      placement: "integratedButton" as const,
+    }),
+    [setTxSearchQuery, ui.accent, ui.mutedText, ui.text],
+  );
+
   if (authLoading && !session) return <AccountsLoadingState ui={ui} insets={insets} />;
   if (!session) return <AccountsSignedOutState ui={ui} insets={insets} />;
 
@@ -336,6 +350,7 @@ export default function AccountDetailScreen() {
           headerLargeTitle: false,
           headerTitle: "Account Details",
           headerBackButtonDisplayMode: "minimal",
+          headerSearchBarOptions,
         }}
       />
       <ScrollView

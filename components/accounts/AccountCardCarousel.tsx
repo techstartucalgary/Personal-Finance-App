@@ -399,25 +399,6 @@ const AccountCardCarouselComponent = ({
             </View>
           </GestureDetector>
         )}
-
-        {accounts.length > 0 && (
-          <Pressable
-            onPress={onAddPress}
-            style={({ pressed }) => [
-              styles.addButton,
-              {
-                backgroundColor: ui.text,
-                opacity: pressed ? 0.8 : 1,
-                transform: [{ scale: pressed ? 0.98 : 1 }],
-              },
-            ]}
-          >
-            <Feather name="plus" size={16} color={isDark ? "#000000" : "#FFFFFF"} />
-            <ThemedText style={[styles.addButtonText, { color: isDark ? "#000000" : "#FFFFFF" }]}>
-              Add New Account
-            </ThemedText>
-          </Pressable>
-        )}
       </View>
     </View>
   );

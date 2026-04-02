@@ -349,36 +349,39 @@ export function TransactionsList({
             placeholderTextColor={ui.mutedText}
             style={[styles.searchInput, { color: ui.text }]}
           />
-          <Pressable
-            onPress={() =>
-              setTypeFilter((prev) =>
-                prev === "all" ? "inflow" : prev === "inflow" ? "outflow" : "all",
-              )
-            }
-            style={[
-              styles.typeFilter,
-              {
-                borderColor: ui.border,
-                backgroundColor: typeFilter === "all" ? ui.surface : ui.text,
-              },
-            ]}
-          >
-            <Feather
-              name={typeFilterIcon}
-              size={14}
-              color={typeFilter === "all" ? ui.mutedText : ui.surface}
-            />
-            <ThemedText
-              style={[
-                styles.typeFilterText,
-                { color: typeFilter === "all" ? ui.text : ui.surface },
-              ]}
-            >
-              {typeFilterLabel}
-            </ThemedText>
-          </Pressable>
         </View>
       )}
+
+      <View style={styles.typeFilterRow}>
+        <Pressable
+          onPress={() =>
+            setTypeFilter((prev) =>
+              prev === "all" ? "inflow" : prev === "inflow" ? "outflow" : "all",
+            )
+          }
+          style={[
+            styles.typeFilter,
+            {
+              borderColor: ui.border,
+              backgroundColor: typeFilter === "all" ? ui.surface : ui.text,
+            },
+          ]}
+        >
+          <Feather
+            name={typeFilterIcon}
+            size={14}
+            color={typeFilter === "all" ? ui.mutedText : ui.surface}
+          />
+          <ThemedText
+            style={[
+              styles.typeFilterText,
+              { color: typeFilter === "all" ? ui.text : ui.surface },
+            ]}
+          >
+            {typeFilterLabel}
+          </ThemedText>
+        </Pressable>
+      </View>
 
       {showFilters && filtersExpanded && (
         <View
@@ -597,6 +600,10 @@ const styles = StyleSheet.create({
     fontSize: 15.5,
     paddingVertical: 0,
     fontFamily: Tokens.font.family,
+  },
+  typeFilterRow: {
+    flexDirection: "row",
+    justifyContent: "flex-start",
   },
   typeFilter: {
     flexDirection: "row",

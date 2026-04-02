@@ -147,6 +147,7 @@ export function AccountsSingleView({
         onSearchQueryChange={onTxSearchChange}
         onSelectTransaction={onSelectTransaction}
         isLoading={isLoading}
+        showSearch={false}
         showFilters={false}
         showMeta={false}
         showBadges={false}

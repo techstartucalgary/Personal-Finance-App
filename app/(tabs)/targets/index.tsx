@@ -95,11 +95,10 @@ export default function TargetsScreen() {
     () => ({
       placeholder: "Search targets...",
       onChangeText: (event: any) => setSearchQuery(event.nativeEvent.text),
-      hideWhenScrolling: false,
+      hideWhenScrolling: true,
       tintColor: ui.text,
       hintTextColor: ui.mutedText,
       headerIconColor: ui.mutedText,
-      placement: "integratedButton" as const,
     }),
     [setSearchQuery, ui.mutedText, ui.text],
   );

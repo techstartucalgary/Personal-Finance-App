@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import {
   Alert,
   Animated,
@@ -18,19 +18,17 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Stack, useFocusEffect, useRouter } from "expo-router";
 
 import { useTabTransition } from "@/components/ui/useTabTransition";
-import { useThemeUI } from "@/hooks/use-theme-ui";
 import { useAuthContext } from "@/hooks/use-auth-context";
+import { useThemeUI } from "@/hooks/use-theme-ui";
 import {
   createAccount as createAccountApi,
 } from "@/utils/accounts";
 import { listGoals } from "@/utils/goals";
-import type { PlaidAccount, PlaidTransaction } from "@/utils/plaid";
+import type { PlaidAccount } from "@/utils/plaid";
 import {
   exchangePublicToken,
   getLinkToken,
-  getPlaidAccounts,
-  getPlaidTransactions,
-  removePlaidItem,
+  getPlaidAccounts
 } from "@/utils/plaid";
 import { supabase } from "@/utils/supabase";
 
@@ -102,12 +100,11 @@ export default function AccountsScreen() {
     () => ({
       placeholder: "Search accounts...",
       onChangeText: (event: any) => setSearchQuery(event.nativeEvent.text),
-      hideWhenScrolling: false,
+      hideWhenScrolling: true,
       tintColor: ui.accent,
       textColor: ui.text,
       hintTextColor: ui.mutedText,
       headerIconColor: ui.mutedText,
-      placement: "integratedButton" as const,
     }),
     [setSearchQuery, ui.accent, ui.mutedText, ui.text],
   );
@@ -406,57 +403,57 @@ export default function AccountsScreen() {
         </Animated.View>
       </ScrollView>
 
-          <AccountsFab
-            ui={ui}
-            fabBottom={fabBottom}
-            onPress={() => setAddSourceModalOpen(true)}
-          />
+      <AccountsFab
+        ui={ui}
+        fabBottom={fabBottom}
+        onPress={() => setAddSourceModalOpen(true)}
+      />
 
-          {/* Select Source Modal */}
-          <AccountsAddSourceModal
-            visible={addSourceModalOpen}
-            ui={ui}
-            isConnecting={isConnecting}
-            onClose={() => setAddSourceModalOpen(false)}
-            onCreateManual={() => {
-              setAddSourceModalOpen(false);
-              setCreateModalOpen(true);
-            }}
-            onConnectBank={() => {
-              handleConnectBank({
-                onBeforeOpen: () => setAddSourceModalOpen(false),
-                onError: () => setAddSourceModalOpen(false),
-              });
-            }}
-          />
+      {/* Select Source Modal */}
+      <AccountsAddSourceModal
+        visible={addSourceModalOpen}
+        ui={ui}
+        isConnecting={isConnecting}
+        onClose={() => setAddSourceModalOpen(false)}
+        onCreateManual={() => {
+          setAddSourceModalOpen(false);
+          setCreateModalOpen(true);
+        }}
+        onConnectBank={() => {
+          handleConnectBank({
+            onBeforeOpen: () => setAddSourceModalOpen(false),
+            onError: () => setAddSourceModalOpen(false),
+          });
+        }}
+      />
 
-          <AccountsCreateModal
-            visible={createModalOpen}
-            ui={ui}
-            insets={insets}
-            name={name}
-            type={type}
-            typeModalOpen={typeModalOpen}
-            createBalance={createBalance}
-            createLimit={createLimit}
-            createInterest={createInterest}
-            createStatementDate={createStatementDate}
-            createPaymentDate={createPaymentDate}
-            createCurrency={createCurrency}
-            canCreate={canCreate}
-            isLoading={isLoading}
-            onClose={() => setCreateModalOpen(false)}
-            onSubmit={createAccount}
-            onNameChange={setName}
-            onTypeChange={setType}
-            onTypeModalChange={setTypeModalOpen}
-            onBalanceChange={setCreateBalance}
-            onLimitChange={setCreateLimit}
-            onInterestChange={setCreateInterest}
-            onStatementDateChange={setCreateStatementDate}
-            onPaymentDateChange={setCreatePaymentDate}
-            onCurrencyChange={setCreateCurrency}
-          />
+      <AccountsCreateModal
+        visible={createModalOpen}
+        ui={ui}
+        insets={insets}
+        name={name}
+        type={type}
+        typeModalOpen={typeModalOpen}
+        createBalance={createBalance}
+        createLimit={createLimit}
+        createInterest={createInterest}
+        createStatementDate={createStatementDate}
+        createPaymentDate={createPaymentDate}
+        createCurrency={createCurrency}
+        canCreate={canCreate}
+        isLoading={isLoading}
+        onClose={() => setCreateModalOpen(false)}
+        onSubmit={createAccount}
+        onNameChange={setName}
+        onTypeChange={setType}
+        onTypeModalChange={setTypeModalOpen}
+        onBalanceChange={setCreateBalance}
+        onLimitChange={setCreateLimit}
+        onInterestChange={setCreateInterest}
+        onStatementDateChange={setCreateStatementDate}
+        onPaymentDateChange={setCreatePaymentDate}
+        onCurrencyChange={setCreateCurrency}
+      />
     </>
   );
 }

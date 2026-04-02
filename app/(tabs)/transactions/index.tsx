@@ -228,12 +228,11 @@ export default function HomeScreen() {
     () => ({
       placeholder: "Search transactions...",
       onChangeText: (event: any) => setSearchQuery(event.nativeEvent.text),
-      hideWhenScrolling: false,
+      hideWhenScrolling: true,
       tintColor: ui.text,
       textColor: ui.text,
       hintTextColor: ui.mutedText,
       headerIconColor: ui.mutedText,
-      placement: "inline" as const,
     }),
     [setSearchQuery, ui.mutedText, ui.text],
   );

@@ -24,6 +24,7 @@ export function useThemeUI() {
       negative: isDark ? "#ff6b6b" : "#e03131",
       positive: isAndroid ? theme.colors.primary : (isDark ? "#8CF2D1" : "#1F6F5B"),
       danger: isDark ? "#ff6b6b" : "#e03131", // added for backwards compatibility with tabsTheme.ui
+      destructive: isAndroid ? theme.colors.error : (isDark ? "#FF453A" : "#FF3B30"),
     }),
     [isDark, theme, isAndroid],
   );

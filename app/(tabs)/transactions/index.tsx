@@ -12,6 +12,7 @@ import { useTheme } from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useAuthContext } from "@/hooks/use-auth-context";
+import { useThemeUI } from "@/hooks/use-theme-ui";
 import { getAccountById, listAccounts, updateAccount } from "@/utils/accounts";
 import { listCategories } from "@/utils/categories";
 import { deleteExpense, listExpenses } from "@/utils/expenses";
@@ -50,20 +51,7 @@ export default function HomeScreen() {
   const fabBottom = isAndroid ? tabBarHeight + 35 : tabBarHeight + 5;
 
   // Shared UI palette derived from the active theme.
-  const ui: TransactionsUi = useMemo(
-    () => ({
-      surface: isDark ? "#1C1C1E" : "#FFFFFF",
-      surface2: isDark ? "#2C2C2E" : "#F2F2F7",
-      border: isDark ? "rgba(84,84,88,0.65)" : "rgba(60,60,67,0.29)",
-      text: isDark ? "#FFFFFF" : "#000000",
-      mutedText: isDark ? "rgba(235,235,245,0.6)" : "rgba(60,60,67,0.6)",
-      backdrop: "rgba(0,0,0,0.45)",
-      accent: isDark ? "#8CF2D1" : "#1F6F5B",
-      accentSoft: isDark ? "rgba(140,242,209,0.2)" : "rgba(31,111,91,0.12)",
-      danger: "#D32F2F",
-    }),
-    [isDark],
-  );
+  const ui = useThemeUI();
 
   const userId = session?.user.id;
 
@@ -375,7 +363,7 @@ export default function HomeScreen() {
     <>
       <Stack.Screen options={{ headerSearchBarOptions }} />
       <ScrollView
-        style={[styles.container, { backgroundColor: "transparent" }]}
+        style={[styles.container, { backgroundColor: ui.bg }]}
         contentInsetAdjustmentBehavior="automatic"
         contentContainerStyle={[
           styles.scrollContent,

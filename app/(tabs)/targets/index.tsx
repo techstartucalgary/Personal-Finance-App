@@ -12,6 +12,7 @@ import { IconSymbol } from "@/components/ui/icon-symbol";
 import { BudgetsView } from "@/components/targets/BudgetsView";
 import { GoalsView } from "@/components/targets/GoalsView";
 import { useAuthContext } from "@/hooks/use-auth-context";
+import { useThemeUI } from "@/hooks/use-theme-ui";
 import { listAccounts } from "@/utils/accounts";
 import type { PlaidAccount } from "@/utils/plaid";
 import { getPlaidAccounts } from "@/utils/plaid";
@@ -29,17 +30,7 @@ export default function TargetsScreen() {
 
   const isAndroid = Platform.OS === "android";
 
-  const ui = useMemo(
-    () => ({
-      surface: isDark ? "#1C1C1E" : "#FFFFFF",
-      surface2: isDark ? "#2C2C2E" : "#F2F2F7",
-      border: isDark ? "rgba(84,84,88,0.65)" : "rgba(60,60,67,0.29)",
-      text: isDark ? "#FFFFFF" : "#000000",
-      mutedText: isDark ? "rgba(235,235,245,0.6)" : "rgba(60,60,67,0.6)",
-      backdrop: "rgba(0,0,0,0.45)",
-    }),
-    [isDark]
-  );
+  const ui = useThemeUI();
 
   // Dynamic tab bar height for FAB positioning (NativeTabs-safe)
   const tabBarHeight = insets.bottom + 60;
@@ -107,7 +98,7 @@ export default function TargetsScreen() {
     <>
       <Stack.Screen options={{ headerSearchBarOptions }} />
       <ScrollView
-        style={[styles.container, { backgroundColor: "transparent" }]}
+        style={[styles.container, { backgroundColor: ui.bg }]}
         contentInsetAdjustmentBehavior="automatic"
         contentContainerStyle={[styles.scrollContent, { paddingBottom: tabBarHeight + 120, paddingTop: Platform.OS === "android" ? 16 : 0 }]}
         showsVerticalScrollIndicator={false}

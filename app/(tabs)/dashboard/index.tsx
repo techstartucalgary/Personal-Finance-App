@@ -20,6 +20,7 @@ import { Tokens } from "@/constants/authTokens";
 import { useAuthContext } from "@/hooks/use-auth-context";
 import { useTheme } from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useThemeUI } from "@/hooks/use-theme-ui";
 
 import { listAccounts } from "@/utils/accounts";
 import { listExpenses } from "@/utils/expenses";
@@ -69,23 +70,7 @@ export default function DashboardScreen() {
 
   const isAndroid = Platform.OS === "android";
 
-  const ui = useMemo(
-    () => ({
-      surface: isAndroid ? theme.colors.surface : (isDark ? "#1C1C1E" : "#F5F5F5"), // neutral gray
-      surface2: isDark ? "#2C2C2E" : "#F2F2F7",
-      border: isAndroid ? theme.colors.outlineVariant : (isDark ? "rgba(84,84,88,0.65)" : "rgba(60,60,67,0.29)"),
-      text: isDark ? "#FFFFFF" : "#000000",
-      mutedText: isDark ? "rgba(235,235,245,0.6)" : "rgba(60,60,67,0.6)",
-      backdrop: "rgba(0,0,0,0.45)",
-      accent: isAndroid ? theme.colors.primary : (isDark ? "#8CF2D1" : "#1F6F5B"),
-      accentSoft: isAndroid ? theme.colors.primaryContainer : (isDark ? "rgba(140,242,209,0.2)" : "rgba(31,111,91,0.12)"),
-      hero: isDark ? "#2C2C2E" : "#F2F2F7",
-      heroAlt: theme.colors.surfaceVariant,
-      negative: isDark ? "#ff6b6b" : "#e03131",
-      positive: isAndroid ? theme.colors.primary : (isDark ? "#8CF2D1" : "#1F6F5B"),
-    }),
-    [isDark, theme, isAndroid],
-  );
+  const ui = useThemeUI();
 
   const [isLoading, setIsLoading] = useState(false);
   const [accounts, setAccounts] = useState<AccountRow[]>([]);
@@ -334,7 +319,7 @@ export default function DashboardScreen() {
     <>
 
       <ScrollView
-        style={[styles.container, { backgroundColor: "transparent" }]}
+        style={[styles.container, { backgroundColor: ui.bg }]}
         contentInsetAdjustmentBehavior="automatic"
         contentContainerStyle={[
           styles.scrollContent,

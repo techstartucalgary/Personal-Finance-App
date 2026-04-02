@@ -338,7 +338,7 @@ export default function DashboardScreen() {
         contentInsetAdjustmentBehavior="automatic"
         contentContainerStyle={[
           styles.scrollContent,
-          { paddingBottom: tabBarHeight + 120, paddingTop: 16 },
+          { paddingBottom: tabBarHeight + 120, paddingTop: Platform.OS === "android" ? 16 : 0 },
         ]}
         showsVerticalScrollIndicator={false}
         refreshControl={

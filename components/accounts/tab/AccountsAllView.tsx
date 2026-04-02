@@ -3,6 +3,7 @@ import React from "react";
 import { Pressable, View } from "react-native";
 
 import { AccountWaveCard } from "@/components/accounts/AccountCards";
+import { getBrandStyle } from "@/components/accounts/AccountCardCarousel";
 import { ThemedText } from "@/components/themed-text";
 import { tabsTheme } from "@/constants/tabsTheme";
 import type { PlaidAccount } from "@/utils/plaid";
@@ -92,6 +93,9 @@ export function AccountsAllView({
           />
 
           {filteredPlaidAccounts.map((pa, idx) => {
+            const defaultColor = getAccountColor(pa, idx + manualCount);
+            const brandColor = getBrandStyle(pa.institution_name)?.color || defaultColor;
+
             const cardProps = {
               title: pa.name,
               balance: formatMoney(pa.balances.current ?? 0),
@@ -99,7 +103,7 @@ export function AccountsAllView({
               dateLabel: pa.subtype
                 ? pa.subtype.charAt(0).toUpperCase() + pa.subtype.slice(1)
                 : "Bank",
-              color: getAccountColor(pa, idx + manualCount),
+              color: brandColor,
               onPress: () => {
                 onOpenSingleAccount(`plaid:${pa.account_id}`);
               },

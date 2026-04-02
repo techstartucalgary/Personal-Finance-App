@@ -375,7 +375,7 @@ export default function AccountsScreen() {
           {
             paddingHorizontal: 16,
             paddingBottom: tabBarHeight + 120,
-            paddingTop: 16,
+            paddingTop: Platform.OS === "android" ? 16 : 0,
           },
         ]}
         showsVerticalScrollIndicator={false}

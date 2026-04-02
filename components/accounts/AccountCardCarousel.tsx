@@ -83,7 +83,7 @@ function seededRandom(seed: string) {
 
 // ── Brand Logic ────────────────────────────────────
 
-function getBrandStyle(institutionName?: string | null) {
+export function getBrandStyle(institutionName?: string | null) {
   if (!institutionName) return null;
   const name = institutionName.toLowerCase();
 
@@ -265,7 +265,7 @@ const AccountCardCarouselComponent = ({
   const flatListRef = useRef<FlatList>(null);
 
   // Continuous scroll position for pagination dots
-  const scrollX = useSharedValue(0);
+  const scrollX = useSharedValue(activeIndex * ITEM_WIDTH);
   // Tracks the last index we fired a haptic for
   const lastHapticIndex = useSharedValue(activeIndex);
 
@@ -384,7 +384,7 @@ const AccountCardCarouselComponent = ({
       <View style={styles.paginationContainer}>
         {accounts.length > 1 && (
           <GestureDetector gesture={panGesture}>
-            <View 
+            <View
               style={styles.dotsRow}
               onLayout={(e) => setDotsContainerWidth(e.nativeEvent.layout.width)}
               hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}
@@ -521,7 +521,6 @@ const styles = StyleSheet.create({
   container: {
     position: "relative",
     overflow: "visible",
-    width: SCREEN_WIDTH,
     marginHorizontal: -16,
   },
   card: {

@@ -99,7 +99,7 @@ export default function TargetsScreen() {
       tintColor: ui.text,
       hintTextColor: ui.mutedText,
       headerIconColor: ui.mutedText,
-      placement: "integratedButton",
+      placement: "integratedButton" as const,
     }),
     [setSearchQuery, ui.mutedText, ui.text],
   );
@@ -110,7 +110,7 @@ export default function TargetsScreen() {
       <ScrollView
         style={[styles.container, { backgroundColor: "transparent" }]}
         contentInsetAdjustmentBehavior="automatic"
-        contentContainerStyle={[styles.scrollContent, { paddingBottom: tabBarHeight + 120, paddingTop: 16 }]}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: tabBarHeight + 120, paddingTop: Platform.OS === "android" ? 16 : 0 }]}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl

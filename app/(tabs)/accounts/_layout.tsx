@@ -21,7 +21,7 @@ export default function AccountsLayout() {
         headerLargeTitleStyle: { color: isDark ? "#ffffff" : "#111111" },
       }}
     >
-      <Stack.Screen name="index" options={{ title: "Accounts" }} />
+      <Stack.Screen name="index" options={{ title: "Accounts", headerBackTitle: "" }} />
     </Stack>
   );
 }

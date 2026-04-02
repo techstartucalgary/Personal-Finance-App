@@ -73,6 +73,7 @@ export default function ProfileScreen() {
         options={{
           title: "Profile",
           headerBackTitle: "Back",
+          headerBackButtonDisplayMode: "minimal",
           headerLargeTitle: false,
           headerTransparent: Platform.OS === "ios",
           headerShadowVisible: false,

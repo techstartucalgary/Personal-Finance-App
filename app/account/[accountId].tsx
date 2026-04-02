@@ -7,6 +7,7 @@ import {
   ScrollView,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useTheme } from "react-native-paper";
 
 import { AccountDetailModal } from "@/components/AccountDetailModal";
 import type { UnifiedAccount } from "@/components/accounts/AccountCardCarousel";
@@ -42,6 +43,7 @@ export default function AccountDetailScreen() {
   const insets = useSafeAreaInsets();
 
   const ui = useThemeUI();
+  const theme = useTheme();
   const isDark = ui.bg === '#000000' || ui.bg === '#1C1C1E';
 
   const userId = session?.user.id;
@@ -354,7 +356,7 @@ export default function AccountDetailScreen() {
           headerTransparent: Platform.OS === "ios",
           headerShadowVisible: false,
           headerLargeStyle: { backgroundColor: Platform.OS === "ios" ? "transparent" : undefined },
-          headerStyle: { backgroundColor: Platform.OS === "android" ? ui.bg : "transparent" },
+          headerStyle: { backgroundColor: Platform.OS === "android" ? (isDark ? theme.colors.surface : theme.colors.surfaceVariant) : "transparent" },
           headerTitleStyle: { color: isDark ? "#ffffff" : "#111111" },
           headerLargeTitleStyle: { color: isDark ? "#ffffff" : "#111111" },
           headerTintColor: ui.accent,

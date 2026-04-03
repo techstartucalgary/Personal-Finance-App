@@ -9,8 +9,8 @@ import {
 } from "react-native";
 
 import { ThemedText } from "@/components/themed-text";
-import type { TabsUi } from "@/constants/tabsTheme";
 import { Tokens } from "@/constants/authTokens";
+import type { TabsUi } from "@/constants/tabsTheme";
 import { parseLocalDate, toLocalISOString } from "@/utils/date";
 import type { PlaidAccount, PlaidTransaction } from "@/utils/plaid";
 
@@ -488,86 +488,86 @@ function TransactionsListComponent({
                 {section.title}
               </ThemedText>
             </View>
-            <View style={[styles.sectionCardShadow, { backgroundColor: ui.surface }]}>
+            <View style={[styles.sectionCard, { backgroundColor: ui.surface, borderColor: ui.border }]}>
               <View style={[styles.sectionCard, { backgroundColor: ui.surface, borderColor: ui.border }]}>
-              {section.items.map((tx, index) => {
-                const isInflow = tx.source === "plaid" && tx.amount < 0;
-                const arrowColor = isInflow ? INFLOW_GREEN : ui.danger;
-                const amountValue = Math.abs(tx.amount);
-                const showDivider = index !== section.items.length - 1;
+                {section.items.map((tx, index) => {
+                  const isInflow = tx.source === "plaid" && tx.amount < 0;
+                  const arrowColor = isInflow ? INFLOW_GREEN : ui.danger;
+                  const amountValue = Math.abs(tx.amount);
+                  const showDivider = index !== section.items.length - 1;
 
-                return (
-                  <Pressable
-                    key={tx.id}
-                    onPress={() => onSelectTransaction(tx.raw)}
-                    style={({ pressed }) => [
-                      styles.itemRow,
-                      {
-                        opacity: pressed ? 0.8 : 1,
-                        borderBottomWidth: showDivider ? StyleSheet.hairlineWidth : 0,
-                        borderBottomColor: ui.border,
-                      },
-                    ]}
-                  >
-                    <View style={styles.itemBody}>
-                      <ThemedText type="defaultSemiBold" style={{ color: ui.text }}>
-                        {tx.title}
-                      </ThemedText>
-                      {showMeta && (
-                        <>
-                          <ThemedText style={[styles.metaText, { color: ui.mutedText }]}>
-                            {tx.accountLabel}
-                          </ThemedText>
-                          {tx.categoryLine && (
-                            <ThemedText style={[styles.categoryText, { color: ui.mutedText }]}>
-                              {tx.categoryLine}
+                  return (
+                    <Pressable
+                      key={tx.id}
+                      onPress={() => onSelectTransaction(tx.raw)}
+                      style={({ pressed }) => [
+                        styles.itemRow,
+                        {
+                          opacity: pressed ? 0.8 : 1,
+                          borderBottomWidth: showDivider ? StyleSheet.hairlineWidth : 0,
+                          borderBottomColor: ui.border,
+                        },
+                      ]}
+                    >
+                      <View style={styles.itemBody}>
+                        <ThemedText type="defaultSemiBold" style={{ color: ui.text }}>
+                          {tx.title}
+                        </ThemedText>
+                        {showMeta && (
+                          <>
+                            <ThemedText style={[styles.metaText, { color: ui.mutedText }]}>
+                              {tx.accountLabel}
                             </ThemedText>
-                          )}
-                        </>
-                      )}
-                      {showBadges && tx.isPending && (
-                        <View style={styles.pendingBadge}>
-                          <ThemedText style={styles.pendingText}>Pending</ThemedText>
-                        </View>
-                      )}
-                      {showBadges && tx.recurringLabel && (
-                        <View
-                          style={[
-                            styles.recurringBadge,
-                            {
-                              backgroundColor: tx.isRecurringActive
-                                ? "rgba(255,149,0,0.16)"
-                                : "rgba(90,90,90,0.14)",
-                            },
-                          ]}
-                        >
-                          <ThemedText
+                            {tx.categoryLine && (
+                              <ThemedText style={[styles.categoryText, { color: ui.mutedText }]}>
+                                {tx.categoryLine}
+                              </ThemedText>
+                            )}
+                          </>
+                        )}
+                        {showBadges && tx.isPending && (
+                          <View style={styles.pendingBadge}>
+                            <ThemedText style={styles.pendingText}>Pending</ThemedText>
+                          </View>
+                        )}
+                        {showBadges && tx.recurringLabel && (
+                          <View
                             style={[
-                              styles.recurringText,
+                              styles.recurringBadge,
                               {
-                                color: tx.isRecurringActive ? "#FF9500" : ui.mutedText,
+                                backgroundColor: tx.isRecurringActive
+                                  ? "rgba(255,149,0,0.16)"
+                                  : "rgba(90,90,90,0.14)",
                               },
                             ]}
                           >
-                            {tx.recurringLabel}
-                          </ThemedText>
-                        </View>
-                      )}
-                    </View>
+                            <ThemedText
+                              style={[
+                                styles.recurringText,
+                                {
+                                  color: tx.isRecurringActive ? "#FF9500" : ui.mutedText,
+                                },
+                              ]}
+                            >
+                              {tx.recurringLabel}
+                            </ThemedText>
+                          </View>
+                        )}
+                      </View>
 
-                    <View style={styles.amountWrap}>
-                      <Feather
-                        name={isInflow ? "arrow-up" : "arrow-down"}
-                        size={16}
-                        color={arrowColor}
-                      />
-                      <ThemedText style={[styles.amountText, { color: ui.text }]}>
-                        {formatMoney(amountValue)}
-                      </ThemedText>
-                    </View>
-                  </Pressable>
-                );
-              })}
+                      <View style={styles.amountWrap}>
+                        <Feather
+                          name={isInflow ? "arrow-up" : "arrow-down"}
+                          size={16}
+                          color={arrowColor}
+                        />
+                        <ThemedText style={[styles.amountText, { color: ui.text }]}>
+                          {formatMoney(amountValue)}
+                        </ThemedText>
+                      </View>
+                    </Pressable>
+                  );
+                })}
               </View>
             </View>
           </View>
@@ -670,7 +670,7 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   sectionCard: {
-    borderRadius: 14,
+    borderRadius: 18,
     borderWidth: StyleSheet.hairlineWidth,
     overflow: "hidden",
   },

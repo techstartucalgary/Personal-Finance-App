@@ -333,8 +333,12 @@ export default function AccountsScreen() {
       const namePart = pa.name?.toLowerCase() ?? "";
       const typePart = pa.type?.toLowerCase() ?? "";
       const subtypePart = pa.subtype?.toLowerCase() ?? "";
+      const institutionPart = pa.institution_name?.toLowerCase() ?? "";
       return (
-        namePart.includes(q) || typePart.includes(q) || subtypePart.includes(q)
+        namePart.includes(q) ||
+        typePart.includes(q) ||
+        subtypePart.includes(q) ||
+        institutionPart.includes(q)
       );
     });
   }, [plaidAccounts, searchQuery]);
@@ -394,10 +398,10 @@ export default function AccountsScreen() {
             isLoading={isLoading}
             filteredManualAccounts={filteredManualAccounts}
             filteredPlaidAccounts={filteredPlaidAccounts}
+            searchQuery={searchQuery}
             manualCount={accounts.length}
             formatMoney={formatMoney}
             getAccountColor={getAccountColor}
-            onOpenAddSource={() => setAddSourceModalOpen(true)}
             onOpenSingleAccount={openSingleAccount}
           />
         </Animated.View>

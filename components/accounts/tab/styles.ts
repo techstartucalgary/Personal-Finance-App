@@ -77,19 +77,6 @@ export const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: Tokens.font.semiFamily ?? Tokens.font.family,
   },
-  smallActionBtn: {
-    height: 44,
-    paddingHorizontal: 16,
-    borderRadius: 14,
-    borderWidth: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  actionText: {
-    fontFamily: Tokens.font.semiFamily ?? Tokens.font.family,
-    fontSize: 13,
-  },
   searchWrap: {
     marginTop: 6,
     borderWidth: 1,

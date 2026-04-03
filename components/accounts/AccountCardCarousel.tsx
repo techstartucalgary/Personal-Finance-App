@@ -24,11 +24,11 @@ import { Tokens } from "@/constants/authTokens";
 import * as Haptics from "expo-haptics";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
-const CARD_HORIZONTAL_MARGIN = 30;
+const CARD_HORIZONTAL_MARGIN = 24;
 const CARD_WIDTH = SCREEN_WIDTH - CARD_HORIZONTAL_MARGIN * 2;
 const ITEM_WIDTH = CARD_WIDTH + CARD_HORIZONTAL_MARGIN * 2;
 
-const CARD_HEIGHT = 210;
+const CARD_HEIGHT = Math.max(212, Math.min(228, Math.round(CARD_WIDTH * 0.72)));
 const IS_ANDROID = Platform.OS === "android";
 
 // ── Types ──────────────────────────────────────────
@@ -158,6 +158,7 @@ function AccountCard({
         shadowOpacity: shadowOpacity,
         shadowRadius: shadowRadius,
         elevation: 8, // Fix for Android shadows
+        borderCurve: "continuous",
       }
     ]}>
       {/* Decorative elements (no interactions) */}
@@ -193,19 +194,36 @@ function AccountCard({
       {/* Top: name & icon */}
       <View style={styles.topRow}>
         <View style={styles.titleGroup}>
-          <ThemedText style={styles.cardName}>{item.name}</ThemedText>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+
+          <ThemedText
+            style={styles.cardName}
+            numberOfLines={2}
+            ellipsizeMode="tail"
+          >
+            {item.name}
+          </ThemedText>
+          <View style={styles.metaRow}>
             {item.institutionName ? (
-              <ThemedText style={[styles.typePillText, { fontWeight: '600', color: '#FFFFFF', opacity: 0.9 }]}>
+              <ThemedText
+                style={styles.typePillText}
+                numberOfLines={1}
+                ellipsizeMode="tail"
+              >
                 {item.institutionName}
               </ThemedText>
             ) : (
-              <ThemedText style={styles.typePillText}>{item.typeLabel}</ThemedText>
+              <ThemedText
+                style={styles.typePillText}
+                numberOfLines={1}
+                ellipsizeMode="tail"
+              >
+                {item.typeLabel}
+              </ThemedText>
             )}
             {item.mask && (
               <>
-                <View style={{ width: 3, height: 3, borderRadius: 1.5, backgroundColor: 'rgba(255,255,255,0.4)' }} />
-                <ThemedText style={[styles.typePillText, { opacity: 0.8 }]}>•••• {item.mask}</ThemedText>
+                <View style={styles.metaDot} />
+                <ThemedText style={styles.typePillText}>•••• {item.mask}</ThemedText>
               </>
             )}
           </View>
@@ -219,28 +237,33 @@ function AccountCard({
         </View>
       </View>
 
-      {/* Balance Section Allocation Placeholder */}
-      <View style={{ height: 20 }} />
-
       {/* Balance Section */}
-      <View>
+      <View style={styles.balanceBlock}>
         <ThemedText style={styles.balance}>{item.balance}</ThemedText>
         {item.availableBalance && (
           <ThemedText style={styles.availableSubtitle}>
-            {item.availableBalance} available
+            Available to spend: {item.availableBalance}
           </ThemedText>
         )}
       </View>
 
       {/* Bottom subtitle */}
       <View style={styles.bottomRow}>
-        <ThemedText style={styles.subtitle}>{item.subtitle}</ThemedText>
+        <View style={styles.bottomMetaGroup}>
+          <ThemedText
+            style={styles.subtitle}
+            numberOfLines={1}
+            ellipsizeMode="tail"
+          >
+            {item.subtitle}
+          </ThemedText>
+        </View>
         {item.sourceLabel && (
           <View style={styles.sourceBadge}>
             <Feather
               name={item.kind === "manual" ? "edit-2" : "check"}
-              size={11}
-              color="rgba(255,255,255,0.85)"
+              size={10}
+              color="rgba(255,255,255,0.82)"
             />
             <ThemedText style={styles.sourceBadgeText}>{item.sourceLabel}</ThemedText>
           </View>
@@ -577,65 +600,124 @@ const styles = StyleSheet.create({
   },
   titleGroup: {
     flex: 1,
-    gap: 6,
+    gap: 5,
+    paddingRight: 12,
+    minHeight: 76,
+    minWidth: 0,
+    overflow: "hidden",
+  },
+  eyebrow: {
+    color: "rgba(255,255,255,0.62)",
+    fontSize: 11,
+    lineHeight: 14,
+    letterSpacing: 1.1,
+    textTransform: "uppercase",
+    fontFamily: Tokens.font.semiFamily ?? Tokens.font.family,
   },
   cardName: {
     color: "#FFFFFF",
-    fontSize: 20,
+    fontSize: 22,
     fontFamily: Tokens.font.boldFamily ?? Tokens.font.headingFamily,
+    lineHeight: 24,
+  },
+  metaRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    minHeight: 18,
+    minWidth: 0,
+  },
+  metaDot: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: "rgba(255,255,255,0.36)",
   },
   typePillText: {
-    color: "rgba(255,255,255,0.85)",
-    fontSize: 12,
-    fontFamily: Tokens.font.semiFamily ?? Tokens.font.family,
-    letterSpacing: 0.3,
+    color: "rgba(255,255,255,0.78)",
+    fontSize: 12.5,
+    lineHeight: 16,
+    fontFamily: Tokens.font.family,
+    flexShrink: 1,
   },
   iconCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: 10,
-    backgroundColor: "rgba(255,255,255,0.15)",
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: "rgba(255,255,255,0.12)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.12)",
     alignItems: "center",
     justifyContent: "center",
   },
+  balanceBlock: {
+    gap: 2,
+  },
+  balanceLabel: {
+    color: "rgba(255,255,255,0.62)",
+    fontSize: 12,
+    lineHeight: 14,
+    letterSpacing: 0.4,
+    fontFamily: Tokens.font.semiFamily ?? Tokens.font.family,
+  },
   balance: {
-    fontSize: 32,
+    fontSize: 36,
     fontFamily: Tokens.font.boldFamily ?? Tokens.font.family,
     color: "#FFFFFF",
-    marginTop: 4,
-    marginBottom: 2,
-    lineHeight: 40,
+    lineHeight: 42,
+    fontVariant: ["tabular-nums"],
   },
   availableSubtitle: {
     fontSize: 13,
-    color: "rgba(255,255,255,0.7)",
-    fontWeight: "500",
-    marginTop: -2,
+    lineHeight: 16,
+    color: "rgba(255,255,255,0.72)",
+    fontFamily: Tokens.font.family,
   },
   bottomRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "center",
-    marginTop: 18,
+    alignItems: "flex-end",
+    gap: 12,
+    minHeight: 38,
+  },
+  bottomMetaGroup: {
+    gap: 2,
+    flex: 1,
+    minWidth: 0,
+  },
+  bottomLabel: {
+    color: "rgba(255,255,255,0.56)",
+    fontSize: 11,
+    lineHeight: 13,
+    letterSpacing: 0.8,
+    textTransform: "uppercase",
+    fontFamily: Tokens.font.semiFamily ?? Tokens.font.family,
   },
   subtitle: {
-    color: "rgba(255,255,255,0.85)",
-    fontSize: 16,
-    fontFamily: Tokens.font.family,
+    color: "rgba(255,255,255,0.9)",
+    fontSize: 15,
+    lineHeight: 18,
+    fontFamily: Tokens.font.semiFamily ?? Tokens.font.family,
   },
   sourceBadge: {
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
     paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 10,
-    backgroundColor: "rgba(255,255,255,0.15)",
+    paddingVertical: 4,
+    borderRadius: 999,
+    backgroundColor: "rgba(255,255,255,0.12)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.12)",
+    flexShrink: 0,
+    alignSelf: "flex-end",
   },
   sourceBadgeText: {
-    color: "rgba(255,255,255,0.85)",
-    fontSize: 12,
-    letterSpacing: 0.3,
+    color: "rgba(255,255,255,0.84)",
+    fontSize: 10.5,
+    lineHeight: 12,
+    letterSpacing: 0.4,
+    textTransform: "uppercase",
     fontFamily: Tokens.font.semiFamily ?? Tokens.font.family,
   },
 

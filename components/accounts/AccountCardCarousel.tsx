@@ -24,11 +24,12 @@ import { Tokens } from "@/constants/authTokens";
 import * as Haptics from "expo-haptics";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
-const CARD_HORIZONTAL_MARGIN = 16;
+const CARD_HORIZONTAL_MARGIN = 30;
 const CARD_WIDTH = SCREEN_WIDTH - CARD_HORIZONTAL_MARGIN * 2;
 const ITEM_WIDTH = CARD_WIDTH + CARD_HORIZONTAL_MARGIN * 2;
 
-const CARD_HEIGHT = 230;
+const CARD_HEIGHT = 210;
+const IS_ANDROID = Platform.OS === "android";
 
 // ── Types ──────────────────────────────────────────
 
@@ -263,9 +264,11 @@ const AccountCardCarouselComponent = ({
   const isDark =
     ui.text === "#FFFFFF" || background === "#000000" || background === "#1C1C1E";
   const flatListRef = useRef<FlatList>(null);
+  const settledIndexRef = useRef(activeIndex);
 
   // Continuous scroll position for pagination dots
   const scrollX = useSharedValue(activeIndex * ITEM_WIDTH);
+  const reportedIndex = useSharedValue(activeIndex);
   // Tracks the last index we fired a haptic for
   const lastHapticIndex = useSharedValue(activeIndex);
 
@@ -273,21 +276,33 @@ const AccountCardCarouselComponent = ({
 
   const scrollToIndex = useCallback((index: number) => {
     if (index >= 0 && index < accounts.length) {
-      if (index !== lastHapticIndex.value) {
-        lastHapticIndex.value = index;
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      }
+      scrollX.value = index * ITEM_WIDTH;
       flatListRef.current?.scrollToOffset({
         offset: index * ITEM_WIDTH,
         animated: false,
       });
     }
-  }, [accounts.length, lastHapticIndex]);
+  }, [accounts.length, scrollX]);
+
+  const commitIndex = useCallback((index: number) => {
+    if (index < 0 || index >= accounts.length) return;
+    if (index === settledIndexRef.current) return;
+    settledIndexRef.current = index;
+    reportedIndex.value = index;
+    if (index !== lastHapticIndex.value) {
+      lastHapticIndex.value = index;
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+    onIndexChange(index);
+  }, [accounts.length, lastHapticIndex, onIndexChange, reportedIndex]);
 
   useEffect(() => {
     if (!accounts.length) return;
+    if (activeIndex === settledIndexRef.current) return;
+    settledIndexRef.current = activeIndex;
+    reportedIndex.value = activeIndex;
     scrollToIndex(activeIndex);
-  }, [activeIndex, accounts.length, scrollToIndex]);
+  }, [activeIndex, accounts.length, reportedIndex, scrollToIndex]);
 
   const panGesture = useMemo(() => {
     return Gesture.Pan()
@@ -311,22 +326,32 @@ const AccountCardCarouselComponent = ({
           accounts.length - 1,
           Math.max(0, Math.round(percentage * (accounts.length - 1)))
         );
-        scrollToIndex(targetIndex);
+        if (targetIndex !== settledIndexRef.current) {
+          scrollToIndex(targetIndex);
+          commitIndex(targetIndex);
+        }
       });
-  }, [dotsContainerWidth, accounts.length, scrollToIndex]);
+  }, [dotsContainerWidth, accounts.length, scrollToIndex, commitIndex]);
 
   const handleScroll = useAnimatedScrollHandler({
     onScroll: (event) => {
       scrollX.value = event.contentOffset.x;
+      const nextIndex = Math.max(
+        0,
+        Math.min(accounts.length - 1, Math.round(event.contentOffset.x / ITEM_WIDTH))
+      );
 
-      const idx = Math.round(event.contentOffset.x / ITEM_WIDTH);
-      if (idx !== lastHapticIndex.value && idx >= 0 && idx < accounts.length) {
-        lastHapticIndex.value = idx;
-        runOnJS(onIndexChange)(idx);
-        runOnJS(Haptics.impactAsync)(Haptics.ImpactFeedbackStyle.Light);
+      if (nextIndex !== reportedIndex.value) {
+        reportedIndex.value = nextIndex;
+        runOnJS(commitIndex)(nextIndex);
       }
     },
   });
+
+  const handleMomentumScrollEnd = useCallback((offsetX: number) => {
+    const idx = Math.round(offsetX / ITEM_WIDTH);
+    commitIndex(idx);
+  }, [commitIndex]);
 
   const getItemLayout = useCallback(
     (_: any, index: number) => ({
@@ -361,20 +386,21 @@ const AccountCardCarouselComponent = ({
         keyExtractor={keyExtractor}
         horizontal={true}
         showsHorizontalScrollIndicator={false}
-        pagingEnabled={Platform.OS === "ios"}
+        pagingEnabled={!IS_ANDROID}
         snapToInterval={ITEM_WIDTH}
         snapToAlignment="center"
-        decelerationRate={Platform.OS === "ios" ? "fast" : 0.985}
+        decelerationRate="fast"
         disableIntervalMomentum={true}
         getItemLayout={getItemLayout}
         initialScrollIndex={activeIndex}
         onScroll={handleScroll}
+        onMomentumScrollEnd={(e) => handleMomentumScrollEnd(e.nativeEvent.contentOffset.x)}
         scrollEventThrottle={16}
         bounces={false}
         initialNumToRender={3}
         windowSize={5}
         maxToRenderPerBatch={3}
-        removeClippedSubviews={Platform.OS === "android"}
+        removeClippedSubviews={IS_ANDROID}
         contentContainerStyle={{ paddingRight: 0 }}
         style={{ overflow: "visible" }}
         renderItem={renderItem}
@@ -436,18 +462,26 @@ const AccountCardItem = React.memo(({ item, index, scrollX, isDark, onAccountPre
       Extrapolation.CLAMP
     );
 
+    const cardTransform: any[] = [
+      { perspective: 1000 },
+      { scale },
+    ];
+
+    if (Platform.OS !== "android") {
+      cardTransform.splice(1, 0, { rotateY: `${rotateY}deg` });
+    }
+
     return {
       opacity,
-      transform: [
-        { perspective: 1000 },
-        { rotateY: `${rotateY}deg` },
-        { scale },
-      ],
+      transform: cardTransform,
     };
   });
 
   return (
-    <Animated.View style={[{ width: ITEM_WIDTH, justifyContent: 'center' }, animatedStyle]}>
+    <Animated.View
+      renderToHardwareTextureAndroid
+      style={[{ width: ITEM_WIDTH, justifyContent: 'center' }, animatedStyle]}
+    >
       <Pressable
         onPress={() => onAccountPress?.(item)}
         style={({ pressed }) => [
@@ -455,7 +489,6 @@ const AccountCardItem = React.memo(({ item, index, scrollX, isDark, onAccountPre
             width: CARD_WIDTH,
             marginHorizontal: CARD_HORIZONTAL_MARGIN,
             paddingBottom: 10,
-            transform: [{ scale: pressed ? 1.02 : 1 }],
           },
         ]}
       >
@@ -506,13 +539,7 @@ const PaginationDot = React.memo(({ index, scrollX, ui }: any) => {
 });
 PaginationDot.displayName = "PaginationDot";
 
-export const AccountCardCarousel = React.memo(
-  AccountCardCarouselComponent,
-  (prev, next) => {
-    // Basic equality check for accounts and ui
-    return prev.accounts === next.accounts && prev.ui === next.ui;
-  }
-);
+export const AccountCardCarousel = React.memo(AccountCardCarouselComponent);
 AccountCardCarousel.displayName = "AccountCardCarousel";
 
 // ── Styles ─────────────────────────────────────────

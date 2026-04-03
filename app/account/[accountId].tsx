@@ -1,5 +1,5 @@
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { startTransition, useCallback, useEffect, useMemo, useState } from "react";
 import {
   Alert,
   Platform,
@@ -342,6 +342,12 @@ export default function AccountDetailScreen() {
     [setTxSearchQuery, ui.accent, ui.mutedText, ui.text],
   );
 
+  const handleSingleAccountChange = useCallback((newId: string) => {
+    startTransition(() => {
+      setCurrentSingleAccountId(newId);
+    });
+  }, []);
+
   if (authLoading && !session) return <AccountsLoadingState ui={ui} insets={insets} />;
   if (!session) return <AccountsSignedOutState ui={ui} insets={insets} />;
 
@@ -397,7 +403,7 @@ export default function AccountDetailScreen() {
           filteredPlaidTransactions={filteredPlaidForSingle}
           accountsForTx={accountsForTx}
           plaidAccounts={plaidAccounts}
-          onSingleAccountChange={(newId) => setCurrentSingleAccountId(newId)}
+          onSingleAccountChange={handleSingleAccountChange}
           onOpenAddSource={() => { }} // Remove ability to add source from details since it's cleaner on parent list view
           onDeleteSelected={handleSingleDelete}
           onEditSelected={handleSingleEdit}

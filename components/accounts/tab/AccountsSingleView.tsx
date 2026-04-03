@@ -1,5 +1,5 @@
 import Feather from "@expo/vector-icons/Feather";
-import React from "react";
+import React, { useCallback } from "react";
 import { Pressable, View } from "react-native";
 
 import {
@@ -70,6 +70,20 @@ export function AccountsSingleView({
   onTxSearchChange,
   onSelectTransaction,
 }: AccountsSingleViewProps) {
+  const handleCarouselIndexChange = useCallback((index: number) => {
+    const next = combinedAccounts[index];
+    if (next && next.id !== singleAccountId) {
+      onSingleAccountChange(next.id);
+    }
+  }, [combinedAccounts, onSingleAccountChange, singleAccountId]);
+
+  const handleAccountPress = useCallback((account: UnifiedAccount) => {
+    const next = combinedAccounts.find((acc) => acc.id === account.key);
+    if (next && next.id !== singleAccountId) {
+      onSingleAccountChange(next.id);
+    }
+  }, [combinedAccounts, onSingleAccountChange, singleAccountId]);
+
   if (combinedAccounts.length === 0) {
     return (
       <View style={styles.singleViewWrap}>
@@ -86,19 +100,9 @@ export function AccountsSingleView({
       <AccountCardCarousel
         accounts={unifiedAccounts}
         activeIndex={activeCardIndex}
-        onIndexChange={(index) => {
-          const next = combinedAccounts[index];
-          if (next && next.id !== singleAccountId) {
-            onSingleAccountChange(next.id);
-          }
-        }}
+        onIndexChange={handleCarouselIndexChange}
         onAddPress={onOpenAddSource}
-        onAccountPress={(account) => {
-          const next = combinedAccounts.find((acc) => acc.id === account.key);
-          if (next && next.id !== singleAccountId) {
-            onSingleAccountChange(next.id);
-          }
-        }}
+        onAccountPress={handleAccountPress}
         ui={ui}
       />
 

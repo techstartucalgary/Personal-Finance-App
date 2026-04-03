@@ -160,7 +160,7 @@ interface TransactionsListProps {
   emptyLabel?: string;
 }
 
-export function TransactionsList({
+function TransactionsListComponent({
   ui,
   expenses,
   plaidTransactions,
@@ -576,6 +576,8 @@ export function TransactionsList({
     </View>
   );
 }
+
+export const TransactionsList = React.memo(TransactionsListComponent);
 
 const styles = StyleSheet.create({
   wrap: {

@@ -24,11 +24,14 @@ import { Tokens } from "@/constants/authTokens";
 import * as Haptics from "expo-haptics";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
-const CARD_HORIZONTAL_MARGIN = 24;
-const CARD_WIDTH = SCREEN_WIDTH - CARD_HORIZONTAL_MARGIN * 2;
-const ITEM_WIDTH = CARD_WIDTH + CARD_HORIZONTAL_MARGIN * 2;
+const CARD_GAP = 14;
+const CARD_PEEK = 35;
+const CARD_WIDTH = SCREEN_WIDTH - CARD_PEEK * 2 - CARD_GAP * 2;
+const ITEM_WIDTH = CARD_WIDTH + CARD_GAP;
+const CAROUSEL_PADDING_LEFT = (SCREEN_WIDTH - ITEM_WIDTH) / 2;
+const CAROUSEL_PADDING_RIGHT = CAROUSEL_PADDING_LEFT;
 
-const CARD_HEIGHT = Math.max(212, Math.min(228, Math.round(CARD_WIDTH * 0.72)));
+const CARD_HEIGHT = Math.max(178, Math.min(194, Math.round(CARD_WIDTH * 0.62)));
 const IS_ANDROID = Platform.OS === "android";
 
 // ── Types ──────────────────────────────────────────
@@ -386,6 +389,10 @@ const AccountCardCarouselComponent = ({
   );
 
   const keyExtractor = useCallback((item: UnifiedAccount) => item.key, []);
+  const snapOffsets = useMemo(
+    () => accounts.map((_, index) => index * ITEM_WIDTH),
+    [accounts],
+  );
 
   const renderItem = useCallback(
     ({ item, index }: { item: UnifiedAccount; index: number }) => (
@@ -410,8 +417,7 @@ const AccountCardCarouselComponent = ({
         horizontal={true}
         showsHorizontalScrollIndicator={false}
         pagingEnabled={!IS_ANDROID}
-        snapToInterval={ITEM_WIDTH}
-        snapToAlignment="center"
+        snapToOffsets={snapOffsets}
         decelerationRate="fast"
         disableIntervalMomentum={true}
         getItemLayout={getItemLayout}
@@ -424,7 +430,10 @@ const AccountCardCarouselComponent = ({
         windowSize={5}
         maxToRenderPerBatch={3}
         removeClippedSubviews={IS_ANDROID}
-        contentContainerStyle={{ paddingRight: 0 }}
+        contentContainerStyle={{
+          paddingLeft: CAROUSEL_PADDING_LEFT,
+          paddingRight: CAROUSEL_PADDING_RIGHT,
+        }}
         style={{ overflow: "visible" }}
         renderItem={renderItem}
       />
@@ -467,21 +476,21 @@ const AccountCardItem = React.memo(({ item, index, scrollX, isDark, onAccountPre
     const scale = interpolate(
       scrollX.value,
       inputRange,
-      [0.85, 1, 0.85],
+      [0.93, 1, 0.93],
       Extrapolation.CLAMP
     );
 
     const opacity = interpolate(
       scrollX.value,
       inputRange,
-      [0.4, 1, 0.4],
+      [0.72, 1, 0.72],
       Extrapolation.CLAMP
     );
 
     const rotateY = interpolate(
       scrollX.value,
       inputRange,
-      [-25, 0, 25],
+      [-12, 0, 12],
       Extrapolation.CLAMP
     );
 
@@ -503,14 +512,14 @@ const AccountCardItem = React.memo(({ item, index, scrollX, isDark, onAccountPre
   return (
     <Animated.View
       renderToHardwareTextureAndroid
-      style={[{ width: ITEM_WIDTH, justifyContent: 'center' }, animatedStyle]}
+      style={[{ width: ITEM_WIDTH, justifyContent: "center" }, animatedStyle]}
     >
       <Pressable
         onPress={() => onAccountPress?.(item)}
         style={({ pressed }) => [
           {
             width: CARD_WIDTH,
-            marginHorizontal: CARD_HORIZONTAL_MARGIN,
+            marginHorizontal: CARD_GAP / 2,
             paddingBottom: 10,
           },
         ]}
@@ -533,20 +542,28 @@ const PaginationDot = React.memo(({ index, scrollX, ui }: any) => {
     const dotWidth = interpolate(
       scrollX.value,
       inputRange,
-      [8, 22, 8],
+      [5, 14, 5],
       Extrapolation.CLAMP
     );
 
     const opacity = interpolate(
       scrollX.value,
       inputRange,
-      [0.3, 1, 0.3],
+      [0.22, 0.72, 0.22],
+      Extrapolation.CLAMP
+    );
+
+    const scale = interpolate(
+      scrollX.value,
+      inputRange,
+      [0.9, 1, 0.9],
       Extrapolation.CLAMP
     );
 
     return {
       width: dotWidth,
       opacity,
+      transform: [{ scale }],
     };
   });
 
@@ -579,11 +596,12 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.35,
     shadowRadius: 12,
-    paddingVertical: 20,
-    paddingHorizontal: 20,
+    paddingVertical: 18,
+    paddingHorizontal: 18,
     height: CARD_HEIGHT,
     overflow: "hidden",
-    justifyContent: "space-between",
+    justifyContent: "flex-start",
+    gap: 10,
   },
   waveImage: {
     position: "absolute",
@@ -600,9 +618,9 @@ const styles = StyleSheet.create({
   },
   titleGroup: {
     flex: 1,
-    gap: 5,
+    gap: 4,
     paddingRight: 12,
-    minHeight: 76,
+    minHeight: 52,
     minWidth: 0,
     overflow: "hidden",
   },
@@ -616,15 +634,15 @@ const styles = StyleSheet.create({
   },
   cardName: {
     color: "#FFFFFF",
-    fontSize: 22,
+    fontSize: 20,
     fontFamily: Tokens.font.boldFamily ?? Tokens.font.headingFamily,
-    lineHeight: 24,
+    lineHeight: 22,
   },
   metaRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-    minHeight: 18,
+    minHeight: 16,
     minWidth: 0,
   },
   metaDot: {
@@ -641,9 +659,9 @@ const styles = StyleSheet.create({
     flexShrink: 1,
   },
   iconCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
+    width: 40,
+    height: 40,
+    borderRadius: 12,
     backgroundColor: "rgba(255,255,255,0.12)",
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.12)",
@@ -651,7 +669,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   balanceBlock: {
-    gap: 2,
+    gap: 1,
   },
   balanceLabel: {
     color: "rgba(255,255,255,0.62)",
@@ -661,24 +679,25 @@ const styles = StyleSheet.create({
     fontFamily: Tokens.font.semiFamily ?? Tokens.font.family,
   },
   balance: {
-    fontSize: 36,
+    fontSize: 28,
     fontFamily: Tokens.font.boldFamily ?? Tokens.font.family,
     color: "#FFFFFF",
-    lineHeight: 42,
+    lineHeight: 33,
     fontVariant: ["tabular-nums"],
   },
   availableSubtitle: {
-    fontSize: 13,
-    lineHeight: 16,
+    fontSize: 12.5,
+    lineHeight: 15,
     color: "rgba(255,255,255,0.72)",
     fontFamily: Tokens.font.family,
   },
   bottomRow: {
+    marginTop: "auto",
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "flex-end",
-    gap: 12,
-    minHeight: 38,
+    gap: 10,
+    minHeight: 34,
   },
   bottomMetaGroup: {
     gap: 2,
@@ -723,19 +742,22 @@ const styles = StyleSheet.create({
 
   paginationContainer: {
     alignItems: "center",
-    marginTop: 14,
-    marginBottom: 4,
+    marginTop: 10,
+    marginBottom: 2,
   },
   dotsRow: {
     flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",
-    gap: 6,
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
   },
   dot: {
-    width: 7,
-    height: 7,
-    borderRadius: 3.5,
+    width: 5,
+    height: 5,
+    borderRadius: 999,
   },
   addButton: {
     marginTop: 22,

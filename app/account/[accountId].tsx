@@ -34,6 +34,147 @@ import { AccountsLoadingState, AccountsSignedOutState } from "@/components/accou
 import { styles } from "@/components/accounts/tab/styles";
 import type { AccountRow, ExpenseRow, GoalRow } from "@/components/accounts/tab/types";
 
+const ACCOUNT_DETAILS_SUMMARY_TTL_MS = 60_000;
+const ACCOUNT_DETAILS_TRANSACTIONS_TTL_MS = 45_000;
+
+type AccountSummaryData = {
+  accounts: AccountRow[];
+  goals: GoalRow[];
+};
+
+type AccountTransactionData = {
+  expenses: ExpenseRow[];
+  plaidTransactions: PlaidTransaction[];
+};
+
+type CacheEntry<T> = {
+  updatedAt: number;
+  data: T;
+};
+
+const accountSummaryCache = new Map<string, CacheEntry<AccountSummaryData>>();
+const plaidAccountsCache = new Map<string, CacheEntry<PlaidAccount[]>>();
+const accountTransactionCache = new Map<string, CacheEntry<AccountTransactionData>>();
+const accountSummaryInflight = new Map<string, Promise<AccountSummaryData>>();
+const plaidAccountsInflight = new Map<string, Promise<PlaidAccount[]>>();
+const accountTransactionInflight = new Map<string, Promise<AccountTransactionData>>();
+
+function isFresh<T>(entry: CacheEntry<T> | undefined, ttlMs: number) {
+  return Boolean(entry && Date.now() - entry.updatedAt < ttlMs);
+}
+
+function invalidateAccountDetailCache(userId?: string) {
+  if (!userId) return;
+  accountSummaryCache.delete(userId);
+  plaidAccountsCache.delete(userId);
+  accountTransactionCache.delete(userId);
+  accountSummaryInflight.delete(userId);
+  plaidAccountsInflight.delete(userId);
+  accountTransactionInflight.delete(userId);
+}
+
+async function fetchAccountSummaryData(userId: string, force = false): Promise<AccountSummaryData> {
+  const cached = accountSummaryCache.get(userId);
+  if (!force && isFresh(cached, ACCOUNT_DETAILS_SUMMARY_TTL_MS)) {
+    return cached!.data;
+  }
+
+  if (!force) {
+    const inflight = accountSummaryInflight.get(userId);
+    if (inflight) return inflight;
+  }
+
+  const request = Promise.all([
+    supabase
+      .from("account")
+      .select("id, profile_id, created_at, account_name, account_type, balance, credit_limit, statement_duedate, payment_duedate, interest_rate, currency")
+      .eq("profile_id", userId)
+      .order("created_at", { ascending: false }),
+    listGoals({ profile_id: userId }),
+  ]).then(([accountsResponse, goalsData]) => {
+    if (accountsResponse.error) throw accountsResponse.error;
+
+    const nextData: AccountSummaryData = {
+      accounts: (accountsResponse.data as AccountRow[]) ?? [],
+      goals: (goalsData as any[])?.map((g) => ({ ...g })) ?? [],
+    };
+
+    accountSummaryCache.set(userId, {
+      updatedAt: Date.now(),
+      data: nextData,
+    });
+
+    return nextData;
+  }).finally(() => {
+    accountSummaryInflight.delete(userId);
+  });
+
+  accountSummaryInflight.set(userId, request);
+  return request;
+}
+
+async function fetchPlaidAccountsData(userId: string, force = false): Promise<PlaidAccount[]> {
+  const cached = plaidAccountsCache.get(userId);
+  if (!force && isFresh(cached, ACCOUNT_DETAILS_SUMMARY_TTL_MS)) {
+    return cached!.data;
+  }
+
+  if (!force) {
+    const inflight = plaidAccountsInflight.get(userId);
+    if (inflight) return inflight;
+  }
+
+  const request = getPlaidAccounts().then((pAccounts) => {
+    const nextData = pAccounts ?? [];
+
+    plaidAccountsCache.set(userId, {
+      updatedAt: Date.now(),
+      data: nextData,
+    });
+
+    return nextData;
+  }).finally(() => {
+    plaidAccountsInflight.delete(userId);
+  });
+
+  plaidAccountsInflight.set(userId, request);
+  return request;
+}
+
+async function fetchAccountTransactionData(userId: string, force = false): Promise<AccountTransactionData> {
+  const cached = accountTransactionCache.get(userId);
+  if (!force && isFresh(cached, ACCOUNT_DETAILS_TRANSACTIONS_TTL_MS)) {
+    return cached!.data;
+  }
+
+  if (!force) {
+    const inflight = accountTransactionInflight.get(userId);
+    if (inflight) return inflight;
+  }
+
+  const request = Promise.all([
+    listExpenses({ profile_id: userId }),
+    getPlaidTransactions(),
+  ]).then(([expenseData, plaidData]) => {
+    const nextData: AccountTransactionData = {
+      expenses: (expenseData as ExpenseRow[]) ?? [],
+      plaidTransactions: plaidData ?? [],
+    };
+
+    accountTransactionCache.set(userId, {
+      updatedAt: Date.now(),
+      data: nextData,
+    });
+
+    return nextData;
+  }).finally(() => {
+    accountTransactionInflight.delete(userId);
+  });
+
+  accountTransactionInflight.set(userId, request);
+  return request;
+}
+
 export default function AccountDetailScreen() {
   const { accountId } = useLocalSearchParams<{ accountId: string }>();
   const id = accountId;
@@ -83,43 +224,56 @@ export default function AccountDetailScreen() {
     return palette[index % palette.length];
   }, []);
 
-  const loadAccounts = useCallback(async (silent = false) => {
+  const loadAccounts = useCallback(async (silent = false, force = false) => {
     if (!userId) return;
-    const hasData = accounts.length > 0 || goals.length > 0 || plaidAccounts.length > 0;
-    if (!silent && !hasData) setIsLoading(true);
+    const cachedSummary = accountSummaryCache.get(userId);
+    const cachedPlaid = plaidAccountsCache.get(userId);
+    const hasCachedData = Boolean(cachedSummary || cachedPlaid);
+
+    if (cachedSummary) {
+      setAccounts(cachedSummary.data.accounts);
+      setGoals(cachedSummary.data.goals);
+    }
+
+    if (cachedPlaid) {
+      setPlaidAccounts(cachedPlaid.data);
+    }
+
+    if (!silent && !hasCachedData) setIsLoading(true);
 
     try {
-      const [accountsResponse, goalsData, pAccounts] = await Promise.all([
-        supabase
-          .from("account")
-          .select("id, profile_id, created_at, account_name, account_type, balance, credit_limit, statement_duedate, payment_duedate, interest_rate, currency")
-          .eq("profile_id", userId)
-          .order("created_at", { ascending: false }),
-        listGoals({ profile_id: userId }),
-        getPlaidAccounts(),
-      ]);
+      const nextData = await fetchAccountSummaryData(userId, force);
+      setAccounts(nextData.accounts);
+      setGoals(nextData.goals);
+      setIsLoading(false);
 
-      if (accountsResponse.error) throw accountsResponse.error;
-
-      setAccounts((accountsResponse.data as AccountRow[]) ?? []);
-      setGoals((goalsData as any[])?.map((g) => ({ ...g })) ?? []);
-      setPlaidAccounts(pAccounts ?? []);
+      fetchPlaidAccountsData(userId, force)
+        .then((nextPlaidAccounts) => {
+          setPlaidAccounts(nextPlaidAccounts);
+        })
+        .catch((err) => {
+          console.error("Error loading Plaid accounts:", err);
+          setPlaidAccounts([]);
+        });
     } catch (err) {
       console.error("Error loading extra data:", err);
-    } finally {
       setIsLoading(false);
     }
-  }, [userId, accounts.length, goals.length, plaidAccounts.length]);
+  }, [userId]);
 
-  const loadTransactions = useCallback(async () => {
+  const loadTransactions = useCallback(async (force = false) => {
     if (!userId) return;
+
+    const cached = accountTransactionCache.get(userId);
+    if (cached) {
+      setExpenses(cached.data.expenses);
+      setPlaidTransactions(cached.data.plaidTransactions);
+    }
+
     try {
-      const [expenseData, plaidData] = await Promise.all([
-        listExpenses({ profile_id: userId }),
-        getPlaidTransactions(),
-      ]);
-      setExpenses((expenseData as ExpenseRow[]) ?? []);
-      setPlaidTransactions(plaidData ?? []);
+      const nextData = await fetchAccountTransactionData(userId, force);
+      setExpenses(nextData.expenses);
+      setPlaidTransactions(nextData.plaidTransactions);
     } catch (err) {
       console.error("Error loading transactions:", err);
     }
@@ -172,10 +326,11 @@ export default function AccountDetailScreen() {
       return;
     }
 
+    invalidateAccountDetailCache(userId);
     setEditingAccount(null);
     setDetailModalVisible(false);
     setSelectedDetailAccount(null);
-    await loadAccounts();
+    await loadAccounts(false, true);
     setIsLoading(false);
   }, [userId, editingAccount, editName, editBalance, editLimit, editInterest, editStatementDate, editPaymentDate, editCurrency, loadAccounts]);
 
@@ -195,7 +350,8 @@ export default function AccountDetailScreen() {
             setIsLoading(false);
             return;
           }
-          await loadAccounts();
+          invalidateAccountDetailCache(userId);
+          await loadAccounts(false, true);
           setEditingAccount(null);
           setDetailModalVisible(false);
           setSelectedDetailAccount(null);
@@ -294,6 +450,7 @@ export default function AccountDetailScreen() {
         text: "Unlink", style: "destructive", onPress: async () => {
           try {
             await removePlaidItem(pa.plaid_item_id);
+            invalidateAccountDetailCache(userId);
             router.back();
           } catch (e) {
             Alert.alert("Error", "Could not unlink account.");
@@ -301,7 +458,7 @@ export default function AccountDetailScreen() {
         }
       }
     ])
-  }, [deleteAccount, router, combinedAccounts, currentSingleAccountId]);
+  }, [deleteAccount, router, combinedAccounts, currentSingleAccountId, userId]);
 
   const handleSingleEdit = useCallback(() => {
     const selected = combinedAccounts.find(a => a.id === currentSingleAccountId);
@@ -384,8 +541,9 @@ export default function AccountDetailScreen() {
           <RefreshControl
             refreshing={isLoading}
             onRefresh={() => {
-              loadAccounts();
-              loadTransactions();
+              invalidateAccountDetailCache(userId);
+              loadAccounts(false, true);
+              loadTransactions(true);
             }}
             tintColor={ui.text}
           />
@@ -448,6 +606,7 @@ export default function AccountDetailScreen() {
                 setDetailModalVisible(false);
                 try {
                   await removePlaidItem(pa.plaid_item_id);
+                  invalidateAccountDetailCache(userId);
                   router.back();
                 } catch (e) {
                   Alert.alert("Error", "Could not unlink account.");

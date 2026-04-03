@@ -121,6 +121,8 @@ export default function AccountsScreen() {
     async (silent = false) => {
       if (!userId) {
         setAccounts([]);
+        setGoals([]);
+        setPlaidAccounts([]);
         return;
       }
 
@@ -130,7 +132,16 @@ export default function AccountsScreen() {
       if (!silent && !hasData) setIsLoading(true);
 
       try {
-        const [accountsResponse, goalsData, pAccounts] = await Promise.all([
+        const plaidRequest = getPlaidAccounts()
+          .then((pAccounts) => {
+            setPlaidAccounts(pAccounts ?? []);
+          })
+          .catch((err) => {
+            console.error("Error loading Plaid accounts:", err);
+            setPlaidAccounts([]);
+          });
+
+        const [accountsResponse, goalsData] = await Promise.all([
           supabase
             .from("account")
             .select(
@@ -139,7 +150,6 @@ export default function AccountsScreen() {
             .eq("profile_id", userId)
             .order("created_at", { ascending: false }),
           listGoals({ profile_id: userId }),
-          getPlaidAccounts(),
         ]);
 
         if (accountsResponse.error) throw accountsResponse.error;
@@ -156,10 +166,11 @@ export default function AccountsScreen() {
             linked_plaid_account: g.linked_plaid_account,
           })) ?? [],
         );
-        setPlaidAccounts(pAccounts ?? []);
+        setIsLoading(false);
+
+        await plaidRequest;
       } catch (err) {
         console.error("Error loading accounts data:", err);
-      } finally {
         setIsLoading(false);
       }
     },

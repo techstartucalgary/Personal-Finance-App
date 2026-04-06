@@ -185,6 +185,7 @@ export function AccountsSingleView({
           showFilters={false}
           showMeta={false}
           showBadges={false}
+          subtleAmountColors
         />
       </Animated.View>
     </View>

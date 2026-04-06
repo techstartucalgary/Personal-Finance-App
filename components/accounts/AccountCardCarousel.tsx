@@ -72,19 +72,6 @@ type Props = {
   ui: any;
 };
 
-// ── Utils ──────────────────────────────────────────
-function seededRandom(seed: string) {
-  let hash = 0;
-  for (let i = 0; i < seed.length; i++) {
-    hash = seed.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  let currentHash = hash;
-  return () => {
-    currentHash = (currentHash * 9301 + 49297) % 233280;
-    return currentHash / 233280;
-  };
-}
-
 // ── Brand Logic ────────────────────────────────────
 
 export function getBrandStyle(institutionName?: string | null) {
@@ -122,8 +109,6 @@ function AccountCard({
   isDark: boolean;
 }) {
   const brand = getBrandStyle(item.institutionName);
-  const brandKey = brand?.brand ?? null;
-  const hasBrand = Boolean(brandKey);
   const cardColor = brand?.color || item.color;
 
   // Use a semi-transparent black for the border to slightly darken the background color
@@ -132,23 +117,6 @@ function AccountCard({
   // Shadows need to be stronger/lighter in dark mode to appear like a luminous glow
   const shadowOpacity = isDark ? 0.6 : 0.35;
   const shadowRadius = isDark ? 16 : 12;
-
-  // Generate deterministic random patterns based on the account key
-  const circles = useMemo(() => {
-    const next = seededRandom(item.key || "default");
-    return Array.from({ length: 3 }).map((_, i) => {
-      // Ensure the first circle is always mostly central so the card is never "empty"
-      const isFirst = i === 0;
-      return {
-        id: i,
-        size: isFirst ? 140 + next() * 100 : 100 + next() * 150,
-        top: isFirst ? 10 + next() * 30 : next() * 70 - 10,
-        left: isFirst ? 10 + next() * 50 : next() * 80 - 10,
-        opacity: hasBrand ? 0.08 : 0.12 + next() * 0.2, // Subtler patterns for brand cards
-        isRing: next() > 0.4,
-      };
-    });
-  }, [item.key, hasBrand]);
 
   return (
     <View style={[
@@ -166,24 +134,6 @@ function AccountCard({
     ]}>
       {/* Decorative elements (no interactions) */}
       <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-        {circles.map((c) => (
-          <View
-            key={c.id}
-            style={{
-              position: "absolute",
-              width: c.size,
-              height: c.size,
-              borderRadius: c.size / 2,
-              top: `${c.top}%`,
-              left: `${c.left}%`,
-              backgroundColor: c.isRing ? "transparent" : "rgba(255,255,255,0.4)",
-              borderWidth: c.isRing ? 1.5 : 0,
-              borderColor: "rgba(255,255,255,0.25)",
-              opacity: c.opacity,
-            }}
-          />
-        ))}
-
         {/* Wave image */}
         {!brand && (
           <Image

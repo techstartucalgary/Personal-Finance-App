@@ -82,6 +82,8 @@ const FALLBACK_COLORS = [
 ];
 
 const INFLOW_GREEN = "#16A34A";
+const SUBTLE_INFLOW_GREEN = "#2F9E44";
+const SUBTLE_OUTFLOW_RED = "#C65B5B";
 
 const formatMoney = (value: number) =>
   new Intl.NumberFormat("en-CA", {
@@ -158,6 +160,7 @@ interface TransactionsListProps {
   showMeta?: boolean;
   showBadges?: boolean;
   emptyLabel?: string;
+  subtleAmountColors?: boolean;
 }
 
 function TransactionsListComponent({
@@ -179,6 +182,7 @@ function TransactionsListComponent({
   showMeta = false,
   showBadges = false,
   emptyLabel = "No transactions found.",
+  subtleAmountColors = false,
 }: TransactionsListProps) {
   const [filtersExpanded, setFiltersExpanded] = useState(
     showFilters && defaultFiltersExpanded,
@@ -493,6 +497,11 @@ function TransactionsListComponent({
                 {section.items.map((tx, index) => {
                   const isInflow = tx.source === "plaid" && tx.amount < 0;
                   const arrowColor = isInflow ? INFLOW_GREEN : ui.danger;
+                  const amountColor = subtleAmountColors
+                    ? isInflow
+                      ? SUBTLE_INFLOW_GREEN
+                      : SUBTLE_OUTFLOW_RED
+                    : ui.text;
                   const amountValue = Math.abs(tx.amount);
                   const showDivider = index !== section.items.length - 1;
 
@@ -561,7 +570,7 @@ function TransactionsListComponent({
                           size={16}
                           color={arrowColor}
                         />
-                        <ThemedText style={[styles.amountText, { color: ui.text }]}>
+                        <ThemedText style={[styles.amountText, { color: amountColor }]}>
                           {formatMoney(amountValue)}
                         </ThemedText>
                       </View>

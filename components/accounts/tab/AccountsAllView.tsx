@@ -1,6 +1,12 @@
 import Feather from "@expo/vector-icons/Feather";
 import React, { useEffect, useState } from "react";
 import { Image, Pressable, StyleSheet, View } from "react-native";
+import Animated, {
+  Easing,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming
+} from "react-native-reanimated";
 
 import { getBrandStyle } from "@/components/accounts/AccountCardCarousel";
 import { ThemedText } from "@/components/themed-text";
@@ -9,7 +15,6 @@ import { tabsTheme } from "@/constants/tabsTheme";
 import type { PlaidAccount } from "@/utils/plaid";
 
 import { AccountsEmptyState } from "./AccountsEmptyState";
-import { styles } from "./styles";
 import type { AccountRow } from "./types";
 
 type Ui = typeof tabsTheme.ui;
@@ -38,6 +43,108 @@ type AllAccountCardProps = {
   icon: React.ComponentProps<typeof Feather>["name"];
   onPress: () => void;
 };
+
+const CHEVRON_TIMING_CONFIG = {
+  duration: 180,
+  easing: Easing.out(Easing.cubic),
+};
+
+const ACCORDION_OPEN_HEIGHT_TIMING_CONFIG = {
+  duration: 190,
+  easing: Easing.out(Easing.cubic),
+};
+
+const ACCORDION_CLOSE_HEIGHT_TIMING_CONFIG = {
+  duration: 200,
+  easing: Easing.inOut(Easing.quad),
+};
+
+const ACCORDION_OPEN_OPACITY_TIMING_CONFIG = {
+  duration: 130,
+  easing: Easing.out(Easing.quad),
+};
+
+const ACCORDION_CLOSE_OPACITY_TIMING_CONFIG = {
+  duration: 180,
+  easing: Easing.inOut(Easing.quad),
+};
+
+function SectionChevron({
+  collapsed,
+  color,
+}: {
+  collapsed: boolean;
+  color: string;
+}) {
+  const rotation = useSharedValue(collapsed ? 0 : 1);
+
+  useEffect(() => {
+    rotation.value = withTiming(collapsed ? 0 : 1, CHEVRON_TIMING_CONFIG);
+  }, [collapsed, rotation]);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ rotate: `${rotation.value * 180}deg` }],
+  }));
+
+  return (
+    <Animated.View style={animatedStyle}>
+      <Feather name="chevron-down" size={18} color={color} />
+    </Animated.View>
+  );
+}
+
+function AccordionBody({
+  expanded,
+  borderColor,
+  children,
+}: {
+  expanded: boolean;
+  borderColor: string;
+  children: React.ReactNode;
+}) {
+  const [contentHeight, setContentHeight] = useState(0);
+  const height = useSharedValue(expanded ? contentHeight : 0);
+  const opacity = useSharedValue(expanded ? 1 : 0);
+
+  useEffect(() => {
+    height.value = withTiming(
+      expanded ? contentHeight : 0,
+      expanded ? ACCORDION_OPEN_HEIGHT_TIMING_CONFIG : ACCORDION_CLOSE_HEIGHT_TIMING_CONFIG
+    );
+    opacity.value = withTiming(
+      expanded ? 1 : 0,
+      expanded ? ACCORDION_OPEN_OPACITY_TIMING_CONFIG : ACCORDION_CLOSE_OPACITY_TIMING_CONFIG
+    );
+  }, [contentHeight, expanded, height, opacity]);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    height: height.value,
+    opacity: opacity.value,
+    overflow: "hidden",
+  }));
+
+  return (
+    <Animated.View
+      pointerEvents={expanded ? "auto" : "none"}
+      style={animatedStyle}
+    >
+      <View
+        onLayout={(event) => {
+          const nextHeight = Math.ceil(event.nativeEvent.layout.height);
+          if (nextHeight !== contentHeight) {
+            setContentHeight(nextHeight);
+          }
+        }}
+        style={[
+          localStyles.sectionContent,
+          { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: borderColor },
+        ]}
+      >
+        {children}
+      </View>
+    </Animated.View>
+  );
+}
 
 function AllAccountCard({
   color,
@@ -132,7 +239,9 @@ export function AccountsAllView({
 
   return (
     <View style={localStyles.root}>
-      <View style={[localStyles.sectionPanel, { backgroundColor: ui.surface, borderColor: ui.border }]}>
+      <Animated.View
+        style={[localStyles.sectionPanel, { backgroundColor: ui.surface, borderColor: ui.border }]}
+      >
         <Pressable
           onPress={() => setManualCollapsed((prev) => !prev)}
           style={localStyles.sectionToggle}
@@ -144,45 +253,41 @@ export function AccountsAllView({
             <ThemedText style={[localStyles.sectionSubtitle, { color: ui.mutedText }]}>
               {filteredManualAccounts.length}
             </ThemedText>
-            <Feather
-              name={manualCollapsed ? "chevron-down" : "chevron-up"}
-              size={18}
-              color={ui.mutedText}
-            />
+            <SectionChevron collapsed={manualCollapsed} color={ui.mutedText} />
           </View>
         </Pressable>
 
-        {!manualCollapsed ? (
-          <View style={[localStyles.sectionContent, { borderTopColor: ui.border }]}>
-            {filteredManualAccounts.length === 0 ? (
-              <AccountsEmptyState
-                ui={ui}
-                message={isLoading ? "Loading..." : "No matches found."}
-              />
-            ) : (
-              <View style={localStyles.cardStack}>
-                {filteredManualAccounts.map((item, idx) => (
-                  <AllAccountCard
-                    key={item.id}
-                    color={getAccountColor(item, idx)}
-                    title={item.account_name ?? "Unnamed account"}
-                    typeLabel={item.account_type
-                      ? item.account_type.charAt(0).toUpperCase() + item.account_type.slice(1)
-                      : "Account"}
-                    subtitle={item.currency ?? "CAD"}
-                    balance={formatMoney(item.balance ?? 0)}
-                    sourceLabel="Manual"
-                    icon="credit-card"
-                    onPress={() => onOpenSingleAccount(`manual:${item.id}`)}
-                  />
-                ))}
-              </View>
-            )}
-          </View>
-        ) : null}
-      </View>
+        <AccordionBody expanded={!manualCollapsed} borderColor={ui.border}>
+          {filteredManualAccounts.length === 0 ? (
+            <AccountsEmptyState
+              ui={ui}
+              message={isLoading ? "Loading..." : "No matches found."}
+            />
+          ) : (
+            <View style={localStyles.cardStack}>
+              {filteredManualAccounts.map((item, idx) => (
+                <AllAccountCard
+                  key={item.id}
+                  color={getAccountColor(item, idx)}
+                  title={item.account_name ?? "Unnamed account"}
+                  typeLabel={item.account_type
+                    ? item.account_type.charAt(0).toUpperCase() + item.account_type.slice(1)
+                    : "Account"}
+                  subtitle={item.currency ?? "CAD"}
+                  balance={formatMoney(item.balance ?? 0)}
+                  sourceLabel="Manual"
+                  icon="credit-card"
+                  onPress={() => onOpenSingleAccount(`manual:${item.id}`)}
+                />
+              ))}
+            </View>
+          )}
+        </AccordionBody>
+      </Animated.View>
 
-      <View style={[localStyles.sectionPanel, { backgroundColor: ui.surface, borderColor: ui.border }]}>
+      <Animated.View
+        style={[localStyles.sectionPanel, { backgroundColor: ui.surface, borderColor: ui.border }]}
+      >
         <Pressable
           onPress={() => setLinkedCollapsed((prev) => !prev)}
           style={localStyles.sectionToggle}
@@ -194,54 +299,48 @@ export function AccountsAllView({
             <ThemedText style={[localStyles.sectionSubtitle, { color: ui.mutedText }]}>
               {filteredPlaidAccounts.length}
             </ThemedText>
-            <Feather
-              name={linkedCollapsed ? "chevron-down" : "chevron-up"}
-              size={18}
-              color={ui.mutedText}
-            />
+            <SectionChevron collapsed={linkedCollapsed} color={ui.mutedText} />
           </View>
         </Pressable>
 
-        {!linkedCollapsed ? (
-          <View style={[localStyles.sectionContent, { borderTopColor: ui.border }]}>
-            {filteredPlaidAccounts.length === 0 ? (
-              <AccountsEmptyState
-                ui={ui}
-                message={isLoading ? "Loading..." : "No linked accounts found."}
-              />
-            ) : (
-              <View style={localStyles.cardStack}>
-                {filteredPlaidAccounts.map((pa, idx) => {
-                  const defaultColor = getAccountColor(pa, idx + manualCount);
-                  const brandColor = getBrandStyle(pa.institution_name)?.color || defaultColor;
-                  const typeLabel = pa.type
-                    ? pa.type.charAt(0).toUpperCase() + pa.type.slice(1)
-                    : "Account";
-                  const subtitle = pa.subtype
-                    ? pa.subtype.charAt(0).toUpperCase() + pa.subtype.slice(1)
-                    : "Bank";
+        <AccordionBody expanded={!linkedCollapsed} borderColor={ui.border}>
+          {filteredPlaidAccounts.length === 0 ? (
+            <AccountsEmptyState
+              ui={ui}
+              message={isLoading ? "Loading..." : "No linked accounts found."}
+            />
+          ) : (
+            <View style={localStyles.cardStack}>
+              {filteredPlaidAccounts.map((pa, idx) => {
+                const defaultColor = getAccountColor(pa, idx + manualCount);
+                const brandColor = getBrandStyle(pa.institution_name)?.color || defaultColor;
+                const typeLabel = pa.type
+                  ? pa.type.charAt(0).toUpperCase() + pa.type.slice(1)
+                  : "Account";
+                const subtitle = pa.subtype
+                  ? pa.subtype.charAt(0).toUpperCase() + pa.subtype.slice(1)
+                  : "Bank";
 
-                  return (
-                    <AllAccountCard
-                      key={pa.account_id}
-                      color={brandColor}
-                      title={pa.name}
-                      typeLabel={typeLabel}
-                      subtitle={subtitle}
-                      balance={formatMoney(pa.balances.current ?? 0)}
-                      sourceLabel="Plaid"
-                      institutionName={pa.institution_name}
-                      mask={pa.mask}
-                      icon="link"
-                      onPress={() => onOpenSingleAccount(`plaid:${pa.account_id}`)}
-                    />
-                  );
-                })}
-              </View>
-            )}
-          </View>
-        ) : null}
-      </View>
+                return (
+                  <AllAccountCard
+                    key={pa.account_id}
+                    color={brandColor}
+                    title={pa.name}
+                    typeLabel={typeLabel}
+                    subtitle={subtitle}
+                    balance={formatMoney(pa.balances.current ?? 0)}
+                    sourceLabel="Plaid"
+                    institutionName={pa.institution_name}
+                    mask={pa.mask}
+                    icon="link"
+                    onPress={() => onOpenSingleAccount(`plaid:${pa.account_id}`)}
+                  />
+                );
+              })}
+            </View>
+          )}
+        </AccordionBody>
+      </Animated.View>
     </View>
   );
 }

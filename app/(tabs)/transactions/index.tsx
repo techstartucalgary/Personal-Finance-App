@@ -7,7 +7,7 @@ import {
   useColorScheme,
 } from "react-native";
 
-import { Stack, useFocusEffect } from "expo-router";
+import { Stack, useFocusEffect, useRouter } from "expo-router";
 import { useTheme } from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -25,7 +25,6 @@ import { EditRecurrenceSheet } from "@/components/transactions/tab/EditRecurrenc
 import { RecurringRulesList } from "@/components/transactions/tab/RecurringRulesList";
 import { TransactionsFab } from "@/components/transactions/tab/TransactionsFab";
 import { TransactionsList } from "@/components/transactions/tab/TransactionsList";
-import { TransactionsModals } from "@/components/transactions/tab/TransactionsModals";
 import { TransactionsSegmentedControl } from "@/components/transactions/tab/TransactionsSegmentedControl";
 import { styles } from "@/components/transactions/tab/styles";
 import type {
@@ -40,6 +39,7 @@ import type {
 
 export default function HomeScreen() {
   const { session } = useAuthContext();
+  const router = useRouter();
   const insets = useSafeAreaInsets();
   const theme = useTheme();
   const colorScheme = useColorScheme();
@@ -69,15 +69,6 @@ export default function HomeScreen() {
   const [recurringRules, setRecurringRules] = useState<RecurringRule[]>([]);
   const [editingRule, setEditingRule] = useState<RecurringRule | null>(null);
   const [filterAccountId, setFilterAccountId] = useState<FilterAccountId>(null);
-
-  const [transactionFormMode, setTransactionFormMode] = useState<
-    "add" | "view" | "edit" | null
-  >(null);
-  const [transactionFormExpense, setTransactionFormExpense] =
-    useState<ExpenseRow | null>(null);
-  const [selectedPlaidTransaction, setSelectedPlaidTransaction] =
-    useState<PlaidTransaction | null>(null);
-  const [isPlaidDetailVisible, setIsPlaidDetailVisible] = useState(false);
 
   // Formatters shared across list rows and detail views.
   const formatDate = useCallback((value?: string | null) => {
@@ -281,8 +272,6 @@ export default function HomeScreen() {
           }
 
           await handleModalRefresh();
-          setTransactionFormMode(null);
-          setTransactionFormExpense(null);
         } catch (error) {
           console.error("Error deleting transaction:", error);
           Alert.alert("Error", "Could not delete transaction.");
@@ -347,16 +336,21 @@ export default function HomeScreen() {
 
   const handleSelectTransaction = useCallback(
     (transaction: ExpenseRow | PlaidTransaction) => {
+      const initialData = encodeURIComponent(JSON.stringify(transaction));
       if ("transaction_id" in transaction) {
-        setSelectedPlaidTransaction(transaction);
-        setIsPlaidDetailVisible(true);
+        router.push({
+          pathname: "/transaction-detail/[id]",
+          params: { id: transaction.transaction_id, initialData }
+        });
         return;
       }
 
-      setTransactionFormExpense(transaction);
-      setTransactionFormMode("view");
+      router.push({
+        pathname: "/transaction/[id]",
+        params: { id: String(transaction.id), initialData }
+      });
     },
-    [],
+    [router],
   );
 
   return (
@@ -430,41 +424,14 @@ export default function HomeScreen() {
 
       <TransactionsFab
         onPress={() => {
-          setTransactionFormExpense(null);
-          setTransactionFormMode("add");
+          router.push("/transaction-add");
         }}
         bottom={fabBottom}
         ui={ui}
         isAndroid={isAndroid}
       />
 
-      <TransactionsModals
-        formMode={transactionFormMode}
-        formTransaction={transactionFormExpense}
-        onCloseForm={() => {
-          setTransactionFormMode(null);
-          setTransactionFormExpense(null);
-        }}
-        onRequestEdit={() => setTransactionFormMode("edit")}
-        onRequestDelete={() => {
-          if (transactionFormExpense) {
-            handleDeleteTransaction(transactionFormExpense);
-          }
-        }}
-        accounts={accounts}
-        categories={categories}
-        recurringRules={recurringRules}
-        plaidDetailTransaction={selectedPlaidTransaction}
-        isPlaidDetailVisible={isPlaidDetailVisible}
-        onClosePlaidDetail={() => {
-          setIsPlaidDetailVisible(false);
-          setSelectedPlaidTransaction(null);
-        }}
-        onRefresh={handleModalRefresh}
-        ui={ui}
-        isDark={isDark}
-        userId={userId}
-      />
+      {/* TransactionsModals removed in favor of native routing */}
 
       <EditRecurrenceSheet
         editingRule={editingRule}

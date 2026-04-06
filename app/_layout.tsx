@@ -78,6 +78,27 @@ function ProtectedLayout() {
           headerShown: false,
         }}
       />
+      <Stack.Screen
+        name="transaction-add"
+        options={{
+          presentation: "pageSheet",
+          headerShown: false,
+        }}
+      />
+      <Stack.Screen
+        name="transaction/[id]"
+        options={{
+          presentation: "card",
+          headerShown: true,
+        }}
+      />
+      <Stack.Screen
+        name="transaction-detail/[id]"
+        options={{
+          presentation: "card",
+          headerShown: true,
+        }}
+      />
     </Stack>
   );
 }

@@ -1,5 +1,5 @@
 import Feather from "@expo/vector-icons/Feather";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState, forwardRef, useImperativeHandle } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -112,6 +112,11 @@ const ALL_CATEGORY_SUGGESTIONS = [
       (entry) => entry.label.toLowerCase() === item.label.toLowerCase(),
     ) === index,
 );
+
+export interface AddTransactionModalRef {
+  submit: () => Promise<void>;
+}
+
 const ICON_GROUPS: { title: string; icons: CategorySuggestion[] }[] = [
   {
     title: "Essentials",
@@ -791,25 +796,30 @@ interface AddTransactionModalProps {
   recurringRules?: any[];
   onEditRequest?: () => void;
   onDeleteRequest?: () => void;
+  isSheet?: boolean;
+  hideHeader?: boolean;
 }
 
 const EMPTY_RECURRING_RULES: any[] = [];
 
-export function AddTransactionModal({
-  visible,
-  onClose,
-  accounts,
-  categories,
-  onRefresh,
-  ui,
-  isDark,
-  userId,
-  mode = "add",
-  initialTransaction = null,
-  recurringRules = EMPTY_RECURRING_RULES,
-  onEditRequest,
-  onDeleteRequest,
-}: AddTransactionModalProps) {
+export const AddTransactionModal = forwardRef<AddTransactionModalRef, AddTransactionModalProps>((props, ref) => {
+  const {
+    visible,
+    onClose,
+    accounts,
+    categories,
+    onRefresh,
+    ui,
+    isDark,
+    userId,
+    mode = "add",
+    initialTransaction = null,
+    recurringRules = EMPTY_RECURRING_RULES,
+    onEditRequest,
+    onDeleteRequest,
+    isSheet = false,
+    hideHeader = false,
+  } = props;
   const insets = useSafeAreaInsets();
   const amountInputRef = React.useRef<TextInput>(null);
   const togglePadding = 2;
@@ -1232,6 +1242,10 @@ export function AddTransactionModal({
     }
     await createTransaction();
   };
+
+  useImperativeHandle(ref, () => ({
+    submit: handleSubmit
+  }));
 
   const createTransaction = async () => {
     if (isViewMode || isEditMode) return;
@@ -1703,21 +1717,16 @@ export function AddTransactionModal({
     };
   }, [keyboardShift, insets.bottom]);
 
-  return (
-    <Modal
-      visible={visible}
-      animationType="slide"
-      presentationStyle="pageSheet"
-      onRequestClose={onClose}
+  const content = (
+    <ThemedView
+      style={{ flex: 1, backgroundColor: ui.bg ? ui.bg : ui.surface }}
     >
-      <ThemedView
-        style={{ flex: 1, backgroundColor: ui.bg ? ui.bg : ui.surface }}
-      >
-        <View style={{ flex: 1, backgroundColor: ui.bg ? ui.bg : ui.surface }}>
+      <View style={{ flex: 1, backgroundColor: ui.bg ? ui.bg : ui.surface }}>
+        {!hideHeader && (
           <View
             style={[
               styles.modalHeader,
-              { paddingTop: Platform.OS === "ios" ? 20 : insets.top + 12 },
+              { paddingTop: Platform.OS === "ios" ? (isSheet ? 20 : 20) : (isSheet ? insets.top : insets.top + 12) },
             ]}
           >
             <View style={styles.headerSpacer} />
@@ -1745,14 +1754,19 @@ export function AddTransactionModal({
               </Pressable>
             </View>
           </View>
-          <Animated.View
-            style={{ flex: 1, transform: [{ translateY: keyboardShift }] }}
-          >
+        )}
+        <Animated.View
+          style={{ flex: 1, transform: [{ translateY: keyboardShift }] }}
+        >
             <ScrollView
-              style={{ flex: 1, backgroundColor: ui.bg ? ui.bg : ui.surface }}
+              style={{ flex: 1, backgroundColor: ui.bg }}
+              contentInsetAdjustmentBehavior={hideHeader ? "never" : "never"}
               contentContainerStyle={[
                 styles.scrollContent,
-                { paddingBottom: insets.bottom + 24 },
+                {
+                  paddingTop: hideHeader ? insets.top + (Platform.OS === 'ios' ? 70 : 80) : 0,
+                  paddingBottom: insets.bottom + 24,
+                },
               ]}
               showsVerticalScrollIndicator={false}
               keyboardShouldPersistTaps="handled"
@@ -2354,8 +2368,6 @@ export function AddTransactionModal({
                 </View>
               </View>
             </ScrollView>
-          </Animated.View>
-        </View>
 
         {/* Frequency Picker */}
         <Modal
@@ -2659,10 +2671,26 @@ export function AddTransactionModal({
             </View>
           </ThemedView>
         </Modal>
-      </ThemedView>
+      </Animated.View>
+    </View>
+  </ThemedView>
+  );
+
+  if (isSheet || hideHeader) {
+    return content;
+  }
+
+  return (
+    <Modal
+      visible={visible}
+      animationType="slide"
+      presentationStyle="pageSheet"
+      onRequestClose={onClose}
+    >
+      {content}
     </Modal>
   );
-}
+});
 
 const styles = StyleSheet.create({
   modalHeader: {
@@ -3170,4 +3198,3 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
 });
-

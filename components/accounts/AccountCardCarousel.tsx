@@ -9,7 +9,6 @@ import {
   StyleSheet,
   View,
 } from "react-native";
-import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
   Extrapolation,
   interpolate,
@@ -251,8 +250,6 @@ const AccountCardCarouselComponent = ({
   // Tracks the last index we fired a haptic for
   const lastHapticIndex = useSharedValue(activeIndex);
 
-  const [dotsContainerWidth, setDotsContainerWidth] = React.useState(0);
-
   const scrollToIndex = useCallback((index: number) => {
     if (index >= 0 && index < accounts.length) {
       scrollX.value = index * ITEM_WIDTH;
@@ -282,35 +279,6 @@ const AccountCardCarouselComponent = ({
     reportedIndex.value = activeIndex;
     scrollToIndex(activeIndex);
   }, [activeIndex, accounts.length, reportedIndex, scrollToIndex]);
-
-  const panGesture = useMemo(() => {
-    return Gesture.Pan()
-      .minDistance(0)
-      .runOnJS(true)
-      .onBegin((e) => {
-        if (dotsContainerWidth === 0 || accounts.length === 0) return;
-        const boundedX = Math.max(0, Math.min(e.x, dotsContainerWidth));
-        const percentage = boundedX / dotsContainerWidth;
-        const targetIndex = Math.min(
-          accounts.length - 1,
-          Math.max(0, Math.round(percentage * (accounts.length - 1)))
-        );
-        scrollToIndex(targetIndex);
-      })
-      .onUpdate((e) => {
-        if (dotsContainerWidth === 0 || accounts.length === 0) return;
-        const boundedX = Math.max(0, Math.min(e.x, dotsContainerWidth));
-        const percentage = boundedX / dotsContainerWidth;
-        const targetIndex = Math.min(
-          accounts.length - 1,
-          Math.max(0, Math.round(percentage * (accounts.length - 1)))
-        );
-        if (targetIndex !== settledIndexRef.current) {
-          scrollToIndex(targetIndex);
-          commitIndex(targetIndex);
-        }
-      });
-  }, [dotsContainerWidth, accounts.length, scrollToIndex, commitIndex]);
 
   const handleScroll = useAnimatedScrollHandler({
     onScroll: (event) => {
@@ -382,37 +350,15 @@ const AccountCardCarouselComponent = ({
         initialNumToRender={3}
         windowSize={5}
         maxToRenderPerBatch={3}
-        removeClippedSubviews={IS_ANDROID}
+        removeClippedSubviews={false}
         contentContainerStyle={{
           paddingLeft: CAROUSEL_PADDING_LEFT,
           paddingRight: CAROUSEL_PADDING_RIGHT,
           paddingVertical: 5,
         }}
-        style={{ overflow: "visible" }}
+        style={styles.list}
         renderItem={renderItem}
       />
-
-      {/* Post-carousel footer controls */}
-      <View style={styles.paginationContainer}>
-        {accounts.length > 1 && (
-          <GestureDetector gesture={panGesture}>
-            <View
-              style={styles.dotsRow}
-              onLayout={(e) => setDotsContainerWidth(e.nativeEvent.layout.width)}
-              hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}
-            >
-              {accounts.map((acc, idx) => (
-                <PaginationDot
-                  key={acc.key}
-                  index={idx}
-                  scrollX={scrollX}
-                  ui={ui}
-                />
-              ))}
-            </View>
-          </GestureDetector>
-        )}
-      </View>
     </View>
   );
 };
@@ -487,54 +433,6 @@ const AccountCardItem = React.memo(({ item, index, scrollX, isDark, onAccountPre
 });
 AccountCardItem.displayName = "AccountCardItem";
 
-const PaginationDot = React.memo(({ index, scrollX, ui }: any) => {
-  const animatedStyle = useAnimatedStyle(() => {
-    const inputRange = [
-      (index - 1) * ITEM_WIDTH,
-      index * ITEM_WIDTH,
-      (index + 1) * ITEM_WIDTH,
-    ];
-
-    const dotWidth = interpolate(
-      scrollX.value,
-      inputRange,
-      [5, 14, 5],
-      Extrapolation.CLAMP
-    );
-
-    const opacity = interpolate(
-      scrollX.value,
-      inputRange,
-      [0.22, 0.72, 0.22],
-      Extrapolation.CLAMP
-    );
-
-    const scale = interpolate(
-      scrollX.value,
-      inputRange,
-      [0.9, 1, 0.9],
-      Extrapolation.CLAMP
-    );
-
-    return {
-      width: dotWidth,
-      opacity,
-      transform: [{ scale }],
-    };
-  });
-
-  return (
-    <Animated.View
-      style={[
-        styles.dot,
-        animatedStyle,
-        { backgroundColor: ui.text },
-      ]}
-    />
-  );
-});
-PaginationDot.displayName = "PaginationDot";
-
 export const AccountCardCarousel = React.memo(AccountCardCarouselComponent);
 AccountCardCarousel.displayName = "AccountCardCarousel";
 
@@ -545,6 +443,9 @@ const styles = StyleSheet.create({
     position: "relative",
     overflow: "visible",
     marginHorizontal: -16,
+  },
+  list: {
+    overflow: "visible",
   },
   cardShadow: {
     borderRadius: 24,
@@ -700,26 +601,6 @@ const styles = StyleSheet.create({
     letterSpacing: 0.4,
     textTransform: "uppercase",
     fontFamily: Tokens.font.semiFamily ?? Tokens.font.family,
-  },
-
-  paginationContainer: {
-    alignItems: "center",
-    marginTop: 10,
-    marginBottom: 2,
-  },
-  dotsRow: {
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-    gap: 5,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 999,
-  },
-  dot: {
-    width: 5,
-    height: 5,
-    borderRadius: 999,
   },
   addButton: {
     marginTop: 22,

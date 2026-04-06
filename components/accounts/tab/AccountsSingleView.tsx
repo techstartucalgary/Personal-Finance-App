@@ -113,6 +113,9 @@ export function AccountsSingleView({
     transform: [{ translateX: transactionShift.value }],
   }));
 
+  const activeAccount = combinedAccounts[activeCardIndex];
+  const isPlaid = activeAccount?.kind === "plaid";
+
   if (combinedAccounts.length === 0) {
     return (
       <View style={styles.singleViewWrap}>
@@ -143,7 +146,7 @@ export function AccountsSingleView({
           ]}
           onPress={onDeleteSelected}
         >
-          <Feather name="trash-2" size={16} color={ui.danger} />
+          <Feather name={isPlaid ? "cloud-off" : "trash-2"} size={16} color={ui.danger} />
         </Pressable>
         <Pressable
           style={[

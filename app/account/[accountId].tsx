@@ -270,8 +270,11 @@ export default function AccountDetailScreen() {
 
   const deleteAccount = useCallback(async (accountId: string) => {
     if (!userId) return;
-    Alert.alert("Delete", "Are you sure?", [
-      { text: "Cancel", style: "cancel" },
+    Alert.alert(
+      "Delete Manual Account",
+      "Are you sure you want to delete this account? All associated transaction history will be permanently removed. This action cannot be undone.",
+      [
+        { text: "Cancel", style: "cancel" },
       {
         text: "Delete",
         style: "destructive",
@@ -375,10 +378,13 @@ export default function AccountDetailScreen() {
       return;
     }
     const pa = selected.raw as PlaidAccount;
-    Alert.alert("Unlink", "Are you sure you want to unlink this account?", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Unlink", style: "destructive", onPress: async () => {
+    Alert.alert(
+      "Disconnect Account",
+      `Are you sure you want to unlink ${pa.name}? This will stop future synchronization and remove it from your dashboard. It will not affect your data at the bank.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Unlink", style: "destructive", onPress: async () => {
           try {
             await removePlaidItem(pa.plaid_item_id);
             invalidateAccountDetailCache(userId);

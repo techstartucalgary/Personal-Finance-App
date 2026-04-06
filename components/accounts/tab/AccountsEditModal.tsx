@@ -68,8 +68,8 @@ export function AccountsEditForm({
   onPaymentDateChange,
   onCurrencyChange,
 }: AccountsEditFormProps) {
-  const pageBackground = isDark ? ui.surface : ui.surface2;
-  const cardBackground = isDark ? ui.surface2 : ui.surface;
+  const pageBackground = ui.bg;
+  const cardBackground = isDark ? "#1B1B1E" : ui.surface;
 
   return (
     <ThemedView style={{ flex: 1, backgroundColor: pageBackground }}>

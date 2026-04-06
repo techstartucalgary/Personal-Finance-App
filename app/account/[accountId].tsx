@@ -1,4 +1,4 @@
-import { Stack, useLocalSearchParams, useRouter } from "expo-router";
+import { Stack, useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import React, { startTransition, useCallback, useEffect, useMemo, useState } from "react";
 import {
   Alert,
@@ -9,14 +9,12 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "react-native-paper";
 
-import { AccountDetailModal } from "@/components/AccountDetailModal";
 import type { UnifiedAccount } from "@/components/accounts/AccountCardCarousel";
 import { TransactionDetailModal } from "@/components/TransactionDetailModal";
 import { useThemeUI } from "@/hooks/use-theme-ui";
 import { useAuthContext } from "@/hooks/use-auth-context";
 import {
   deleteAccount as deleteAccountApi,
-  updateAccount as updateAccountApi,
 } from "@/utils/accounts";
 import { listExpenses } from "@/utils/expenses";
 import { listGoals } from "@/utils/goals";
@@ -28,7 +26,6 @@ import {
 } from "@/utils/plaid";
 import { supabase } from "@/utils/supabase";
 
-import { AccountsEditModal } from "@/components/accounts/tab/AccountsEditModal";
 import { AccountsSingleView } from "@/components/accounts/tab/AccountsSingleView";
 import { AccountsLoadingState, AccountsSignedOutState } from "@/components/accounts/tab/AccountsState";
 import { styles } from "@/components/accounts/tab/styles";
@@ -194,19 +191,6 @@ export default function AccountDetailScreen() {
   const [goals, setGoals] = useState<GoalRow[]>([]);
   const [plaidAccounts, setPlaidAccounts] = useState<PlaidAccount[]>([]);
 
-  // edit state
-  const [editingAccount, setEditingAccount] = useState<AccountRow | null>(null);
-  const [editName, setEditName] = useState("");
-  const [editBalance, setEditBalance] = useState("");
-  const [editLimit, setEditLimit] = useState("");
-  const [editInterest, setEditInterest] = useState("");
-  const [editStatementDate, setEditStatementDate] = useState("");
-  const [editPaymentDate, setEditPaymentDate] = useState("");
-  const [editCurrency, setEditCurrency] = useState("");
-
-  const [detailModalVisible, setDetailModalVisible] = useState(false);
-  const [selectedDetailAccount, setSelectedDetailAccount] = useState<AccountRow | PlaidAccount | null>(null);
-
   const [expenses, setExpenses] = useState<ExpenseRow[]>([]);
   const [plaidTransactions, setPlaidTransactions] = useState<PlaidTransaction[]>([]);
   const [txSearchQuery, setTxSearchQuery] = useState("");
@@ -284,56 +268,6 @@ export default function AccountDetailScreen() {
     loadTransactions();
   }, [loadAccounts, loadTransactions]);
 
-  useEffect(() => {
-    if (editingAccount) {
-      setEditName(editingAccount.account_name ?? "");
-      setEditBalance(editingAccount.balance?.toString() ?? "");
-      setEditLimit(editingAccount.credit_limit?.toString() ?? "");
-      setEditInterest(editingAccount.interest_rate?.toString() ?? "");
-      setEditStatementDate(editingAccount.statement_duedate ?? "");
-      setEditPaymentDate(editingAccount.payment_duedate ?? "");
-      setEditCurrency(editingAccount.currency ?? "CAD");
-    }
-  }, [editingAccount]);
-
-  const updateAccount = useCallback(async () => {
-    if (!userId || !editingAccount) return;
-    setIsLoading(true);
-
-    const cleanText = (val: string, fb?: string | null) => (val.trim().length > 0 ? val.trim() : fb ?? undefined);
-    const cleanNumber = (val: string, fb?: number | null) => {
-      const t = val.trim();
-      if (!t.length) return fb ?? 0;
-      const parsed = parseFloat(t);
-      return Number.isFinite(parsed) ? parsed : (fb ?? 0);
-    };
-
-    const payload = {
-      account_name: cleanText(editName, editingAccount.account_name),
-      balance: cleanNumber(editBalance, editingAccount.balance),
-      credit_limit: cleanNumber(editLimit, editingAccount.credit_limit),
-      interest_rate: cleanNumber(editInterest, editingAccount.interest_rate),
-      statement_duedate: cleanText(editStatementDate, editingAccount.statement_duedate),
-      payment_duedate: cleanText(editPaymentDate, editingAccount.payment_duedate),
-      currency: cleanText(editCurrency, editingAccount.currency),
-    };
-
-    try {
-      await updateAccountApi({ id: editingAccount.id, profile_id: userId, update: payload });
-    } catch (error) {
-      Alert.alert("Error", "Could not update account");
-      setIsLoading(false);
-      return;
-    }
-
-    invalidateAccountDetailCache(userId);
-    setEditingAccount(null);
-    setDetailModalVisible(false);
-    setSelectedDetailAccount(null);
-    await loadAccounts(false, true);
-    setIsLoading(false);
-  }, [userId, editingAccount, editName, editBalance, editLimit, editInterest, editStatementDate, editPaymentDate, editCurrency, loadAccounts]);
-
   const deleteAccount = useCallback(async (accountId: string) => {
     if (!userId) return;
     Alert.alert("Delete", "Are you sure?", [
@@ -352,9 +286,6 @@ export default function AccountDetailScreen() {
           }
           invalidateAccountDetailCache(userId);
           await loadAccounts(false, true);
-          setEditingAccount(null);
-          setDetailModalVisible(false);
-          setSelectedDetailAccount(null);
           setIsLoading(false);
           router.back();
         },
@@ -460,12 +391,30 @@ export default function AccountDetailScreen() {
     ])
   }, [deleteAccount, router, combinedAccounts, currentSingleAccountId, userId]);
 
+  useFocusEffect(
+    useCallback(() => {
+      if (!userId) return;
+      loadAccounts(true, true);
+    }, [loadAccounts, userId]),
+  );
+
   const handleSingleEdit = useCallback(() => {
     const selected = combinedAccounts.find(a => a.id === currentSingleAccountId);
     if (!selected) return;
-    setSelectedDetailAccount(selected.raw as AccountRow | PlaidAccount);
-    setDetailModalVisible(true);
-  }, [combinedAccounts, currentSingleAccountId]);
+    router.push({
+      pathname: "/account-edit",
+      params: selected.kind === "manual"
+        ? {
+            kind: "manual",
+            editId: String((selected.raw as AccountRow).id),
+          }
+        : {
+            kind: "plaid",
+            plaidAccountId: (selected.raw as PlaidAccount).account_id,
+            initialPlaidAccount: JSON.stringify(selected.raw as PlaidAccount),
+          },
+    });
+  }, [combinedAccounts, currentSingleAccountId, router]);
 
   const accountsForTx = useMemo(() => {
     return accounts.map(a => ({ id: Number(a.id), account_name: a.account_name, account_type: a.account_type, balance: a.balance, currency: a.currency })).filter(a => Number.isFinite(a.id));
@@ -582,64 +531,6 @@ export default function AccountDetailScreen() {
         transaction={selectedTransaction}
         accounts={accountsForTx}
       />
-
-      <AccountDetailModal
-        visible={detailModalVisible}
-        onClose={() => {
-          setDetailModalVisible(false);
-          setSelectedDetailAccount(null);
-        }}
-        account={selectedDetailAccount as any}
-        availableBalance={
-          selectedDetailAccount
-            ? "account_id" in selectedDetailAccount
-              ? calculatePlaidAvailable(selectedDetailAccount as PlaidAccount)
-              : calculateAvailable(selectedDetailAccount as AccountRow)
-            : null
-        }
-        onEdit={(acc: any) => setEditingAccount(acc as AccountRow)}
-        onUnlink={(pa: any) => {
-          Alert.alert("Unlink", "Are you sure?", [
-            { text: "Cancel", style: "cancel" },
-            {
-              text: "Unlink", style: "destructive", onPress: async () => {
-                setDetailModalVisible(false);
-                try {
-                  await removePlaidItem(pa.plaid_item_id);
-                  invalidateAccountDetailCache(userId);
-                  router.back();
-                } catch (e) {
-                  Alert.alert("Error", "Could not unlink account.");
-                }
-              }
-            }
-          ])
-        }}
-      >
-        <AccountsEditModal
-          visible={!!editingAccount}
-          ui={ui}
-          insets={insets}
-          editName={editName}
-          editBalance={editBalance}
-          editLimit={editLimit}
-          editInterest={editInterest}
-          editStatementDate={editStatementDate}
-          editPaymentDate={editPaymentDate}
-          editCurrency={editCurrency}
-          isLoading={isLoading}
-          onClose={() => setEditingAccount(null)}
-          onSubmit={updateAccount}
-          onDelete={() => editingAccount && deleteAccount(editingAccount.id)}
-          onNameChange={setEditName}
-          onBalanceChange={setEditBalance}
-          onLimitChange={setEditLimit}
-          onInterestChange={setEditInterest}
-          onStatementDateChange={setEditStatementDate}
-          onPaymentDateChange={setEditPaymentDate}
-          onCurrencyChange={setEditCurrency}
-        />
-      </AccountDetailModal>
     </>
   );
 }

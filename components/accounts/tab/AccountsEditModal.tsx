@@ -2,8 +2,6 @@ import Feather from "@expo/vector-icons/Feather";
 import React from "react";
 import {
   ActivityIndicator,
-  Modal,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -21,10 +19,10 @@ import { parseLocalDate, toLocalISOString } from "@/utils/date";
 
 type Ui = typeof tabsTheme.ui;
 
-type AccountsEditModalProps = {
-  visible: boolean;
+type AccountsEditFormProps = {
   ui: Ui;
   insets: EdgeInsets;
+  isDark: boolean;
   editName: string;
   editBalance: string;
   editLimit: string;
@@ -33,7 +31,8 @@ type AccountsEditModalProps = {
   editPaymentDate: string;
   editCurrency: string;
   isLoading: boolean;
-  onClose: () => void;
+  saveLabel?: string;
+  deleteLabel?: string;
   onSubmit: () => void;
   onDelete: () => void;
   onNameChange: (value: string) => void;
@@ -45,10 +44,10 @@ type AccountsEditModalProps = {
   onCurrencyChange: (value: string) => void;
 };
 
-export function AccountsEditModal({
-  visible,
+export function AccountsEditForm({
   ui,
   insets,
+  isDark,
   editName,
   editBalance,
   editLimit,
@@ -57,7 +56,8 @@ export function AccountsEditModal({
   editPaymentDate,
   editCurrency,
   isLoading,
-  onClose,
+  saveLabel = "Save Account",
+  deleteLabel = "Delete Account",
   onSubmit,
   onDelete,
   onNameChange,
@@ -67,266 +67,210 @@ export function AccountsEditModal({
   onStatementDateChange,
   onPaymentDateChange,
   onCurrencyChange,
-}: AccountsEditModalProps) {
-  const pageBackground = ui.surface2;
-  const cardBackground = ui.surface;
+}: AccountsEditFormProps) {
+  const pageBackground = isDark ? ui.surface : ui.surface2;
+  const cardBackground = isDark ? ui.surface2 : ui.surface;
 
   return (
-    <Modal
-      visible={visible}
-      animationType="slide"
-      presentationStyle="pageSheet"
-      onRequestClose={onClose}
-    >
-      <ThemedView style={{ flex: 1, backgroundColor: pageBackground }}>
-        <View
-          style={[
-            localStyles.modalHeader,
-            { paddingTop: Platform.OS === "ios" ? 20 : insets.top + 12 },
-          ]}
-        >
-          <View style={localStyles.headerSpacer} />
-          <ThemedText type="defaultSemiBold" style={localStyles.modalHeaderTitle}>
-            Edit Account
-          </ThemedText>
-          <View style={localStyles.headerRight}>
-            <Pressable
-              onPress={onClose}
-              hitSlop={20}
-              style={({ pressed }) => [
-                localStyles.closeButton,
-                {
-                  backgroundColor: "rgba(0,0,0,0.05)",
-                  opacity: pressed ? 0.7 : 1,
-                },
-              ]}
-            >
-              <Feather name="x" size={18} color={ui.text} />
-            </Pressable>
+    <ThemedView style={{ flex: 1, backgroundColor: pageBackground }}>
+      <ScrollView
+        contentInsetAdjustmentBehavior="automatic"
+        contentContainerStyle={{
+          paddingHorizontal: 16,
+          paddingTop: 16,
+          paddingBottom: insets.bottom + 40,
+        }}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={localStyles.amountSection}>
+          <View style={localStyles.sectionHeader}>
+            <ThemedText style={[localStyles.sectionHeaderText, { color: ui.mutedText }]}>
+              BALANCE
+            </ThemedText>
+          </View>
+          <View
+            style={[
+              localStyles.amountContainer,
+              {
+                backgroundColor: ui.accentSoft,
+                borderColor: `${ui.accent}60`,
+              },
+            ]}
+          >
+            <ThemedText style={[localStyles.currencySymbol, { color: ui.accent }]}>
+              $
+            </ThemedText>
+            <TextInput
+              value={editBalance}
+              onChangeText={onBalanceChange}
+              keyboardType="decimal-pad"
+              placeholder="0.00"
+              placeholderTextColor={`${ui.accent}80`}
+              style={[localStyles.amountInput, { color: ui.accent }]}
+            />
           </View>
         </View>
 
-        <ScrollView
-          contentContainerStyle={{
-            paddingHorizontal: 16,
-            paddingBottom: insets.bottom + 40,
-          }}
-          showsVerticalScrollIndicator={false}
+        <View style={localStyles.sectionHeader}>
+          <ThemedText style={[localStyles.sectionHeaderText, { color: ui.mutedText }]}>
+            ACCOUNT INFO
+          </ThemedText>
+        </View>
+
+        <View
+          style={[
+            localStyles.groupCard,
+            { backgroundColor: cardBackground, borderColor: ui.border },
+          ]}
         >
-          <View style={localStyles.amountSection}>
-            <View style={localStyles.sectionHeader}>
-              <ThemedText style={[localStyles.sectionHeaderText, { color: ui.mutedText }]}>
-                BALANCE
-              </ThemedText>
-            </View>
-            <View
-              style={[
-                localStyles.amountContainer,
-                {
-                  backgroundColor: ui.accentSoft,
-                  borderColor: `${ui.accent}60`,
-                },
-              ]}
-            >
-              <ThemedText style={[localStyles.currencySymbol, { color: ui.accent }]}>
-                $
-              </ThemedText>
-              <TextInput
-                value={editBalance}
-                onChangeText={onBalanceChange}
-                keyboardType="decimal-pad"
-                placeholder="0.00"
-                placeholderTextColor={`${ui.accent}80`}
-                style={[localStyles.amountInput, { color: ui.accent }]}
-              />
-            </View>
-          </View>
-
-          <View style={localStyles.sectionHeader}>
-            <ThemedText style={[localStyles.sectionHeaderText, { color: ui.mutedText }]}>
-              ACCOUNT INFO
-            </ThemedText>
-          </View>
-
-          <View
-            style={[
-              localStyles.groupCard,
-              { backgroundColor: cardBackground, borderColor: ui.border },
-            ]}
-          >
-            <View style={localStyles.inputRow}>
-              <IconSymbol name="signature" size={20} color={ui.mutedText} />
-              <TextInput
-                value={editName}
-                onChangeText={onNameChange}
-                placeholder="Account Name"
-                placeholderTextColor={ui.mutedText}
-                autoCapitalize="words"
-                style={[localStyles.rowInput, { color: ui.text }]}
-              />
-            </View>
-
-            <View style={[localStyles.rowSeparator, { backgroundColor: ui.border }]} />
-
-            <View style={localStyles.inputRow}>
-              <IconSymbol name="dollarsign.circle" size={20} color={ui.mutedText} />
-              <ThemedText style={localStyles.rowLabel}>Currency</ThemedText>
-              <TextInput
-                value={editCurrency}
-                onChangeText={onCurrencyChange}
-                autoCapitalize="characters"
-                placeholder="CAD"
-                placeholderTextColor={ui.mutedText}
-                style={[localStyles.rowValueInput, { color: ui.text }]}
-              />
-            </View>
-          </View>
-
-          <View style={localStyles.sectionHeader}>
-            <ThemedText style={[localStyles.sectionHeaderText, { color: ui.mutedText }]}>
-              CREDIT DETAILS
-            </ThemedText>
-          </View>
-
-          <View
-            style={[
-              localStyles.groupCard,
-              { backgroundColor: cardBackground, borderColor: ui.border },
-            ]}
-          >
-            <View style={localStyles.inputRow}>
-              <IconSymbol name="banknote" size={20} color={ui.mutedText} />
-              <ThemedText style={localStyles.rowLabel}>Credit Limit</ThemedText>
-              <TextInput
-                value={editLimit}
-                onChangeText={onLimitChange}
-                keyboardType="decimal-pad"
-                placeholder="0"
-                placeholderTextColor={ui.mutedText}
-                style={[localStyles.rowValueInput, { color: ui.text }]}
-              />
-            </View>
-
-            <View style={[localStyles.rowSeparator, { backgroundColor: ui.border }]} />
-
-            <View style={localStyles.inputRow}>
-              <IconSymbol name="percent" size={20} color={ui.mutedText} />
-              <ThemedText style={localStyles.rowLabel}>Interest Rate</ThemedText>
-              <TextInput
-                value={editInterest}
-                onChangeText={onInterestChange}
-                keyboardType="decimal-pad"
-                placeholder="0%"
-                placeholderTextColor={ui.mutedText}
-                style={[localStyles.rowValueInput, { color: ui.text }]}
-              />
-            </View>
-          </View>
-
-          <View style={localStyles.sectionHeader}>
-            <ThemedText style={[localStyles.sectionHeaderText, { color: ui.mutedText }]}>
-              DUE DATES
-            </ThemedText>
-          </View>
-
-          <View
-            style={[
-              localStyles.groupCard,
-              { backgroundColor: cardBackground, borderColor: ui.border },
-            ]}
-          >
-            <DateTimePickerField
-              label="Statement Due"
-              value={parseLocalDate(editStatementDate)}
-              onChange={(date) => onStatementDateChange(toLocalISOString(date))}
-              ui={ui}
-              icon="calendar"
-            />
-
-            <View style={[localStyles.rowSeparator, { backgroundColor: ui.border }]} />
-
-            <DateTimePickerField
-              label="Payment Due"
-              value={parseLocalDate(editPaymentDate)}
-              onChange={(date) => onPaymentDateChange(toLocalISOString(date))}
-              ui={ui}
-              icon="calendar.badge.clock"
+          <View style={localStyles.inputRow}>
+            <IconSymbol name="signature" size={20} color={ui.mutedText} />
+            <TextInput
+              value={editName}
+              onChangeText={onNameChange}
+              placeholder="Account Name"
+              placeholderTextColor={ui.mutedText}
+              autoCapitalize="words"
+              style={[localStyles.rowInput, { color: ui.text }]}
             />
           </View>
 
-          <Pressable
-            onPress={onSubmit}
-            disabled={isLoading}
-            style={({ pressed }) => [
-              localStyles.button,
-              {
-                backgroundColor: ui.text,
-                borderColor: ui.border,
-                marginTop: 32,
-                opacity: pressed ? 0.8 : 1,
-              },
-              isLoading && localStyles.buttonDisabled,
-            ]}
-          >
-            {isLoading ? (
-              <ActivityIndicator color={ui.surface} />
-            ) : (
-              <ThemedText type="defaultSemiBold" style={{ color: ui.surface }}>
-                Save Account
-              </ThemedText>
-            )}
-          </Pressable>
+          <View style={[localStyles.rowSeparator, { backgroundColor: ui.border }]} />
 
-          <Pressable
-            onPress={onDelete}
-            disabled={isLoading}
-            style={({ pressed }) => [
-              localStyles.deleteButton,
-              {
-                borderColor: ui.border,
-                backgroundColor: cardBackground,
-                marginTop: 12,
-                opacity: pressed ? 0.7 : 1,
-              },
-              isLoading && localStyles.buttonDisabled,
-            ]}
-          >
-            <ThemedText type="defaultSemiBold" style={{ color: ui.danger }}>
-              Delete Account
+          <View style={localStyles.inputRow}>
+            <IconSymbol name="dollarsign.circle" size={20} color={ui.mutedText} />
+            <ThemedText style={localStyles.rowLabel}>Currency</ThemedText>
+            <TextInput
+              value={editCurrency}
+              onChangeText={onCurrencyChange}
+              autoCapitalize="characters"
+              placeholder="CAD"
+              placeholderTextColor={ui.mutedText}
+              style={[localStyles.rowValueInput, { color: ui.text }]}
+            />
+          </View>
+        </View>
+
+        <View style={localStyles.sectionHeader}>
+          <ThemedText style={[localStyles.sectionHeaderText, { color: ui.mutedText }]}>
+            CREDIT DETAILS
+          </ThemedText>
+        </View>
+
+        <View
+          style={[
+            localStyles.groupCard,
+            { backgroundColor: cardBackground, borderColor: ui.border },
+          ]}
+        >
+          <View style={localStyles.inputRow}>
+            <IconSymbol name="banknote" size={20} color={ui.mutedText} />
+            <ThemedText style={localStyles.rowLabel}>Credit Limit</ThemedText>
+            <TextInput
+              value={editLimit}
+              onChangeText={onLimitChange}
+              keyboardType="decimal-pad"
+              placeholder="0"
+              placeholderTextColor={ui.mutedText}
+              style={[localStyles.rowValueInput, { color: ui.text }]}
+            />
+          </View>
+
+          <View style={[localStyles.rowSeparator, { backgroundColor: ui.border }]} />
+
+          <View style={localStyles.inputRow}>
+            <IconSymbol name="percent" size={20} color={ui.mutedText} />
+            <ThemedText style={localStyles.rowLabel}>Interest Rate</ThemedText>
+            <TextInput
+              value={editInterest}
+              onChangeText={onInterestChange}
+              keyboardType="decimal-pad"
+              placeholder="0%"
+              placeholderTextColor={ui.mutedText}
+              style={[localStyles.rowValueInput, { color: ui.text }]}
+            />
+          </View>
+        </View>
+
+        <View style={localStyles.sectionHeader}>
+          <ThemedText style={[localStyles.sectionHeaderText, { color: ui.mutedText }]}>
+            DUE DATES
+          </ThemedText>
+        </View>
+
+        <View
+          style={[
+            localStyles.groupCard,
+            { backgroundColor: cardBackground, borderColor: ui.border },
+          ]}
+        >
+          <DateTimePickerField
+            label="Statement Due"
+            value={parseLocalDate(editStatementDate)}
+            onChange={(date) => onStatementDateChange(toLocalISOString(date))}
+            ui={ui}
+            icon="calendar"
+          />
+
+          <View style={[localStyles.rowSeparator, { backgroundColor: ui.border }]} />
+
+          <DateTimePickerField
+            label="Payment Due"
+            value={parseLocalDate(editPaymentDate)}
+            onChange={(date) => onPaymentDateChange(toLocalISOString(date))}
+            ui={ui}
+            icon="calendar.badge.clock"
+          />
+        </View>
+
+        <Pressable
+          onPress={onSubmit}
+          disabled={isLoading}
+          style={({ pressed }) => [
+            localStyles.button,
+            {
+              backgroundColor: ui.text,
+              borderColor: ui.border,
+              marginTop: 32,
+              opacity: pressed ? 0.8 : 1,
+            },
+            isLoading && localStyles.buttonDisabled,
+          ]}
+        >
+          {isLoading ? (
+            <ActivityIndicator color={ui.surface} />
+          ) : (
+            <ThemedText type="defaultSemiBold" style={{ color: ui.surface }}>
+              {saveLabel}
             </ThemedText>
-          </Pressable>
-        </ScrollView>
-      </ThemedView>
-    </Modal>
+          )}
+        </Pressable>
+
+        <Pressable
+          onPress={onDelete}
+          disabled={isLoading}
+          style={({ pressed }) => [
+            localStyles.deleteButton,
+            {
+              borderColor: ui.border,
+              backgroundColor: cardBackground,
+              marginTop: 12,
+              opacity: pressed ? 0.7 : 1,
+            },
+            isLoading && localStyles.buttonDisabled,
+          ]}
+        >
+          <Feather name="trash-2" size={16} color={ui.danger} />
+          <ThemedText type="defaultSemiBold" style={{ color: ui.danger }}>
+            {deleteLabel}
+          </ThemedText>
+        </Pressable>
+      </ScrollView>
+    </ThemedView>
   );
 }
 
 const localStyles = StyleSheet.create({
-  modalHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingBottom: 12,
-    paddingHorizontal: 12,
-  },
-  modalHeaderTitle: {
-    fontSize: 17,
-    fontWeight: "700",
-  },
-  headerSpacer: {
-    width: 44,
-  },
-  headerRight: {
-    width: 44,
-    alignItems: "flex-end",
-  },
-  closeButton: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    alignItems: "center",
-    justifyContent: "center",
-  },
   amountSection: {
     marginBottom: 20,
   },
@@ -409,6 +353,8 @@ const localStyles = StyleSheet.create({
     width: "100%",
     alignItems: "center",
     justifyContent: "center",
+    flexDirection: "row",
+    gap: 8,
     paddingVertical: 12,
     borderRadius: 30,
     borderWidth: StyleSheet.hairlineWidth,

@@ -64,6 +64,20 @@ function ProtectedLayout() {
       <Stack.Screen name="(auth)" options={{ headerShown: false }} />
       <Stack.Screen name="account/[accountId]" options={{ headerShown: true }} />
       <Stack.Screen name="account-edit" options={{ headerShown: true }} />
+      <Stack.Screen
+        name="add-account-source"
+        options={{
+          presentation: "pageSheet",
+          headerShown: false,
+        }}
+      />
+      <Stack.Screen
+        name="add-account-manual"
+        options={{
+          presentation: "pageSheet",
+          headerShown: false,
+        }}
+      />
     </Stack>
   );
 }

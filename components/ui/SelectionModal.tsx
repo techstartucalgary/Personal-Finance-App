@@ -32,6 +32,7 @@ interface SelectionModalProps {
   children: React.ReactNode;
   footer?: React.ReactNode;
   layout?: 'list' | 'tags';
+  isSheet?: boolean; // When true, omit the <Modal> wrapper.
 }
 
 export function SelectionModal({
@@ -42,9 +43,65 @@ export function SelectionModal({
   children,
   footer,
   layout = 'list',
+  isSheet = false,
 }: SelectionModalProps) {
   const insets = useSafeAreaInsets();
   const isIOS = Platform.OS === 'ios';
+
+  const content = (
+    <ThemedView
+      style={[
+        styles.container,
+        {
+          backgroundColor: ui.surface,
+          paddingTop: isIOS ? 12 : (insets.top + 16),
+        }
+      ]}
+    >
+      <View style={styles.header}>
+        <View style={styles.headerLeft} />
+        <ThemedText type="defaultSemiBold" style={styles.headerTitle}>{title}</ThemedText>
+        <View style={styles.headerRight}>
+          <Pressable
+            onPress={onClose}
+            hitSlop={20}
+            style={({ pressed }) => [
+              styles.closeButton,
+              {
+                backgroundColor: ui.surface2,
+                opacity: pressed ? 0.7 : 1,
+              }
+            ]}
+          >
+            <Feather name="x" size={18} color={ui.text} />
+          </Pressable>
+        </View>
+      </View>
+
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={[
+          styles.scrollContent,
+          layout === 'tags' && styles.tagsContent,
+          { paddingBottom: insets.bottom + 20 }
+        ]}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
+        {children}
+        
+        {footer && (
+          <View style={[{ paddingTop: 16, marginTop: 8, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: ui.border }, layout === 'tags' && { width: '100%' }]}>
+            {footer}
+          </View>
+        )}
+      </ScrollView>
+    </ThemedView>
+  );
+
+  if (isSheet) {
+    return content;
+  }
 
   return (
     <Modal
@@ -54,54 +111,7 @@ export function SelectionModal({
       presentationStyle={isIOS ? "pageSheet" : undefined}
       onRequestClose={onClose}
     >
-      <ThemedView
-        style={[
-          styles.container,
-          {
-            backgroundColor: ui.surface,
-            paddingTop: isIOS ? 12 : (insets.top + 16),
-          }
-        ]}
-      >
-        <View style={styles.header}>
-          <View style={styles.headerLeft} />
-          <ThemedText type="defaultSemiBold" style={styles.headerTitle}>{title}</ThemedText>
-          <View style={styles.headerRight}>
-            <Pressable
-              onPress={onClose}
-              hitSlop={20}
-              style={({ pressed }) => [
-                styles.closeButton,
-                {
-                  backgroundColor: ui.surface2,
-                  opacity: pressed ? 0.7 : 1,
-                }
-              ]}
-            >
-              <Feather name="x" size={18} color={ui.text} />
-            </Pressable>
-          </View>
-        </View>
-
-        <ScrollView
-          style={styles.scrollView}
-          contentContainerStyle={[
-            styles.scrollContent,
-            layout === 'tags' && styles.tagsContent,
-            { paddingBottom: insets.bottom + 20 }
-          ]}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-        >
-          {children}
-          
-          {footer && (
-            <View style={[{ paddingTop: 16, marginTop: 8, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: ui.border }, layout === 'tags' && { width: '100%' }]}>
-              {footer}
-            </View>
-          )}
-        </ScrollView>
-      </ThemedView>
+      {content}
     </Modal>
   );
 }

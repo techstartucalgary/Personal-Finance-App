@@ -7,12 +7,6 @@ import {
   RefreshControl,
   ScrollView,
 } from "react-native";
-import type { LinkExit, LinkSuccess } from "react-native-plaid-link-sdk";
-import {
-  create as plaidCreate,
-  destroy as plaidDestroy,
-  open as plaidOpen,
-} from "react-native-plaid-link-sdk";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Stack, useFocusEffect, useRouter } from "expo-router";
@@ -24,24 +18,20 @@ import {
   createAccount as createAccountApi,
 } from "@/utils/accounts";
 import { listGoals } from "@/utils/goals";
-import type { PlaidAccount } from "@/utils/plaid";
 import {
-  exchangePublicToken,
-  getLinkToken,
   getPlaidAccounts
 } from "@/utils/plaid";
 import { supabase } from "@/utils/supabase";
 
-import { AccountsAddSourceModal } from "@/components/accounts/tab/AccountsAddSourceModal";
 import { AccountsAllView } from "@/components/accounts/tab/AccountsAllView";
-import { AccountsCreateModal } from "@/components/accounts/tab/AccountsCreateModal";
 import { AccountsFab } from "@/components/accounts/tab/AccountsFab";
 import {
   AccountsLoadingState,
   AccountsSignedOutState,
 } from "@/components/accounts/tab/AccountsState";
 import { styles } from "@/components/accounts/tab/styles";
-import type { AccountRow, AccountType, GoalRow } from "@/components/accounts/tab/types";
+import type { AccountRow, GoalRow } from "@/components/accounts/tab/types";
+import type { PlaidAccount } from "@/utils/plaid";
 
 export default function AccountsScreen() {
   const { session, isLoading: authLoading } = useAuthContext();
@@ -62,20 +52,7 @@ export default function AccountsScreen() {
   const [goals, setGoals] = useState<GoalRow[]>([]);
   const [plaidAccounts, setPlaidAccounts] = useState<PlaidAccount[]>([]);
 
-  // create form
-  const [name, setName] = useState("");
-  const [type, setType] = useState<AccountType>("credit");
-  const [typeModalOpen, setTypeModalOpen] = useState(false);
-  const [createModalOpen, setCreateModalOpen] = useState(false);
-  const [createBalance, setCreateBalance] = useState("");
-  const [createLimit, setCreateLimit] = useState("");
-  const [createInterest, setCreateInterest] = useState("");
-  const [createStatementDate, setCreateStatementDate] = useState("");
-  const [createPaymentDate, setCreatePaymentDate] = useState("");
-  const [createCurrency, setCreateCurrency] = useState("CAD");
-
   const [searchQuery, setSearchQuery] = useState("");
-  const [addSourceModalOpen, setAddSourceModalOpen] = useState(false);
 
   // Palette helper keeps credit/debit cards visually grouped.
   const getAccountColor = useCallback(
@@ -109,13 +86,6 @@ export default function AccountsScreen() {
     [setSearchQuery, ui.accent, ui.mutedText, ui.text],
   );
 
-  // Plaid Link state
-  const [isConnecting, setIsConnecting] = useState(false);
-  const canCreate = useMemo(
-    () => !!userId && name.trim().length > 0,
-    [userId, name],
-  );
-
   // Primary loader for manual accounts, goals, and Plaid summaries.
   const loadAccounts = useCallback(
     async (silent = false) => {
@@ -126,7 +96,6 @@ export default function AccountsScreen() {
         return;
       }
 
-      // Improved loading UX: only show spinner if we have no data at all
       const hasData =
         accounts.length > 0 || goals.length > 0 || plaidAccounts.length > 0;
       if (!silent && !hasData) setIsLoading(true);
@@ -177,69 +146,6 @@ export default function AccountsScreen() {
     [userId, accounts.length, goals.length, plaidAccounts.length],
   );
 
-  // Plaid: connect bank handler (must be after loadAccounts)
-  const handleConnectBank = useCallback(
-    async (options?: { onBeforeOpen?: () => void; onError?: () => void }) => {
-      try {
-        setIsConnecting(true);
-        const token = await getLinkToken();
-
-        // Android requires destroy() before create() to clear stale sessions
-        await plaidDestroy();
-
-        // create() initializes the SDK; open() must wait for onLoad
-        plaidCreate({
-          token,
-          noLoadingState: false,
-          onLoad: () => {
-            options?.onBeforeOpen?.();
-            plaidOpen({
-              onSuccess: async (success: LinkSuccess) => {
-                try {
-                  setIsConnecting(true);
-                  const institutionName = success.metadata?.institution?.name;
-                  await exchangePublicToken(
-                    success.publicToken,
-                    institutionName,
-                  );
-                  Alert.alert(
-                    "Success!",
-                    `${institutionName || "Bank"} connected successfully.`,
-                  );
-                  await loadAccounts();
-                  getPlaidAccounts()
-                    .then(setPlaidAccounts)
-                    .catch(console.error);
-                } catch (err) {
-                  console.error("Error exchanging token:", err);
-                  Alert.alert(
-                    "Connection Error",
-                    "Bank connection failed. Please try again.",
-                  );
-                } finally {
-                  setIsConnecting(false);
-                }
-              },
-              onExit: (exit: LinkExit) => {
-                console.log("Plaid Link exited:", exit);
-                setIsConnecting(false);
-              },
-            });
-          },
-        });
-      } catch (err) {
-        console.error("Error getting link token:", err);
-        Alert.alert(
-          "Connection Error",
-          "Could not start bank connection. Please try again.",
-        );
-        setIsConnecting(false);
-        options?.onError?.();
-      }
-    },
-    [loadAccounts],
-  );
-
   useFocusEffect(
     useCallback(() => {
       const task = InteractionManager.runAfterInteractions(() => {
@@ -248,72 +154,6 @@ export default function AccountsScreen() {
       return () => task.cancel();
     }, [loadAccounts]),
   );
-
-  const createAccount = useCallback(async () => {
-    if (!userId) return;
-    if (!canCreate) return;
-
-    setIsLoading(true);
-
-    const cleanNumber = (value: string, fallback?: number) => {
-      const trimmed = value.trim();
-      if (trimmed.length === 0) return fallback ?? 0;
-      const parsed = parseFloat(trimmed);
-      return Number.isFinite(parsed) ? parsed : (fallback ?? 0);
-    };
-
-    const cleanText = (value: string, fallback?: string) => {
-      const trimmed = value.trim();
-      return trimmed.length > 0 ? trimmed : (fallback ?? "");
-    };
-
-    // payload for fields upon creating account
-    const payload = {
-      profile_id: userId,
-      account_name: name.trim(),
-      account_type: type,
-      // default values, can be edited later
-      balance: cleanNumber(createBalance, 0),
-      credit_limit: cleanNumber(createLimit, 0),
-      statement_duedate: cleanText(createStatementDate, "2026-01-01"),
-      payment_duedate: cleanText(createPaymentDate, "2026-01-01"),
-      interest_rate: cleanNumber(createInterest, 0),
-      currency: cleanText(createCurrency, "CAD"),
-    };
-
-    try {
-      await createAccountApi(payload);
-    } catch (error) {
-      console.error("Error adding account:", error);
-      Alert.alert("Could not add account", "Please try again.");
-      setIsLoading(false);
-      return;
-    }
-
-    setName("");
-    setType("credit");
-    setCreateBalance("");
-    setCreateLimit("");
-    setCreateInterest("");
-    setCreateStatementDate("");
-    setCreatePaymentDate("");
-    setCreateCurrency("CAD");
-    setCreateModalOpen(false);
-    await loadAccounts();
-    setIsLoading(false);
-  }, [
-    userId,
-    canCreate,
-    name,
-    type,
-    createBalance,
-    createLimit,
-    createInterest,
-    createStatementDate,
-    createPaymentDate,
-    createCurrency,
-    loadAccounts,
-  ]);
 
   const formatMoney = useCallback((amount: number) => {
     return new Intl.NumberFormat("en-CA", {
@@ -421,53 +261,7 @@ export default function AccountsScreen() {
       <AccountsFab
         ui={ui}
         fabBottom={fabBottom}
-        onPress={() => setAddSourceModalOpen(true)}
-      />
-
-      {/* Select Source Modal */}
-      <AccountsAddSourceModal
-        visible={addSourceModalOpen}
-        ui={ui}
-        isConnecting={isConnecting}
-        onClose={() => setAddSourceModalOpen(false)}
-        onCreateManual={() => {
-          setAddSourceModalOpen(false);
-          setCreateModalOpen(true);
-        }}
-        onConnectBank={() => {
-          handleConnectBank({
-            onBeforeOpen: () => setAddSourceModalOpen(false),
-            onError: () => setAddSourceModalOpen(false),
-          });
-        }}
-      />
-
-      <AccountsCreateModal
-        visible={createModalOpen}
-        ui={ui}
-        insets={insets}
-        name={name}
-        type={type}
-        typeModalOpen={typeModalOpen}
-        createBalance={createBalance}
-        createLimit={createLimit}
-        createInterest={createInterest}
-        createStatementDate={createStatementDate}
-        createPaymentDate={createPaymentDate}
-        createCurrency={createCurrency}
-        canCreate={canCreate}
-        isLoading={isLoading}
-        onClose={() => setCreateModalOpen(false)}
-        onSubmit={createAccount}
-        onNameChange={setName}
-        onTypeChange={setType}
-        onTypeModalChange={setTypeModalOpen}
-        onBalanceChange={setCreateBalance}
-        onLimitChange={setCreateLimit}
-        onInterestChange={setCreateInterest}
-        onStatementDateChange={setCreateStatementDate}
-        onPaymentDateChange={setCreatePaymentDate}
-        onCurrencyChange={setCreateCurrency}
+        onPress={() => router.push("/add-account-source")}
       />
     </>
   );

@@ -14,13 +14,16 @@ import { TransactionDetailModal } from "@/components/TransactionDetailModal";
 import { useThemeUI } from "@/hooks/use-theme-ui";
 import { useAuthContext } from "@/hooks/use-auth-context";
 import {
+  createAccount as createAccountApi,
   deleteAccount as deleteAccountApi,
 } from "@/utils/accounts";
 import { listExpenses } from "@/utils/expenses";
 import { listGoals } from "@/utils/goals";
 import type { PlaidAccount, PlaidTransaction } from "@/utils/plaid";
 import {
+  exchangePublicToken,
   getPlaidAccounts,
+  getLinkToken,
   getPlaidTransactions,
   removePlaidItem,
 } from "@/utils/plaid";
@@ -29,7 +32,7 @@ import { supabase } from "@/utils/supabase";
 import { AccountsSingleView } from "@/components/accounts/tab/AccountsSingleView";
 import { AccountsLoadingState, AccountsSignedOutState } from "@/components/accounts/tab/AccountsState";
 import { styles } from "@/components/accounts/tab/styles";
-import type { AccountRow, ExpenseRow, GoalRow } from "@/components/accounts/tab/types";
+import type { AccountRow, AccountType, ExpenseRow, GoalRow } from "@/components/accounts/tab/types";
 
 const ACCOUNT_DETAILS_SUMMARY_TTL_MS = 60_000;
 const ACCOUNT_DETAILS_TRANSACTIONS_TTL_MS = 45_000;
@@ -517,7 +520,7 @@ export default function AccountDetailScreen() {
           accountsForTx={accountsForTx}
           plaidAccounts={plaidAccounts}
           onSingleAccountChange={handleSingleAccountChange}
-          onOpenAddSource={() => { }} // Remove ability to add source from details since it's cleaner on parent list view
+          onOpenAddSource={() => router.push("/add-account-source")}
           onDeleteSelected={handleSingleDelete}
           onEditSelected={handleSingleEdit}
           onTxSearchChange={setTxSearchQuery}
@@ -537,6 +540,7 @@ export default function AccountDetailScreen() {
         transaction={selectedTransaction}
         accounts={accountsForTx}
       />
+
     </>
   );
 }

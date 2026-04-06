@@ -1,37 +1,86 @@
 import Feather from "@expo/vector-icons/Feather";
-import React from "react";
-import { ActivityIndicator, Pressable, StyleSheet, View } from "react-native";
+import { useRouter } from "expo-router";
+import React, { useCallback, useState } from "react";
+import { ActivityIndicator, Alert, Pressable, StyleSheet, View } from "react-native";
+import {
+  create as plaidCreate,
+  destroy as plaidDestroy,
+  open as plaidOpen,
+  LinkExit,
+  LinkSuccess,
+} from "react-native-plaid-link-sdk";
 
 import { ThemedText } from "@/components/themed-text";
 import { SelectionModal } from "@/components/ui/SelectionModal";
-import { tabsTheme } from "@/constants/tabsTheme";
+import { useAuthContext } from "@/hooks/use-auth-context";
+import { useThemeUI } from "@/hooks/use-theme-ui";
+import { exchangePublicToken, getLinkToken } from "@/utils/plaid";
+import { styles as tabStyles } from "@/components/accounts/tab/styles";
 
-import { styles } from "./styles";
+export default function AddAccountSourceScreen() {
+  const router = useRouter();
+  const ui = useThemeUI();
+  const { session } = useAuthContext();
+  const [isConnecting, setIsConnecting] = useState(false);
 
-type Ui = typeof tabsTheme.ui;
+  const handleConnectBank = useCallback(async () => {
+    try {
+      setIsConnecting(true);
+      const token = await getLinkToken();
 
-type AccountsAddSourceModalProps = {
-  visible: boolean;
-  ui: Ui;
-  isConnecting: boolean;
-  onClose: () => void;
-  onCreateManual: () => void;
-  onConnectBank: () => void;
-};
+      await plaidDestroy();
 
-// Sheet for choosing how a new account is added.
-export function AccountsAddSourceModal({
-  visible,
-  ui,
-  isConnecting,
-  onClose,
-  onCreateManual,
-  onConnectBank,
-}: AccountsAddSourceModalProps) {
+      plaidCreate({
+        token,
+        noLoadingState: false,
+        onLoad: () => {
+          plaidOpen({
+            onSuccess: async (success: LinkSuccess) => {
+              try {
+                setIsConnecting(true);
+                const institutionName = success.metadata?.institution?.name;
+                await exchangePublicToken(
+                  success.publicToken,
+                  institutionName
+                );
+                Alert.alert(
+                  "Success!",
+                  `${institutionName || "Bank"} connected successfully.`
+                );
+                // Dismiss the modal stack after success
+                router.dismissAll();
+              } catch (err) {
+                console.error("Error exchanging token:", err);
+                Alert.alert(
+                  "Connection Error",
+                  "Bank connection failed. Please try again."
+                );
+              } finally {
+                setIsConnecting(false);
+              }
+            },
+            onExit: (exit: LinkExit) => {
+              console.log("Plaid Link exited:", exit);
+              setIsConnecting(false);
+            },
+          });
+        },
+      });
+    } catch (err) {
+      console.error("Error getting link token:", err);
+      Alert.alert(
+        "Connection Error",
+        "Could not start bank connection. Please try again."
+      );
+      setIsConnecting(false);
+    }
+  }, [router]);
+
   return (
     <SelectionModal
-      visible={visible}
-      onClose={onClose}
+      visible={true}
+      isSheet={true}
+      onClose={() => router.back()}
       title="Add Account"
       ui={ui}
     >
@@ -47,7 +96,7 @@ export function AccountsAddSourceModal({
 
       <Pressable
         style={[
-          styles.modalOption,
+          tabStyles.modalOption,
           {
             borderColor: ui.border,
             backgroundColor: ui.surface,
@@ -59,7 +108,7 @@ export function AccountsAddSourceModal({
             borderWidth: StyleSheet.hairlineWidth,
           },
         ]}
-        onPress={onCreateManual}
+        onPress={() => router.push("/add-account-manual")}
       >
         <View
           style={{
@@ -85,7 +134,7 @@ export function AccountsAddSourceModal({
 
       <Pressable
         style={[
-          styles.modalOption,
+          tabStyles.modalOption,
           {
             borderColor: ui.border,
             backgroundColor: ui.surface,
@@ -98,7 +147,7 @@ export function AccountsAddSourceModal({
           },
         ]}
         disabled={isConnecting}
-        onPress={onConnectBank}
+        onPress={handleConnectBank}
       >
         <View
           style={{

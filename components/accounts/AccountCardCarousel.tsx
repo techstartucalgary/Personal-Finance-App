@@ -120,107 +120,110 @@ function AccountCard({
 
   return (
     <View style={[
-      styles.card,
+      styles.cardShadow,
       {
         backgroundColor: cardColor,
-        borderColor: borderColor,
-        borderWidth: 1,
         shadowColor: cardColor,
         shadowOpacity: shadowOpacity,
         shadowRadius: shadowRadius,
-        elevation: 8, // Fix for Android shadows
-        borderCurve: "continuous",
+        elevation: 10,
       }
     ]}>
-      {/* Decorative elements (no interactions) */}
-      <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-        {/* Wave image */}
-        {!brand && (
-          <Image
-            source={require("../../assets/images/accounts-vector.png")}
-            style={styles.waveImage}
-            resizeMode="cover"
-          />
-        )}
-      </View>
-
-      {/* Top: name & icon */}
-      <View style={styles.topRow}>
-        <View style={styles.titleGroup}>
-
-          <ThemedText
-            style={styles.cardName}
-            numberOfLines={2}
-            ellipsizeMode="tail"
-          >
-            {item.name}
-          </ThemedText>
-          <View style={styles.metaRow}>
-            {item.institutionName ? (
-              <ThemedText
-                style={styles.typePillText}
-                numberOfLines={1}
-                ellipsizeMode="tail"
-              >
-                {item.institutionName}
-              </ThemedText>
-            ) : (
-              <ThemedText
-                style={styles.typePillText}
-                numberOfLines={1}
-                ellipsizeMode="tail"
-              >
-                {item.typeLabel}
-              </ThemedText>
-            )}
-            {item.mask && (
-              <>
-                <View style={styles.metaDot} />
-                <ThemedText style={styles.typePillText}>•••• {item.mask}</ThemedText>
-              </>
-            )}
-          </View>
-        </View>
-        <View style={styles.iconCircle}>
-          <Feather
-            name={item.kind === "plaid" ? "link" : "credit-card"}
-            size={18}
-            color="#FFFFFF"
-          />
-        </View>
-      </View>
-
-      {/* Balance Section */}
-      <View style={styles.balanceBlock}>
-        <ThemedText style={styles.balance}>{item.balance}</ThemedText>
-        {item.availableBalance && (
-          <ThemedText style={styles.availableSubtitle}>
-            Available to spend: {item.availableBalance}
-          </ThemedText>
-        )}
-      </View>
-
-      {/* Bottom subtitle */}
-      <View style={styles.bottomRow}>
-        <View style={styles.bottomMetaGroup}>
-          <ThemedText
-            style={styles.subtitle}
-            numberOfLines={1}
-            ellipsizeMode="tail"
-          >
-            {item.subtitle}
-          </ThemedText>
-        </View>
-        {item.sourceLabel && (
-          <View style={styles.sourceBadge}>
-            <Feather
-              name={item.kind === "manual" ? "edit-2" : "check"}
-              size={10}
-              color="rgba(255,255,255,0.82)"
+      <View style={[
+        styles.cardInner,
+        {
+          borderColor: borderColor,
+        }
+      ]}>
+        {/* Decorative elements (no interactions) */}
+        <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+          {/* Wave image */}
+          {!brand && (
+            <Image
+              source={require("../../assets/images/accounts-vector.png")}
+              style={styles.waveImage}
+              resizeMode="cover"
             />
-            <ThemedText style={styles.sourceBadgeText}>{item.sourceLabel}</ThemedText>
+          )}
+        </View>
+
+        {/* Top: name & icon */}
+        <View style={styles.topRow}>
+          <View style={styles.titleGroup}>
+            <ThemedText
+              style={styles.cardName}
+              numberOfLines={2}
+              ellipsizeMode="tail"
+            >
+              {item.name}
+            </ThemedText>
+            <View style={styles.metaRow}>
+              {item.institutionName ? (
+                <ThemedText
+                  style={styles.typePillText}
+                  numberOfLines={1}
+                  ellipsizeMode="tail"
+                >
+                  {item.institutionName}
+                </ThemedText>
+              ) : (
+                <ThemedText
+                  style={styles.typePillText}
+                  numberOfLines={1}
+                  ellipsizeMode="tail"
+                >
+                  {item.typeLabel}
+                </ThemedText>
+              )}
+              {item.mask && (
+                <>
+                  <View style={styles.metaDot} />
+                  <ThemedText style={styles.typePillText}>•••• {item.mask}</ThemedText>
+                </>
+              )}
+            </View>
           </View>
-        )}
+          <View style={styles.iconCircle}>
+            <Feather
+              name={item.kind === "plaid" ? "link" : "credit-card"}
+              size={18}
+              color="#FFFFFF"
+            />
+          </View>
+        </View>
+
+        {/* Balance Section */}
+        <View style={styles.balanceBlock}>
+          <ThemedText style={styles.balance}>{item.balance}</ThemedText>
+          {item.availableBalance && (
+            <ThemedText style={styles.availableSubtitle}>
+              Available to spend: {item.availableBalance}
+            </ThemedText>
+          )}
+        </View>
+
+        {/* Bottom subtitle */}
+        <View style={styles.bottomRow}>
+          <View style={styles.bottomMetaGroup}>
+            <ThemedText
+              style={styles.subtitle}
+              numberOfLines={1}
+              ellipsizeMode="tail"
+            >
+              {item.subtitle}
+            </ThemedText>
+          </View>
+          {item.sourceLabel && (
+            <View style={styles.sourceBadge}>
+              <Feather
+                name={item.kind === "manual" ? "edit-2" : "check"}
+                size={10}
+                color="rgba(255,255,255,0.82)"
+              />
+              <ThemedText style={styles.sourceBadgeText}>{item.sourceLabel}</ThemedText>
+            </View>
+          )}
+        </View>
       </View>
     </View>
   );
@@ -383,6 +386,7 @@ const AccountCardCarouselComponent = ({
         contentContainerStyle={{
           paddingLeft: CAROUSEL_PADDING_LEFT,
           paddingRight: CAROUSEL_PADDING_RIGHT,
+          paddingVertical: 5,
         }}
         style={{ overflow: "visible" }}
         renderItem={renderItem}
@@ -461,8 +465,10 @@ const AccountCardItem = React.memo(({ item, index, scrollX, isDark, onAccountPre
 
   return (
     <Animated.View
-      renderToHardwareTextureAndroid
-      style={[{ width: ITEM_WIDTH, justifyContent: "center" }, animatedStyle]}
+      style={[
+        { width: ITEM_WIDTH, justifyContent: "center", overflow: "visible" },
+        animatedStyle,
+      ]}
     >
       <Pressable
         onPress={() => onAccountPress?.(item)}
@@ -470,7 +476,7 @@ const AccountCardItem = React.memo(({ item, index, scrollX, isDark, onAccountPre
           {
             width: CARD_WIDTH,
             marginHorizontal: CARD_GAP / 2,
-            paddingBottom: 10,
+            paddingVertical: 10, // Ensure shadow has room
           },
         ]}
       >
@@ -540,18 +546,24 @@ const styles = StyleSheet.create({
     overflow: "visible",
     marginHorizontal: -16,
   },
-  card: {
+  cardShadow: {
     borderRadius: 24,
     boxShadow: "0 10px 15px rgba(0, 0, 0, 0.25)",
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.35,
     shadowRadius: 12,
+    overflow: "visible", // SHADOW MUST NOT CLIP
+  },
+  cardInner: {
+    borderRadius: 24,
+    borderWidth: 1,
     paddingVertical: 18,
     paddingHorizontal: 18,
     height: CARD_HEIGHT,
-    overflow: "hidden",
+    overflow: "hidden", // CONTENT MUST CLIP (for wave image)
     justifyContent: "flex-start",
     gap: 10,
+    borderCurve: "continuous",
   },
   waveImage: {
     position: "absolute",

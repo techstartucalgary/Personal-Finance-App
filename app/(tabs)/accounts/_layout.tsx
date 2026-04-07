@@ -13,6 +13,7 @@ export default function AccountsLayout() {
       screenOptions={{
         headerShown: true,
         headerLargeTitle: Platform.OS === "ios",
+        headerTitleAlign: "center",
         headerTransparent: Platform.OS === "ios",
         headerShadowVisible: false,
         headerStyle: { backgroundColor: Platform.OS === "android" ? (isDark ? theme.colors.surface : theme.colors.surfaceVariant) : "transparent" },
@@ -21,7 +22,7 @@ export default function AccountsLayout() {
         headerLargeTitleStyle: { color: isDark ? "#ffffff" : "#111111" },
       }}
     >
-      <Stack.Screen name="index" options={{ title: "Accounts" }} />
+      <Stack.Screen name="index" options={{ title: "Accounts", headerBackTitle: "" }} />
     </Stack>
   );
 }

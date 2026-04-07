@@ -43,6 +43,7 @@ const MAPPING = {
   percent: "percent",
   "building.2": "business",
   banknote: "money",
+  xmark: "close",
 } as IconMapping;
 
 const FEATHER_MAPPING: FeatherMapping = {

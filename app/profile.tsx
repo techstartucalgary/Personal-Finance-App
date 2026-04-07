@@ -8,6 +8,7 @@ import { ThemedText } from "@/components/themed-text";
 
 import { onSignOutButtonPress } from "@/components/auth_buttons/sign-out-button";
 import { useAuthContext } from "@/hooks/use-auth-context";
+import { useThemeUI } from "@/hooks/use-theme-ui";
 import { useTheme } from "react-native-paper";
 
 export default function ProfileScreen() {
@@ -19,18 +20,7 @@ export default function ProfileScreen() {
   const theme = useTheme();
   const isAndroid = Platform.OS === 'android';
 
-  const ui = useMemo(
-    () => ({
-      surface: isAndroid ? theme.colors.surface : (isDark ? "#121212" : "#ffffff"),
-      surface2: isAndroid ? theme.colors.elevation.level2 : (isDark ? "#1e1e1e" : "#f5f5f5"),
-      border: isAndroid ? theme.colors.outlineVariant : (isDark ? "rgba(255,255,255,0.18)" : "rgba(0,0,0,0.18)"),
-      text: isAndroid ? theme.colors.onSurface : (isDark ? "#ffffff" : "#111111"),
-      mutedText: isAndroid ? theme.colors.onSurfaceVariant : (isDark ? "rgba(255,255,255,0.6)" : "rgba(0,0,0,0.5)"),
-      accent: isAndroid ? theme.colors.primary : (isDark ? "#8CF2D1" : "#1F6F5B"),
-      destructive: isAndroid ? theme.colors.error : "#FF3B30",
-    }),
-    [isDark, isAndroid, theme]
-  );
+  const ui = useThemeUI();
 
   const userMetadata = session?.user?.user_metadata as
     | Record<string, any>
@@ -73,6 +63,7 @@ export default function ProfileScreen() {
         options={{
           title: "Profile",
           headerBackTitle: "Back",
+          headerBackButtonDisplayMode: "minimal",
           headerLargeTitle: false,
           headerTransparent: Platform.OS === "ios",
           headerShadowVisible: false,
@@ -103,7 +94,7 @@ export default function ProfileScreen() {
         }}
       />
       <ScrollView
-        style={[styles.container, { backgroundColor: "transparent" }]}
+        style={[styles.container, { backgroundColor: ui.bg }]}
         contentInsetAdjustmentBehavior="automatic"
         contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 40 }]}
       >

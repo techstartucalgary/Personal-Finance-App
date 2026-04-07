@@ -8,7 +8,7 @@ import { listAccounts, type AccountRow } from "@/utils/accounts";
 import { parseLocalDate, toLocalISOString } from "@/utils/date";
 import { createGoal, deleteGoal, editGoal, listGoals } from "@/utils/goals";
 import { getPlaidAccounts } from "@/utils/plaid";
-import { tabsTheme } from "@/constants/tabsTheme";
+import { useThemeUI } from "@/hooks/use-theme-ui";
 import Feather from "@expo/vector-icons/Feather";
 import { useFocusEffect } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
@@ -54,7 +54,7 @@ export function GoalsView({ filterAccountId = null, refreshKey = 0, createReques
     const { session } = useAuthContext();
     const userId = session?.user.id;
     const insets = useSafeAreaInsets();
-    const ui = tabsTheme.ui;
+    const ui = useThemeUI();
 
     // Dynamic tab bar height
     const tabBarHeight = insets.bottom + 60;
@@ -330,7 +330,7 @@ export function GoalsView({ filterAccountId = null, refreshKey = 0, createReques
                             <View
                                 style={{
                                     height: 6,
-                                    backgroundColor: ui.surface,
+                                    backgroundColor: ui.surface2,
                                     borderRadius: 3,
                                     marginTop: 8,
                                     overflow: "hidden",

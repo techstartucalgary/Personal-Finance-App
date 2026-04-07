@@ -7,9 +7,8 @@ import {
 import { SplashScreen, Stack, useRouter, useSegments } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import React, { useEffect, useMemo } from "react";
-import { MD3DarkTheme, MD3LightTheme, PaperProvider } from "react-native-paper";
-import * as NavigationBar from "expo-navigation-bar";
 import { Platform } from "react-native";
+import { MD3DarkTheme, MD3LightTheme, PaperProvider } from "react-native-paper";
 
 import { SplashScreenController } from "@/components/splash-screen-controller";
 import { useAuthContext } from "@/hooks/use-auth-context";
@@ -63,6 +62,43 @@ function ProtectedLayout() {
     <Stack>
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+      <Stack.Screen name="account/[accountId]" options={{ headerShown: true }} />
+      <Stack.Screen name="account-edit" options={{ headerShown: true }} />
+      <Stack.Screen
+        name="add-account-source"
+        options={{
+          presentation: "pageSheet",
+          headerShown: true,
+        }}
+      />
+      <Stack.Screen
+        name="add-account-manual"
+        options={{
+          presentation: "pageSheet",
+          headerShown: true,
+        }}
+      />
+      <Stack.Screen
+        name="transaction-add"
+        options={{
+          presentation: "pageSheet",
+          headerShown: true,
+        }}
+      />
+      <Stack.Screen
+        name="transaction/[id]"
+        options={{
+          presentation: "card",
+          headerShown: true,
+        }}
+      />
+      <Stack.Screen
+        name="transaction-detail/[id]"
+        options={{
+          presentation: "card",
+          headerShown: true,
+        }}
+      />
     </Stack>
   );
 }
@@ -140,14 +176,6 @@ export default function RootLayout() {
       SplashScreen.hideAsync();
     }
   }, [loaded]);
-
-  useEffect(() => {
-    if (Platform.OS !== "android") return;
-    NavigationBar.setVisibilityAsync("hidden");
-    NavigationBar.setBehaviorAsync("overlay-swipe");
-    NavigationBar.setPositionAsync("absolute");
-    NavigationBar.setBackgroundColorAsync("#00000000");
-  }, []);
 
   if (!loaded) return null;
 

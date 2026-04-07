@@ -11,7 +11,6 @@ import {
     View,
     useColorScheme,
 } from "react-native";
-import { useTheme } from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ThemedText } from "./themed-text";
 import { ThemedView } from "./themed-view";
@@ -52,9 +51,7 @@ export function AccountDetailModal({
 }: AccountDetailModalProps) {
     const insets = useSafeAreaInsets();
     const colorScheme = useColorScheme();
-    const theme = useTheme();
     const isDark = colorScheme === "dark";
-    const isAndroid = Platform.OS === 'android';
 
     if (!account) return null;
 
@@ -99,6 +96,8 @@ export function AccountDetailModal({
         accent: isDark ? "#8CF2D1" : "#1F6F5B",
         danger: "#D32F2F",
     };
+    const pageBackground = isDark ? ui.surface : ui.surface2;
+    const cardBackground = isDark ? ui.surface2 : ui.surface;
 
     const formatMoney = (val: number | null | undefined) => {
         if (val === null || val === undefined) return "N/A";
@@ -128,21 +127,22 @@ export function AccountDetailModal({
             <ThemedView style={[
                 styles.container,
                 {
-                    backgroundColor: ui.surface,
-                    paddingTop: Platform.OS === 'ios' ? 8 : (insets.top + 16),
-                    paddingBottom: insets.bottom + 16,
+                    backgroundColor: pageBackground,
                 }
             ]}>
-                <View style={[styles.header, { borderBottomColor: "transparent" }]}>
+                <View style={[styles.header, { paddingTop: Platform.OS === "ios" ? 20 : (insets.top + 12) }]}>
                     <View style={styles.headerLeft} />
                     <ThemedText type="defaultSemiBold" style={styles.headerTitle}>Account Details</ThemedText>
                     <View style={styles.headerRight}>
                         <Pressable
                             onPress={onClose}
                             hitSlop={20}
-                            style={[
+                            style={({ pressed }) => [
                                 styles.closeButton,
-                                { borderWidth: StyleSheet.hairlineWidth, borderColor: ui.border, backgroundColor: isAndroid ? theme.colors.surfaceVariant : (isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.05)") }
+                                {
+                                    backgroundColor: isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.05)",
+                                    opacity: pressed ? 0.7 : 1,
+                                }
                             ]}
                         >
                             <Feather name="x" size={18} color={ui.text} />
@@ -150,7 +150,7 @@ export function AccountDetailModal({
                     </View>
                 </View>
 
-                <ScrollView contentContainerStyle={styles.scrollContent}>
+                <ScrollView contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 40 }]}>
                     <View style={styles.heroSection}>
                         <ThemedText style={[styles.amount, { color: ui.text }]}>
                             {formatMoney(balance)}
@@ -163,7 +163,13 @@ export function AccountDetailModal({
                         </View>
                     </View>
 
-                    <View style={[styles.infoCard, { backgroundColor: ui.surface2, borderColor: ui.border }]}>
+                    <View style={styles.sectionHeader}>
+                        <ThemedText style={[styles.sectionHeaderText, { color: ui.mutedText }]}>
+                            ACCOUNT INFO
+                        </ThemedText>
+                    </View>
+
+                    <View style={[styles.infoCard, { backgroundColor: cardBackground, borderColor: ui.border }]}>
                         {[
                             availableBalance !== undefined && availableBalance !== null && { label: "Available Balance", value: formatMoney(availableBalance) },
                             { label: "Institution", value: institution },
@@ -191,7 +197,15 @@ export function AccountDetailModal({
                             onPress={() => {
                                 onEdit(account as AccountRowFull);
                             }}
-                            style={[styles.actionButton, { backgroundColor: ui.text, paddingVertical: 12, borderRadius: 24 }]}
+                            style={({ pressed }) => [
+                                styles.actionButton,
+                                {
+                                    backgroundColor: ui.text,
+                                    borderColor: ui.border,
+                                    marginTop: 32,
+                                    opacity: pressed ? 0.8 : 1,
+                                }
+                            ]}
                         >
                             <Feather name="edit-2" size={18} color={ui.surface} />
                             <ThemedText style={[styles.actionButtonText, { color: ui.surface }]}>Edit Account</ThemedText>
@@ -203,7 +217,15 @@ export function AccountDetailModal({
                             onPress={() => {
                                 onUnlink(account as PlaidAccount);
                             }}
-                            style={[styles.actionButton, { backgroundColor: ui.surface2, borderColor: ui.border, borderWidth: StyleSheet.hairlineWidth, paddingVertical: 12, borderRadius: 24 }]}
+                            style={({ pressed }) => [
+                                styles.actionButton,
+                                {
+                                    backgroundColor: cardBackground,
+                                    borderColor: ui.border,
+                                    marginTop: 12,
+                                    opacity: pressed ? 0.7 : 1,
+                                }
+                            ]}
                         >
                             <Feather name="link-2" size={18} color={ui.danger} />
                             <ThemedText style={[styles.actionButtonText, { color: ui.danger, fontSize: 15 }]}>Unlink Plaid Account</ThemedText>
@@ -237,11 +259,12 @@ const styles = StyleSheet.create({
         flexDirection: "row",
         alignItems: "center",
         justifyContent: "space-between",
-        paddingHorizontal: 16,
-        paddingVertical: 8,
+        paddingHorizontal: 12,
+        paddingBottom: 12,
     },
     headerTitle: {
         fontSize: 17,
+        fontWeight: "700",
         flex: 1,
         textAlign: "center",
     },
@@ -260,13 +283,14 @@ const styles = StyleSheet.create({
         justifyContent: "center",
     },
     scrollContent: {
-        padding: 24,
-        gap: 24,
+        paddingHorizontal: 16,
+        gap: 12,
     },
     heroSection: {
         alignItems: "center",
         gap: 8,
         paddingVertical: 12,
+        marginBottom: 8,
     },
     amount: {
         fontSize: 48,
@@ -275,9 +299,20 @@ const styles = StyleSheet.create({
         paddingVertical: 8,
     },
     accountName: {
-        fontSize: 20,
+        fontSize: 16,
         fontWeight: "600",
         textAlign: "center",
+    },
+    sectionHeader: {
+        paddingHorizontal: 4,
+        marginBottom: 10,
+        marginTop: 8,
+    },
+    sectionHeaderText: {
+        fontSize: 12,
+        fontWeight: "700",
+        letterSpacing: 1.2,
+        opacity: 0.6,
     },
     typeBadge: {
         paddingHorizontal: 10,
@@ -298,15 +333,15 @@ const styles = StyleSheet.create({
         flexDirection: "row",
         justifyContent: "space-between",
         alignItems: "center",
-        padding: 16,
+        paddingVertical: 14,
+        paddingHorizontal: 16,
         borderBottomWidth: StyleSheet.hairlineWidth,
     },
     detailLabel: {
-        fontSize: 14,
-        fontWeight: "500",
+        fontSize: 16,
     },
     detailValue: {
-        fontSize: 14,
+        fontSize: 16,
         fontWeight: "600",
         flex: 1,
         textAlign: "right",
@@ -316,10 +351,10 @@ const styles = StyleSheet.create({
         flexDirection: "row",
         alignItems: "center",
         justifyContent: "center",
-        padding: 16,
+        paddingVertical: 12,
         borderRadius: 30,
+        borderWidth: StyleSheet.hairlineWidth,
         gap: 8,
-        marginTop: 8,
     },
     actionButtonText: {
         color: "#FFFFFF",

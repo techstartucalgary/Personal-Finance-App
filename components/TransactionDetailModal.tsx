@@ -44,6 +44,8 @@ interface TransactionDetailModalProps {
     onEdit?: (expense: ExpenseRow) => void;
     recurringRules?: any[];
     children?: React.ReactNode;
+    isSheet?: boolean;
+    hideHeader?: boolean;
 }
 
 export function TransactionDetailModal({
@@ -54,6 +56,8 @@ export function TransactionDetailModal({
     onEdit,
     recurringRules = [],
     children,
+    isSheet = false,
+    hideHeader = false,
 }: TransactionDetailModalProps) {
     const insets = useSafeAreaInsets();
     const colorScheme = useColorScheme();
@@ -87,6 +91,7 @@ export function TransactionDetailModal({
     }
 
     const ui = {
+        bg: isDark ? "#000000" : "#F2F2F7",
         surface: isDark ? "#1C1C1E" : "#FFFFFF",
         surface2: isDark ? "#2C2C2E" : "#F2F2F7",
         border: isDark ? "rgba(84,84,88,0.65)" : "rgba(60,60,67,0.29)",
@@ -114,21 +119,16 @@ export function TransactionDetailModal({
         });
     };
 
-    return (
-        <Modal
-            visible={visible}
-            animationType="slide"
-            presentationStyle="pageSheet"
-            onRequestClose={onClose}
-        >
-            <ThemedView style={[
-                styles.container,
-                {
-                    backgroundColor: ui.surface,
-                    paddingTop: Platform.OS === 'ios' ? 12 : (insets.top + 16),
-                    paddingBottom: insets.bottom + 16,
-                }
-            ]}>
+    const content = (
+        <ThemedView style={[
+            styles.container,
+            {
+                backgroundColor: ui.bg,
+                paddingTop: hideHeader ? insets.top + (Platform.OS === 'ios' ? 70 : 80) : (Platform.OS === 'ios' ? (isSheet ? 0 : 12) : (isSheet ? 0 : insets.top + 16)),
+                paddingBottom: insets.bottom + 16,
+            }
+        ]}>
+            {!hideHeader && (
                 <View style={[styles.header, { borderBottomColor: "transparent" }]}>
                     <View style={styles.headerLeft} />
                     <ThemedText type="defaultSemiBold" style={styles.headerTitle}>Details</ThemedText>
@@ -145,8 +145,12 @@ export function TransactionDetailModal({
                         </Pressable>
                     </View>
                 </View>
+            )}
 
-                <ScrollView contentContainerStyle={styles.scrollContent}>
+                <ScrollView 
+                    contentContainerStyle={styles.scrollContent}
+                    contentInsetAdjustmentBehavior={hideHeader ? "never" : "automatic"}
+                >
                     <View style={styles.heroSection}>
                         <ThemedText style={[styles.amount, { color: ui.text }]}>
                             {formatMoney(amount)}
@@ -208,6 +212,20 @@ export function TransactionDetailModal({
                     )}
                 </ScrollView>
             </ThemedView>
+    );
+
+    if (isSheet || hideHeader) {
+        return content;
+    }
+
+    return (
+        <Modal
+            visible={visible}
+            animationType="slide"
+            presentationStyle="pageSheet"
+            onRequestClose={onClose}
+        >
+            {content}
             {children}
         </Modal>
     );

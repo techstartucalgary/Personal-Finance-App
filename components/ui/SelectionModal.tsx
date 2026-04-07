@@ -32,6 +32,8 @@ interface SelectionModalProps {
   children: React.ReactNode;
   footer?: React.ReactNode;
   layout?: 'list' | 'tags';
+  isSheet?: boolean; // When true, omit the <Modal> wrapper.
+  hideHeader?: boolean;
 }
 
 export function SelectionModal({
@@ -42,27 +44,23 @@ export function SelectionModal({
   children,
   footer,
   layout = 'list',
+  isSheet = false,
+  hideHeader = false,
 }: SelectionModalProps) {
   const insets = useSafeAreaInsets();
   const isIOS = Platform.OS === 'ios';
 
-  return (
-    <Modal
-      visible={visible}
-      transparent={!isIOS}
-      animationType="slide"
-      presentationStyle={isIOS ? "pageSheet" : undefined}
-      onRequestClose={onClose}
+  const content = (
+    <ThemedView
+      style={[
+        styles.container,
+        {
+          backgroundColor: ui.surface,
+          paddingTop: hideHeader ? 0 : isIOS ? 12 : (insets.top + 16),
+        }
+      ]}
     >
-      <ThemedView
-        style={[
-          styles.container,
-          {
-            backgroundColor: ui.surface,
-            paddingTop: isIOS ? 12 : (insets.top + 16),
-          }
-        ]}
-      >
+      {!hideHeader && (
         <View style={styles.header}>
           <View style={styles.headerLeft} />
           <ThemedText type="defaultSemiBold" style={styles.headerTitle}>{title}</ThemedText>
@@ -82,26 +80,46 @@ export function SelectionModal({
             </Pressable>
           </View>
         </View>
+      )}
 
-        <ScrollView
-          style={styles.scrollView}
-          contentContainerStyle={[
-            styles.scrollContent,
-            layout === 'tags' && styles.tagsContent,
-            { paddingBottom: insets.bottom + 20 }
-          ]}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-        >
-          {children}
-          
-          {footer && (
-            <View style={[{ paddingTop: 16, marginTop: 8, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: ui.border }, layout === 'tags' && { width: '100%' }]}>
-              {footer}
-            </View>
-          )}
-        </ScrollView>
-      </ThemedView>
+      <ScrollView
+        style={styles.scrollView}
+        contentInsetAdjustmentBehavior={hideHeader ? "automatic" : "never"}
+        contentContainerStyle={[
+          styles.scrollContent,
+          layout === 'tags' && styles.tagsContent,
+          {
+            paddingTop: hideHeader ? 16 : 8,
+            paddingBottom: insets.bottom + 20,
+          }
+        ]}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
+        {children}
+        
+        {footer && (
+          <View style={[{ paddingTop: 16, marginTop: 8, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: ui.border }, layout === 'tags' && { width: '100%' }]}>
+            {footer}
+          </View>
+        )}
+      </ScrollView>
+    </ThemedView>
+  );
+
+  if (isSheet) {
+    return content;
+  }
+
+  return (
+    <Modal
+      visible={visible}
+      transparent={!isIOS}
+      animationType="slide"
+      presentationStyle={isIOS ? "pageSheet" : undefined}
+      onRequestClose={onClose}
+    >
+      {content}
     </Modal>
   );
 }

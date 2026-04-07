@@ -1,17 +1,17 @@
 import React, { useMemo } from "react";
-import { Pressable, View } from "react-native";
+import { Platform, Pressable, View } from "react-native";
 
 import { ThemedText } from "@/components/themed-text";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import type { PlaidTransaction } from "@/utils/plaid";
 
-import { styles } from "../styles";
+import { styles } from "./styles";
 import type {
   ExpenseRow,
   FilterAccountId,
   RecurringRule,
   TransactionsUi,
-} from "../types";
+} from "./types";
 
 type TransactionsListProps = {
   expenses: ExpenseRow[];
@@ -173,6 +173,8 @@ function ExpenseRow({
     (rule) => rule.id === expense.recurring_rule_id,
   );
   const recurringColor = linkedRule?.is_active ? "#FF9500" : ui.mutedText;
+  const rowBackgroundColor =
+    Platform.OS === "ios" && !isDarkColor(ui.surface2) ? "#FFFFFF" : ui.surface2;
 
   return (
     <Pressable
@@ -181,7 +183,7 @@ function ExpenseRow({
         styles.row,
         {
           borderColor: ui.border,
-          backgroundColor: ui.surface2,
+          backgroundColor: rowBackgroundColor,
           opacity: pressed ? 0.7 : 1,
         },
       ]}
@@ -239,6 +241,9 @@ function PlaidTransactionRow({
   formatMoney,
   onPress,
 }: PlaidTransactionRowProps) {
+  const rowBackgroundColor =
+    Platform.OS === "ios" && !isDarkColor(ui.surface2) ? "#FFFFFF" : ui.surface2;
+
   return (
     <Pressable
       onPress={onPress}
@@ -246,7 +251,7 @@ function PlaidTransactionRow({
         styles.row,
         {
           borderColor: ui.border,
-          backgroundColor: ui.surface2,
+          backgroundColor: rowBackgroundColor,
           opacity: pressed ? 0.7 : 1,
         },
       ]}
@@ -334,4 +339,8 @@ function PlaidTransactionRow({
       </ThemedText>
     </Pressable>
   );
+}
+
+function isDarkColor(color: string) {
+  return color === "#2C2C2E" || color === "#2C2C2F" || color === "#1B1B1E";
 }

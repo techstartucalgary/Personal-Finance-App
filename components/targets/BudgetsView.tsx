@@ -17,7 +17,7 @@ import {
 import { listExpenses } from "@/utils/expenses";
 import { supabase } from "@/utils/supabase";
 import { parseLocalDate, toLocalISOString } from "@/utils/date";
-import { tabsTheme } from "@/constants/tabsTheme";
+import { useThemeUI } from "@/hooks/use-theme-ui";
 import Feather from "@expo/vector-icons/Feather";
 import { useFocusEffect } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
@@ -94,7 +94,7 @@ export function BudgetsView({ filterAccountId = null, refreshKey = 0, createRequ
     const { session } = useAuthContext();
     const userId = session?.user.id;
     const insets = useSafeAreaInsets();
-    const ui = tabsTheme.ui;
+    const ui = useThemeUI();
 
     const tabBarHeight = insets.bottom + 60;
     const fabBottom = tabBarHeight + 60;
@@ -424,7 +424,7 @@ export function BudgetsView({ filterAccountId = null, refreshKey = 0, createRequ
                                         <View
                                             style={{
                                                 height: 6,
-                                                backgroundColor: ui.surface,
+                                                backgroundColor: ui.surface2,
                                                 borderRadius: 3,
                                                 overflow: "hidden",
                                             }}

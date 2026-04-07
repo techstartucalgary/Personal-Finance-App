@@ -7,11 +7,12 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ThemedText } from "@/components/themed-text";
 import { useTheme } from "react-native-paper";
 
-import { IconSymbol } from "@/components/ui/icon-symbol";
+import { NativeFab } from "@/components/ui/native-fab";
 
 import { BudgetsView } from "@/components/targets/BudgetsView";
 import { GoalsView } from "@/components/targets/GoalsView";
 import { useAuthContext } from "@/hooks/use-auth-context";
+import { useThemeUI } from "@/hooks/use-theme-ui";
 import { listAccounts } from "@/utils/accounts";
 import type { PlaidAccount } from "@/utils/plaid";
 import { getPlaidAccounts } from "@/utils/plaid";
@@ -29,21 +30,11 @@ export default function TargetsScreen() {
 
   const isAndroid = Platform.OS === "android";
 
-  const ui = useMemo(
-    () => ({
-      surface: isDark ? "#1C1C1E" : "#FFFFFF",
-      surface2: isDark ? "#2C2C2E" : "#F2F2F7",
-      border: isDark ? "rgba(84,84,88,0.65)" : "rgba(60,60,67,0.29)",
-      text: isDark ? "#FFFFFF" : "#000000",
-      mutedText: isDark ? "rgba(235,235,245,0.6)" : "rgba(60,60,67,0.6)",
-      backdrop: "rgba(0,0,0,0.45)",
-    }),
-    [isDark]
-  );
+  const ui = useThemeUI();
 
   // Dynamic tab bar height for FAB positioning (NativeTabs-safe)
-  const tabBarHeight = insets.bottom + 60;
-  const fabBottom = Platform.OS === "android" ? tabBarHeight + 35 : tabBarHeight + 5;
+  const tabBarHeight = insets.bottom + 48;
+  const fabBottom = tabBarHeight + 2;
 
   const [activeTab, setActiveTab] = useState<Tab>("goals");
   const { session } = useAuthContext();
@@ -95,11 +86,10 @@ export default function TargetsScreen() {
     () => ({
       placeholder: "Search targets...",
       onChangeText: (event: any) => setSearchQuery(event.nativeEvent.text),
-      hideWhenScrolling: false,
+      hideWhenScrolling: true,
       tintColor: ui.text,
       hintTextColor: ui.mutedText,
       headerIconColor: ui.mutedText,
-      placement: "integratedButton",
     }),
     [setSearchQuery, ui.mutedText, ui.text],
   );
@@ -108,9 +98,9 @@ export default function TargetsScreen() {
     <>
       <Stack.Screen options={{ headerSearchBarOptions }} />
       <ScrollView
-        style={[styles.container, { backgroundColor: "transparent" }]}
+        style={[styles.container, { backgroundColor: ui.bg }]}
         contentInsetAdjustmentBehavior="automatic"
-        contentContainerStyle={[styles.scrollContent, { paddingBottom: tabBarHeight + 120, paddingTop: 16 }]}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: tabBarHeight + 120, paddingTop: Platform.OS === "android" ? 16 : 0 }]}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
@@ -229,27 +219,11 @@ export default function TargetsScreen() {
         </View>
       </ScrollView>
 
-      {/* FAB - outside ScrollView for fixed positioning */}
-      <Pressable
+      <NativeFab
+        accessibilityLabel={activeTab === "goals" ? "Add goal" : "Add budget"}
+        bottom={fabBottom}
         onPress={() => setCreateRequested(Date.now())}
-        style={({ pressed }) => [
-          styles.fab,
-          {
-            width: 80,
-            height: 80,
-            borderRadius: 20,
-            right: 16,
-          },
-          {
-            backgroundColor: ui.text,
-            opacity: pressed ? 0.8 : 1,
-            bottom: fabBottom,
-            elevation: 5,
-          },
-        ]}
-      >
-        <IconSymbol name="plus" size={32} color={ui.surface} />
-      </Pressable>
+      />
     </>
   );
 }
@@ -275,19 +249,5 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 20,
     borderWidth: StyleSheet.hairlineWidth,
-  },
-  fab: {
-    position: "absolute",
-    right: 20,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: "#000",
-    shadowOpacity: 0.3,
-    shadowOffset: { width: 0, height: 4 },
-    shadowRadius: 6,
-    elevation: 6,
   },
 });

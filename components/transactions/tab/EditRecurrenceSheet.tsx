@@ -27,13 +27,13 @@ import {
 import { parseLocalDate, toLocalISOString } from "@/utils/date";
 import { deleteRecurringRule, updateRecurringRule } from "@/utils/recurring";
 
-import { styles } from "../styles";
+import { styles } from "./styles";
 import type {
   CategoryRow,
   RecurringRule,
   SubcategoryRow,
   TransactionsUi,
-} from "../types";
+} from "./types";
 
 type EditRecurrenceSheetProps = {
   editingRule: RecurringRule | null;

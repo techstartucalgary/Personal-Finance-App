@@ -1,7 +1,7 @@
 import React from "react";
 import SegmentedControl from "@react-native-segmented-control/segmented-control";
 
-import type { TransactionsTab, TransactionsUi } from "../types";
+import type { TransactionsTab, TransactionsUi } from "./types";
 
 type TransactionsSegmentedControlProps = {
   activeTab: TransactionsTab;

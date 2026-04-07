@@ -9,8 +9,8 @@ import {
 } from "react-native";
 
 import { ThemedText } from "@/components/themed-text";
-import type { TabsUi } from "@/constants/tabsTheme";
 import { Tokens } from "@/constants/authTokens";
+import type { TabsUi } from "@/constants/tabsTheme";
 import { parseLocalDate, toLocalISOString } from "@/utils/date";
 import type { PlaidAccount, PlaidTransaction } from "@/utils/plaid";
 
@@ -82,6 +82,8 @@ const FALLBACK_COLORS = [
 ];
 
 const INFLOW_GREEN = "#16A34A";
+const SUBTLE_INFLOW_GREEN = "#2F9E44";
+const SUBTLE_OUTFLOW_RED = "#C65B5B";
 
 const formatMoney = (value: number) =>
   new Intl.NumberFormat("en-CA", {
@@ -158,9 +160,10 @@ interface TransactionsListProps {
   showMeta?: boolean;
   showBadges?: boolean;
   emptyLabel?: string;
+  subtleAmountColors?: boolean;
 }
 
-export function TransactionsList({
+function TransactionsListComponent({
   ui,
   expenses,
   plaidTransactions,
@@ -179,6 +182,7 @@ export function TransactionsList({
   showMeta = false,
   showBadges = false,
   emptyLabel = "No transactions found.",
+  subtleAmountColors = false,
 }: TransactionsListProps) {
   const [filtersExpanded, setFiltersExpanded] = useState(
     showFilters && defaultFiltersExpanded,
@@ -349,36 +353,39 @@ export function TransactionsList({
             placeholderTextColor={ui.mutedText}
             style={[styles.searchInput, { color: ui.text }]}
           />
-          <Pressable
-            onPress={() =>
-              setTypeFilter((prev) =>
-                prev === "all" ? "inflow" : prev === "inflow" ? "outflow" : "all",
-              )
-            }
-            style={[
-              styles.typeFilter,
-              {
-                borderColor: ui.border,
-                backgroundColor: typeFilter === "all" ? ui.surface : ui.text,
-              },
-            ]}
-          >
-            <Feather
-              name={typeFilterIcon}
-              size={14}
-              color={typeFilter === "all" ? ui.mutedText : ui.surface}
-            />
-            <ThemedText
-              style={[
-                styles.typeFilterText,
-                { color: typeFilter === "all" ? ui.text : ui.surface },
-              ]}
-            >
-              {typeFilterLabel}
-            </ThemedText>
-          </Pressable>
         </View>
       )}
+
+      <View style={styles.typeFilterRow}>
+        <Pressable
+          onPress={() =>
+            setTypeFilter((prev) =>
+              prev === "all" ? "inflow" : prev === "inflow" ? "outflow" : "all",
+            )
+          }
+          style={[
+            styles.typeFilter,
+            {
+              borderColor: ui.border,
+              backgroundColor: typeFilter === "all" ? ui.surface : ui.text,
+            },
+          ]}
+        >
+          <Feather
+            name={typeFilterIcon}
+            size={14}
+            color={typeFilter === "all" ? ui.mutedText : ui.surface}
+          />
+          <ThemedText
+            style={[
+              styles.typeFilterText,
+              { color: typeFilter === "all" ? ui.text : ui.surface },
+            ]}
+          >
+            {typeFilterLabel}
+          </ThemedText>
+        </Pressable>
+      </View>
 
       {showFilters && filtersExpanded && (
         <View
@@ -485,86 +492,91 @@ export function TransactionsList({
                 {section.title}
               </ThemedText>
             </View>
-            <View style={[styles.sectionCardShadow, { backgroundColor: ui.surface }]}>
+            <View style={[styles.sectionCard, { backgroundColor: ui.surface, borderColor: ui.border }]}>
               <View style={[styles.sectionCard, { backgroundColor: ui.surface, borderColor: ui.border }]}>
-              {section.items.map((tx, index) => {
-                const isInflow = tx.source === "plaid" && tx.amount < 0;
-                const arrowColor = isInflow ? INFLOW_GREEN : ui.danger;
-                const amountValue = Math.abs(tx.amount);
-                const showDivider = index !== section.items.length - 1;
+                {section.items.map((tx, index) => {
+                  const isInflow = tx.source === "plaid" && tx.amount < 0;
+                  const arrowColor = isInflow ? INFLOW_GREEN : ui.danger;
+                  const amountColor = subtleAmountColors
+                    ? isInflow
+                      ? SUBTLE_INFLOW_GREEN
+                      : SUBTLE_OUTFLOW_RED
+                    : ui.text;
+                  const amountValue = Math.abs(tx.amount);
+                  const showDivider = index !== section.items.length - 1;
 
-                return (
-                  <Pressable
-                    key={tx.id}
-                    onPress={() => onSelectTransaction(tx.raw)}
-                    style={({ pressed }) => [
-                      styles.itemRow,
-                      {
-                        opacity: pressed ? 0.8 : 1,
-                        borderBottomWidth: showDivider ? StyleSheet.hairlineWidth : 0,
-                        borderBottomColor: ui.border,
-                      },
-                    ]}
-                  >
-                    <View style={styles.itemBody}>
-                      <ThemedText type="defaultSemiBold" style={{ color: ui.text }}>
-                        {tx.title}
-                      </ThemedText>
-                      {showMeta && (
-                        <>
-                          <ThemedText style={[styles.metaText, { color: ui.mutedText }]}>
-                            {tx.accountLabel}
-                          </ThemedText>
-                          {tx.categoryLine && (
-                            <ThemedText style={[styles.categoryText, { color: ui.mutedText }]}>
-                              {tx.categoryLine}
+                  return (
+                    <Pressable
+                      key={tx.id}
+                      onPress={() => onSelectTransaction(tx.raw)}
+                      style={({ pressed }) => [
+                        styles.itemRow,
+                        {
+                          opacity: pressed ? 0.8 : 1,
+                          borderBottomWidth: showDivider ? StyleSheet.hairlineWidth : 0,
+                          borderBottomColor: ui.border,
+                        },
+                      ]}
+                    >
+                      <View style={styles.itemBody}>
+                        <ThemedText type="defaultSemiBold" style={{ color: ui.text }}>
+                          {tx.title}
+                        </ThemedText>
+                        {showMeta && (
+                          <>
+                            <ThemedText style={[styles.metaText, { color: ui.mutedText }]}>
+                              {tx.accountLabel}
                             </ThemedText>
-                          )}
-                        </>
-                      )}
-                      {showBadges && tx.isPending && (
-                        <View style={styles.pendingBadge}>
-                          <ThemedText style={styles.pendingText}>Pending</ThemedText>
-                        </View>
-                      )}
-                      {showBadges && tx.recurringLabel && (
-                        <View
-                          style={[
-                            styles.recurringBadge,
-                            {
-                              backgroundColor: tx.isRecurringActive
-                                ? "rgba(255,149,0,0.16)"
-                                : "rgba(90,90,90,0.14)",
-                            },
-                          ]}
-                        >
-                          <ThemedText
+                            {tx.categoryLine && (
+                              <ThemedText style={[styles.categoryText, { color: ui.mutedText }]}>
+                                {tx.categoryLine}
+                              </ThemedText>
+                            )}
+                          </>
+                        )}
+                        {showBadges && tx.isPending && (
+                          <View style={styles.pendingBadge}>
+                            <ThemedText style={styles.pendingText}>Pending</ThemedText>
+                          </View>
+                        )}
+                        {showBadges && tx.recurringLabel && (
+                          <View
                             style={[
-                              styles.recurringText,
+                              styles.recurringBadge,
                               {
-                                color: tx.isRecurringActive ? "#FF9500" : ui.mutedText,
+                                backgroundColor: tx.isRecurringActive
+                                  ? "rgba(255,149,0,0.16)"
+                                  : "rgba(90,90,90,0.14)",
                               },
                             ]}
                           >
-                            {tx.recurringLabel}
-                          </ThemedText>
-                        </View>
-                      )}
-                    </View>
+                            <ThemedText
+                              style={[
+                                styles.recurringText,
+                                {
+                                  color: tx.isRecurringActive ? "#FF9500" : ui.mutedText,
+                                },
+                              ]}
+                            >
+                              {tx.recurringLabel}
+                            </ThemedText>
+                          </View>
+                        )}
+                      </View>
 
-                    <View style={styles.amountWrap}>
-                      <Feather
-                        name={isInflow ? "arrow-up" : "arrow-down"}
-                        size={16}
-                        color={arrowColor}
-                      />
-                      <ThemedText style={[styles.amountText, { color: ui.text }]}>
-                        {formatMoney(amountValue)}
-                      </ThemedText>
-                    </View>
-                  </Pressable>
-                );
-              })}
+                      <View style={styles.amountWrap}>
+                        <Feather
+                          name={isInflow ? "arrow-up" : "arrow-down"}
+                          size={16}
+                          color={arrowColor}
+                        />
+                        <ThemedText style={[styles.amountText, { color: amountColor }]}>
+                          {formatMoney(amountValue)}
+                        </ThemedText>
+                      </View>
+                    </Pressable>
+                  );
+                })}
               </View>
             </View>
           </View>
@@ -573,6 +585,8 @@ export function TransactionsList({
     </View>
   );
 }
+
+export const TransactionsList = React.memo(TransactionsListComponent);
 
 const styles = StyleSheet.create({
   wrap: {
@@ -597,6 +611,10 @@ const styles = StyleSheet.create({
     fontSize: 15.5,
     paddingVertical: 0,
     fontFamily: Tokens.font.family,
+  },
+  typeFilterRow: {
+    flexDirection: "row",
+    justifyContent: "flex-start",
   },
   typeFilter: {
     flexDirection: "row",
@@ -661,7 +679,7 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   sectionCard: {
-    borderRadius: 14,
+    borderRadius: 18,
     borderWidth: StyleSheet.hairlineWidth,
     overflow: "hidden",
   },

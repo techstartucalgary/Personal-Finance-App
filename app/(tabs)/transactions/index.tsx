@@ -7,11 +7,12 @@ import {
   useColorScheme,
 } from "react-native";
 
-import { Stack, useFocusEffect } from "expo-router";
+import { Stack, useFocusEffect, useRouter } from "expo-router";
 import { useTheme } from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useAuthContext } from "@/hooks/use-auth-context";
+import { useThemeUI } from "@/hooks/use-theme-ui";
 import { getAccountById, listAccounts, updateAccount } from "@/utils/accounts";
 import { listCategories } from "@/utils/categories";
 import { deleteExpense, listExpenses } from "@/utils/expenses";
@@ -19,14 +20,13 @@ import type { PlaidAccount, PlaidTransaction } from "@/utils/plaid";
 import { getPlaidAccounts, getPlaidTransactions } from "@/utils/plaid";
 import { deleteRecurringRule, getRecurringRules } from "@/utils/recurring";
 
-import { AccountFilterChips } from "./components/AccountFilterChips";
-import { EditRecurrenceSheet } from "./components/EditRecurrenceSheet";
-import { RecurringRulesList } from "./components/RecurringRulesList";
-import { TransactionsFab } from "./components/TransactionsFab";
-import { TransactionsList } from "./components/TransactionsList";
-import { TransactionsModals } from "./components/TransactionsModals";
-import { TransactionsSegmentedControl } from "./components/TransactionsSegmentedControl";
-import { styles } from "./styles";
+import { AccountFilterChips } from "@/components/transactions/tab/AccountFilterChips";
+import { EditRecurrenceSheet } from "@/components/transactions/tab/EditRecurrenceSheet";
+import { RecurringRulesList } from "@/components/transactions/tab/RecurringRulesList";
+import { TransactionsFab } from "@/components/transactions/tab/TransactionsFab";
+import { TransactionsList } from "@/components/transactions/tab/TransactionsList";
+import { TransactionsSegmentedControl } from "@/components/transactions/tab/TransactionsSegmentedControl";
+import { styles } from "@/components/transactions/tab/styles";
 import type {
   AccountRow,
   CategoryRow,
@@ -35,10 +35,11 @@ import type {
   RecurringRule,
   TransactionsTab,
   TransactionsUi,
-} from "./types";
+} from "@/components/transactions/tab/types";
 
 export default function HomeScreen() {
   const { session } = useAuthContext();
+  const router = useRouter();
   const insets = useSafeAreaInsets();
   const theme = useTheme();
   const colorScheme = useColorScheme();
@@ -46,24 +47,11 @@ export default function HomeScreen() {
   const isAndroid = Platform.OS === "android";
 
   // Dynamic tab bar height (NativeTabs-safe)
-  const tabBarHeight = insets.bottom + 60;
-  const fabBottom = isAndroid ? tabBarHeight + 35 : tabBarHeight + 5;
+  const tabBarHeight = insets.bottom + 48;
+  const fabBottom = tabBarHeight + 2;
 
   // Shared UI palette derived from the active theme.
-  const ui: TransactionsUi = useMemo(
-    () => ({
-      surface: isDark ? "#1C1C1E" : "#FFFFFF",
-      surface2: isDark ? "#2C2C2E" : "#F2F2F7",
-      border: isDark ? "rgba(84,84,88,0.65)" : "rgba(60,60,67,0.29)",
-      text: isDark ? "#FFFFFF" : "#000000",
-      mutedText: isDark ? "rgba(235,235,245,0.6)" : "rgba(60,60,67,0.6)",
-      backdrop: "rgba(0,0,0,0.45)",
-      accent: isDark ? "#8CF2D1" : "#1F6F5B",
-      accentSoft: isDark ? "rgba(140,242,209,0.2)" : "rgba(31,111,91,0.12)",
-      danger: "#D32F2F",
-    }),
-    [isDark],
-  );
+  const ui = useThemeUI();
 
   const userId = session?.user.id;
 
@@ -81,15 +69,6 @@ export default function HomeScreen() {
   const [recurringRules, setRecurringRules] = useState<RecurringRule[]>([]);
   const [editingRule, setEditingRule] = useState<RecurringRule | null>(null);
   const [filterAccountId, setFilterAccountId] = useState<FilterAccountId>(null);
-
-  const [transactionFormMode, setTransactionFormMode] = useState<
-    "add" | "view" | "edit" | null
-  >(null);
-  const [transactionFormExpense, setTransactionFormExpense] =
-    useState<ExpenseRow | null>(null);
-  const [selectedPlaidTransaction, setSelectedPlaidTransaction] =
-    useState<PlaidTransaction | null>(null);
-  const [isPlaidDetailVisible, setIsPlaidDetailVisible] = useState(false);
 
   // Formatters shared across list rows and detail views.
   const formatDate = useCallback((value?: string | null) => {
@@ -228,12 +207,11 @@ export default function HomeScreen() {
     () => ({
       placeholder: "Search transactions...",
       onChangeText: (event: any) => setSearchQuery(event.nativeEvent.text),
-      hideWhenScrolling: false,
+      hideWhenScrolling: true,
       tintColor: ui.text,
       textColor: ui.text,
       hintTextColor: ui.mutedText,
       headerIconColor: ui.mutedText,
-      placement: "inline" as const,
     }),
     [setSearchQuery, ui.mutedText, ui.text],
   );
@@ -294,8 +272,6 @@ export default function HomeScreen() {
           }
 
           await handleModalRefresh();
-          setTransactionFormMode(null);
-          setTransactionFormExpense(null);
         } catch (error) {
           console.error("Error deleting transaction:", error);
           Alert.alert("Error", "Could not delete transaction.");
@@ -360,27 +336,32 @@ export default function HomeScreen() {
 
   const handleSelectTransaction = useCallback(
     (transaction: ExpenseRow | PlaidTransaction) => {
+      const initialData = encodeURIComponent(JSON.stringify(transaction));
       if ("transaction_id" in transaction) {
-        setSelectedPlaidTransaction(transaction);
-        setIsPlaidDetailVisible(true);
+        router.push({
+          pathname: "/transaction-detail/[id]",
+          params: { id: transaction.transaction_id, initialData }
+        });
         return;
       }
 
-      setTransactionFormExpense(transaction);
-      setTransactionFormMode("view");
+      router.push({
+        pathname: "/transaction/[id]",
+        params: { id: String(transaction.id), initialData }
+      });
     },
-    [],
+    [router],
   );
 
   return (
     <>
       <Stack.Screen options={{ headerSearchBarOptions }} />
       <ScrollView
-        style={[styles.container, { backgroundColor: "transparent" }]}
+        style={[styles.container, { backgroundColor: ui.bg }]}
         contentInsetAdjustmentBehavior="automatic"
         contentContainerStyle={[
           styles.scrollContent,
-          { paddingBottom: tabBarHeight + 120, paddingTop: 16 },
+          { paddingBottom: tabBarHeight + 120, paddingTop: Platform.OS === "android" ? 16 : 0 },
         ]}
         showsVerticalScrollIndicator={false}
         refreshControl={
@@ -443,41 +424,14 @@ export default function HomeScreen() {
 
       <TransactionsFab
         onPress={() => {
-          setTransactionFormExpense(null);
-          setTransactionFormMode("add");
+          router.push("/transaction-add");
         }}
         bottom={fabBottom}
         ui={ui}
         isAndroid={isAndroid}
       />
 
-      <TransactionsModals
-        formMode={transactionFormMode}
-        formTransaction={transactionFormExpense}
-        onCloseForm={() => {
-          setTransactionFormMode(null);
-          setTransactionFormExpense(null);
-        }}
-        onRequestEdit={() => setTransactionFormMode("edit")}
-        onRequestDelete={() => {
-          if (transactionFormExpense) {
-            handleDeleteTransaction(transactionFormExpense);
-          }
-        }}
-        accounts={accounts}
-        categories={categories}
-        recurringRules={recurringRules}
-        plaidDetailTransaction={selectedPlaidTransaction}
-        isPlaidDetailVisible={isPlaidDetailVisible}
-        onClosePlaidDetail={() => {
-          setIsPlaidDetailVisible(false);
-          setSelectedPlaidTransaction(null);
-        }}
-        onRefresh={handleModalRefresh}
-        ui={ui}
-        isDark={isDark}
-        userId={userId}
-      />
+      {/* TransactionsModals removed in favor of native routing */}
 
       <EditRecurrenceSheet
         editingRule={editingRule}

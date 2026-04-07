@@ -99,7 +99,7 @@ export default function TransactionAddScreen() {
             opacity: pressed ? 0.55 : 1,
           })}
         >
-          <IconSymbol name="xmark" size={24} color={sheetUi.text} />
+          <IconSymbol name="xmark" size={22} color={sheetUi.text} />
         </Pressable>
       ),
       headerRight: () => (
@@ -114,7 +114,7 @@ export default function TransactionAddScreen() {
             opacity: pressed ? 0.55 : 1,
           })}
         >
-          <IconSymbol name="checkmark" size={24} color={sheetUi.accent} />
+          <IconSymbol name="checkmark" size={22} color={sheetUi.accent} />
         </Pressable>
       ),
     });

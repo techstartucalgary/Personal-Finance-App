@@ -33,6 +33,7 @@ interface SelectionModalProps {
   footer?: React.ReactNode;
   layout?: 'list' | 'tags';
   isSheet?: boolean; // When true, omit the <Modal> wrapper.
+  hideHeader?: boolean;
 }
 
 export function SelectionModal({
@@ -44,6 +45,7 @@ export function SelectionModal({
   footer,
   layout = 'list',
   isSheet = false,
+  hideHeader = false,
 }: SelectionModalProps) {
   const insets = useSafeAreaInsets();
   const isIOS = Platform.OS === 'ios';
@@ -54,36 +56,42 @@ export function SelectionModal({
         styles.container,
         {
           backgroundColor: ui.surface,
-          paddingTop: isIOS ? 12 : (insets.top + 16),
+          paddingTop: hideHeader ? 0 : isIOS ? 12 : (insets.top + 16),
         }
       ]}
     >
-      <View style={styles.header}>
-        <View style={styles.headerLeft} />
-        <ThemedText type="defaultSemiBold" style={styles.headerTitle}>{title}</ThemedText>
-        <View style={styles.headerRight}>
-          <Pressable
-            onPress={onClose}
-            hitSlop={20}
-            style={({ pressed }) => [
-              styles.closeButton,
-              {
-                backgroundColor: ui.surface2,
-                opacity: pressed ? 0.7 : 1,
-              }
-            ]}
-          >
-            <Feather name="x" size={18} color={ui.text} />
-          </Pressable>
+      {!hideHeader && (
+        <View style={styles.header}>
+          <View style={styles.headerLeft} />
+          <ThemedText type="defaultSemiBold" style={styles.headerTitle}>{title}</ThemedText>
+          <View style={styles.headerRight}>
+            <Pressable
+              onPress={onClose}
+              hitSlop={20}
+              style={({ pressed }) => [
+                styles.closeButton,
+                {
+                  backgroundColor: ui.surface2,
+                  opacity: pressed ? 0.7 : 1,
+                }
+              ]}
+            >
+              <Feather name="x" size={18} color={ui.text} />
+            </Pressable>
+          </View>
         </View>
-      </View>
+      )}
 
       <ScrollView
         style={styles.scrollView}
+        contentInsetAdjustmentBehavior={hideHeader ? "automatic" : "never"}
         contentContainerStyle={[
           styles.scrollContent,
           layout === 'tags' && styles.tagsContent,
-          { paddingBottom: insets.bottom + 20 }
+          {
+            paddingTop: hideHeader ? 16 : 8,
+            paddingBottom: insets.bottom + 20,
+          }
         ]}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"

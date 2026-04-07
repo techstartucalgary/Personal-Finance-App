@@ -1,6 +1,6 @@
 import Feather from "@expo/vector-icons/Feather";
-import { useRouter } from "expo-router";
-import React, { useCallback, useMemo, useState } from "react";
+import { useNavigation, useRouter } from "expo-router";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
   Platform,
@@ -8,27 +8,34 @@ import {
   ScrollView,
   StyleSheet,
   TextInput,
-  View,
+  View
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { styles as tabStyles } from "@/components/accounts/tab/styles";
+import type { AccountType } from "@/components/accounts/tab/types";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { DateTimePickerField } from "@/components/ui/DateTimePickerField";
+import { IconSymbol } from "@/components/ui/icon-symbol";
 import { SelectionModal } from "@/components/ui/SelectionModal";
 import { useAuthContext } from "@/hooks/use-auth-context";
 import { useThemeUI } from "@/hooks/use-theme-ui";
 import { createAccount as createAccountApi } from "@/utils/accounts";
 import { parseLocalDate, toLocalISOString } from "@/utils/date";
-import { styles as tabStyles } from "@/components/accounts/tab/styles";
-import type { AccountType } from "@/components/accounts/tab/types";
 
 export default function AddAccountManualScreen() {
   const router = useRouter();
+  const navigation = useNavigation();
   const ui = useThemeUI();
   const insets = useSafeAreaInsets();
+  const amountInputRef = useRef<TextInput>(null);
   const { session } = useAuthContext();
   const userId = session?.user.id;
+  const isDark = ui.bg === "#000000" || ui.bg === "#1C1C1E";
+  const pageBackground = isDark ? ui.surface : "#F2F2F7";
+  const cardBackground = isDark ? ui.surface2 : "#FFFFFF";
+  const heroBackground = isDark ? "rgba(140,242,209,0.12)" : ui.accentSoft;
 
   const [isLoading, setIsLoading] = useState(false);
   const [name, setName] = useState("");
@@ -99,165 +106,228 @@ export default function AddAccountManualScreen() {
     router,
   ]);
 
+  useEffect(() => {
+    navigation.setOptions({
+      title: "Add Account",
+      headerBackVisible: false,
+      headerTitleAlign: "center",
+      headerTransparent: Platform.OS === "ios",
+      headerShadowVisible: false,
+      headerStyle: {
+        backgroundColor: Platform.OS === "ios" ? "transparent" : pageBackground,
+      },
+      headerTitleStyle: { color: ui.text },
+      headerTintColor: ui.accent,
+      headerLeft: () => (
+        <Pressable
+          onPress={() => router.dismissAll()}
+          hitSlop={10}
+          style={({ pressed }) => ({
+            minWidth: 32,
+            height: 32,
+            alignItems: "center",
+            justifyContent: "center",
+            opacity: pressed ? 0.55 : 1,
+          })}
+        >
+          <IconSymbol name="xmark" size={22} color={ui.text} />
+        </Pressable>
+      ),
+      headerRight: () => (
+        <Pressable
+          onPress={handleCreate}
+          disabled={!canCreate || isLoading}
+          hitSlop={10}
+          style={({ pressed }) => ({
+            minWidth: 32,
+            height: 32,
+            alignItems: "center",
+            justifyContent: "center",
+            opacity: pressed || !canCreate || isLoading ? 0.55 : 1,
+          })}
+        >
+          <IconSymbol name="checkmark" size={22} color={ui.accent} />
+        </Pressable>
+      ),
+    });
+  }, [canCreate, handleCreate, isLoading, navigation, pageBackground, router, ui.accent, ui.text]);
+
   return (
     <ThemedView
       style={{
         flex: 1,
-        backgroundColor: ui.surface,
-        padding: 16,
-        paddingTop: Platform.OS === "ios" ? 12 : 16 + insets.top,
-        paddingBottom: 16 + insets.bottom,
+        backgroundColor: pageBackground,
       }}
     >
-      <View style={tabStyles.modalHeader}>
-        <View style={tabStyles.modalHeaderLeft} />
-        <ThemedText type="defaultSemiBold" style={tabStyles.modalHeaderTitle}>
-          Add Account
-        </ThemedText>
-        <View style={tabStyles.modalHeaderRight}>
+      <ScrollView
+        contentInsetAdjustmentBehavior="automatic"
+        contentContainerStyle={{
+          gap: 14,
+          paddingHorizontal: 16,
+          paddingBottom: insets.bottom + 24,
+        }}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={localStyles.heroSection}>
+          <View style={localStyles.sectionHeader}>
+            <ThemedText style={[localStyles.sectionHeaderText, { color: ui.mutedText }]}>
+              STARTING BALANCE
+            </ThemedText>
+          </View>
           <Pressable
-            onPress={() => router.back()}
-            hitSlop={20}
-            style={[
-              tabStyles.modalCloseButton,
-              { backgroundColor: ui.surface2 },
+            onPress={() => amountInputRef.current?.focus()}
+            style={({ pressed }) => [
+              localStyles.amountContainer,
+              {
+                backgroundColor: heroBackground,
+                borderColor: `${ui.accent}40`,
+                opacity: pressed ? 0.9 : 1,
+              },
             ]}
           >
-            <Feather name="x" size={18} color={ui.text} />
+            <ThemedText style={[localStyles.currencySymbol, { color: ui.accent }]}>
+              $
+            </ThemedText>
+            <TextInput
+              ref={amountInputRef}
+              value={createBalance}
+              onChangeText={setCreateBalance}
+              keyboardType="decimal-pad"
+              placeholder="0.00"
+              placeholderTextColor={`${ui.accent}88`}
+              style={[localStyles.amountInput, { color: ui.accent }]}
+            />
           </Pressable>
         </View>
-      </View>
 
-      <ScrollView contentContainerStyle={{ gap: 12, paddingBottom: 24 }} showsVerticalScrollIndicator={false}>
-        <ThemedText type="defaultSemiBold">Account name</ThemedText>
-        <TextInput
-          value={name}
-          onChangeText={setName}
-          placeholder="Account name (e.g. TD Credit)"
-          placeholderTextColor={ui.mutedText}
-          autoCapitalize="words"
-          style={[
-            tabStyles.input,
-            {
-              borderColor: ui.border,
-              backgroundColor: ui.surface2,
-              color: ui.text,
-            },
-          ]}
-        />
+        <View style={localStyles.sectionHeader}>
+          <ThemedText style={[localStyles.sectionHeaderText, { color: ui.mutedText }]}>
+            ACCOUNT INFO
+          </ThemedText>
+        </View>
 
         <View
           style={[
-            tabStyles.pickerContainer,
-            { borderColor: ui.border, backgroundColor: ui.surface },
+            localStyles.groupCard,
+            { borderColor: ui.border, backgroundColor: cardBackground },
           ]}
         >
-          <ThemedText type="defaultSemiBold">Account type</ThemedText>
-          <Pressable
-            onPress={() => setTypeModalOpen(true)}
-            style={[
-              tabStyles.dropdownButton,
-              { borderColor: ui.border, backgroundColor: ui.surface2 },
-            ]}
-          >
-            <ThemedText>{type === "credit" ? "Credit" : "Debit"}</ThemedText>
+          <View style={localStyles.inputRow}>
+            <IconSymbol name="signature" size={20} color={ui.mutedText} />
+            <TextInput
+              value={name}
+              onChangeText={setName}
+              placeholder="Account name"
+              placeholderTextColor={ui.mutedText}
+              autoCapitalize="words"
+              style={[localStyles.rowInput, { color: ui.text }]}
+            />
+          </View>
+
+          <View style={[localStyles.rowSeparator, { backgroundColor: ui.border }]} />
+
+          <Pressable onPress={() => setTypeModalOpen(true)} style={localStyles.inputRow}>
+            <IconSymbol name="creditcard" size={20} color={ui.mutedText} />
+            <ThemedText style={[localStyles.rowLabel, { color: ui.text }]}>
+              Account type
+            </ThemedText>
+            <ThemedText style={[localStyles.rowValue, { color: ui.text }]}>
+              {type === "credit" ? "Credit" : "Debit"}
+            </ThemedText>
+            <Feather name="chevron-right" size={16} color={ui.mutedText} />
           </Pressable>
+
+          <View style={[localStyles.rowSeparator, { backgroundColor: ui.border }]} />
+
+          <View style={localStyles.inputRow}>
+            <IconSymbol name="dollarsign.circle" size={20} color={ui.mutedText} />
+            <ThemedText style={[localStyles.rowLabel, { color: ui.text }]}>
+              Currency
+            </ThemedText>
+            <TextInput
+              value={createCurrency}
+              onChangeText={setCreateCurrency}
+              autoCapitalize="characters"
+              placeholder="CAD"
+              placeholderTextColor={ui.mutedText}
+              style={[localStyles.rowValueInput, { color: ui.text }]}
+            />
+          </View>
         </View>
 
-        <ThemedText type="defaultSemiBold">Balance</ThemedText>
-        <TextInput
-          value={createBalance}
-          onChangeText={setCreateBalance}
-          keyboardType="numeric"
+        <View style={localStyles.sectionHeader}>
+          <ThemedText style={[localStyles.sectionHeaderText, { color: ui.mutedText }]}>
+            CREDIT DETAILS
+          </ThemedText>
+        </View>
+
+        <View
           style={[
-            tabStyles.input,
-            {
-              borderColor: ui.border,
-              backgroundColor: ui.surface2,
-              color: ui.text,
-            },
-          ]}
-        />
-
-        <ThemedText type="defaultSemiBold">Credit Limit</ThemedText>
-        <TextInput
-          value={createLimit}
-          onChangeText={setCreateLimit}
-          keyboardType="numeric"
-          style={[
-            tabStyles.input,
-            {
-              borderColor: ui.border,
-              backgroundColor: ui.surface2,
-              color: ui.text,
-            },
-          ]}
-        />
-
-        <ThemedText type="defaultSemiBold">Interest Rate (%)</ThemedText>
-        <TextInput
-          value={createInterest}
-          onChangeText={setCreateInterest}
-          keyboardType="numeric"
-          style={[
-            tabStyles.input,
-            {
-              borderColor: ui.border,
-              backgroundColor: ui.surface2,
-              color: ui.text,
-            },
-          ]}
-        />
-
-        <ThemedText type="defaultSemiBold">Currency</ThemedText>
-        <TextInput
-          value={createCurrency}
-          onChangeText={setCreateCurrency}
-          autoCapitalize="characters"
-          style={[
-            tabStyles.input,
-            {
-              borderColor: ui.border,
-              backgroundColor: ui.surface2,
-              color: ui.text,
-            },
-          ]}
-        />
-
-        <DateTimePickerField
-          label="Statement Due Date"
-          value={parseLocalDate(createStatementDate)}
-          onChange={(date) => setCreateStatementDate(toLocalISOString(date))}
-          ui={ui}
-        />
-
-        <DateTimePickerField
-          label="Payment Due Date"
-          value={parseLocalDate(createPaymentDate)}
-          onChange={(date) => setCreatePaymentDate(toLocalISOString(date))}
-          ui={ui}
-        />
-
-        <Pressable
-          onPress={handleCreate}
-          disabled={!canCreate || isLoading}
-          style={[
-            tabStyles.button,
-            {
-              borderColor: ui.border,
-              backgroundColor: ui.text,
-              width: "100%",
-              alignItems: "center",
-              borderRadius: 24,
-              marginTop: 12,
-            },
-            (!canCreate || isLoading) && tabStyles.buttonDisabled,
+            localStyles.groupCard,
+            { borderColor: ui.border, backgroundColor: cardBackground },
           ]}
         >
-          <ThemedText type="defaultSemiBold" style={{ color: ui.surface }}>
-            {isLoading ? "Creating..." : "Create"}
+          <View style={localStyles.inputRow}>
+            <IconSymbol name="banknote" size={20} color={ui.mutedText} />
+            <ThemedText style={[localStyles.rowLabel, { color: ui.text }]}>
+              Credit limit
+            </ThemedText>
+            <TextInput
+              value={createLimit}
+              onChangeText={setCreateLimit}
+              keyboardType="decimal-pad"
+              placeholder="0"
+              placeholderTextColor={ui.mutedText}
+              style={[localStyles.rowValueInput, { color: ui.text }]}
+            />
+          </View>
+
+          <View style={[localStyles.rowSeparator, { backgroundColor: ui.border }]} />
+
+          <View style={localStyles.inputRow}>
+            <IconSymbol name="percent" size={20} color={ui.mutedText} />
+            <ThemedText style={[localStyles.rowLabel, { color: ui.text }]}>
+              Interest rate
+            </ThemedText>
+            <TextInput
+              value={createInterest}
+              onChangeText={setCreateInterest}
+              keyboardType="decimal-pad"
+              placeholder="0%"
+              placeholderTextColor={ui.mutedText}
+              style={[localStyles.rowValueInput, { color: ui.text }]}
+            />
+          </View>
+        </View>
+
+        <View style={localStyles.sectionHeader}>
+          <ThemedText style={[localStyles.sectionHeaderText, { color: ui.mutedText }]}>
+            DUE DATES
           </ThemedText>
-        </Pressable>
+        </View>
+
+        <View
+          style={[
+            localStyles.groupCard,
+            { borderColor: ui.border, backgroundColor: cardBackground },
+          ]}
+        >
+          <DateTimePickerField
+            label="Statement Due Date"
+            value={parseLocalDate(createStatementDate)}
+            onChange={(date) => setCreateStatementDate(toLocalISOString(date))}
+            ui={ui}
+          />
+
+          <View style={[localStyles.rowSeparator, { backgroundColor: ui.border }]} />
+
+          <DateTimePickerField
+            label="Payment Due Date"
+            value={parseLocalDate(createPaymentDate)}
+            onChange={(date) => setCreatePaymentDate(toLocalISOString(date))}
+            ui={ui}
+          />
+        </View>
       </ScrollView>
 
       {/* Account Type Selection Pop-over */}
@@ -295,3 +365,73 @@ export default function AddAccountManualScreen() {
     </ThemedView>
   );
 }
+
+const localStyles = StyleSheet.create({
+  heroSection: {
+    gap: 8,
+  },
+  sectionHeader: {
+    marginTop: 6,
+  },
+  sectionHeaderText: {
+    fontSize: 12,
+    lineHeight: 16,
+    letterSpacing: 0.8,
+    fontWeight: "700",
+  },
+  amountContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderWidth: 1,
+    borderRadius: 24,
+    paddingHorizontal: 18,
+    paddingVertical: 16,
+    gap: 4,
+  },
+  currencySymbol: {
+    fontSize: 28,
+    lineHeight: 34,
+    fontWeight: "700",
+  },
+  amountInput: {
+    flex: 1,
+    fontSize: 32,
+    lineHeight: 38,
+    fontWeight: "700",
+    paddingVertical: 0,
+  },
+  groupCard: {
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 18,
+    overflow: "hidden",
+  },
+  inputRow: {
+    minHeight: 56,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingHorizontal: 16,
+  },
+  rowLabel: {
+    flex: 1,
+    fontSize: 16,
+  },
+  rowValue: {
+    fontSize: 16,
+  },
+  rowInput: {
+    flex: 1,
+    fontSize: 16,
+    paddingVertical: 0,
+  },
+  rowValueInput: {
+    minWidth: 72,
+    textAlign: "right",
+    fontSize: 16,
+    paddingVertical: 0,
+  },
+  rowSeparator: {
+    height: StyleSheet.hairlineWidth,
+    marginLeft: 48,
+  },
+});

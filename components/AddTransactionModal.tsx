@@ -1760,11 +1760,11 @@ export const AddTransactionModal = forwardRef<AddTransactionModalRef, AddTransac
         >
             <ScrollView
               style={{ flex: 1, backgroundColor: ui.bg }}
-              contentInsetAdjustmentBehavior={hideHeader ? "never" : "never"}
+              contentInsetAdjustmentBehavior={hideHeader ? "automatic" : "never"}
               contentContainerStyle={[
                 styles.scrollContent,
                 {
-                  paddingTop: hideHeader ? insets.top + (Platform.OS === 'ios' ? 70 : 80) : 0,
+                  paddingTop: hideHeader ? 16 : 0,
                   paddingBottom: insets.bottom + 24,
                 },
               ]}

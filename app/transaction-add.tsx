@@ -1,29 +1,52 @@
-import React, { useCallback, useEffect, useState } from "react";
-import { useColorScheme } from "react-native";
-import { useRouter } from "expo-router";
+import type { AccountRow, CategoryRow } from "@/components/AddTransactionModal";
+import {
+  AddTransactionModal,
+  AddTransactionModalRef,
+} from "@/components/AddTransactionModal";
+import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useAuthContext } from "@/hooks/use-auth-context";
 import { useThemeUI } from "@/hooks/use-theme-ui";
-import { AddTransactionModal } from "@/components/AddTransactionModal";
 import { listAccounts } from "@/utils/accounts";
 import { listCategories } from "@/utils/categories";
 import { getRecurringRules } from "@/utils/recurring";
-import type { AccountRow, CategoryRow } from "@/components/AddTransactionModal";
+import { useNavigation, useRouter } from "expo-router";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  ActivityIndicator,
+  Platform,
+  Pressable,
+  useColorScheme,
+  View,
+} from "react-native";
 
 export default function TransactionAddScreen() {
   const { session } = useAuthContext();
   const router = useRouter();
+  const navigation = useNavigation();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
   const userId = session?.user.id;
   const ui = useThemeUI();
+  const modalRef = useRef<AddTransactionModalRef>(null);
+  const sheetUi = useMemo(() => {
+    if (!isDark) return ui;
+    return {
+      ...ui,
+      bg: "#1B1B1E",
+      surface: "#2C2C2F",
+      surface2: "#2C2C2F",
+    };
+  }, [isDark, ui]);
 
   const [accounts, setAccounts] = useState<AccountRow[]>([]);
   const [categories, setCategories] = useState<CategoryRow[]>([]);
   const [recurringRules, setRecurringRules] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   const loadData = useCallback(async () => {
     if (!userId) return;
     try {
+      setIsLoading(true);
       const [accs, cats, rules] = await Promise.all([
         listAccounts({ profile_id: userId }),
         listCategories({ profile_id: userId }),
@@ -34,6 +57,8 @@ export default function TransactionAddScreen() {
       setRecurringRules((rules as any[]) ?? []);
     } catch (error) {
       console.error("Error loading transaction add data:", error);
+    } finally {
+      setIsLoading(false);
     }
   }, [userId]);
 
@@ -41,15 +66,86 @@ export default function TransactionAddScreen() {
     loadData();
   }, [loadData]);
 
+  const handleSave = useCallback(async () => {
+    if (!modalRef.current) return;
+    try {
+      await modalRef.current.submit();
+    } catch (error) {
+      console.error("Save failed:", error);
+    }
+  }, []);
+
+  useEffect(() => {
+    navigation.setOptions({
+      title: "Add Transaction",
+      headerBackVisible: false,
+      headerTitleAlign: "center",
+      headerTransparent: Platform.OS === "ios",
+      headerShadowVisible: false,
+      headerStyle: {
+        backgroundColor: Platform.OS === "ios" ? "transparent" : sheetUi.bg,
+      },
+      headerTitleStyle: { color: sheetUi.text },
+      headerTintColor: sheetUi.accent,
+      headerLeft: () => (
+        <Pressable
+          onPress={() => router.back()}
+          hitSlop={10}
+          style={({ pressed }) => ({
+            minWidth: 32,
+            height: 32,
+            alignItems: "center",
+            justifyContent: "center",
+            opacity: pressed ? 0.55 : 1,
+          })}
+        >
+          <IconSymbol name="xmark" size={24} color={sheetUi.text} />
+        </Pressable>
+      ),
+      headerRight: () => (
+        <Pressable
+          onPress={handleSave}
+          hitSlop={10}
+          style={({ pressed }) => ({
+            minWidth: 32,
+            height: 32,
+            alignItems: "center",
+            justifyContent: "center",
+            opacity: pressed ? 0.55 : 1,
+          })}
+        >
+          <IconSymbol name="checkmark" size={24} color={sheetUi.accent} />
+        </Pressable>
+      ),
+    });
+  }, [handleSave, navigation, router, sheetUi.accent, sheetUi.bg, sheetUi.text]);
+
+  if (isLoading) {
+    return (
+      <View
+        style={{
+          flex: 1,
+          justifyContent: "center",
+          alignItems: "center",
+          backgroundColor: sheetUi.bg,
+        }}
+      >
+        <ActivityIndicator size="large" color={sheetUi.accent} />
+      </View>
+    );
+  }
+
   return (
     <AddTransactionModal
+      ref={modalRef}
       visible={true}
-      isSheet={true}
+      isSheet={false}
+      hideHeader={true}
       onClose={() => router.back()}
       accounts={accounts}
       categories={categories}
       onRefresh={loadData}
-      ui={ui}
+      ui={sheetUi}
       isDark={isDark}
       userId={userId}
       mode="add"

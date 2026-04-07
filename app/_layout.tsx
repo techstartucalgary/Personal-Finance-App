@@ -82,7 +82,7 @@ function ProtectedLayout() {
         name="transaction-add"
         options={{
           presentation: "pageSheet",
-          headerShown: false,
+          headerShown: true,
         }}
       />
       <Stack.Screen

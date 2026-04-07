@@ -1,15 +1,15 @@
-import React, { useCallback, useEffect, useState, useRef } from "react";
-import { Alert, useColorScheme, Platform, ActivityIndicator, View, Pressable } from "react-native";
-import { useLocalSearchParams, useRouter, useNavigation } from "expo-router";
+import type { AccountRow, CategoryRow, ExpenseRow } from "@/components/AddTransactionModal";
+import { AddTransactionModal, AddTransactionModalRef } from "@/components/AddTransactionModal";
+import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useAuthContext } from "@/hooks/use-auth-context";
 import { useThemeUI } from "@/hooks/use-theme-ui";
-import { AddTransactionModal, AddTransactionModalRef } from "@/components/AddTransactionModal";
 import { listAccounts } from "@/utils/accounts";
 import { listCategories } from "@/utils/categories";
 import { listExpenses } from "@/utils/expenses";
 import { getRecurringRules } from "@/utils/recurring";
-import type { AccountRow, CategoryRow, ExpenseRow } from "@/components/AddTransactionModal";
-import { IconSymbol } from "@/components/ui/icon-symbol";
+import { useLocalSearchParams, useNavigation, useRouter } from "expo-router";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { ActivityIndicator, Alert, Platform, Pressable, useColorScheme, View } from "react-native";
 
 export default function TransactionEditScreen() {
   const { session } = useAuthContext();
@@ -39,7 +39,7 @@ export default function TransactionEditScreen() {
 
   const loadData = useCallback(async () => {
     if (!userId || !id) return;
-    
+
     // If we already have the transaction from params, only fetch dependencies (faster)
     if (initialTransaction) {
       try {
@@ -106,8 +106,12 @@ export default function TransactionEditScreen() {
     navigation.setOptions({
       title: "Edit Transaction",
       headerBackButtonDisplayMode: "minimal",
-      headerTransparent: true,
+      headerTitleAlign: "center",
+      headerTransparent: Platform.OS === "ios",
       headerShadowVisible: false,
+      headerStyle: {
+        backgroundColor: Platform.OS === "ios" ? "transparent" : ui.bg,
+      },
       headerTitleStyle: { color: ui.text },
       headerTintColor: ui.accent,
       headerRight: () => (
@@ -116,11 +120,10 @@ export default function TransactionEditScreen() {
           hitSlop={20}
           style={({ pressed }) => ({
             opacity: pressed ? 0.7 : 1,
-            width: 44,
-            height: 44,
+            minWidth: 32,
+            height: 32,
             justifyContent: "center",
             alignItems: "center",
-            marginRight: Platform.OS === "ios" ? -10 : 0,
           })}
         >
           <IconSymbol name="checkmark" size={24} color={ui.accent} />

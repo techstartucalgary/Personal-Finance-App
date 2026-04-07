@@ -47,8 +47,8 @@ export default function HomeScreen() {
   const isAndroid = Platform.OS === "android";
 
   // Dynamic tab bar height (NativeTabs-safe)
-  const tabBarHeight = insets.bottom + 60;
-  const fabBottom = isAndroid ? tabBarHeight + 35 : tabBarHeight + 5;
+  const tabBarHeight = insets.bottom + 48;
+  const fabBottom = tabBarHeight + 2;
 
   // Shared UI palette derived from the active theme.
   const ui = useThemeUI();

@@ -1,9 +1,6 @@
 import React from "react";
-import { Pressable } from "react-native";
+import { NativeFab } from "@/components/ui/native-fab";
 
-import { IconSymbol } from "@/components/ui/icon-symbol";
-
-import { styles } from "./styles";
 import type { TransactionsUi } from "./types";
 
 type TransactionsFabProps = {
@@ -20,26 +17,13 @@ export function TransactionsFab({
   ui,
   isAndroid,
 }: TransactionsFabProps) {
+  void ui;
+  void isAndroid;
   return (
-    <Pressable
+    <NativeFab
+      accessibilityLabel="Add transaction"
+      bottom={bottom}
       onPress={onPress}
-      style={({ pressed }) => [
-        styles.fab,
-        {
-          width: 80,
-          height: 80,
-          borderRadius: 20,
-          right: 16,
-        },
-        {
-          backgroundColor: ui.text,
-          opacity: pressed ? 0.8 : 1,
-          bottom,
-          elevation: isAndroid ? 5 : 6,
-        },
-      ]}
-    >
-      <IconSymbol name="plus" size={32} color={ui.surface} />
-    </Pressable>
+    />
   );
 }

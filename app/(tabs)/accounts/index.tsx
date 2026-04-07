@@ -40,8 +40,8 @@ export default function AccountsScreen() {
   const insets = useSafeAreaInsets();
 
   // Dynamic tab bar height (NativeTabs-safe)
-  const tabBarHeight = insets.bottom + 60;
-  const fabBottom = tabBarHeight - 16;
+  const tabBarHeight = insets.bottom + 48;
+  const fabBottom = tabBarHeight + 2;
   const ui = useThemeUI();
   const transition = useTabTransition();
 

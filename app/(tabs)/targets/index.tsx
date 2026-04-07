@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ThemedText } from "@/components/themed-text";
 import { useTheme } from "react-native-paper";
 
-import { IconSymbol } from "@/components/ui/icon-symbol";
+import { NativeFab } from "@/components/ui/native-fab";
 
 import { BudgetsView } from "@/components/targets/BudgetsView";
 import { GoalsView } from "@/components/targets/GoalsView";
@@ -33,8 +33,8 @@ export default function TargetsScreen() {
   const ui = useThemeUI();
 
   // Dynamic tab bar height for FAB positioning (NativeTabs-safe)
-  const tabBarHeight = insets.bottom + 60;
-  const fabBottom = Platform.OS === "android" ? tabBarHeight + 35 : tabBarHeight + 5;
+  const tabBarHeight = insets.bottom + 48;
+  const fabBottom = tabBarHeight + 2;
 
   const [activeTab, setActiveTab] = useState<Tab>("goals");
   const { session } = useAuthContext();
@@ -219,27 +219,11 @@ export default function TargetsScreen() {
         </View>
       </ScrollView>
 
-      {/* FAB - outside ScrollView for fixed positioning */}
-      <Pressable
+      <NativeFab
+        accessibilityLabel={activeTab === "goals" ? "Add goal" : "Add budget"}
+        bottom={fabBottom}
         onPress={() => setCreateRequested(Date.now())}
-        style={({ pressed }) => [
-          styles.fab,
-          {
-            width: 80,
-            height: 80,
-            borderRadius: 20,
-            right: 16,
-          },
-          {
-            backgroundColor: ui.text,
-            opacity: pressed ? 0.8 : 1,
-            bottom: fabBottom,
-            elevation: 5,
-          },
-        ]}
-      >
-        <IconSymbol name="plus" size={32} color={ui.surface} />
-      </Pressable>
+      />
     </>
   );
 }
@@ -265,19 +249,5 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 20,
     borderWidth: StyleSheet.hairlineWidth,
-  },
-  fab: {
-    position: "absolute",
-    right: 20,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: "#000",
-    shadowOpacity: 0.3,
-    shadowOffset: { width: 0, height: 4 },
-    shadowRadius: 6,
-    elevation: 6,
   },
 });

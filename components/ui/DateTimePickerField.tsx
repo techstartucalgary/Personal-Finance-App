@@ -1,6 +1,6 @@
 import DateTimePicker, { DateTimePickerAndroid, DateTimePickerEvent } from "@react-native-community/datetimepicker";
 import React from "react";
-import { Modal, Platform, Pressable, StyleSheet, TextInput, View } from "react-native";
+import { Platform, Pressable, StyleSheet, TextInput, View } from "react-native";
 import { ThemedText } from "../themed-text";
 import { Tokens } from "@/constants/authTokens";
 import { IconSymbol } from "./icon-symbol";
@@ -28,7 +28,6 @@ export function DateTimePickerField({
 }: DateTimePickerFieldProps) {
     const [inputValue, setInputValue] = React.useState("");
     const [isEditing, setIsEditing] = React.useState(false);
-    const [showIOSPicker, setShowIOSPicker] = React.useState(false);
 
     const formatDate = React.useCallback((date?: Date | null) => {
         if (!date) return "";
@@ -78,9 +77,7 @@ export function DateTimePickerField({
                 onChange: onPickerChange,
                 mode: "date",
             });
-            return;
         }
-        setShowIOSPicker(true);
     };
 
     return (
@@ -89,64 +86,13 @@ export function DateTimePickerField({
                 {icon && <IconSymbol name={icon as any} size={20} color={ui.mutedText} style={{ marginRight: 12 }} />}
                 {!hideLabel && <ThemedText style={[styles.rowLabel, { color: ui.text }]}>{label}</ThemedText>}
 
-                <View style={styles.inputWrap}>
-                    <TextInput
-                        value={displayValue}
-                        onChangeText={setInputValue}
-                        placeholder={placeholder || "MM/DD/YYYY"}
-                        placeholderTextColor={ui.mutedText}
-                        keyboardType="numbers-and-punctuation"
-                        editable={!disabled}
-                        onFocus={() => {
-                            if (!disabled) {
-                                setIsEditing(true);
-                                setInputValue(formatDate(value));
-                            }
-                        }}
-                        onSubmitEditing={() => {
-                            if (disabled) return;
-                            const parsed = parseInput(inputValue);
-                            if (parsed) {
-                                onChange(parsed);
-                                setInputValue(formatDate(parsed));
-                                setIsEditing(false);
-                            } else {
-                                setInputValue(formatDate(value));
-                                setIsEditing(false);
-                            }
-                        }}
-                        onBlur={() => {
-                            if (disabled) return;
-                            const parsed = parseInput(inputValue);
-                            if (parsed) {
-                                onChange(parsed);
-                                setInputValue(formatDate(parsed));
-                            } else {
-                                setInputValue(formatDate(value));
-                            }
-                            setIsEditing(false);
-                        }}
-                        style={[styles.input, { color: ui.text, fontFamily: Tokens.font.family }]}
-                    />
-                    <Pressable
-                        onPress={showPicker}
-                        style={[styles.calendarButton, disabled && { opacity: 0.4 }]}
-                        hitSlop={8}
-                        disabled={disabled}
-                    >
-                        <IconSymbol name="calendar.circle" size={18} color={ui.mutedText} />
-                    </Pressable>
-                </View>
-            </View>
-
-            {Platform.OS === "ios" && (
-                <Modal transparent visible={showIOSPicker} animationType="fade" onRequestClose={() => setShowIOSPicker(false)}>
-                    <Pressable style={styles.backdrop} onPress={() => setShowIOSPicker(false)} />
-                    <View style={[styles.iosPickerCard, { backgroundColor: ui.surface2, borderColor: ui.border }]}>
+                {Platform.OS === "ios" ? (
+                    <View style={styles.iosPickerWrap}>
                         <DateTimePicker
                             value={value || new Date()}
                             mode="date"
-                            display="inline"
+                            display="compact"
+                            disabled={disabled}
                             onChange={(event, selectedDate) => {
                                 if (selectedDate) {
                                     onChange(selectedDate);
@@ -154,13 +100,61 @@ export function DateTimePickerField({
                                 }
                             }}
                             accentColor={ui.accent}
+                            textColor={ui.text}
+                            themeVariant={ui.text === "#FFFFFF" ? "dark" : "light"}
                         />
-                        <Pressable onPress={() => setShowIOSPicker(false)} style={styles.doneButton}>
-                            <ThemedText style={{ color: ui.accent, fontWeight: "600" }}>Done</ThemedText>
+                    </View>
+                ) : (
+                    <View style={styles.inputWrap}>
+                        <TextInput
+                            value={displayValue}
+                            onChangeText={setInputValue}
+                            placeholder={placeholder || "MM/DD/YYYY"}
+                            placeholderTextColor={ui.mutedText}
+                            keyboardType="numbers-and-punctuation"
+                            editable={!disabled}
+                            onFocus={() => {
+                                if (!disabled) {
+                                    setIsEditing(true);
+                                    setInputValue(formatDate(value));
+                                }
+                            }}
+                            onSubmitEditing={() => {
+                                if (disabled) return;
+                                const parsed = parseInput(inputValue);
+                                if (parsed) {
+                                    onChange(parsed);
+                                    setInputValue(formatDate(parsed));
+                                    setIsEditing(false);
+                                } else {
+                                    setInputValue(formatDate(value));
+                                    setIsEditing(false);
+                                }
+                            }}
+                            onBlur={() => {
+                                if (disabled) return;
+                                const parsed = parseInput(inputValue);
+                                if (parsed) {
+                                    onChange(parsed);
+                                    setInputValue(formatDate(parsed));
+                                } else {
+                                    setInputValue(formatDate(value));
+                                }
+                                setIsEditing(false);
+                            }}
+                            style={[styles.input, { color: ui.text, fontFamily: Tokens.font.family }]}
+                        />
+                        <Pressable
+                            onPress={showPicker}
+                            style={[styles.calendarButton, disabled && { opacity: 0.4 }]}
+                            hitSlop={8}
+                            disabled={disabled}
+                        >
+                            <IconSymbol name="calendar.circle" size={18} color={ui.mutedText} />
                         </Pressable>
                     </View>
-                </Modal>
-            )}
+                )}
+            </View>
         </View>
     );
 }
@@ -189,6 +183,9 @@ const styles = StyleSheet.create({
         justifyContent: "flex-end",
         gap: 6,
     },
+    iosPickerWrap: {
+        marginRight: -8,
+    },
     input: {
         flex: 1,
         fontSize: 15,
@@ -201,23 +198,5 @@ const styles = StyleSheet.create({
         borderRadius: 8,
         alignItems: "center",
         justifyContent: "center",
-    },
-    backdrop: {
-        flex: 1,
-        backgroundColor: "rgba(0,0,0,0.35)",
-    },
-    iosPickerCard: {
-        position: "absolute",
-        left: 16,
-        right: 16,
-        bottom: 32,
-        borderRadius: 20,
-        borderWidth: StyleSheet.hairlineWidth,
-        padding: 12,
-    },
-    doneButton: {
-        alignSelf: "flex-end",
-        paddingVertical: 6,
-        paddingHorizontal: 8,
     },
 });

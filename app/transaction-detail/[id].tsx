@@ -1,10 +1,10 @@
-import React, { useCallback, useEffect, useState } from "react";
-import { Alert, View, ActivityIndicator, Platform } from "react-native";
-import { useLocalSearchParams, useRouter, useNavigation } from "expo-router";
+import { TransactionDetailModal } from "@/components/TransactionDetailModal";
 import { useAuthContext } from "@/hooks/use-auth-context";
 import { useThemeUI } from "@/hooks/use-theme-ui";
-import { TransactionDetailModal } from "@/components/TransactionDetailModal";
 import { getPlaidTransactions, type PlaidTransaction } from "@/utils/plaid";
+import { useLocalSearchParams, useNavigation, useRouter } from "expo-router";
+import React, { useCallback, useEffect, useState } from "react";
+import { ActivityIndicator, Alert, View } from "react-native";
 
 export default function PlaidTransactionDetailScreen() {
   const { session } = useAuthContext();
@@ -31,7 +31,7 @@ export default function PlaidTransactionDetailScreen() {
       if (transaction) setIsLoading(false);
       return;
     }
-    
+
     setIsLoading(true);
     try {
       const transactions = await getPlaidTransactions();

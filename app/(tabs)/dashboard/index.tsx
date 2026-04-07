@@ -71,6 +71,10 @@ export default function DashboardScreen() {
   const isAndroid = Platform.OS === "android";
 
   const ui = useThemeUI();
+  const pageBackground = ui.bg;
+  const cardBackground = isDark ? "#1B1B1E" : isAndroid ? "#F2F2F7" : "#FFFFFF";
+  const insetBackground = isDark ? "#2C2C2F" : isAndroid ? "#FFFFFF" : "#F2F2F7";
+  const subtleBorder = ui.border;
 
   const [isLoading, setIsLoading] = useState(false);
   const [accounts, setAccounts] = useState<AccountRow[]>([]);
@@ -319,7 +323,7 @@ export default function DashboardScreen() {
     <>
 
       <ScrollView
-        style={[styles.container, { backgroundColor: ui.bg }]}
+        style={[styles.container, { backgroundColor: pageBackground }]}
         contentInsetAdjustmentBehavior="automatic"
         contentContainerStyle={[
           styles.scrollContent,
@@ -339,7 +343,7 @@ export default function DashboardScreen() {
           <View
             style={[
               styles.heroCard,
-              { borderColor: ui.border, backgroundColor: ui.hero },
+              { borderColor: subtleBorder, backgroundColor: cardBackground },
             ]}
           >
             <View style={styles.heroTopRow}>
@@ -354,7 +358,7 @@ export default function DashboardScreen() {
               <View
                 style={[
                   styles.heroBadge,
-                  { borderColor: ui.border, backgroundColor: ui.heroAlt },
+                  { borderColor: subtleBorder, backgroundColor: insetBackground },
                 ]}
               >
                 <Feather name="trending-up" size={14} color={ui.accent} />
@@ -369,7 +373,7 @@ export default function DashboardScreen() {
               <View
                 style={[
                   styles.statPill,
-                  { borderColor: ui.border, backgroundColor: ui.heroAlt },
+                  { borderColor: subtleBorder, backgroundColor: insetBackground },
                 ]}
               >
                 <ThemedText style={[styles.statLabel, { color: ui.mutedText }]}>
@@ -382,7 +386,7 @@ export default function DashboardScreen() {
               <View
                 style={[
                   styles.statPill,
-                  { borderColor: ui.border, backgroundColor: ui.heroAlt },
+                  { borderColor: subtleBorder, backgroundColor: insetBackground },
                 ]}
               >
                 <ThemedText style={[styles.statLabel, { color: ui.mutedText }]}>
@@ -395,7 +399,7 @@ export default function DashboardScreen() {
               <View
                 style={[
                   styles.statPill,
-                  { borderColor: ui.border, backgroundColor: ui.heroAlt },
+                  { borderColor: subtleBorder, backgroundColor: insetBackground },
                 ]}
               >
                 <ThemedText style={[styles.statLabel, { color: ui.mutedText }]}>
@@ -415,7 +419,7 @@ export default function DashboardScreen() {
           <View
             style={[
               styles.chartCard,
-              { borderColor: ui.border, backgroundColor: ui.surface2 },
+              { borderColor: subtleBorder, backgroundColor: cardBackground },
             ]}
           >
             <View
@@ -436,7 +440,7 @@ export default function DashboardScreen() {
               <View
                 style={[
                   styles.chartChip,
-                  { borderColor: ui.border, backgroundColor: ui.surface },
+                  { borderColor: subtleBorder, backgroundColor: insetBackground },
                 ]}
               >
                 <Feather name="bar-chart-2" size={14} color={ui.accent} />
@@ -486,7 +490,7 @@ export default function DashboardScreen() {
           </Pressable>
         </View>
 
-        <View style={[styles.card, { borderColor: ui.border, backgroundColor: ui.surface2 }]}>
+        <View style={[styles.card, { borderColor: subtleBorder, backgroundColor: cardBackground }]}>
           {recentActivity.length > 0 ? (
             recentActivity.map((tx) => {
               const isNegative = tx.amount > 0;

@@ -1,9 +1,9 @@
-import { useNavigation, Stack, useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
+import { usePreventRemove } from "@react-navigation/native";
+import { Stack, useFocusEffect, useLocalSearchParams, useNavigation, useRouter } from "expo-router";
 import React, { useCallback, useLayoutEffect, useMemo, useState } from "react";
 import { Alert, Platform, Pressable, ScrollView, StyleSheet, View } from "react-native";
-import { usePreventRemove } from "@react-navigation/native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "react-native-paper";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { AccountsEditForm } from "@/components/accounts/tab/AccountsEditModal";
 import { ThemedText } from "@/components/themed-text";
@@ -287,21 +287,21 @@ export default function AccountEditScreen() {
       headerRight:
         kind === "manual"
           ? () => (
-              <Pressable
-                onPress={updateAccount}
-                disabled={isLoading || !hasUnsavedChanges}
-                hitSlop={10}
-                style={({ pressed }) => ({
-                  minWidth: 32,
-                  height: 32,
-                  alignItems: "center",
-                  justifyContent: "center",
-                  opacity: pressed || isLoading || !hasUnsavedChanges ? 0.55 : 1,
-                })}
-              >
-                <IconSymbol name="checkmark" size={20} color={ui.accent} />
-              </Pressable>
-            )
+            <Pressable
+              onPress={updateAccount}
+              disabled={isLoading || !hasUnsavedChanges}
+              hitSlop={10}
+              style={({ pressed }) => ({
+                minWidth: 32,
+                height: 32,
+                alignItems: "center",
+                justifyContent: "center",
+                opacity: pressed || isLoading || !hasUnsavedChanges ? 0.55 : 1,
+              })}
+            >
+              <IconSymbol name="checkmark" size={22} color={ui.accent} />
+            </Pressable>
+          )
           : undefined,
     });
   }, [hasUnsavedChanges, isLoading, kind, navigation, ui.accent, updateAccount]);
@@ -312,6 +312,7 @@ export default function AccountEditScreen() {
         options={{
           headerLargeTitle: false,
           title: kind === "plaid" ? "Manage Account" : "Edit Account",
+          headerTitleAlign: "center",
           headerBackButtonDisplayMode: "minimal",
           headerBackButtonMenuEnabled: false,
           headerTransparent: Platform.OS === "ios",
@@ -321,8 +322,8 @@ export default function AccountEditScreen() {
             backgroundColor:
               Platform.OS === "android"
                 ? isDark
-                  ? theme.colors.surface
-                  : theme.colors.surfaceVariant
+                  ? theme.colors.background
+                  : theme.colors.background
                 : "transparent",
           },
           headerTitleStyle: { color: isDark ? "#ffffff" : "#111111" },

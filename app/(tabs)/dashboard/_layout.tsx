@@ -17,6 +17,7 @@ export default function IndexLayout() {
                 headerShown: true,
                 headerLargeTitle: Platform.OS === "ios",
                 headerTransparent: Platform.OS === "ios",
+                headerTitleAlign: "center",
                 headerShadowVisible: false,
                 headerStyle: { backgroundColor: Platform.OS === "android" ? (isDark ? theme.colors.surface : theme.colors.surfaceVariant) : "transparent" },
                 headerLargeStyle: { backgroundColor: Platform.OS === "ios" ? "transparent" : (isDark ? theme.colors.surface : theme.colors.surfaceVariant) },

@@ -472,6 +472,7 @@ export default function AccountDetailScreen() {
         options={{
           headerLargeTitle: false,
           headerTitle: "Account Details",
+          headerTitleAlign: "center",
           headerBackButtonDisplayMode: "minimal",
           headerSearchBarOptions,
           headerTransparent: Platform.OS === "ios",

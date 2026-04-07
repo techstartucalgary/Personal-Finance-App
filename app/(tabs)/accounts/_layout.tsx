@@ -13,6 +13,7 @@ export default function AccountsLayout() {
       screenOptions={{
         headerShown: true,
         headerLargeTitle: Platform.OS === "ios",
+        headerTitleAlign: "center",
         headerTransparent: Platform.OS === "ios",
         headerShadowVisible: false,
         headerStyle: { backgroundColor: Platform.OS === "android" ? (isDark ? theme.colors.surface : theme.colors.surfaceVariant) : "transparent" },

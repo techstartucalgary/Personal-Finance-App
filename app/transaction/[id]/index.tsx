@@ -26,7 +26,7 @@ export default function TransactionEditScreen() {
     if (initialData) {
       try {
         return JSON.parse(decodeURIComponent(initialData));
-      } catch (e) {
+      } catch {
         return null;
       }
     }
@@ -40,7 +40,6 @@ export default function TransactionEditScreen() {
   const loadData = useCallback(async () => {
     if (!userId || !id) return;
 
-    // If we already have the transaction from params, only fetch dependencies (faster)
     if (initialTransaction) {
       try {
         const [accs, cats, rules] = await Promise.all([
@@ -90,15 +89,11 @@ export default function TransactionEditScreen() {
   }, [loadData]);
 
   const handleSave = useCallback(async () => {
-    if (modalRef.current) {
-      try {
-        await modalRef.current.submit();
-        // The modal component handles its own success alerts and such, 
-        // but we might need to close the screen here if it doesn't.
-        // Actually, updateTransaction normally calls onClose.
-      } catch (err) {
-        console.error("Save failed:", err);
-      }
+    if (!modalRef.current) return;
+    try {
+      await modalRef.current.submit();
+    } catch (err) {
+      console.error("Save failed:", err);
     }
   }, []);
 
@@ -144,18 +139,27 @@ export default function TransactionEditScreen() {
     <AddTransactionModal
       ref={modalRef}
       visible={true}
-      isSheet={false} // Full page
-      hideHeader={true} // Use native header instead
+      isSheet={false}
+      hideHeader={true}
       onClose={() => router.back()}
       accounts={accounts}
       categories={categories}
-      onRefresh={loadData} // Or onRefresh
+      onRefresh={loadData}
       ui={ui}
       isDark={isDark}
       userId={userId}
       mode="edit"
       initialTransaction={initialTransaction}
       recurringRules={recurringRules}
+      onOpenAccountPicker={(currentAccountId) =>
+        router.push({
+          pathname: "/transaction/[id]/account-select",
+          params: {
+            id,
+            ...(currentAccountId ? { currentAccountId: String(currentAccountId) } : {}),
+          },
+        })
+      }
     />
   );
 }

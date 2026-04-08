@@ -150,6 +150,12 @@ export default function TransactionAddScreen() {
       userId={userId}
       mode="add"
       recurringRules={recurringRules}
+      onOpenAccountPicker={(currentAccountId) =>
+        router.push({
+          pathname: "/transaction-add/account-select",
+          params: currentAccountId ? { currentAccountId: String(currentAccountId) } : {},
+        })
+      }
     />
   );
 }

@@ -1,4 +1,5 @@
 import Feather from "@expo/vector-icons/Feather";
+import { useFocusEffect } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useState, forwardRef, useImperativeHandle } from "react";
 import {
   ActivityIndicator,
@@ -21,6 +22,7 @@ import { ThemedView } from "./themed-view";
 import { DateTimePickerField } from "./ui/DateTimePickerField";
 import { IconSymbol } from "./ui/icon-symbol";
 
+import { consumePendingTransactionAccountSelection } from "@/components/transactions/pending-transaction-account-selection";
 import { Tokens } from "@/constants/authTokens";
 import { getAccountById, updateAccount } from "@/utils/accounts";
 import {
@@ -798,6 +800,7 @@ interface AddTransactionModalProps {
   onDeleteRequest?: () => void;
   isSheet?: boolean;
   hideHeader?: boolean;
+  onOpenAccountPicker?: (currentAccountId: number | null) => void;
 }
 
 const EMPTY_RECURRING_RULES: any[] = [];
@@ -819,6 +822,7 @@ export const AddTransactionModal = forwardRef<AddTransactionModalRef, AddTransac
     onDeleteRequest,
     isSheet = false,
     hideHeader = false,
+    onOpenAccountPicker,
   } = props;
   const insets = useSafeAreaInsets();
   const amountInputRef = React.useRef<TextInput>(null);
@@ -855,7 +859,6 @@ export const AddTransactionModal = forwardRef<AddTransactionModalRef, AddTransac
   const [addRuleNextRunDate, setAddRuleNextRunDate] = useState("");
   const [recurrenceTouched, setRecurrenceTouched] = useState(false);
 
-  const [accountModalOpen, setAccountModalOpen] = useState(false);
   const [categoryModalOpen, setCategoryModalOpen] = useState(false);
   const [createCategoryModalOpen, setCreateCategoryModalOpen] = useState(false);
   const [subcategoryModalOpen, setSubcategoryModalOpen] = useState(false);
@@ -1146,6 +1149,15 @@ export const AddTransactionModal = forwardRef<AddTransactionModalRef, AddTransac
       setSelectedCategory(categories[0]);
     }
   }, [categories, selectedCategory, visible]);
+
+  useFocusEffect(
+    useCallback(() => {
+      const nextAccountId = consumePendingTransactionAccountSelection();
+      if (nextAccountId == null) return;
+      const nextAccount = accounts.find((account) => account.id === nextAccountId) ?? null;
+      setSelectedAccount(nextAccount);
+    }, [accounts]),
+  );
 
   useEffect(() => {
     setSelectedSubcategory(null);
@@ -1904,7 +1916,11 @@ export const AddTransactionModal = forwardRef<AddTransactionModalRef, AddTransac
 
                   <Pressable
                     onPress={() => {
-                      if (!isViewMode) setAccountModalOpen(true);
+                      if (isViewMode) return;
+                      if (onOpenAccountPicker) {
+                        onOpenAccountPicker(selectedAccount?.id ?? null);
+                        return;
+                      }
                     }}
                     disabled={isViewMode}
                     style={styles.inputRow}
@@ -2450,112 +2466,6 @@ export const AddTransactionModal = forwardRef<AddTransactionModalRef, AddTransac
                   );
                 })}
               </View>
-            </View>
-          </View>
-        </Modal>
-
-        {/* Account Picker */}
-        <Modal
-          visible={accountModalOpen}
-          transparent
-          animationType="fade"
-          onRequestClose={() => setAccountModalOpen(false)}
-        >
-          <View style={styles.popupOverlay}>
-            <Pressable
-              style={[
-                styles.popupBackdrop,
-                {
-                  backgroundColor: ui.backdrop
-                    ? ui.backdrop
-                    : "rgba(0,0,0,0.35)",
-                },
-              ]}
-              onPress={() => setAccountModalOpen(false)}
-            />
-            <View
-              style={[
-                styles.popupCard,
-                { backgroundColor: ui.surface, borderColor: ui.border },
-              ]}
-            >
-              <View style={styles.popupHeader}>
-                <ThemedText type="defaultSemiBold" style={{ color: ui.text }}>
-                  Select Account
-                </ThemedText>
-                <Pressable
-                  onPress={() => setAccountModalOpen(false)}
-                  hitSlop={12}
-                  style={[styles.popupClose, { backgroundColor: ui.surface2 }]}
-                >
-                  <Feather name="x" size={16} color={ui.text} />
-                </Pressable>
-              </View>
-
-              <ThemedText
-                style={[styles.modalSectionLabel, { color: ui.mutedText }]}
-              >
-                {orderedAccounts.length} account
-                {orderedAccounts.length === 1 ? "" : "s"}
-              </ThemedText>
-
-              {accounts.length === 0 ? (
-                <ThemedText
-                  style={{
-                    textAlign: "center",
-                    padding: 20,
-                    color: ui.mutedText,
-                  }}
-                >
-                  {isLoading ? "Loading..." : "No accounts yet."}
-                </ThemedText>
-              ) : (
-                <View style={styles.accountPillWrap}>
-                  {orderedAccounts.map((account, index) => {
-                    const accent = getAccountColor(account, index);
-                    const accentText = getReadableAccent(accent);
-                    const isSelected = selectedAccount?.id === account.id;
-                    return (
-                      <Pressable
-                        key={account.id}
-                        style={({ pressed }) => [
-                          styles.accountPill,
-                          {
-                            borderColor: isSelected ? accentText : ui.border,
-                            backgroundColor: isSelected
-                              ? `${accent}22`
-                              : ui.surface2,
-                            opacity: pressed ? 0.7 : 1,
-                          },
-                        ]}
-                        onPress={() => {
-                          setSelectedAccount(account);
-                          setAccountModalOpen(false);
-                        }}
-                      >
-                        <View
-                          style={[
-                            styles.accountDot,
-                            { backgroundColor: accent },
-                          ]}
-                        />
-                        <ThemedText
-                          numberOfLines={1}
-                          style={[
-                            styles.accountPillText,
-                            { color: isSelected ? accentText : ui.text },
-                          ]}
-                        >
-                          {account.account_name ?? "Unnamed account"}
-                        </ThemedText>
-                        {isSelected && (
-                          <Feather name="check" size={14} color={accentText} />
-                        )}
-                      </Pressable>
-                    );
-                  })}
-                </View>
-              )}
             </View>
           </View>
         </Modal>

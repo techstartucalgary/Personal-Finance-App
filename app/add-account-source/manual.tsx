@@ -1,4 +1,5 @@
 import Feather from "@expo/vector-icons/Feather";
+import { usePreventRemove } from "@react-navigation/native";
 import { useFocusEffect, useNavigation, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -45,8 +46,60 @@ export default function AddAccountManualScreen() {
   const [createStatementDate, setCreateStatementDate] = useState("2026-01-01");
   const [createPaymentDate, setCreatePaymentDate] = useState("2026-01-01");
   const [createCurrency, setCreateCurrency] = useState("CAD");
+  const [allowRemoval, setAllowRemoval] = useState(false);
 
-  const canCreate = useMemo(() => !!userId && name.trim().length > 0, [userId, name]);
+  const hasUnsavedChanges = useMemo(
+    () =>
+      name.trim().length > 0 ||
+      createBalance.trim().length > 0 ||
+      createLimit.trim().length > 0 ||
+      createInterest.trim().length > 0 ||
+      createStatementDate !== "2026-01-01" ||
+      createPaymentDate !== "2026-01-01" ||
+      createCurrency.trim() !== "CAD" ||
+      type !== "credit",
+    [
+      createBalance,
+      createCurrency,
+      createInterest,
+      createLimit,
+      createPaymentDate,
+      createStatementDate,
+      name,
+      type,
+    ],
+  );
+
+  const canCreate = useMemo(
+    () =>
+      !!userId &&
+      name.trim().length > 0 &&
+      createBalance.trim().length > 0 &&
+      createStatementDate.trim().length > 0 &&
+      createPaymentDate.trim().length > 0 &&
+      createCurrency.trim().length > 0,
+    [createBalance, createCurrency, createPaymentDate, createStatementDate, name, userId],
+  );
+
+  usePreventRemove(hasUnsavedChanges && !allowRemoval, ({ data }) => {
+    Alert.alert(
+      "Discard changes?",
+      "You have unsaved changes. Are you sure you want to leave this screen?",
+      [
+        { text: "Keep Editing", style: "cancel" },
+        {
+          text: "Discard",
+          style: "destructive",
+          onPress: () => {
+            setAllowRemoval(true);
+            requestAnimationFrame(() => {
+              navigation.dispatch(data.action);
+            });
+          },
+        },
+      ],
+    );
+  });
 
   const handleCreate = useCallback(async () => {
     if (!userId || !canCreate) return;
@@ -65,6 +118,7 @@ export default function AddAccountManualScreen() {
     };
 
     try {
+      setAllowRemoval(true);
       await createAccountApi({
         profile_id: userId,
         account_name: name.trim(),
@@ -78,6 +132,7 @@ export default function AddAccountManualScreen() {
       });
       router.dismissAll();
     } catch (error) {
+      setAllowRemoval(false);
       console.error("Error adding account:", error);
       Alert.alert("Could not add account", "Please try again.");
     } finally {
@@ -101,6 +156,7 @@ export default function AddAccountManualScreen() {
     navigation.setOptions({
       title: "Add Account",
       headerBackButtonDisplayMode: "minimal",
+      headerBackButtonMenuEnabled: false,
       headerTitleAlign: "center",
       headerTransparent: Platform.OS === "ios",
       headerShadowVisible: false,
@@ -119,7 +175,7 @@ export default function AddAccountManualScreen() {
             height: 32,
             alignItems: "center",
             justifyContent: "center",
-            opacity: pressed || !canCreate || isLoading ? 0.55 : 1,
+            opacity: pressed || !canCreate || isLoading ? 0.3 : 1,
           })}
         >
           <IconSymbol name="checkmark" size={22} color={ui.accent} />

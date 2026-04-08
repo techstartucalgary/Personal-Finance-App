@@ -68,14 +68,7 @@ function ProtectedLayout() {
         name="add-account-source"
         options={{
           presentation: "pageSheet",
-          headerShown: true,
-        }}
-      />
-      <Stack.Screen
-        name="add-account-manual"
-        options={{
-          presentation: "pageSheet",
-          headerShown: true,
+          headerShown: false,
         }}
       />
       <Stack.Screen

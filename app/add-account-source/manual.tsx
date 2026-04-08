@@ -1,5 +1,5 @@
 import Feather from "@expo/vector-icons/Feather";
-import { useNavigation, useRouter } from "expo-router";
+import { useFocusEffect, useNavigation, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
@@ -8,17 +8,16 @@ import {
   ScrollView,
   StyleSheet,
   TextInput,
-  View
+  View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { styles as tabStyles } from "@/components/accounts/tab/styles";
+import { consumePendingAddAccountType } from "@/components/accounts/add-account-type-selection";
 import type { AccountType } from "@/components/accounts/tab/types";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { DateTimePickerField } from "@/components/ui/DateTimePickerField";
 import { IconSymbol } from "@/components/ui/icon-symbol";
-import { SelectionModal } from "@/components/ui/SelectionModal";
 import { useAuthContext } from "@/hooks/use-auth-context";
 import { useThemeUI } from "@/hooks/use-theme-ui";
 import { createAccount as createAccountApi } from "@/utils/accounts";
@@ -35,12 +34,11 @@ export default function AddAccountManualScreen() {
   const isDark = ui.bg === "#000000" || ui.bg === "#1C1C1E";
   const pageBackground = isDark ? ui.surface : "#F2F2F7";
   const cardBackground = isDark ? ui.surface2 : "#FFFFFF";
-  const heroBackground = isDark ? "rgba(140,242,209,0.12)" : ui.accentSoft;
+  const heroBackground = ui.accentSoft;
 
   const [isLoading, setIsLoading] = useState(false);
   const [name, setName] = useState("");
   const [type, setType] = useState<AccountType>("credit");
-  const [typeModalOpen, setTypeModalOpen] = useState(false);
   const [createBalance, setCreateBalance] = useState("");
   const [createLimit, setCreateLimit] = useState("");
   const [createInterest, setCreateInterest] = useState("");
@@ -48,43 +46,36 @@ export default function AddAccountManualScreen() {
   const [createPaymentDate, setCreatePaymentDate] = useState("2026-01-01");
   const [createCurrency, setCreateCurrency] = useState("CAD");
 
-  const canCreate = useMemo(
-    () => !!userId && name.trim().length > 0,
-    [userId, name]
-  );
+  const canCreate = useMemo(() => !!userId && name.trim().length > 0, [userId, name]);
 
   const handleCreate = useCallback(async () => {
     if (!userId || !canCreate) return;
-
     setIsLoading(true);
 
     const cleanNumber = (value: string, fallback?: number) => {
       const trimmed = value.trim();
       if (trimmed.length === 0) return fallback ?? 0;
       const parsed = parseFloat(trimmed);
-      return Number.isFinite(parsed) ? parsed : (fallback ?? 0);
+      return Number.isFinite(parsed) ? parsed : fallback ?? 0;
     };
 
     const cleanText = (value: string, fallback?: string) => {
       const trimmed = value.trim();
-      return trimmed.length > 0 ? trimmed : (fallback ?? "");
-    };
-
-    const payload = {
-      profile_id: userId,
-      account_name: name.trim(),
-      account_type: type,
-      balance: cleanNumber(createBalance, 0),
-      credit_limit: cleanNumber(createLimit, 0),
-      statement_duedate: cleanText(createStatementDate, "2026-01-01"),
-      payment_duedate: cleanText(createPaymentDate, "2026-01-01"),
-      interest_rate: cleanNumber(createInterest, 0),
-      currency: cleanText(createCurrency, "CAD"),
+      return trimmed.length > 0 ? trimmed : fallback ?? "";
     };
 
     try {
-      await createAccountApi(payload);
-      // Success! Dismiss the entire modal stack
+      await createAccountApi({
+        profile_id: userId,
+        account_name: name.trim(),
+        account_type: type,
+        balance: cleanNumber(createBalance, 0),
+        credit_limit: cleanNumber(createLimit, 0),
+        statement_duedate: cleanText(createStatementDate, "2026-01-01"),
+        payment_duedate: cleanText(createPaymentDate, "2026-01-01"),
+        interest_rate: cleanNumber(createInterest, 0),
+        currency: cleanText(createCurrency, "CAD"),
+      });
       router.dismissAll();
     } catch (error) {
       console.error("Error adding account:", error);
@@ -93,23 +84,23 @@ export default function AddAccountManualScreen() {
       setIsLoading(false);
     }
   }, [
-    userId,
     canCreate,
-    name,
-    type,
     createBalance,
-    createLimit,
-    createInterest,
-    createStatementDate,
-    createPaymentDate,
     createCurrency,
+    createInterest,
+    createLimit,
+    createPaymentDate,
+    createStatementDate,
+    name,
     router,
+    type,
+    userId,
   ]);
 
   useEffect(() => {
     navigation.setOptions({
       title: "Add Account",
-      headerBackVisible: false,
+      headerBackButtonDisplayMode: "minimal",
       headerTitleAlign: "center",
       headerTransparent: Platform.OS === "ios",
       headerShadowVisible: false,
@@ -118,21 +109,6 @@ export default function AddAccountManualScreen() {
       },
       headerTitleStyle: { color: ui.text },
       headerTintColor: ui.accent,
-      headerLeft: () => (
-        <Pressable
-          onPress={() => router.dismissAll()}
-          hitSlop={10}
-          style={({ pressed }) => ({
-            minWidth: 32,
-            height: 32,
-            alignItems: "center",
-            justifyContent: "center",
-            opacity: pressed ? 0.55 : 1,
-          })}
-        >
-          <IconSymbol name="xmark" size={22} color={ui.text} />
-        </Pressable>
-      ),
       headerRight: () => (
         <Pressable
           onPress={handleCreate}
@@ -150,15 +126,19 @@ export default function AddAccountManualScreen() {
         </Pressable>
       ),
     });
-  }, [canCreate, handleCreate, isLoading, navigation, pageBackground, router, ui.accent, ui.text]);
+  }, [canCreate, handleCreate, isLoading, navigation, pageBackground, ui.accent, ui.text]);
+
+  useFocusEffect(
+    useCallback(() => {
+      const nextType = consumePendingAddAccountType();
+      if (nextType) {
+        setType(nextType);
+      }
+    }, []),
+  );
 
   return (
-    <ThemedView
-      style={{
-        flex: 1,
-        backgroundColor: pageBackground,
-      }}
-    >
+    <ThemedView style={{ flex: 1, backgroundColor: pageBackground }}>
       <ScrollView
         contentInsetAdjustmentBehavior="automatic"
         contentContainerStyle={{
@@ -168,16 +148,16 @@ export default function AddAccountManualScreen() {
         }}
         showsVerticalScrollIndicator={false}
       >
-        <View style={localStyles.heroSection}>
-          <View style={localStyles.sectionHeader}>
-            <ThemedText style={[localStyles.sectionHeaderText, { color: ui.mutedText }]}>
+        <View style={styles.heroSection}>
+          <View style={styles.sectionHeader}>
+            <ThemedText style={[styles.sectionHeaderText, { color: ui.mutedText }]}>
               STARTING BALANCE
             </ThemedText>
           </View>
           <Pressable
             onPress={() => amountInputRef.current?.focus()}
             style={({ pressed }) => [
-              localStyles.amountContainer,
+              styles.amountContainer,
               {
                 backgroundColor: heroBackground,
                 borderColor: `${ui.accent}40`,
@@ -185,9 +165,7 @@ export default function AddAccountManualScreen() {
               },
             ]}
           >
-            <ThemedText style={[localStyles.currencySymbol, { color: ui.accent }]}>
-              $
-            </ThemedText>
+            <ThemedText style={[styles.currencySymbol, { color: ui.accent }]}>$</ThemedText>
             <TextInput
               ref={amountInputRef}
               value={createBalance}
@@ -195,24 +173,19 @@ export default function AddAccountManualScreen() {
               keyboardType="decimal-pad"
               placeholder="0.00"
               placeholderTextColor={`${ui.accent}88`}
-              style={[localStyles.amountInput, { color: ui.accent }]}
+              style={[styles.amountInput, { color: ui.accent }]}
             />
           </Pressable>
         </View>
 
-        <View style={localStyles.sectionHeader}>
-          <ThemedText style={[localStyles.sectionHeaderText, { color: ui.mutedText }]}>
+        <View style={styles.sectionHeader}>
+          <ThemedText style={[styles.sectionHeaderText, { color: ui.mutedText }]}>
             ACCOUNT INFO
           </ThemedText>
         </View>
 
-        <View
-          style={[
-            localStyles.groupCard,
-            { borderColor: ui.border, backgroundColor: cardBackground },
-          ]}
-        >
-          <View style={localStyles.inputRow}>
+        <View style={[styles.groupCard, { borderColor: ui.border, backgroundColor: cardBackground }]}>
+          <View style={styles.inputRow}>
             <IconSymbol name="signature" size={20} color={ui.mutedText} />
             <TextInput
               value={name}
@@ -220,98 +193,90 @@ export default function AddAccountManualScreen() {
               placeholder="Account name"
               placeholderTextColor={ui.mutedText}
               autoCapitalize="words"
-              style={[localStyles.rowInput, { color: ui.text }]}
+              style={[styles.rowInput, { color: ui.text }]}
             />
           </View>
 
-          <View style={[localStyles.rowSeparator, { backgroundColor: ui.border }]} />
+          <View style={[styles.rowSeparator, { backgroundColor: ui.border }]} />
 
-          <Pressable onPress={() => setTypeModalOpen(true)} style={localStyles.inputRow}>
+          <Pressable
+            onPress={() =>
+              router.push({
+                pathname: "/add-account-source/account-type",
+                params: { currentType: type },
+              })
+            }
+            style={styles.inputRow}
+          >
             <IconSymbol name="creditcard" size={20} color={ui.mutedText} />
-            <ThemedText style={[localStyles.rowLabel, { color: ui.text }]}>
+            <ThemedText style={[styles.rowLabel, { color: ui.text }]}>
               Account type
             </ThemedText>
-            <ThemedText style={[localStyles.rowValue, { color: ui.text }]}>
+            <ThemedText style={[styles.rowValue, { color: ui.text }]}>
               {type === "credit" ? "Credit" : "Debit"}
             </ThemedText>
             <Feather name="chevron-right" size={16} color={ui.mutedText} />
           </Pressable>
 
-          <View style={[localStyles.rowSeparator, { backgroundColor: ui.border }]} />
+          <View style={[styles.rowSeparator, { backgroundColor: ui.border }]} />
 
-          <View style={localStyles.inputRow}>
+          <View style={styles.inputRow}>
             <IconSymbol name="dollarsign.circle" size={20} color={ui.mutedText} />
-            <ThemedText style={[localStyles.rowLabel, { color: ui.text }]}>
-              Currency
-            </ThemedText>
+            <ThemedText style={[styles.rowLabel, { color: ui.text }]}>Currency</ThemedText>
             <TextInput
               value={createCurrency}
               onChangeText={setCreateCurrency}
               autoCapitalize="characters"
               placeholder="CAD"
               placeholderTextColor={ui.mutedText}
-              style={[localStyles.rowValueInput, { color: ui.text }]}
+              style={[styles.rowValueInput, { color: ui.text }]}
             />
           </View>
         </View>
 
-        <View style={localStyles.sectionHeader}>
-          <ThemedText style={[localStyles.sectionHeaderText, { color: ui.mutedText }]}>
+        <View style={styles.sectionHeader}>
+          <ThemedText style={[styles.sectionHeaderText, { color: ui.mutedText }]}>
             CREDIT DETAILS
           </ThemedText>
         </View>
 
-        <View
-          style={[
-            localStyles.groupCard,
-            { borderColor: ui.border, backgroundColor: cardBackground },
-          ]}
-        >
-          <View style={localStyles.inputRow}>
+        <View style={[styles.groupCard, { borderColor: ui.border, backgroundColor: cardBackground }]}>
+          <View style={styles.inputRow}>
             <IconSymbol name="banknote" size={20} color={ui.mutedText} />
-            <ThemedText style={[localStyles.rowLabel, { color: ui.text }]}>
-              Credit limit
-            </ThemedText>
+            <ThemedText style={[styles.rowLabel, { color: ui.text }]}>Credit limit</ThemedText>
             <TextInput
               value={createLimit}
               onChangeText={setCreateLimit}
               keyboardType="decimal-pad"
               placeholder="0"
               placeholderTextColor={ui.mutedText}
-              style={[localStyles.rowValueInput, { color: ui.text }]}
+              style={[styles.rowValueInput, { color: ui.text }]}
             />
           </View>
 
-          <View style={[localStyles.rowSeparator, { backgroundColor: ui.border }]} />
+          <View style={[styles.rowSeparator, { backgroundColor: ui.border }]} />
 
-          <View style={localStyles.inputRow}>
+          <View style={styles.inputRow}>
             <IconSymbol name="percent" size={20} color={ui.mutedText} />
-            <ThemedText style={[localStyles.rowLabel, { color: ui.text }]}>
-              Interest rate
-            </ThemedText>
+            <ThemedText style={[styles.rowLabel, { color: ui.text }]}>Interest rate</ThemedText>
             <TextInput
               value={createInterest}
               onChangeText={setCreateInterest}
               keyboardType="decimal-pad"
               placeholder="0%"
               placeholderTextColor={ui.mutedText}
-              style={[localStyles.rowValueInput, { color: ui.text }]}
+              style={[styles.rowValueInput, { color: ui.text }]}
             />
           </View>
         </View>
 
-        <View style={localStyles.sectionHeader}>
-          <ThemedText style={[localStyles.sectionHeaderText, { color: ui.mutedText }]}>
+        <View style={styles.sectionHeader}>
+          <ThemedText style={[styles.sectionHeaderText, { color: ui.mutedText }]}>
             DUE DATES
           </ThemedText>
         </View>
 
-        <View
-          style={[
-            localStyles.groupCard,
-            { borderColor: ui.border, backgroundColor: cardBackground },
-          ]}
-        >
+        <View style={[styles.groupCard, { borderColor: ui.border, backgroundColor: cardBackground }]}>
           <DateTimePickerField
             label="Statement Due Date"
             value={parseLocalDate(createStatementDate)}
@@ -319,7 +284,7 @@ export default function AddAccountManualScreen() {
             ui={ui}
           />
 
-          <View style={[localStyles.rowSeparator, { backgroundColor: ui.border }]} />
+          <View style={[styles.rowSeparator, { backgroundColor: ui.border }]} />
 
           <DateTimePickerField
             label="Payment Due Date"
@@ -329,50 +294,13 @@ export default function AddAccountManualScreen() {
           />
         </View>
       </ScrollView>
-
-      {/* Account Type Selection Pop-over */}
-      <SelectionModal
-        visible={typeModalOpen}
-        onClose={() => setTypeModalOpen(false)}
-        title="Select Account Type"
-        ui={ui}
-      >
-        <Pressable
-          style={[
-            tabStyles.modalOption,
-            { borderColor: ui.border, backgroundColor: ui.surface },
-          ]}
-          onPress={() => {
-            setType("credit");
-            setTypeModalOpen(false);
-          }}
-        >
-          <ThemedText>Credit</ThemedText>
-        </Pressable>
-        <Pressable
-          style={[
-            tabStyles.modalOption,
-            { borderColor: ui.border, backgroundColor: ui.surface },
-          ]}
-          onPress={() => {
-            setType("debit");
-            setTypeModalOpen(false);
-          }}
-        >
-          <ThemedText>Debit</ThemedText>
-        </Pressable>
-      </SelectionModal>
     </ThemedView>
   );
 }
 
-const localStyles = StyleSheet.create({
-  heroSection: {
-    gap: 8,
-  },
-  sectionHeader: {
-    marginTop: 6,
-  },
+const styles = StyleSheet.create({
+  heroSection: { gap: 8 },
+  sectionHeader: { marginTop: 6 },
   sectionHeaderText: {
     fontSize: 12,
     lineHeight: 16,

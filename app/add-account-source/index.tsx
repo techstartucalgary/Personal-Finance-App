@@ -1,7 +1,14 @@
 import Feather from "@expo/vector-icons/Feather";
 import { useNavigation, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, Alert, Platform, Pressable, StyleSheet, View } from "react-native";
+import {
+  ActivityIndicator,
+  Alert,
+  Platform,
+  Pressable,
+  StyleSheet,
+  View,
+} from "react-native";
 import {
   LinkExit,
   LinkSuccess,
@@ -10,11 +17,9 @@ import {
   open as plaidOpen,
 } from "react-native-plaid-link-sdk";
 
-import { styles as tabStyles } from "@/components/accounts/tab/styles";
 import { ThemedText } from "@/components/themed-text";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { SelectionModal } from "@/components/ui/SelectionModal";
-import { useAuthContext } from "@/hooks/use-auth-context";
 import { useThemeUI } from "@/hooks/use-theme-ui";
 import { exchangePublicToken, getLinkToken } from "@/utils/plaid";
 
@@ -22,12 +27,15 @@ export default function AddAccountSourceScreen() {
   const router = useRouter();
   const navigation = useNavigation();
   const ui = useThemeUI();
-  const { session } = useAuthContext();
   const [isConnecting, setIsConnecting] = useState(false);
   const isDark = ui.bg === "#000000" || ui.bg === "#1C1C1E";
   const pageBackground = isDark ? ui.surface : "#F2F2F7";
   const optionBackground = isDark ? ui.surface2 : "#FFFFFF";
-  const iconChipBackground = isDark ? (Platform.OS === "ios" ? ui.surface : ui.bg) : "#F2F2F7";
+  const iconChipBackground = isDark
+    ? Platform.OS === "ios"
+      ? ui.surface
+      : ui.bg
+    : "#F2F2F7";
   const subtleBorder = ui.border;
   const heroBadgeBackground = isDark ? "rgba(255,255,255,0.08)" : ui.accentSoft;
   const connectCardBackground = useMemo(
@@ -51,21 +59,17 @@ export default function AddAccountSourceScreen() {
               try {
                 setIsConnecting(true);
                 const institutionName = success.metadata?.institution?.name;
-                await exchangePublicToken(
-                  success.publicToken,
-                  institutionName
-                );
+                await exchangePublicToken(success.publicToken, institutionName);
                 Alert.alert(
                   "Success!",
-                  `${institutionName || "Bank"} connected successfully.`
+                  `${institutionName || "Bank"} connected successfully.`,
                 );
-                // Dismiss the modal stack after success
                 router.dismissAll();
               } catch (err) {
                 console.error("Error exchanging token:", err);
                 Alert.alert(
                   "Connection Error",
-                  "Bank connection failed. Please try again."
+                  "Bank connection failed. Please try again.",
                 );
               } finally {
                 setIsConnecting(false);
@@ -82,7 +86,7 @@ export default function AddAccountSourceScreen() {
       console.error("Error getting link token:", err);
       Alert.alert(
         "Connection Error",
-        "Could not start bank connection. Please try again."
+        "Could not start bank connection. Please try again.",
       );
       setIsConnecting(false);
     }
@@ -120,16 +124,16 @@ export default function AddAccountSourceScreen() {
 
   return (
     <SelectionModal
-      visible={true}
-      isSheet={true}
-      hideHeader={true}
+      visible
+      isSheet
+      hideHeader
       onClose={() => router.back()}
       title="Add Account"
       ui={{ ...ui, surface: pageBackground }}
     >
       <View
         style={[
-          localStyles.heroCard,
+          styles.heroCard,
           {
             backgroundColor: optionBackground,
             borderColor: subtleBorder,
@@ -138,46 +142,44 @@ export default function AddAccountSourceScreen() {
       >
         <View
           style={[
-            localStyles.heroBadge,
+            styles.heroBadge,
             { backgroundColor: heroBadgeBackground },
           ]}
         >
           <IconSymbol name="wallet.bifold" size={18} color={ui.accent} />
         </View>
-        <ThemedText style={[localStyles.heroTitle, { color: ui.text }]}>
+        <ThemedText style={[styles.heroTitle, { color: ui.text }]}>
           Choose how you want to add this account
         </ThemedText>
-        <ThemedText style={[localStyles.heroSubtitle, { color: ui.mutedText }]}>
+        <ThemedText style={[styles.heroSubtitle, { color: ui.mutedText }]}>
           Start with a self-managed account or connect your bank for automatic sync.
         </ThemedText>
       </View>
 
       <Pressable
         style={[
-          localStyles.optionCard,
+          styles.optionCard,
           {
             borderColor: subtleBorder,
             backgroundColor: optionBackground,
           },
         ]}
-        onPress={() => router.push("/add-account-manual")}
+        onPress={() => router.push("/add-account-source/manual")}
       >
         <View
           style={[
-            localStyles.optionIconWrap,
+            styles.optionIconWrap,
             { backgroundColor: iconChipBackground },
           ]}
         >
           <Feather name="edit-2" size={18} color={ui.text} />
         </View>
-        <View style={localStyles.optionBody}>
-          <View style={localStyles.optionHeaderRow}>
+        <View style={styles.optionBody}>
+          <View style={styles.optionHeaderRow}>
             <ThemedText type="defaultSemiBold">Self-Managed Account</ThemedText>
             <Feather name="chevron-right" size={18} color={ui.mutedText} />
           </View>
-          <ThemedText
-            style={{ color: ui.mutedText, fontSize: 13, marginTop: 4 }}
-          >
+          <ThemedText style={{ color: ui.mutedText, fontSize: 13, marginTop: 4 }}>
             Add the balance and details yourself, then track transactions manually.
           </ThemedText>
         </View>
@@ -185,7 +187,7 @@ export default function AddAccountSourceScreen() {
 
       <Pressable
         style={[
-          localStyles.optionCard,
+          styles.optionCard,
           {
             borderColor: subtleBorder,
             backgroundColor: connectCardBackground,
@@ -197,7 +199,7 @@ export default function AddAccountSourceScreen() {
       >
         <View
           style={[
-            localStyles.optionIconWrap,
+            styles.optionIconWrap,
             { backgroundColor: ui.accentSoft },
           ]}
         >
@@ -207,23 +209,21 @@ export default function AddAccountSourceScreen() {
             <Feather name="link" size={18} color={ui.accent} />
           )}
         </View>
-        <View style={localStyles.optionBody}>
-          <View style={localStyles.optionHeaderRow}>
+        <View style={styles.optionBody}>
+          <View style={styles.optionHeaderRow}>
             <ThemedText type="defaultSemiBold">
-            {isConnecting ? "Connecting..." : "Connect Bank"}
+              {isConnecting ? "Connecting..." : "Connect Bank"}
             </ThemedText>
             <Feather name="chevron-right" size={18} color={ui.mutedText} />
           </View>
-          <ThemedText
-            style={{ color: ui.mutedText, fontSize: 13, marginTop: 4 }}
-          >
+          <ThemedText style={{ color: ui.mutedText, fontSize: 13, marginTop: 4 }}>
             Sync balances and transactions automatically with Plaid.
           </ThemedText>
         </View>
       </Pressable>
 
-      <View style={localStyles.footnoteWrap}>
-        <ThemedText style={[localStyles.footnote, { color: ui.mutedText }]}>
+      <View style={styles.footnoteWrap}>
+        <ThemedText style={[styles.footnote, { color: ui.mutedText }]}>
           You can unlink bank connections or edit manual accounts later from the account details screen.
         </ThemedText>
       </View>
@@ -231,7 +231,7 @@ export default function AddAccountSourceScreen() {
   );
 }
 
-const localStyles = StyleSheet.create({
+const styles = StyleSheet.create({
   heroCard: {
     borderWidth: StyleSheet.hairlineWidth,
     borderRadius: 24,
@@ -260,13 +260,12 @@ const localStyles = StyleSheet.create({
     textAlign: "center",
   },
   optionCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 14,
     borderWidth: StyleSheet.hairlineWidth,
     borderRadius: 22,
-    paddingHorizontal: 16,
-    paddingVertical: 16,
+    padding: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
   },
   optionIconWrap: {
     width: 42,
@@ -282,13 +281,14 @@ const localStyles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    gap: 12,
+    gap: 8,
   },
   footnoteWrap: {
     paddingTop: 6,
+    paddingHorizontal: 4,
   },
   footnote: {
-    fontSize: 12.5,
+    fontSize: 12,
     lineHeight: 18,
     textAlign: "center",
   },

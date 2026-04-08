@@ -801,6 +801,7 @@ interface AddTransactionModalProps {
   isSheet?: boolean;
   hideHeader?: boolean;
   onOpenAccountPicker?: (currentAccountId: number | null) => void;
+  onStateChange?: (state: { isDirty: boolean; isValid: boolean }) => void;
 }
 
 const EMPTY_RECURRING_RULES: any[] = [];
@@ -823,6 +824,7 @@ export const AddTransactionModal = forwardRef<AddTransactionModalRef, AddTransac
     isSheet = false,
     hideHeader = false,
     onOpenAccountPicker,
+    onStateChange,
   } = props;
   const insets = useSafeAreaInsets();
   const amountInputRef = React.useRef<TextInput>(null);
@@ -1225,7 +1227,7 @@ export const AddTransactionModal = forwardRef<AddTransactionModalRef, AddTransac
   }, [isRecurring, recurringFrequency, isViewMode, isEditMode, recurrenceTouched]);
 
   // TODO(backend): Allow transfer flow once accounts-to-accounts transfers are supported.
-  const canCreate = useMemo(() => {
+  const isValid = useMemo(() => {
     if (isViewMode) return false;
     const parsed = parseFloat(amount);
     return (
@@ -1246,6 +1248,51 @@ export const AddTransactionModal = forwardRef<AddTransactionModalRef, AddTransac
     transactionType,
     isViewMode,
   ]);
+
+  const isDirty = useMemo(() => {
+    if (isViewMode) return false;
+    if (isEditMode && initialTransaction) {
+      const currentAmount = parseFloat(amount) || 0;
+      const initialAmount = Math.abs(initialTransaction.amount ?? 0);
+      const currentType = transactionType;
+      const initialType = (initialTransaction.amount ?? 0) < 0 ? "income" : "expense";
+      
+      const hasBasicChanges = 
+        currentAmount !== initialAmount ||
+        description.trim() !== (initialTransaction.description ?? "").trim() ||
+        currentType !== initialType ||
+        selectedAccount?.id !== initialTransaction.account_id ||
+        selectedCategory?.id !== initialTransaction.expense_categoryid ||
+        (selectedSubcategory?.id ?? null) !== (initialTransaction.subcategory_id ?? null) ||
+        transactionDate !== (initialTransaction.transaction_date || "");
+
+      return hasBasicChanges;
+    }
+    
+    // For Add mode:
+    return (
+      amount.trim() !== "" || 
+      description.trim() !== "" || 
+      (selectedAccount !== null && accounts.length > 1) || // ignore auto-selected if only 1
+      selectedCategory !== null
+    );
+  }, [
+    isViewMode,
+    isEditMode,
+    initialTransaction,
+    amount,
+    description,
+    transactionType,
+    selectedAccount,
+    selectedCategory,
+    selectedSubcategory,
+    transactionDate,
+    accounts.length
+  ]);
+
+  useEffect(() => {
+    onStateChange?.({ isDirty, isValid });
+  }, [isDirty, isValid, onStateChange]);
 
   const handleSubmit = async () => {
     if (isEditMode) {
@@ -2356,7 +2403,7 @@ export const AddTransactionModal = forwardRef<AddTransactionModalRef, AddTransac
                   ) : (
                     <Pressable
                       onPress={handleSubmit}
-                      disabled={!canCreate || isLoading}
+                      disabled={!isValid || isLoading}
                       style={({ pressed }) => [
                         styles.button,
                         {
@@ -2364,7 +2411,7 @@ export const AddTransactionModal = forwardRef<AddTransactionModalRef, AddTransac
                           borderColor: ui.border,
                           opacity: pressed ? 0.8 : 1,
                         },
-                        (!canCreate || isLoading) && styles.buttonDisabled,
+                        (!isValid || isLoading) && styles.buttonDisabled,
                       ]}
                     >
                       {isLoading ? (

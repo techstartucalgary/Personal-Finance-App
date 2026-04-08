@@ -7,6 +7,7 @@ import { listAccounts } from "@/utils/accounts";
 import { listCategories } from "@/utils/categories";
 import { listExpenses } from "@/utils/expenses";
 import { getRecurringRules } from "@/utils/recurring";
+import { usePreventRemove } from "@react-navigation/native";
 import { useLocalSearchParams, useNavigation, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Alert, Platform, Pressable, useColorScheme, View } from "react-native";
@@ -36,6 +37,9 @@ export default function TransactionEditScreen() {
   const [accounts, setAccounts] = useState<AccountRow[]>([]);
   const [categories, setCategories] = useState<CategoryRow[]>([]);
   const [recurringRules, setRecurringRules] = useState<any[]>([]);
+  const [isDirty, setIsDirty] = useState(false);
+  const [isValid, setIsValid] = useState(false);
+  const [allowRemoval, setAllowRemoval] = useState(false);
 
   const loadData = useCallback(async () => {
     if (!userId || !id) return;
@@ -89,13 +93,35 @@ export default function TransactionEditScreen() {
   }, [loadData]);
 
   const handleSave = useCallback(async () => {
-    if (!modalRef.current) return;
+    if (!modalRef.current || !isValid) return;
     try {
+      setAllowRemoval(true);
       await modalRef.current.submit();
     } catch (err) {
+      setAllowRemoval(false);
       console.error("Save failed:", err);
     }
-  }, []);
+  }, [isValid]);
+
+  usePreventRemove(isDirty && !allowRemoval, ({ data }) => {
+    Alert.alert(
+      "Discard changes?",
+      "You have unsaved changes. Are you sure you want to leave this screen?",
+      [
+        { text: "Keep Editing", style: "cancel" },
+        {
+          text: "Discard",
+          style: "destructive",
+          onPress: () => {
+            setAllowRemoval(true);
+            requestAnimationFrame(() => {
+              navigation.dispatch(data.action);
+            });
+          },
+        },
+      ],
+    );
+  });
 
   useEffect(() => {
     navigation.setOptions({
@@ -109,23 +135,27 @@ export default function TransactionEditScreen() {
       },
       headerTitleStyle: { color: ui.text },
       headerTintColor: ui.accent,
-      headerRight: () => (
-        <Pressable
-          onPress={handleSave}
-          hitSlop={20}
-          style={({ pressed }) => ({
-            opacity: pressed ? 0.7 : 1,
-            minWidth: 32,
-            height: 32,
-            justifyContent: "center",
-            alignItems: "center",
-          })}
-        >
-          <IconSymbol name="checkmark" size={24} color={ui.accent} />
-        </Pressable>
-      ),
+      headerRight: () => {
+        const canSave = isDirty && isValid;
+        return (
+          <Pressable
+            onPress={handleSave}
+            disabled={!canSave}
+            hitSlop={20}
+            style={({ pressed }) => ({
+              opacity: !canSave ? 0.35 : pressed ? 0.7 : 1,
+              minWidth: 32,
+              height: 32,
+              justifyContent: "center",
+              alignItems: "center",
+            })}
+          >
+            <IconSymbol name="checkmark" size={24} color={ui.accent} />
+          </Pressable>
+        );
+      },
     });
-  }, [navigation, handleSave, ui.accent, ui.text, ui.bg]);
+  }, [navigation, handleSave, ui.accent, ui.text, ui.bg, isDirty, isValid]);
 
   if (isLoading) {
     return (
@@ -151,6 +181,10 @@ export default function TransactionEditScreen() {
       mode="edit"
       initialTransaction={initialTransaction}
       recurringRules={recurringRules}
+      onStateChange={(state) => {
+        setIsDirty(state.isDirty);
+        setIsValid(state.isValid);
+      }}
       onOpenAccountPicker={(currentAccountId) =>
         router.push({
           pathname: "/transaction/[id]/account-select",

@@ -9,10 +9,12 @@ import { useThemeUI } from "@/hooks/use-theme-ui";
 import { listAccounts } from "@/utils/accounts";
 import { listCategories } from "@/utils/categories";
 import { getRecurringRules } from "@/utils/recurring";
+import { usePreventRemove } from "@react-navigation/native";
 import { useNavigation, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   Platform,
   Pressable,
   useColorScheme,
@@ -41,6 +43,9 @@ export default function TransactionAddScreen() {
   const [accounts, setAccounts] = useState<AccountRow[]>([]);
   const [categories, setCategories] = useState<CategoryRow[]>([]);
   const [recurringRules, setRecurringRules] = useState<any[]>([]);
+  const [isDirty, setIsDirty] = useState(false);
+  const [isValid, setIsValid] = useState(false);
+  const [allowRemoval, setAllowRemoval] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
   const loadData = useCallback(async () => {
@@ -67,13 +72,35 @@ export default function TransactionAddScreen() {
   }, [loadData]);
 
   const handleSave = useCallback(async () => {
-    if (!modalRef.current) return;
+    if (!modalRef.current || !isValid) return;
     try {
+      setAllowRemoval(true);
       await modalRef.current.submit();
     } catch (error) {
+      setAllowRemoval(false);
       console.error("Save failed:", error);
     }
-  }, []);
+  }, [isValid]);
+
+  usePreventRemove(isDirty && !allowRemoval, ({ data }) => {
+    Alert.alert(
+      "Discard changes?",
+      "You have unsaved changes. Are you sure you want to leave this screen?",
+      [
+        { text: "Keep Editing", style: "cancel" },
+        {
+          text: "Discard",
+          style: "destructive",
+          onPress: () => {
+            setAllowRemoval(true);
+            requestAnimationFrame(() => {
+              navigation.dispatch(data.action);
+            });
+          },
+        },
+      ],
+    );
+  });
 
   useEffect(() => {
     navigation.setOptions({
@@ -105,20 +132,21 @@ export default function TransactionAddScreen() {
       headerRight: () => (
         <Pressable
           onPress={handleSave}
+          disabled={!isValid}
           hitSlop={10}
           style={({ pressed }) => ({
             minWidth: 32,
             height: 32,
             alignItems: "center",
             justifyContent: "center",
-            opacity: pressed ? 0.55 : 1,
+            opacity: !isValid ? 0.35 : pressed ? 0.55 : 1,
           })}
         >
           <IconSymbol name="checkmark" size={22} color={sheetUi.accent} />
         </Pressable>
       ),
     });
-  }, [handleSave, navigation, router, sheetUi.accent, sheetUi.bg, sheetUi.text]);
+  }, [handleSave, navigation, router, sheetUi.accent, sheetUi.bg, sheetUi.text, isValid]);
 
   if (isLoading) {
     return (
@@ -150,6 +178,10 @@ export default function TransactionAddScreen() {
       userId={userId}
       mode="add"
       recurringRules={recurringRules}
+      onStateChange={(state) => {
+        setIsDirty(state.isDirty);
+        setIsValid(state.isValid);
+      }}
       onOpenAccountPicker={(currentAccountId) =>
         router.push({
           pathname: "/transaction-add/account-select",

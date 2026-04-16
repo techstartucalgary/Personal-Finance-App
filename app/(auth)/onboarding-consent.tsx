@@ -8,10 +8,30 @@ import {
   View,
   Pressable,
   ScrollView,
+  Linking,
+  Alert,
 } from "react-native";
 
 export default function OnboardingConsent() {
   const [agreed, setAgreed] = useState(false);
+
+  const PRIVACY_POLICY_URL =
+    "https://hollow-chocolate-f29.notion.site/Sterling-Privacy-Policy-32843f324ec080389953ee8002665c31";
+
+  const openPrivacyPolicy = async () => {
+    try {
+      const supported = await Linking.canOpenURL(PRIVACY_POLICY_URL);
+
+      if (!supported) {
+        Alert.alert("Unable to open link", "Please try again later.");
+        return;
+      }
+
+      await Linking.openURL(PRIVACY_POLICY_URL);
+    } catch {
+      Alert.alert("Unable to open link", "Please try again later.");
+    }
+  };
 
   const policyText = useMemo(
     () => ({
@@ -21,7 +41,6 @@ export default function OnboardingConsent() {
         "We use this data to sign you in, sync your information across devices, and improve reliability. We do not sell your personal information.",
         "Your data is stored securely with our service providers (for example, Supabase for authentication and database). We only share data when required to operate the app, comply with law, or protect users and the service.",
         "You can request access, correction, or deletion of your account data at any time. If you delete your account, we will remove or anonymize your data unless we are required to keep it for legal or security reasons.",
-        "Full terms and privacy details are available in the complete policy documents.",
       ],
     }),
     []
@@ -59,7 +78,6 @@ export default function OnboardingConsent() {
 
           <View style={styles.divider} />
 
-          {/* Scrollable policy area */}
           <View style={styles.policyCard}>
             <ScrollView
               showsVerticalScrollIndicator
@@ -72,10 +90,21 @@ export default function OnboardingConsent() {
                   {i === 0 ? p : `\n${i}. ${p}`}
                 </Text>
               ))}
+
+              <Text style={styles.policyBody}>
+                {"\n"}5. Full terms and privacy details are available in the{" "}
+                <Text
+                  style={styles.linkText}
+                  onPress={openPrivacyPolicy}
+                  accessibilityRole="link"
+                >
+                  complete privacy policy
+                </Text>
+                .
+              </Text>
             </ScrollView>
           </View>
 
-          {/* Consent row */}
           <View style={styles.consentRow}>
             <Checkbox
               value={agreed}
@@ -83,12 +112,20 @@ export default function OnboardingConsent() {
               color={agreed ? "#111" : undefined}
               style={styles.checkbox}
             />
+
             <Text style={styles.consentText}>
-              I AGREE TO THE PRIVACY POLICY{"\n"}AND TERMS OF SERVICE
+              I AGREE TO THE{" "}
+              <Text
+                style={styles.linkText}
+                onPress={openPrivacyPolicy}
+                accessibilityRole="link"
+              >
+                PRIVACY POLICY
+              </Text>
+              {"\n"}AND TERMS OF SERVICE
             </Text>
           </View>
 
-          {/* Bottom button */}
           <View style={styles.bottom}>
             <Pressable
               onPress={onContinue}
@@ -208,6 +245,12 @@ const styles = StyleSheet.create({
     color: "#111",
     opacity: 0.75,
     lineHeight: 14,
+    flex: 1,
+  },
+
+  linkText: {
+    textDecorationLine: "underline",
+    color: "#111",
   },
 
   bottom: {
@@ -221,11 +264,15 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     alignItems: "center",
   },
+
   ctaDisabled: {
     backgroundColor: "#111",
     opacity: 0.55,
   },
-  ctaPressed: { opacity: 0.85 },
+
+  ctaPressed: {
+    opacity: 0.85,
+  },
 
   ctaText: {
     color: "#FFF",
@@ -234,5 +281,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
 
-  pressed: { opacity: 0.6 },
+  pressed: {
+    opacity: 0.6,
+  },
 });

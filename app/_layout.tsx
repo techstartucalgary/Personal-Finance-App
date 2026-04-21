@@ -47,7 +47,9 @@ function ProtectedLayout() {
         return;
       }
 
-      if (inAuthGroup) {
+      // Allow the MFA verify screen to stay active
+      const onMfaVerify = segments[0] === "mfa-verify";
+      if (inAuthGroup && !onMfaVerify) {
         router.replace("/(tabs)/dashboard");
       }
       return;
@@ -90,6 +92,24 @@ function ProtectedLayout() {
         options={{
           presentation: "card",
           headerShown: true,
+        }}
+      />
+      <Stack.Screen
+        name="mfa-enroll"
+        options={{
+          presentation: "pageSheet",
+          headerShown: true,
+          title: "Set Up Two-Factor Auth",
+        }}
+      />
+      <Stack.Screen
+        name="mfa-verify"
+        options={{
+          presentation: "card",
+          headerShown: true,
+          title: "Verify Identity",
+          gestureEnabled: false,
+          headerBackVisible: false,
         }}
       />
     </Stack>

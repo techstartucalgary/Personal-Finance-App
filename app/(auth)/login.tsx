@@ -84,7 +84,16 @@ export default function Login() {
         return;
       }
 
-      router.replace("/(tabs)/accounts");
+      // Check if user has MFA factors that need verification
+      const { data: factors } = await supabase.auth.mfa.listFactors();
+      const verifiedFactors = factors?.totp ?? [];
+
+      if (verifiedFactors.length > 0) {
+        // User has MFA — send them to the challenge screen
+        router.replace("/mfa-verify" as any);
+      } else {
+        router.replace("/(tabs)/accounts");
+      }
     } finally {
       setLoading(false);
     }
@@ -97,7 +106,15 @@ export default function Login() {
       return;
     }
 
-    router.replace("/(tabs)/accounts");
+    // Check if user has MFA factors that need verification
+    const { data: factors } = await supabase.auth.mfa.listFactors();
+    const verifiedFactors = factors?.totp ?? [];
+
+    if (verifiedFactors.length > 0) {
+      router.replace("/mfa-verify" as any);
+    } else {
+      router.replace("/(tabs)/accounts");
+    }
   }
 
   return (

@@ -1,6 +1,7 @@
+import { IconSymbol } from "@/components/ui/icon-symbol";
 import Feather from "@expo/vector-icons/Feather";
-import { Stack } from "expo-router";
-import React, { useMemo } from "react";
+import { Stack, useFocusEffect, useRouter } from "expo-router";
+import React, { useCallback, useState } from "react";
 import { Alert, Platform, Pressable, ScrollView, StyleSheet, View, useColorScheme } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -9,6 +10,7 @@ import { ThemedText } from "@/components/themed-text";
 import { onSignOutButtonPress } from "@/components/auth_buttons/sign-out-button";
 import { useAuthContext } from "@/hooks/use-auth-context";
 import { useThemeUI } from "@/hooks/use-theme-ui";
+import { supabase } from "@/utils/supabase";
 import { useTheme } from "react-native-paper";
 
 export default function ProfileScreen() {
@@ -16,11 +18,63 @@ export default function ProfileScreen() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
   const { profile, session } = useAuthContext();
+  const router = useRouter();
 
   const theme = useTheme();
   const isAndroid = Platform.OS === 'android';
 
   const ui = useThemeUI();
+
+  // MFA status
+  const [mfaEnabled, setMfaEnabled] = useState(false);
+  const [mfaFactors, setMfaFactors] = useState<
+    Array<{ id: string; friendly_name: string; factor_type: string; status: string; created_at: string }>
+  >([]);
+
+  const checkMfaStatus = useCallback(async () => {
+    try {
+      const { data, error } = await supabase.auth.mfa.listFactors();
+      if (error || !data) return;
+      // data.totp and data.phone only contain verified factors
+      const verified = [...(data.totp ?? []), ...(data.phone ?? [])];
+      setMfaFactors(verified);
+      setMfaEnabled(verified.length > 0);
+    } catch { }
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      checkMfaStatus();
+    }, [checkMfaStatus])
+  );
+
+  const handleUnenroll = useCallback(
+    (factorId: string, name: string) => {
+      Alert.alert(
+        "Remove Device",
+        `Are you sure you want to remove "${name}"? You'll no longer be able to use it for two-factor authentication.`,
+        [
+          { text: "Cancel", style: "cancel" },
+          {
+            text: "Remove",
+            style: "destructive",
+            onPress: async () => {
+              const { error } = await supabase.auth.mfa.unenroll({ factorId });
+              if (error) {
+                Alert.alert("Error", error.message);
+                return;
+              }
+              // Immediately downgrade AAL by refreshing the session
+              await supabase.auth.refreshSession();
+              // Re-fetch factor list
+              await checkMfaStatus();
+            },
+          },
+        ]
+      );
+    },
+    [checkMfaStatus]
+  );
 
   const userMetadata = session?.user?.user_metadata as
     | Record<string, any>
@@ -64,6 +118,7 @@ export default function ProfileScreen() {
           title: "Profile",
           headerBackTitle: "Back",
           headerBackButtonDisplayMode: "minimal",
+          headerTitleAlign: "center",
           headerLargeTitle: false,
           headerTransparent: Platform.OS === "ios",
           headerShadowVisible: false,
@@ -111,7 +166,7 @@ export default function ProfileScreen() {
         <View style={styles.section}>
           <ThemedText style={[styles.sectionTitle, { color: ui.mutedText }]}>PREFERENCES</ThemedText>
 
-          <View style={[styles.card, { backgroundColor: ui.surface2, borderColor: ui.border }]}>
+          <View style={[styles.card, { backgroundColor: ui.surface, borderColor: ui.border }]}>
             <View style={styles.row}>
               <View style={styles.rowLeft}>
                 <View style={[styles.iconBox, { backgroundColor: ui.surface }]}>
@@ -142,12 +197,124 @@ export default function ProfileScreen() {
           </View>
         </View>
 
+        <View style={styles.section}>
+          <ThemedText style={[styles.sectionTitle, { color: ui.mutedText }]}>SECURITY</ThemedText>
+
+          <View style={[styles.card, { backgroundColor: ui.surface, borderColor: ui.border }]}>
+            {/* Header row — always visible */}
+            <View style={styles.row}>
+              <View style={styles.rowLeft}>
+                <View style={[styles.iconBox, { backgroundColor: ui.surface }]}>
+                  <Feather name="shield" size={18} color={ui.accent} />
+                </View>
+                <View style={{ gap: 2 }}>
+                  <ThemedText type="defaultSemiBold">Two-Factor Authentication</ThemedText>
+                  <ThemedText style={{ color: mfaEnabled ? ui.positive : ui.mutedText, fontSize: 13 }}>
+                    {mfaEnabled ? `${mfaFactors.length} device${mfaFactors.length !== 1 ? "s" : ""} enrolled` : "Not enabled"}
+                  </ThemedText>
+                </View>
+              </View>
+              {!mfaEnabled && (
+                <Pressable
+                  onPress={() => router.push("/mfa-enroll" as any)}
+                  hitSlop={10}
+                  style={({ pressed }) => [
+                    {
+                      backgroundColor: ui.accent,
+                      paddingHorizontal: 14,
+                      paddingVertical: 6,
+                      borderRadius: 10,
+                    },
+                    pressed && { opacity: 0.7 },
+                  ]}
+                >
+                  <ThemedText style={{ color: "#fff", fontSize: 14, fontWeight: "600" }}>
+                    Enable
+                  </ThemedText>
+                </Pressable>
+              )}
+            </View>
+
+            {/* Factor list — only when MFA is active */}
+            {mfaEnabled && mfaFactors.map((factor, idx) => (
+              <React.Fragment key={factor.id}>
+                <View style={[styles.divider, { backgroundColor: ui.border }]} />
+                <View style={[styles.row, { paddingVertical: 14 }]}>
+                  <View style={[styles.rowLeft, { flex: 1 }]}>
+                    <View style={[styles.iconBox, { backgroundColor: ui.surface }]}>
+                      <Feather
+                        name={factor.factor_type === "totp" ? "smartphone" : "phone"}
+                        size={16}
+                        color={ui.mutedText}
+                      />
+                    </View>
+                    <View style={{ flex: 1, gap: 2 }}>
+                      <ThemedText type="defaultSemiBold" numberOfLines={1}>
+                        {factor.friendly_name || `Authenticator ${idx + 1}`}
+                      </ThemedText>
+                      <ThemedText style={{ color: ui.mutedText, fontSize: 12 }}>
+                        {factor.factor_type.toUpperCase()} · Added{" "}
+                        {new Date(factor.created_at).toLocaleDateString(undefined, {
+                          month: "short",
+                          day: "numeric",
+                          year: "numeric",
+                        })}
+                      </ThemedText>
+                    </View>
+                  </View>
+                  <Pressable
+                    onPress={() => handleUnenroll(factor.id, factor.friendly_name || `Authenticator ${idx + 1}`)}
+                    hitSlop={10}
+                    style={({ pressed }) => [
+                      {
+                        width: 34,
+                        height: 34,
+                        borderRadius: 10,
+                        alignItems: "center",
+                        justifyContent: "center",
+                        backgroundColor: ui.destructiveSoft,
+                      },
+                      pressed && { opacity: 0.6 },
+                    ]}
+                  >
+                    <IconSymbol name="trash" size={18} color={ui.destructive} />
+                  </Pressable>
+                </View>
+              </React.Fragment>
+            ))}
+
+            {/* Add new factor button — when MFA is already enabled */}
+            {mfaEnabled && (
+              <>
+                <View style={[styles.divider, { backgroundColor: ui.border }]} />
+                <Pressable
+                  onPress={() => router.push("/mfa-enroll" as any)}
+                  style={({ pressed }) => [
+                    styles.row,
+                    pressed && { opacity: 0.7 },
+                  ]}
+                >
+                  <View style={styles.rowLeft}>
+                    <View style={[styles.iconBox, { backgroundColor: ui.surface }]}>
+                      <Feather name="plus" size={18} color={ui.accent} />
+                    </View>
+                    <ThemedText style={{ color: ui.accent, fontWeight: "600" }}>
+                      Add New Device
+                    </ThemedText>
+                  </View>
+                  <Feather name="chevron-right" size={20} color={ui.mutedText} />
+                </Pressable>
+              </>
+            )}
+          </View>
+        </View>
+
         <View style={[styles.section, { marginTop: 32 }]}>
           <Pressable
             onPress={onSignOutButtonPress}
             style={({ pressed }) => [
               styles.deleteAction,
-              { borderColor: ui.border, backgroundColor: ui.surface2 },
+              { borderColor: ui.border, backgroundColor: ui.surface },
               pressed && { opacity: 0.7 }
             ]}
           >

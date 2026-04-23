@@ -77,6 +77,15 @@ export default function Login() {
       });
 
       if (error) {
+        // If the user hasn't confirmed their email yet, send them to verify
+        if (error.message.toLowerCase().includes("email not confirmed")) {
+          router.push({
+            pathname: "/(auth)/verify-email",
+            params: { email: email.trim() },
+          });
+          return;
+        }
+
         setErrors({
           email: "Email or password is incorrect.",
           password: "Email or password is incorrect.",

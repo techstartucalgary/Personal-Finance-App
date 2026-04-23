@@ -128,10 +128,11 @@ export default function SignUp() {
         return;
       }
 
-      showDialog(
-        "Check your email",
-        "A confirmation link has been sent to your email address.",
-      );
+      // No session means email confirmation is required
+      router.push({
+        pathname: "/(auth)/verify-email",
+        params: { email: email.trim() },
+      });
     } finally {
       setLoading(false);
     }

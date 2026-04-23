@@ -116,7 +116,7 @@ export default function ProfileScreen() {
       <Stack.Screen
         options={{
           title: "Profile",
-          headerBackTitle: "Back",
+          headerBackTitle: "Dashboard",
           headerBackButtonDisplayMode: "minimal",
           headerTitleAlign: "center",
           headerLargeTitle: false,
@@ -131,7 +131,7 @@ export default function ProfileScreen() {
           },
           headerRight: () => (
             <Pressable
-              onPress={() => Alert.alert("Settings", "Settings coming soon!")}
+              onPress={() => router.push("/settings")}
               hitSlop={10}
               style={({ pressed }) => ({
                 width: 36,
@@ -216,7 +216,7 @@ export default function ProfileScreen() {
               </View>
               {!mfaEnabled && (
                 <Pressable
-                  onPress={() => router.push("/mfa-enroll" as any)}
+                  onPress={() => router.push("/mfa-setup" as any)}
                   hitSlop={10}
                   style={({ pressed }) => [
                     {
@@ -228,7 +228,7 @@ export default function ProfileScreen() {
                     pressed && { opacity: 0.7 },
                   ]}
                 >
-                  <ThemedText style={{ color: "#fff", fontSize: 14, fontWeight: "600" }}>
+                  <ThemedText style={{ color: ui.primaryText, fontSize: 14, fontWeight: "600" }}>
                     Enable
                   </ThemedText>
                 </Pressable>
@@ -288,7 +288,7 @@ export default function ProfileScreen() {
               <>
                 <View style={[styles.divider, { backgroundColor: ui.border }]} />
                 <Pressable
-                  onPress={() => router.push("/mfa-enroll" as any)}
+                  onPress={() => router.push("/mfa-setup" as any)}
                   style={({ pressed }) => [
                     styles.row,
                     pressed && { opacity: 0.7 },

@@ -1,7 +1,7 @@
 import Feather from "@expo/vector-icons/Feather";
-import { Stack } from "expo-router";
-import React, { useMemo } from "react";
-import { Alert, Platform, Pressable, ScrollView, StyleSheet, View, useColorScheme } from "react-native";
+import { Stack, useRouter } from "expo-router";
+import React from "react";
+import { Alert, Platform, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { ThemedText } from "@/components/themed-text";
@@ -13,9 +13,8 @@ import { useTheme } from "react-native-paper";
 
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === "dark";
   const { profile, session } = useAuthContext();
+  const router = useRouter();
 
   const theme = useTheme();
   const isAndroid = Platform.OS === 'android';
@@ -127,7 +126,13 @@ export default function ProfileScreen() {
 
             <View style={[styles.divider, { backgroundColor: ui.border }]} />
 
-            <View style={styles.row}>
+            <Pressable
+              onPress={() => router.push("/notification-settings")}
+              style={({ pressed }) => [
+                styles.row,
+                pressed && { opacity: 0.7 },
+              ]}
+            >
               <View style={styles.rowLeft}>
                 <View style={[styles.iconBox, { backgroundColor: ui.surface }]}>
                   <Feather name="bell" size={18} color={ui.text} />
@@ -138,7 +143,7 @@ export default function ProfileScreen() {
                 <ThemedText style={{ color: ui.mutedText }}>On</ThemedText>
                 <Feather name="chevron-right" size={20} color={ui.mutedText} />
               </View>
-            </View>
+            </Pressable>
           </View>
         </View>
 

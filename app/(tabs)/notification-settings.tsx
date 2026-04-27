@@ -1,114 +1,73 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Animated, Easing, InteractionManager, ScrollView, StyleSheet, Switch, View } from "react-native";
+import {
+  ActivityIndicator,
+  Alert,
+  Animated,
+  Easing,
+  InteractionManager,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  View,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { AppHeader } from "@/components/ui/AppHeader";
 import { ThemedText } from "@/components/themed-text";
+import {
+  NOTIFICATION_PREFERENCES,
+  NOTIFICATION_PREFERENCE_DEFAULTS,
+  type NotificationPreferenceDefinition,
+  type NotificationPreferenceKey,
+  type NotificationSectionTitle,
+} from "@/constants/notificationPreferences";
 import { tabsTheme } from "@/constants/tabsTheme";
 import { Tokens } from "@/constants/authTokens";
-
-type ToggleKey =
-  | "deposit"
-  | "expense"
-  | "unusual"
-  | "review"
-  | "budget"
-  | "budgetNear"
-  | "milestones"
-  | "offTrack"
-  | "checkin"
-  | "credit"
-  | "creditUtil"
-  | "referral";
+import { useAuthContext } from "@/hooks/use-auth-context";
+import {
+  subscribeToNotificationPreferences,
+  syncNotificationPreferences,
+  updateNotificationPreference,
+} from "@/utils/notifications";
 
 type Section = {
-  title: string;
-  items: Array<{ key: ToggleKey; label: string }>;
+  title: NotificationSectionTitle;
+  items: NotificationPreferenceDefinition[];
 };
 
-// Backend mapping guide:
-// - Keep ToggleKey stable and use preferenceIds to map to backend fields.
-// - When backend is ready, replace local state with fetched preferences.
-const preferenceIds: Record<ToggleKey, string> = {
-  deposit: "notifications.transactions.deposit_posted",
-  expense: "notifications.transactions.large_expense",
-  unusual: "notifications.transactions.unusual_activity",
-  review: "notifications.transactions.needs_review",
-  budget: "notifications.budget.exceeded",
-  budgetNear: "notifications.budget.near_limit",
-  milestones: "notifications.goals.milestone_reached",
-  offTrack: "notifications.goals.off_track",
-  checkin: "notifications.goals.balance_checkin",
-  credit: "notifications.other.credit_score_change",
-  creditUtil: "notifications.other.credit_utilization_high",
-  referral: "notifications.other.referral_credits",
-};
+type ToggleState = Record<NotificationPreferenceKey, boolean>;
+
+const PREFERENCE_BY_ID = Object.fromEntries(
+  NOTIFICATION_PREFERENCES.map((item) => [item.id, item]),
+) as Record<string, NotificationPreferenceDefinition>;
+
+const EMPTY_SAVING_STATE = {} as Record<NotificationPreferenceKey, boolean>;
 
 export default function NotificationSettingsScreen() {
   const ui = tabsTheme.ui;
   const router = useRouter();
   const { animate } = useLocalSearchParams<{ animate?: string }>();
   const insets = useSafeAreaInsets();
+  const { session } = useAuthContext();
+  const userId = session?.user.id;
 
   const tabBarHeight = insets.bottom + 60;
 
   const sections = useMemo<Section[]>(
-    () => [
-      {
-        title: "Transactions",
-        items: [
-          { key: "deposit", label: "Deposits posted" },
-          { key: "expense", label: "Large expenses" },
-          { key: "unusual", label: "Unusual activity" },
-          { key: "review", label: "Transactions needing review" },
-        ],
-      },
-      {
-        title: "Budget",
-        items: [
-          { key: "budget", label: "Budget exceeded" },
-          { key: "budgetNear", label: "Budget nearing limit" },
-        ],
-      },
-      {
-        title: "Goals",
-        items: [
-          { key: "milestones", label: "Milestone reached" },
-          { key: "offTrack", label: "Goal off track" },
-          { key: "checkin", label: "Balance check-in" },
-        ],
-      },
-      {
-        title: "Credit",
-        items: [
-          { key: "credit", label: "Credit score changes" },
-          { key: "creditUtil", label: "High credit utilization" },
-        ],
-      },
-      {
-        title: "Rewards",
-        items: [{ key: "referral", label: "Referral credits earned" }],
-      },
-    ],
-    []
+    () =>
+      ["Transactions", "Budget", "Goals", "Credit", "Rewards"].map((title) => ({
+        title: title as NotificationSectionTitle,
+        items: NOTIFICATION_PREFERENCES.filter((item) => item.section === title),
+      })),
+    [],
   );
 
-  // Local defaults. Replace with backend values once wired.
-  const [toggles, setToggles] = useState<Record<ToggleKey, boolean>>({
-    deposit: false,
-    expense: false,
-    unusual: false,
-    review: false,
-    budget: false,
-    budgetNear: false,
-    milestones: false,
-    offTrack: false,
-    checkin: false,
-    credit: false,
-    creditUtil: false,
-    referral: false,
-  });
+  const [toggles, setToggles] = useState<ToggleState>(
+    NOTIFICATION_PREFERENCE_DEFAULTS,
+  );
+  const [isLoading, setIsLoading] = useState(true);
+  const [savingKeys, setSavingKeys] = useState(EMPTY_SAVING_STATE);
   const [contentHeight, setContentHeight] = useState(0);
   const [containerHeight, setContainerHeight] = useState(0);
   const shouldAnimate = animate === "1";
@@ -116,15 +75,69 @@ export default function NotificationSettingsScreen() {
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const translateAnim = useRef(new Animated.Value(0)).current;
 
-  const handleToggle = (key: ToggleKey, value: boolean) => {
-    setToggles((prev) => ({ ...prev, [key]: value }));
-    // TODO (backend): persist toggle to API.
-    // Example payload:
-    // {
-    //   preference_id: preferenceIds[key],
-    //   enabled: value,
-    // }
-  };
+  const loadPreferences = useCallback(async () => {
+    if (!userId) {
+      setToggles(NOTIFICATION_PREFERENCE_DEFAULTS);
+      setIsLoading(false);
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      const rows = await syncNotificationPreferences({ profile_id: userId });
+      const nextState: ToggleState = { ...NOTIFICATION_PREFERENCE_DEFAULTS };
+
+      for (const row of rows) {
+        const definition = PREFERENCE_BY_ID[row.preference_id];
+        if (!definition) continue;
+        nextState[definition.key] = row.enabled;
+      }
+
+      setToggles(nextState);
+    } catch (error) {
+      console.error("Error loading notification preferences:", error);
+      Alert.alert(
+        "Couldn't load notification settings",
+        "Please try again in a moment.",
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  }, [userId]);
+
+  const handleToggle = useCallback(
+    async (item: NotificationPreferenceDefinition, value: boolean) => {
+      if (!userId) return;
+
+      const previousValue = toggles[item.key];
+
+      setToggles((prev) => ({ ...prev, [item.key]: value }));
+      setSavingKeys((prev) => ({ ...prev, [item.key]: true }));
+
+      try {
+        await updateNotificationPreference({
+          profile_id: userId,
+          preference_id: item.id,
+          enabled: value,
+        });
+      } catch (error) {
+        console.error("Error updating notification preference:", error);
+        setToggles((prev) => ({ ...prev, [item.key]: previousValue }));
+        Alert.alert(
+          "Couldn't save that setting",
+          "Your notification preference was restored.",
+        );
+      } finally {
+        setSavingKeys((prev) => {
+          const next = { ...prev };
+          delete next[item.key];
+          return next;
+        });
+      }
+    },
+    [toggles, userId],
+  );
 
   const topPadding = 14;
   const bottomPadding = tabBarHeight + 40;
@@ -138,7 +151,6 @@ export default function NotificationSettingsScreen() {
     }
 
     hasAnimated.current = true;
-    // Subtle entrance after navigation finishes to avoid flicker.
     fadeAnim.setValue(0.92);
     translateAnim.setValue(6);
     const task = InteractionManager.runAfterInteractions(() => {
@@ -160,6 +172,21 @@ export default function NotificationSettingsScreen() {
 
     return () => task.cancel();
   }, [fadeAnim, shouldAnimate, translateAnim]);
+
+  useEffect(() => {
+    void loadPreferences();
+  }, [loadPreferences]);
+
+  useEffect(() => {
+    if (!userId) return;
+
+    return subscribeToNotificationPreferences({
+      profile_id: userId,
+      onChange: () => {
+        void loadPreferences();
+      },
+    });
+  }, [loadPreferences, userId]);
 
   return (
     <View style={[styles.screen, { backgroundColor: ui.bg }]}>
@@ -184,52 +211,101 @@ export default function NotificationSettingsScreen() {
           },
         ]}
       >
-        <ScrollView
-          style={styles.container}
-          onLayout={(event) => setContainerHeight(event.nativeEvent.layout.height)}
-          onContentSizeChange={(_, height) => setContentHeight(height)}
-          scrollEnabled={shouldScroll}
-          bounces={shouldScroll}
-          alwaysBounceVertical={false}
-          overScrollMode="never"
-          contentInsetAdjustmentBehavior="automatic"
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={[
-            styles.scrollContent,
-            { paddingTop: topPadding, paddingBottom: bottomPadding },
-          ]}
-        >
-          {sections.map((section) => (
-            <View key={section.title} style={styles.section}>
-              <ThemedText style={[styles.sectionTitle, { color: ui.mutedText }]}>
-                {section.title}
-              </ThemedText>
+        {isLoading ? (
+          <View style={styles.loadingWrap}>
+            <ActivityIndicator color={ui.text} />
+            <ThemedText style={[styles.loadingText, { color: ui.mutedText }]}>
+              Loading your notification settings...
+            </ThemedText>
+          </View>
+        ) : (
+          <ScrollView
+            style={styles.container}
+            onLayout={(event) =>
+              setContainerHeight(event.nativeEvent.layout.height)
+            }
+            onContentSizeChange={(_, height) => setContentHeight(height)}
+            scrollEnabled={shouldScroll}
+            bounces={shouldScroll}
+            alwaysBounceVertical={false}
+            overScrollMode="never"
+            contentInsetAdjustmentBehavior="automatic"
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={[
+              styles.scrollContent,
+              { paddingTop: topPadding, paddingBottom: bottomPadding },
+            ]}
+          >
+            <ThemedText style={[styles.helperText, { color: ui.mutedText }]}>
+              Alerts are saved to your account and generated automatically when
+              qualifying transactions, budgets, and goals change.
+            </ThemedText>
 
-              <View style={[styles.groupCard, { backgroundColor: ui.surface, borderColor: ui.border }]}>
-                {section.items.map((item, index) => (
-                  <View key={item.key}>
-                    <View style={styles.row}>
-                      <ThemedText style={[styles.rowLabel, { color: ui.text }]}>
-                        {item.label}
-                      </ThemedText>
-                      <Switch
-                        value={toggles[item.key]}
-                        onValueChange={(value) => handleToggle(item.key, value)}
-                        trackColor={{ false: ui.border, true: "#34C759" }}
-                        thumbColor="#FFFFFF"
-                        ios_backgroundColor={ui.border}
-                        style={styles.switch}
-                      />
-                    </View>
-                    {index < section.items.length - 1 && (
-                      <View style={[styles.divider, { backgroundColor: ui.border }]} />
-                    )}
-                  </View>
-                ))}
+            {sections.map((section) => (
+              <View key={section.title} style={styles.section}>
+                <ThemedText
+                  style={[styles.sectionTitle, { color: ui.mutedText }]}
+                >
+                  {section.title}
+                </ThemedText>
+
+                <View
+                  style={[
+                    styles.groupCard,
+                    { backgroundColor: ui.surface, borderColor: ui.border },
+                  ]}
+                >
+                  {section.items.map((item, index) => {
+                    const isSaving = Boolean(savingKeys[item.key]);
+
+                    return (
+                      <View key={item.key}>
+                        <View style={styles.row}>
+                          <View style={styles.rowTextWrap}>
+                            <ThemedText
+                              style={[styles.rowLabel, { color: ui.text }]}
+                            >
+                              {item.label}
+                            </ThemedText>
+                            {!item.implemented && (
+                              <ThemedText
+                                style={[
+                                  styles.rowMeta,
+                                  { color: ui.mutedText },
+                                ]}
+                              >
+                                Source integration coming later
+                              </ThemedText>
+                            )}
+                          </View>
+                          <Switch
+                            value={toggles[item.key]}
+                            onValueChange={(value) => {
+                              void handleToggle(item, value);
+                            }}
+                            disabled={isSaving}
+                            trackColor={{ false: ui.border, true: "#34C759" }}
+                            thumbColor="#FFFFFF"
+                            ios_backgroundColor={ui.border}
+                            style={styles.switch}
+                          />
+                        </View>
+                        {index < section.items.length - 1 && (
+                          <View
+                            style={[
+                              styles.divider,
+                              { backgroundColor: ui.border },
+                            ]}
+                          />
+                        )}
+                      </View>
+                    );
+                  })}
+                </View>
               </View>
-            </View>
-          ))}
-        </ScrollView>
+            ))}
+          </ScrollView>
+        )}
       </Animated.View>
     </View>
   );
@@ -249,6 +325,25 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingTop: 14,
     gap: 16,
+  },
+  loadingWrap: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 32,
+    gap: 12,
+  },
+  loadingText: {
+    textAlign: "center",
+    fontSize: 14,
+    lineHeight: 20,
+    fontFamily: Tokens.font.family,
+  },
+  helperText: {
+    fontSize: 14,
+    lineHeight: 20,
+    fontFamily: Tokens.font.family,
+    marginHorizontal: 4,
   },
   section: {
     gap: 10,
@@ -276,13 +371,21 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingHorizontal: 16,
     paddingVertical: 13,
-    minHeight: 52,
+    minHeight: 60,
     gap: 12,
   },
-  rowLabel: {
+  rowTextWrap: {
     flex: 1,
+    gap: 3,
+  },
+  rowLabel: {
     fontSize: 15.5,
     lineHeight: 20,
+    fontFamily: Tokens.font.family,
+  },
+  rowMeta: {
+    fontSize: 12.5,
+    lineHeight: 17,
     fontFamily: Tokens.font.family,
   },
   divider: {

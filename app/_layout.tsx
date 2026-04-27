@@ -7,11 +7,11 @@ import {
 import { SplashScreen, Stack, useRouter, useSegments } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import React, { useEffect, useMemo } from "react";
-import { Platform } from "react-native";
 import { MD3DarkTheme, MD3LightTheme, PaperProvider } from "react-native-paper";
 
 import { SplashScreenController } from "@/components/splash-screen-controller";
 import { useAuthContext } from "@/hooks/use-auth-context";
+import NotificationsProvider from "@/providers/notifications-provider";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import AuthProvider from "@/providers/auth-provider";
 import { useFonts } from "expo-font";
@@ -191,9 +191,11 @@ export default function RootLayout() {
       <PaperProvider theme={paperTheme}>
         <ThemeProvider value={colorScheme === "dark" ? CustomDarkTheme : CustomDefaultTheme}>
           <AuthProvider>
-            <SplashScreenController />
-            <ProtectedLayout />
-            <StatusBar style="auto" />
+            <NotificationsProvider>
+              <SplashScreenController />
+              <ProtectedLayout />
+              <StatusBar style="auto" />
+            </NotificationsProvider>
           </AuthProvider>
         </ThemeProvider>
       </PaperProvider>

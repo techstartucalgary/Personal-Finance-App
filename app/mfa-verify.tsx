@@ -2,8 +2,8 @@ import { ThemedText } from "@/components/themed-text";
 import { useThemeUI } from "@/hooks/use-theme-ui";
 import { supabase } from "@/utils/supabase";
 import Feather from "@expo/vector-icons/Feather";
-import { Stack, useRouter } from "expo-router";
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Stack, useLocalSearchParams, useRouter } from "expo-router";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -14,15 +14,22 @@ import {
   StyleSheet,
   TextInput,
   View,
-  useColorScheme,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function MfaVerifyScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams<{
+    intent?: string;
+    returnTo?: string;
+    verifiedFactorId?: string;
+    verifiedFactorName?: string;
+  }>();
   const insets = useSafeAreaInsets();
   const ui = useThemeUI();
-  const colorScheme = useColorScheme();
+  const intent = typeof params.intent === "string" ? params.intent : "";
+  const isManagementVerification = intent === "add-factor" || intent === "remove-factor";
+  const returnTo = typeof params.returnTo === "string" ? params.returnTo : "/profile";
 
   // State
   const [code, setCode] = useState("");
@@ -42,7 +49,7 @@ export default function MfaVerifyScreen() {
         return;
       }
 
-      const verifiedTotp = data.totp?.[0]; // first verified TOTP factor
+      const verifiedTotp = data.totp?.[0];
       if (!verifiedTotp) {
         // No MFA factors — shouldn't be here, go to main app
         router.replace("/(tabs)/dashboard");
@@ -55,7 +62,7 @@ export default function MfaVerifyScreen() {
       // Auto-focus the input
       setTimeout(() => inputRef.current?.focus(), 300);
     })();
-  }, []);
+  }, [router]);
 
   const handleVerify = useCallback(async () => {
     const trimmed = code.trim();
@@ -91,6 +98,18 @@ export default function MfaVerifyScreen() {
         return;
       }
 
+      if (isManagementVerification) {
+        router.replace({
+          pathname: returnTo as any,
+          params: {
+            verifiedAction: intent,
+            verifiedFactorId: typeof params.verifiedFactorId === "string" ? params.verifiedFactorId : "",
+            verifiedFactorName: typeof params.verifiedFactorName === "string" ? params.verifiedFactorName : "",
+          },
+        } as any);
+        return;
+      }
+
       // Success — session is now AAL2, navigate to the main app
       router.replace("/(tabs)/dashboard");
     } catch (err: any) {
@@ -98,7 +117,7 @@ export default function MfaVerifyScreen() {
     } finally {
       setVerifyLoading(false);
     }
-  }, [code, factorId, router]);
+  }, [code, factorId, intent, isManagementVerification, params.verifiedFactorId, params.verifiedFactorName, returnTo, router]);
 
   const handleSignOut = useCallback(async () => {
     Alert.alert(
@@ -122,10 +141,11 @@ export default function MfaVerifyScreen() {
     <>
       <Stack.Screen
         options={{
-          title: "Verify Identity",
+          title: isManagementVerification ? "Confirm It's You" : "Verify Identity",
           presentation: "card",
           headerTitleAlign: "center",
           headerTransparent: Platform.OS === "ios",
+          headerBackButtonDisplayMode: "minimal",
           headerShadowVisible: false,
           headerStyle:
             Platform.OS === "android"
@@ -133,10 +153,10 @@ export default function MfaVerifyScreen() {
               : undefined,
           headerTintColor: ui.text,
           headerTitleStyle: { color: ui.text },
-          headerLeft: () => null,
-          headerRight: () => null,
-          headerBackVisible: false,
-          gestureEnabled: false,
+          headerLeft: isManagementVerification ? undefined : () => null,
+          headerRight: isManagementVerification ? undefined : () => null,
+          headerBackVisible: isManagementVerification,
+          gestureEnabled: isManagementVerification,
         }}
       />
 
@@ -172,13 +192,14 @@ export default function MfaVerifyScreen() {
                 type="title"
                 style={[styles.heading, { color: ui.text }]}
               >
-                Two-Factor{"\n"}Authentication
+                {isManagementVerification ? "Confirm It's You" : "Two-Factor\nAuthentication"}
               </ThemedText>
               <ThemedText
                 style={[styles.subtitle, { color: ui.mutedText }]}
               >
-                Open your authenticator app and enter the 6-digit verification
-                code to continue.
+                {isManagementVerification
+                  ? "Enter the 6-digit code from your authenticator app to continue with this security change."
+                  : "Open your authenticator app and enter the 6-digit verification code to continue."}
               </ThemedText>
             </View>
 
@@ -236,7 +257,7 @@ export default function MfaVerifyScreen() {
                 <ActivityIndicator size="small" color={ui.primaryText} />
               ) : (
                 <ThemedText style={[styles.primaryBtnText, { color: ui.primaryText }]}>
-                  Verify & Continue
+                  {isManagementVerification ? "Verify & Continue" : "Verify & Continue"}
                 </ThemedText>
               )}
             </Pressable>

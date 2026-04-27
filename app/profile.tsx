@@ -1,8 +1,8 @@
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import Feather from "@expo/vector-icons/Feather";
-import { Stack, useFocusEffect, useRouter } from "expo-router";
-import React, { useCallback, useState } from "react";
-import { Alert, Platform, Pressable, ScrollView, StyleSheet, View, useColorScheme } from "react-native";
+import { Stack, useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { Alert, Platform, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { ThemedText } from "@/components/themed-text";
@@ -15,10 +15,13 @@ import { useTheme } from "react-native-paper";
 
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === "dark";
   const { profile, session } = useAuthContext();
   const router = useRouter();
+  const params = useLocalSearchParams<{
+    verifiedAction?: string;
+    verifiedFactorId?: string;
+    verifiedFactorName?: string;
+  }>();
 
   const theme = useTheme();
   const isAndroid = Platform.OS === 'android';
@@ -28,8 +31,9 @@ export default function ProfileScreen() {
   // MFA status
   const [mfaEnabled, setMfaEnabled] = useState(false);
   const [mfaFactors, setMfaFactors] = useState<
-    Array<{ id: string; friendly_name: string; factor_type: string; status: string; created_at: string }>
+    { id: string; friendly_name: string; factor_type: string; status: string; created_at: string }[]
   >([]);
+  const handledVerifiedActionRef = useRef<string | null>(null);
 
   const checkMfaStatus = useCallback(async () => {
     try {
@@ -48,33 +52,99 @@ export default function ProfileScreen() {
     }, [checkMfaStatus])
   );
 
+  useEffect(() => {
+    const verifiedAction = typeof params.verifiedAction === "string" ? params.verifiedAction : "";
+    const verifiedFactorId = typeof params.verifiedFactorId === "string" ? params.verifiedFactorId : "";
+    const verifiedFactorName = typeof params.verifiedFactorName === "string" ? params.verifiedFactorName : "device";
+
+    if (!verifiedAction) {
+      handledVerifiedActionRef.current = null;
+      return;
+    }
+
+    const actionKey = `${verifiedAction}:${verifiedFactorId}:${verifiedFactorName}`;
+    if (handledVerifiedActionRef.current === actionKey) return;
+    handledVerifiedActionRef.current = actionKey;
+
+    const clearVerifiedAction = () => {
+      router.replace("/profile");
+    };
+
+    if (verifiedAction === "add-factor") {
+      clearVerifiedAction();
+      router.push("/mfa-setup" as any);
+      return;
+    }
+
+    if (verifiedAction !== "remove-factor" || !verifiedFactorId) {
+      clearVerifiedAction();
+      return;
+    }
+
+    (async () => {
+      const { error } = await supabase.auth.mfa.unenroll({ factorId: verifiedFactorId });
+      if (error) {
+        Alert.alert("Error", error.message, [{ text: "OK", onPress: clearVerifiedAction }]);
+        return;
+      }
+
+      await supabase.auth.refreshSession();
+      await checkMfaStatus();
+
+      Alert.alert(
+        "Device Removed",
+        `"${verifiedFactorName}" has been removed from two-factor authentication.`,
+        [{ text: "OK", onPress: clearVerifiedAction }]
+      );
+    })().catch((error: any) => {
+      Alert.alert("Error", error?.message ?? "Could not remove this MFA device.", [
+        { text: "OK", onPress: clearVerifiedAction },
+      ]);
+    });
+  }, [checkMfaStatus, params.verifiedAction, params.verifiedFactorId, params.verifiedFactorName, router]);
+
   const handleUnenroll = useCallback(
     (factorId: string, name: string) => {
       Alert.alert(
         "Remove Device",
-        `Are you sure you want to remove "${name}"? You'll no longer be able to use it for two-factor authentication.`,
+        `Are you sure you want to remove "${name}"? We'll ask for a verification code before removing it.`,
         [
           { text: "Cancel", style: "cancel" },
           {
-            text: "Remove",
+            text: "Continue",
             style: "destructive",
-            onPress: async () => {
-              const { error } = await supabase.auth.mfa.unenroll({ factorId });
-              if (error) {
-                Alert.alert("Error", error.message);
-                return;
-              }
-              // Immediately downgrade AAL by refreshing the session
-              await supabase.auth.refreshSession();
-              // Re-fetch factor list
-              await checkMfaStatus();
+            onPress: () => {
+              router.push({
+                pathname: "/mfa-verify",
+                params: {
+                  intent: "remove-factor",
+                  returnTo: "/profile",
+                  verifiedFactorId: factorId,
+                  verifiedFactorName: name,
+                },
+              } as any);
             },
           },
         ]
       );
     },
-    [checkMfaStatus]
+    [router]
   );
+
+  const handleAddFactor = useCallback(() => {
+    if (!mfaEnabled) {
+      router.push("/mfa-setup" as any);
+      return;
+    }
+
+    router.push({
+      pathname: "/mfa-verify",
+      params: {
+        intent: "add-factor",
+        returnTo: "/profile",
+      },
+    } as any);
+  }, [mfaEnabled, router]);
 
   const userMetadata = session?.user?.user_metadata as
     | Record<string, any>
@@ -216,7 +286,7 @@ export default function ProfileScreen() {
               </View>
               {!mfaEnabled && (
                 <Pressable
-                  onPress={() => router.push("/mfa-setup" as any)}
+                  onPress={handleAddFactor}
                   hitSlop={10}
                   style={({ pressed }) => [
                     {
@@ -288,7 +358,7 @@ export default function ProfileScreen() {
               <>
                 <View style={[styles.divider, { backgroundColor: ui.border }]} />
                 <Pressable
-                  onPress={() => router.push("/mfa-setup" as any)}
+                  onPress={handleAddFactor}
                   style={({ pressed }) => [
                     styles.row,
                     pressed && { opacity: 0.7 },

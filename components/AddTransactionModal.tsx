@@ -802,6 +802,8 @@ interface AddTransactionModalProps {
   hideHeader?: boolean;
   onOpenAccountPicker?: (currentAccountId: number | null) => void;
   onStateChange?: (state: { isDirty: boolean; isValid: boolean }) => void;
+  initialAccountId?: number | null;
+  initialDescription?: string | null;
 }
 
 const EMPTY_RECURRING_RULES: any[] = [];
@@ -825,6 +827,8 @@ export const AddTransactionModal = forwardRef<AddTransactionModalRef, AddTransac
     hideHeader = false,
     onOpenAccountPicker,
     onStateChange,
+    initialAccountId = null,
+    initialDescription = null,
   } = props;
   const insets = useSafeAreaInsets();
   const amountInputRef = React.useRef<TextInput>(null);
@@ -1107,12 +1111,16 @@ export const AddTransactionModal = forwardRef<AddTransactionModalRef, AddTransac
     }
 
     setAmount("");
-    setDescription("");
+    setDescription(initialDescription?.trim() ?? "");
     setNotes("");
     setNotesModalOpen(false);
     setTransactionDate(toLocalISOString(new Date()));
     setTransactionType("expense");
-    setSelectedAccount(null);
+    setSelectedAccount(
+      initialAccountId != null
+        ? accounts.find((account) => account.id === initialAccountId) ?? null
+        : null,
+    );
     setSelectedCategory(null);
     setSelectedSubcategory(null);
     setSubcategories([]);
@@ -1136,6 +1144,8 @@ export const AddTransactionModal = forwardRef<AddTransactionModalRef, AddTransac
     accounts,
     categories,
     recurringRules,
+    initialAccountId,
+    initialDescription,
   ]);
 
   useEffect(() => {
@@ -1272,8 +1282,11 @@ export const AddTransactionModal = forwardRef<AddTransactionModalRef, AddTransac
     // For Add mode:
     return (
       amount.trim() !== "" || 
-      description.trim() !== "" || 
-      (selectedAccount !== null && accounts.length > 1) || // ignore auto-selected if only 1
+      description.trim() !== (initialDescription?.trim() ?? "") || 
+      (
+        (selectedAccount?.id ?? null) !== initialAccountId &&
+        (selectedAccount !== null && accounts.length > 1)
+      ) || // ignore seeded or auto-selected account
       selectedCategory !== null
     );
   }, [
@@ -1287,7 +1300,9 @@ export const AddTransactionModal = forwardRef<AddTransactionModalRef, AddTransac
     selectedCategory,
     selectedSubcategory,
     transactionDate,
-    accounts.length
+    accounts.length,
+    initialAccountId,
+    initialDescription,
   ]);
 
   useEffect(() => {

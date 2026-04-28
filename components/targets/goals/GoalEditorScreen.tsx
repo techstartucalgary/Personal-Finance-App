@@ -13,6 +13,7 @@ import {
   ScrollView,
   StyleSheet,
   TextInput,
+  useColorScheme,
   View,
 } from "react-native";
 
@@ -28,10 +29,10 @@ import { ThemedText } from "@/components/themed-text";
 import { DateTimePickerField } from "@/components/ui/DateTimePickerField";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { Tokens } from "@/constants/authTokens";
-import { tabsTheme } from "@/constants/tabsTheme";
 import { useAuthContext } from "@/hooks/use-auth-context";
+import { useThemeUI } from "@/hooks/use-theme-ui";
 import { parseLocalDate, toLocalISOString } from "@/utils/date";
-import { createGoal, editGoal, getGoal } from "@/utils/goals";
+import { createGoal, deleteGoal, editGoal, getGoal } from "@/utils/goals";
 import { listAccounts } from "@/utils/accounts";
 import { getPlaidAccounts } from "@/utils/plaid";
 
@@ -69,7 +70,18 @@ export function GoalEditorScreen({ mode }: GoalEditorScreenProps) {
   const { session } = useAuthContext();
   const router = useRouter();
   const navigation = useNavigation();
-  const ui = tabsTheme.ui;
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === "dark";
+  const baseUi = useThemeUI();
+  const ui = useMemo(() => {
+    if (!isDark) return baseUi;
+    return {
+      ...baseUi,
+      bg: "#1B1B1E",
+      surface: "#2C2C2F",
+      surface2: "#2C2C2F",
+    };
+  }, [baseUi, isDark]);
   const userId = session?.user.id;
   const { id, initialData } = useLocalSearchParams<{
     id?: string;
@@ -276,6 +288,29 @@ export function GoalEditorScreen({ mode }: GoalEditorScreenProps) {
     userId,
   ]);
 
+  const handleDelete = useCallback(() => {
+    if (mode !== "edit" || !id || !userId) return;
+
+    Alert.alert("Delete goal?", "This action cannot be undone.", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            setAllowRemoval(true);
+            await deleteGoal({ id, profile_id: userId });
+            router.back();
+          } catch (error) {
+            setAllowRemoval(false);
+            console.error("Error deleting goal:", error);
+            Alert.alert("Error", "Could not delete goal.");
+          }
+        },
+      },
+    ]);
+  }, [id, mode, router, userId]);
+
   usePreventRemove(isDirty && !allowRemoval, ({ data }) => {
     Alert.alert(
       "Discard changes?",
@@ -349,7 +384,7 @@ export function GoalEditorScreen({ mode }: GoalEditorScreenProps) {
 
   if (isLoading) {
     return (
-      <View style={styles.loaderWrap}>
+      <View style={[styles.loaderWrap, { backgroundColor: ui.bg }]}>
         <ActivityIndicator size="large" color={ui.accent} />
       </View>
     );
@@ -368,7 +403,7 @@ export function GoalEditorScreen({ mode }: GoalEditorScreenProps) {
       <View
         style={[
           styles.heroCard,
-          { backgroundColor: ui.bg, borderColor: "transparent" },
+          { backgroundColor: ui.surface, borderColor: ui.border },
         ]}
       >
         <ThemedText style={[styles.goalNamePreview, { color: ui.text }]}>
@@ -408,121 +443,172 @@ export function GoalEditorScreen({ mode }: GoalEditorScreenProps) {
       </View>
 
       <View style={styles.formStack}>
-        <FieldLabel label="Goal Name" />
-        <TextInput
-          value={name}
-          onChangeText={setName}
-          placeholder="e.g. Summer Vacation"
-          placeholderTextColor={ui.mutedText}
+        <View
           style={[
-            styles.input,
-            {
-              backgroundColor: "#E1E1E1",
-              color: ui.text,
-            },
-          ]}
-        />
-
-        <FieldLabel label="Target Amount" value={formatMoney(parsedTargetAmount || 0)} />
-        <TextInput
-          value={targetAmount}
-          onChangeText={setTargetAmount}
-          keyboardType="decimal-pad"
-          placeholder="0.00"
-          placeholderTextColor={ui.mutedText}
-          style={[
-            styles.input,
-            {
-              backgroundColor: "#E1E1E1",
-              color: ui.text,
-            },
-          ]}
-        />
-
-        <FieldLabel label="Current Saved" />
-        <TextInput
-          value={currentAmount}
-          onChangeText={setCurrentAmount}
-          keyboardType="decimal-pad"
-          placeholder="0.00"
-          placeholderTextColor={ui.mutedText}
-          style={[
-            styles.input,
-            {
-              backgroundColor: "#E1E1E1",
-              color: ui.text,
-            },
-          ]}
-        />
-
-        <DateTimePickerField
-          label="Target Date"
-          value={parseLocalDate(targetDate)}
-          onChange={(date) => setTargetDate(toLocalISOString(date))}
-          ui={ui}
-        />
-
-        <FieldLabel label="Linked Account" />
-        <Pressable
-          onPress={() => {
-            const pathname =
-              mode === "edit" && id
-                ? "/goal/[id]/account-select"
-                : "/goal-add/account-select";
-
-            router.push({
-              pathname,
-              params: {
-                ...(mode === "edit" && id ? { id } : {}),
-                ...(selectedAccount
-                  ? {
-                      currentAccountKey:
-                        getGoalSelectionKey(selectedAccount) ?? undefined,
-                    }
-                  : {}),
-              },
-            } as any);
-          }}
-          style={({ pressed }) => [
-            styles.accountField,
-            {
-              backgroundColor: "#E1E1E1",
-              opacity: pressed ? 0.72 : 1,
-            },
+            styles.sectionCard,
+            { backgroundColor: ui.surface, borderColor: ui.border },
           ]}
         >
-          <View style={{ flex: 1, gap: 2 }}>
-            <ThemedText style={{ color: ui.text, fontSize: 16 }}>
-              {selectedAccount?.name ?? "Select an account"}
-            </ThemedText>
-            {selectedAccount ? (
-              <ThemedText style={{ color: ui.mutedText, fontSize: 12 }}>
-                {selectedAccount.isPlaid
-                  ? selectedAccount.institutionName ?? "Plaid account"
-                  : selectedAccount.type ?? "Manual account"}
+          <FieldLabel label="Goal Name" ui={ui} />
+          <TextInput
+            value={name}
+            onChangeText={setName}
+            placeholder="e.g. Summer Vacation"
+            placeholderTextColor={ui.mutedText}
+            style={[
+              styles.input,
+              {
+                backgroundColor: ui.surface2,
+                color: ui.text,
+              },
+            ]}
+          />
+
+          <FieldLabel
+            label="Target Amount"
+            value={formatMoney(parsedTargetAmount || 0)}
+            ui={ui}
+          />
+          <TextInput
+            value={targetAmount}
+            onChangeText={setTargetAmount}
+            keyboardType="decimal-pad"
+            placeholder="0.00"
+            placeholderTextColor={ui.mutedText}
+            style={[
+              styles.input,
+              {
+                backgroundColor: ui.surface2,
+                color: ui.text,
+              },
+            ]}
+          />
+
+          <FieldLabel label="Current Saved" ui={ui} />
+          <TextInput
+            value={currentAmount}
+            onChangeText={setCurrentAmount}
+            keyboardType="decimal-pad"
+            placeholder="0.00"
+            placeholderTextColor={ui.mutedText}
+            style={[
+              styles.input,
+              {
+                backgroundColor: ui.surface2,
+                color: ui.text,
+              },
+            ]}
+          />
+        </View>
+
+        <View
+          style={[
+            styles.sectionCard,
+            { backgroundColor: ui.surface, borderColor: ui.border },
+          ]}
+        >
+          <DateTimePickerField
+            label="Target Date"
+            value={parseLocalDate(targetDate)}
+            onChange={(date) => setTargetDate(toLocalISOString(date))}
+            ui={ui}
+          />
+        </View>
+
+        <View
+          style={[
+            styles.sectionCard,
+            { backgroundColor: ui.surface, borderColor: ui.border },
+          ]}
+        >
+          <FieldLabel label="Linked Account" ui={ui} />
+          <Pressable
+            onPress={() => {
+              const pathname =
+                mode === "edit" && id
+                  ? "/goal/[id]/account-select"
+                  : "/goal-add/account-select";
+
+              router.push({
+                pathname,
+                params: {
+                  ...(mode === "edit" && id ? { id } : {}),
+                  ...(selectedAccount
+                    ? {
+                        currentAccountKey:
+                          getGoalSelectionKey(selectedAccount) ?? undefined,
+                      }
+                    : {}),
+                },
+              } as any);
+            }}
+            style={({ pressed }) => [
+              styles.accountField,
+              {
+                backgroundColor: ui.surface2,
+                opacity: pressed ? 0.72 : 1,
+              },
+            ]}
+          >
+            <View style={{ flex: 1, gap: 2 }}>
+              <ThemedText style={{ color: ui.text, fontSize: 16 }}>
+                {selectedAccount?.name ?? "Select an account"}
               </ThemedText>
-            ) : null}
-          </View>
+              {selectedAccount ? (
+                <ThemedText style={{ color: ui.mutedText, fontSize: 12 }}>
+                  {selectedAccount.isPlaid
+                    ? selectedAccount.institutionName ?? "Plaid account"
+                    : selectedAccount.type ?? "Manual account"}
+                </ThemedText>
+              ) : null}
+            </View>
 
-          <IconSymbol name="chevron.right" size={16} color={ui.mutedText} />
-        </Pressable>
+            <IconSymbol name="chevron.right" size={16} color={ui.mutedText} />
+          </Pressable>
 
-        {mode === "edit" && goal?.created_at ? (
-          <View style={styles.readOnlyRow}>
-            <FieldLabel label="Started" />
-            <ThemedText style={[styles.readOnlyValue, { color: ui.text }]}>
-              {formatLongDate(goal.created_at)}
+          {mode === "edit" && goal?.created_at ? (
+            <View style={styles.readOnlyRow}>
+              <FieldLabel label="Started" ui={ui} />
+              <ThemedText style={[styles.readOnlyValue, { color: ui.text }]}>
+                {formatLongDate(goal.created_at)}
+              </ThemedText>
+            </View>
+          ) : null}
+        </View>
+
+        {mode === "edit" ? (
+          <Pressable
+            onPress={handleDelete}
+            style={({ pressed }) => [
+              styles.deleteButton,
+              {
+                borderColor: ui.danger,
+                backgroundColor: ui.surface,
+                opacity: pressed ? 0.72 : 1,
+              },
+            ]}
+          >
+            <ThemedText
+              style={[styles.deleteButtonText, { color: ui.danger }]}
+            >
+              Delete Goal
             </ThemedText>
-          </View>
+          </Pressable>
         ) : null}
       </View>
     </ScrollView>
   );
 }
 
-function FieldLabel({ label, value }: { label: string; value?: string }) {
-  const ui = tabsTheme.ui;
-
+function FieldLabel({
+  label,
+  value,
+  ui,
+}: {
+  label: string;
+  value?: string;
+  ui: { text: string; mutedText: string };
+}) {
   return (
     <View style={styles.fieldLabelRow}>
       <ThemedText style={[styles.fieldLabel, { color: ui.text }]}>
@@ -542,7 +628,7 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: tabsTheme.ui.bg,
+    backgroundColor: "#ECECF1",
   },
   scrollContent: {
     paddingHorizontal: 16,
@@ -550,7 +636,9 @@ const styles = StyleSheet.create({
     gap: 18,
   },
   heroCard: {
-    paddingTop: 8,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 24,
+    padding: 18,
     gap: 8,
   },
   goalNamePreview: {
@@ -583,6 +671,12 @@ const styles = StyleSheet.create({
     borderRadius: 999,
   },
   formStack: {
+    gap: 14,
+  },
+  sectionCard: {
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 24,
+    padding: 14,
     gap: 10,
   },
   fieldLabelRow: {
@@ -624,5 +718,18 @@ const styles = StyleSheet.create({
   readOnlyValue: {
     fontSize: 16,
     fontFamily: Tokens.font.family,
+  },
+  deleteButton: {
+    minHeight: 52,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 18,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  deleteButtonText: {
+    fontSize: 15,
+    fontFamily: Tokens.font.semiFamily ?? Tokens.font.family,
   },
 });

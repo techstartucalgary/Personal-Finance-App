@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   Platform,
   Pressable,
   ScrollView,
@@ -17,7 +18,7 @@ import {
 } from "expo-router";
 
 import { ThemedText } from "@/components/themed-text";
-import { TransactionsList } from "@/components/transactions/tab/TransactionsList";
+import { TransactionsList } from "@/components/transactions/TransactionsList";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { Tokens } from "@/constants/authTokens";
 import { tabsTheme } from "@/constants/tabsTheme";
@@ -28,6 +29,7 @@ import { getGoal } from "@/utils/goals";
 import {
   getPlaidAccounts,
   getPlaidTransactions,
+  type PlaidAccount,
   type PlaidTransaction,
 } from "@/utils/plaid";
 import { getRecurringRules } from "@/utils/recurring";
@@ -65,6 +67,7 @@ export function GoalDetailScreen() {
   });
   const [accounts, setAccounts] = useState<GoalSelectableAccount[]>([]);
   const [manualAccounts, setManualAccounts] = useState<any[]>([]);
+  const [plaidAccounts, setPlaidAccounts] = useState<PlaidAccount[]>([]);
   const [expenses, setExpenses] = useState<any[]>([]);
   const [plaidTransactions, setPlaidTransactions] = useState<PlaidTransaction[]>([]);
   const [recurringRules, setRecurringRules] = useState<any[]>([]);
@@ -101,6 +104,7 @@ export function GoalDetailScreen() {
             plaidAccounts,
           }),
         );
+        setPlaidAccounts(plaidAccounts);
         setExpenses((expensesData as any[]) ?? []);
         setPlaidTransactions(plaidTransactionsData);
         setRecurringRules((recurringRulesData as any[]) ?? []);
@@ -174,6 +178,31 @@ export function GoalDetailScreen() {
 
   const linkedAccountName = getGoalLinkedAccountName(goal, accounts);
   const progress = getGoalProgress(goal);
+  const canCreateManualTransaction = goal.linked_account != null;
+  const handleOpenEdit = useCallback(() => {
+    const encodedGoal = encodeURIComponent(JSON.stringify(goal));
+    router.push({
+      pathname: "/goal/[id]/edit",
+      params: { id: String(goal.id), initialData: encodedGoal },
+    } as any);
+  }, [goal, router]);
+  const handleAddTransaction = useCallback(() => {
+    if (goal.linked_account != null) {
+      router.push({
+        pathname: "/transaction-add",
+        params: {
+          currentAccountId: String(goal.linked_account),
+          initialDescription: goal.name,
+        },
+      } as any);
+      return;
+    }
+
+    Alert.alert(
+      "Manual transactions unavailable",
+      "This goal is linked to a synced account. Add transactions from a self-managed account instead.",
+    );
+  }, [goal.linked_account, goal.name, router]);
 
   return (
     <ScrollView
@@ -217,6 +246,51 @@ export function GoalDetailScreen() {
         />
       </View>
 
+      <View style={detailStyles.actionsRow}>
+        <Pressable
+          onPress={handleOpenEdit}
+          style={({ pressed }) => [
+            detailStyles.actionButton,
+            {
+              backgroundColor: ui.surface,
+              borderColor: ui.border,
+              opacity: pressed ? 0.72 : 1,
+            },
+          ]}
+        >
+          <IconSymbol name="pencil" size={15} color={ui.text} />
+          <ThemedText style={[detailStyles.actionText, { color: ui.text }]}>
+            Edit Goal
+          </ThemedText>
+        </Pressable>
+
+        <Pressable
+          onPress={handleAddTransaction}
+          style={({ pressed }) => [
+            detailStyles.actionButton,
+            {
+              backgroundColor: canCreateManualTransaction ? ui.text : ui.surface,
+              borderColor: canCreateManualTransaction ? ui.text : ui.border,
+              opacity: pressed ? 0.72 : canCreateManualTransaction ? 1 : 0.8,
+            },
+          ]}
+        >
+          <IconSymbol
+            name="plus"
+            size={15}
+            color={canCreateManualTransaction ? ui.surface : ui.text}
+          />
+          <ThemedText
+            style={[
+              detailStyles.actionText,
+              { color: canCreateManualTransaction ? ui.surface : ui.text },
+            ]}
+          >
+            Add Transaction
+          </ThemedText>
+        </Pressable>
+      </View>
+
       <View style={detailStyles.sectionHeader}>
         <ThemedText style={[detailStyles.sectionTitle, { color: ui.text }]}>
           Transactions
@@ -241,13 +315,22 @@ export function GoalDetailScreen() {
 
       <View style={detailStyles.listWrap}>
         <TransactionsList
+          ui={ui}
           accounts={manualAccounts}
+          plaidAccounts={plaidAccounts}
           expenses={expenses}
           plaidTransactions={plaidTransactions}
           recurringRules={recurringRules}
           filterAccountId={filterAccountId}
+          onFilterAccountChange={() => {}}
           searchQuery={searchQuery}
+          onSearchQueryChange={setSearchQuery}
           isLoading={isLoading}
+          showSearch={false}
+          showFilters={false}
+          showMeta={false}
+          showBadges={false}
+          subtleAmountColors={true}
           onSelectTransaction={(transaction) => {
             const encoded = encodeURIComponent(JSON.stringify(transaction));
             if ("transaction_id" in transaction) {
@@ -263,9 +346,6 @@ export function GoalDetailScreen() {
               params: { id: String(transaction.id), initialData: encoded },
             });
           }}
-          ui={ui}
-          formatDate={(value) => formatLongDate(value)}
-          formatMoney={formatMoney}
         />
       </View>
     </ScrollView>
@@ -331,6 +411,25 @@ const detailStyles = StyleSheet.create({
   },
   sectionHeader: {
     marginTop: 6,
+  },
+  actionsRow: {
+    flexDirection: "row",
+    gap: 10,
+  },
+  actionButton: {
+    flex: 1,
+    minHeight: 46,
+    borderRadius: 16,
+    borderWidth: StyleSheet.hairlineWidth,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingHorizontal: 14,
+  },
+  actionText: {
+    fontSize: 14,
+    fontFamily: Tokens.font.semiFamily ?? Tokens.font.family,
   },
   sectionTitle: {
     fontSize: 22,

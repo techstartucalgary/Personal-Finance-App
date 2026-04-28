@@ -10,7 +10,7 @@ import { listAccounts } from "@/utils/accounts";
 import { listCategories } from "@/utils/categories";
 import { getRecurringRules } from "@/utils/recurring";
 import { usePreventRemove } from "@react-navigation/native";
-import { useNavigation, useRouter } from "expo-router";
+import { useLocalSearchParams, useNavigation, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -28,6 +28,10 @@ export default function TransactionAddScreen() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
   const userId = session?.user.id;
+  const { currentAccountId, initialDescription } = useLocalSearchParams<{
+    currentAccountId?: string;
+    initialDescription?: string;
+  }>();
   const ui = useThemeUI();
   const modalRef = useRef<AddTransactionModalRef>(null);
   const sheetUi = useMemo(() => {
@@ -177,6 +181,8 @@ export default function TransactionAddScreen() {
       isDark={isDark}
       userId={userId}
       mode="add"
+      initialAccountId={currentAccountId ? Number(currentAccountId) : null}
+      initialDescription={initialDescription ?? null}
       recurringRules={recurringRules}
       onStateChange={(state) => {
         setIsDirty(state.isDirty);

@@ -77,6 +77,7 @@ export function BudgetsView({
             categories: categoryRows ?? [],
             expenses: (expenseRows as any[]) ?? [],
             preferences,
+            filterAccountId,
           }),
         );
       } catch (error) {
@@ -85,7 +86,7 @@ export function BudgetsView({
         setIsLoading(false);
       }
     },
-    [userId],
+    [filterAccountId, userId],
   );
 
   useFocusEffect(

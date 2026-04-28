@@ -1,4 +1,4 @@
-import type { ExpenseRow } from "@/components/transactions/tab/types";
+import type { ExpenseRow, FilterAccountId } from "@/components/transactions/tab/types";
 import type { TabsUi } from "@/constants/tabsTheme";
 import type { BudgetPeriod, CategoryBudgetRow } from "@/utils/categoryBudgets";
 import type { CategoryRow } from "@/utils/categories";
@@ -54,4 +54,5 @@ export type BudgetBuildCollections = {
   categories: CategoryRow[];
   expenses: ExpenseRow[];
   preferences?: BudgetPreferencesMap;
+  filterAccountId?: FilterAccountId;
 };

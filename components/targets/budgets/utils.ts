@@ -123,6 +123,18 @@ export function resolveBudgetPreference(
   };
 }
 
+function matchesActiveAccountFilter(
+  expense: ExpenseRow,
+  filterAccountId: FilterAccountId | undefined,
+) {
+  if (filterAccountId == null) return true;
+  if (typeof filterAccountId === "string") {
+    return false;
+  }
+
+  return expense.account_id === filterAccountId;
+}
+
 function getExpenseDate(expense: ExpenseRow) {
   return expense.transaction_date ?? expense.created_at?.split("T")[0] ?? null;
 }
@@ -131,13 +143,15 @@ function matchesExpenseForBudget(
   expense: ExpenseRow,
   budget: Pick<BudgetRow, "start_date" | "end_date">,
   linkedAccountKey: string | null,
+  filterAccountId?: FilterAccountId,
 ) {
   const date = getExpenseDate(expense);
   if (!date) return false;
   if (date < budget.start_date || date > budget.end_date) return false;
+  if (!matchesActiveAccountFilter(expense, filterAccountId)) return false;
 
   if (!linkedAccountKey) return true;
-  if (!linkedAccountKey.startsWith("manual:")) return false;
+  if (!linkedAccountKey.startsWith("manual:")) return true;
 
   return expense.account_id === Number(linkedAccountKey.replace("manual:", ""));
 }
@@ -148,8 +162,16 @@ export function buildBudgetWithDetails(params: {
   categories: BudgetBuildCollections["categories"];
   expenses: BudgetBuildCollections["expenses"];
   preference?: Partial<BudgetUiPreference> | null;
+  filterAccountId?: FilterAccountId;
 }) {
-  const { budget, categoryBudgets, categories, expenses, preference } = params;
+  const {
+    budget,
+    categoryBudgets,
+    categories,
+    expenses,
+    preference,
+    filterAccountId,
+  } = params;
   const resolvedPreference = resolveBudgetPreference(preference);
   const links = categoryBudgets.filter((entry) => entry.budget_id === budget.id);
   const recurrence = links[0]?.budget_period ?? "monthly";
@@ -158,7 +180,12 @@ export function buildBudgetWithDetails(params: {
     const relatedTransactions = expenses.filter(
       (expense) =>
         Number(expense.expense_categoryid) === Number(link.expense_category_id) &&
-        matchesExpenseForBudget(expense, budget, resolvedPreference.linkedAccountKey),
+        matchesExpenseForBudget(
+          expense,
+          budget,
+          resolvedPreference.linkedAccountKey,
+          filterAccountId,
+        ),
     );
     const spent = relatedTransactions.reduce(
       (sum, expense) => sum + Number(expense.amount ?? 0),
@@ -201,6 +228,9 @@ export function buildBudgetWithDetails(params: {
 
 export function buildBudgetCollection(params: BudgetBuildCollections) {
   const preferences: BudgetPreferencesMap = params.preferences ?? {};
+  const filterAccountId = (params as BudgetBuildCollections & {
+    filterAccountId?: FilterAccountId;
+  }).filterAccountId;
 
   return params.budgets
     .map((budget) =>
@@ -210,6 +240,7 @@ export function buildBudgetCollection(params: BudgetBuildCollections) {
         categories: params.categories,
         expenses: params.expenses,
         preference: preferences[String(budget.id)],
+        filterAccountId,
       }),
     )
     .sort((left, right) => {
@@ -221,11 +252,9 @@ export function buildBudgetCollection(params: BudgetBuildCollections) {
 
 export function filterBudgetsByAccount(
   budgets: BudgetWithDetails[],
-  filterAccountId: FilterAccountId,
+  _filterAccountId: FilterAccountId,
 ) {
-  const selectionKey = getBudgetSelectionKey(filterAccountId);
-  if (!selectionKey) return budgets;
-  return budgets.filter((budget) => budget.linkedAccountKey === selectionKey);
+  return budgets;
 }
 
 function sumTrackedBalances(params: {

@@ -182,69 +182,79 @@ export function GoalsView({
             message={isLoading ? "Loading activity..." : "No Activity Found"}
           />
         ) : (
-          <View style={styles.stack}>
-            {activityItems.map((item, index) => {
-              const previous = activityItems[index - 1];
-              const showLabel =
-                !previous || previous.date !== item.date;
+          <View style={[styles.panel, { backgroundColor: ui.surface, borderColor: ui.border }]}>
+            <View style={styles.panelHeader}>
+              <ThemedText style={[styles.panelTitle, { color: ui.text }]}>
+                Recent Activity
+              </ThemedText>
+              <ThemedText style={[styles.panelCount, { color: ui.mutedText }]}>
+                {activityItems.length}
+              </ThemedText>
+            </View>
 
-              return (
-                <View key={item.id} style={styles.stack}>
-                  {showLabel ? (
-                    <ThemedText style={[styles.sectionLabel, { color: ui.mutedText }]}>
-                      {formatActivityDateLabel(item.date)}
-                    </ThemedText>
-                  ) : null}
+            <View style={[styles.panelBody, { borderTopColor: ui.border }]}>
+              {activityItems.map((item, index) => {
+                const previous = activityItems[index - 1];
+                const showLabel = !previous || previous.date !== item.date;
 
-                  <Pressable
-                    onPress={() => {
-                      const match = goals.find((goal) => goal.id === item.goalId);
-                      if (match) handleOpenGoal(match);
-                    }}
-                    style={({ pressed }) => [
-                      styles.activityRow,
-                      {
-                        backgroundColor: ui.surface,
-                        borderColor: ui.border,
-                        opacity: pressed ? 0.72 : 1,
-                      },
-                    ]}
-                  >
-                    <View style={{ flex: 1 }}>
-                      <ThemedText style={[styles.rowTitle, { color: ui.text }]}>
-                        {item.name}
+                return (
+                  <View key={item.id} style={styles.stack}>
+                    {showLabel ? (
+                      <ThemedText style={[styles.groupLabel, { color: ui.mutedText }]}>
+                        {formatActivityDateLabel(item.date)}
                       </ThemedText>
-                    </View>
+                    ) : null}
 
-                    <View style={styles.amountRow}>
-                      <IconSymbol
-                        name={item.direction === "in" ? "arrow.up" : "arrow.down"}
-                        size={12}
-                        color={item.direction === "in" ? ui.positive : ui.negative}
-                      />
-                      <ThemedText
-                        style={[
-                          styles.amountText,
-                          {
-                            color:
-                              item.direction === "in" ? ui.positive : ui.negative,
-                          },
-                        ]}
-                      >
-                        {formatMoney(item.amount)}
-                      </ThemedText>
-                    </View>
-                  </Pressable>
-                </View>
-              );
-            })}
+                    <Pressable
+                      onPress={() => {
+                        const match = goals.find((goal) => goal.id === item.goalId);
+                        if (match) handleOpenGoal(match);
+                      }}
+                      style={({ pressed }) => [
+                        styles.activityRow,
+                        {
+                          backgroundColor: ui.bg,
+                          borderColor: ui.border,
+                          opacity: pressed ? 0.72 : 1,
+                        },
+                      ]}
+                    >
+                      <View style={{ flex: 1 }}>
+                        <ThemedText style={[styles.rowTitle, { color: ui.text }]}>
+                          {item.name}
+                        </ThemedText>
+                      </View>
+
+                      <View style={styles.amountRow}>
+                        <IconSymbol
+                          name={item.direction === "in" ? "arrow.up" : "arrow.down"}
+                          size={12}
+                          color={item.direction === "in" ? ui.positive : ui.negative}
+                        />
+                        <ThemedText
+                          style={[
+                            styles.amountText,
+                            {
+                              color:
+                                item.direction === "in" ? ui.positive : ui.negative,
+                            },
+                          ]}
+                        >
+                          {formatMoney(item.amount)}
+                        </ThemedText>
+                      </View>
+                    </Pressable>
+                  </View>
+                );
+              })}
+            </View>
           </View>
         )
       ) : activeTab === "active" ? (
         <View style={styles.stack}>
           {approachingDeadlineGoals.length > 0 ? (
             <GoalsSection
-              label="Approaching Deadline..."
+              label="Approaching deadline"
               labelColor="#B63A34"
               goals={approachingDeadlineGoals}
               selectableAccounts={selectableAccounts}
@@ -255,7 +265,7 @@ export function GoalsView({
 
           {otherActiveGoals.length > 0 ? (
             <GoalsSection
-              label={approachingDeadlineGoals.length > 0 ? "Active Goals..." : "Goals"}
+              label={approachingDeadlineGoals.length > 0 ? "Active goals" : "Goals"}
               labelColor={ui.text}
               goals={otherActiveGoals}
               selectableAccounts={selectableAccounts}
@@ -286,33 +296,48 @@ export function GoalsView({
               : "There are no recent goals that has been reached"
           }
         />
-      ) : (
-        <View style={styles.stack}>
-          {reachedGoals.map((goal) => (
-            <Pressable
-              key={goal.id}
-              onPress={() => handleOpenGoal(goal)}
-              style={({ pressed }) => [
-                styles.reachedRow,
-                { opacity: pressed ? 0.72 : 1 },
-              ]}
-            >
-              <View style={styles.reachedCopy}>
-                <ThemedText style={[styles.reachedTitle, { color: ui.text }]}>
-                  {goal.name}
-                </ThemedText>
-                <ThemedText style={[styles.reachedSubtitle, { color: ui.text }]}>
-                  Goal Reached: {formatMoney(goal.target_amount)}
-                </ThemedText>
-              </View>
+        ) : (
+        <View style={[styles.panel, { backgroundColor: ui.surface, borderColor: ui.border }]}>
+          <View style={styles.panelHeader}>
+            <ThemedText style={[styles.panelTitle, { color: ui.text }]}>
+              Reached goals
+            </ThemedText>
+            <ThemedText style={[styles.panelCount, { color: ui.mutedText }]}>
+              {reachedGoals.length}
+            </ThemedText>
+          </View>
 
-              {goal.target_date ? (
-                <ThemedText style={[styles.reachedDate, { color: ui.mutedText }]}>
-                  Due date: {formatShortDate(goal.target_date)}
-                </ThemedText>
-              ) : null}
-            </Pressable>
-          ))}
+          <View style={[styles.panelBody, { borderTopColor: ui.border }]}>
+            {reachedGoals.map((goal) => (
+              <Pressable
+                key={goal.id}
+                onPress={() => handleOpenGoal(goal)}
+                style={({ pressed }) => [
+                  styles.reachedRow,
+                  {
+                    backgroundColor: ui.bg,
+                    borderColor: ui.border,
+                    opacity: pressed ? 0.72 : 1,
+                  },
+                ]}
+              >
+                <View style={styles.reachedCopy}>
+                  <ThemedText style={[styles.reachedTitle, { color: ui.text }]}>
+                    {goal.name}
+                  </ThemedText>
+                  <ThemedText style={[styles.reachedSubtitle, { color: ui.text }]}>
+                    Goal reached: {formatMoney(goal.target_amount)}
+                  </ThemedText>
+                </View>
+
+                {goal.target_date ? (
+                  <ThemedText style={[styles.reachedDate, { color: ui.mutedText }]}>
+                    Due {formatShortDate(goal.target_date)}
+                  </ThemedText>
+                ) : null}
+              </Pressable>
+            ))}
+          </View>
         </View>
       )}
     </View>
@@ -335,70 +360,80 @@ function GoalsSection({
   onOpenGoal: (goal: GoalRow) => void;
 }) {
   return (
-    <View style={styles.stack}>
-      <ThemedText style={[styles.sectionLabel, { color: labelColor }]}>
-        {label}
-      </ThemedText>
+    <View style={[styles.panel, { backgroundColor: ui.surface, borderColor: ui.border }]}>
+      <View style={styles.panelHeader}>
+        <ThemedText style={[styles.panelTitle, { color: labelColor }]}>
+          {label}
+        </ThemedText>
+        <ThemedText style={[styles.panelCount, { color: ui.mutedText }]}>
+          {goals.length}
+        </ThemedText>
+      </View>
 
-      {goals.map((goal) => {
-        const progress = getGoalProgress(goal);
-        return (
-          <Pressable
-            key={goal.id}
-            onPress={() => onOpenGoal(goal)}
-            style={({ pressed }) => [
-              styles.goalCard,
-              {
-                backgroundColor: ui.surface,
-                borderColor: ui.border,
-                opacity: pressed ? 0.72 : 1,
-              },
-            ]}
-          >
-            <View style={styles.goalCardTop}>
-              <View style={styles.goalCopy}>
-                <ThemedText style={[styles.goalCardTitle, { color: ui.text }]}>
-                  {goal.name}
-                </ThemedText>
-                <ThemedText style={[styles.goalCardAmount, { color: ui.text }]}>
-                  {formatMoney(goal.current_amount ?? 0)}
-                </ThemedText>
+      <View style={[styles.panelBody, { borderTopColor: ui.border }]}>
+        {goals.map((goal) => {
+          const progress = getGoalProgress(goal);
+          return (
+            <Pressable
+              key={goal.id}
+              onPress={() => onOpenGoal(goal)}
+              style={({ pressed }) => [
+                styles.goalCard,
+                {
+                  backgroundColor: ui.bg,
+                  borderColor: ui.border,
+                  opacity: pressed ? 0.72 : 1,
+                },
+              ]}
+            >
+              <View style={styles.goalCardTop}>
+                <View style={styles.goalCopy}>
+                  <ThemedText style={[styles.goalCardTitle, { color: ui.text }]}>
+                    {goal.name}
+                  </ThemedText>
+                  <ThemedText style={[styles.goalCardAmount, { color: ui.text }]}>
+                    {formatMoney(goal.current_amount ?? 0)}
+                  </ThemedText>
+                </View>
+
+                <View style={styles.goalMeta}>
+                  <IconSymbol name="plus" size={14} color={ui.mutedText} />
+                  <ThemedText style={[styles.goalTarget, { color: ui.mutedText }]}>
+                    Goal: {formatMoney(goal.target_amount)}
+                  </ThemedText>
+                </View>
               </View>
 
-              <View style={styles.goalMeta}>
-                <IconSymbol name="plus" size={14} color={ui.mutedText} />
-                <ThemedText style={[styles.goalTarget, { color: ui.mutedText }]}>
-                  Goal: {formatMoney(goal.target_amount)}
+              <View style={[styles.progressTrack, { backgroundColor: ui.surface2 }]}>
+                <View
+                  style={[
+                    styles.progressFill,
+                    {
+                      width: `${Math.max(progress, 10)}%`,
+                      backgroundColor: ui.accent,
+                    },
+                  ]}
+                />
+              </View>
+
+              <View style={styles.goalFooter}>
+                <ThemedText style={[styles.goalFootnote, { color: ui.mutedText }]}>
+                  {getGoalDeadlineCopy(goal)}
+                </ThemedText>
+                <ThemedText
+                  numberOfLines={1}
+                  style={[
+                    styles.goalFootnote,
+                    { color: ui.mutedText, flex: 1, textAlign: "right" },
+                  ]}
+                >
+                  {getGoalLinkedAccountName(goal, selectableAccounts)}
                 </ThemedText>
               </View>
-            </View>
-
-            <View style={styles.progressTrack}>
-              <View
-                style={[
-                  styles.progressFill,
-                  {
-                    width: `${Math.max(progress, 10)}%`,
-                    backgroundColor: ui.accent,
-                  },
-                ]}
-              />
-            </View>
-
-            <View style={styles.goalFooter}>
-              <ThemedText style={[styles.goalFootnote, { color: ui.mutedText }]}>
-                {getGoalDeadlineCopy(goal)}
-              </ThemedText>
-              <ThemedText
-                numberOfLines={1}
-                style={[styles.goalFootnote, { color: ui.mutedText, flex: 1, textAlign: "right" }]}
-              >
-                {getGoalLinkedAccountName(goal, selectableAccounts)}
-              </ThemedText>
-            </View>
-          </Pressable>
-        );
-      })}
+            </Pressable>
+          );
+        })}
+      </View>
     </View>
   );
 }
@@ -415,7 +450,15 @@ function EmptyState({
   const ui = tabsTheme.ui;
 
   return (
-    <View style={styles.emptyWrap}>
+    <View
+      style={[
+        styles.emptyWrap,
+        {
+          backgroundColor: ui.surface,
+          borderColor: ui.border,
+        },
+      ]}
+    >
       <ThemedText style={[styles.emptyText, { color: ui.text }]}>{message}</ThemedText>
       {buttonLabel && onPress ? (
         <Pressable
@@ -423,13 +466,13 @@ function EmptyState({
           style={({ pressed }) => [
             styles.emptyButton,
             {
-              borderColor: ui.border,
-              backgroundColor: ui.surface,
+              borderColor: ui.accent,
+              backgroundColor: ui.accent,
               opacity: pressed ? 0.72 : 1,
             },
           ]}
         >
-          <ThemedText style={[styles.emptyButtonText, { color: ui.text }]}>
+          <ThemedText style={[styles.emptyButtonText, { color: ui.surface }]}>
             {buttonLabel}
           </ThemedText>
         </Pressable>
@@ -445,29 +488,61 @@ const styles = StyleSheet.create({
   stack: {
     gap: 10,
   },
-  sectionLabel: {
-    fontSize: 12,
+  panel: {
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 24,
+    overflow: "hidden",
+  },
+  panelHeader: {
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  panelTitle: {
+    fontSize: 16,
+    lineHeight: 20,
     fontFamily: Tokens.font.semiFamily ?? Tokens.font.family,
+  },
+  panelCount: {
+    fontSize: 12.5,
+    lineHeight: 16,
+    fontFamily: Tokens.font.family,
+  },
+  panelBody: {
+    paddingHorizontal: 10,
+    paddingVertical: 10,
+    gap: 10,
+    borderTopWidth: StyleSheet.hairlineWidth,
+  },
+  groupLabel: {
+    fontSize: 12,
     letterSpacing: 0.2,
+    fontFamily: Tokens.font.semiFamily ?? Tokens.font.family,
   },
   emptyWrap: {
     minHeight: 260,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 24,
     alignItems: "center",
     justifyContent: "center",
     gap: 18,
     paddingHorizontal: 20,
+    paddingVertical: 28,
   },
   emptyText: {
     textAlign: "center",
-    fontSize: 26,
-    lineHeight: 30,
+    fontSize: 22,
+    lineHeight: 28,
     fontFamily: Tokens.font.boldFamily ?? Tokens.font.headingFamily,
-    maxWidth: 260,
+    maxWidth: 280,
   },
   emptyButton: {
     minWidth: 150,
     borderRadius: 999,
-    borderWidth: StyleSheet.hairlineWidth,
+    borderWidth: 1,
     paddingHorizontal: 22,
     paddingVertical: 12,
     alignItems: "center",
@@ -476,11 +551,10 @@ const styles = StyleSheet.create({
   emptyButtonText: {
     fontSize: 14,
     fontFamily: Tokens.font.semiFamily ?? Tokens.font.family,
-    textTransform: "uppercase",
   },
   activityRow: {
     minHeight: 48,
-    borderRadius: 14,
+    borderRadius: 18,
     borderWidth: StyleSheet.hairlineWidth,
     paddingHorizontal: 14,
     paddingVertical: 12,
@@ -488,6 +562,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     gap: 10,
+    boxShadow: "0 8px 16px rgba(0, 0, 0, 0.06)",
   },
   rowTitle: {
     fontSize: 15,
@@ -504,10 +579,11 @@ const styles = StyleSheet.create({
     fontVariant: ["tabular-nums"],
   },
   goalCard: {
-    borderRadius: 18,
+    borderRadius: 20,
     borderWidth: StyleSheet.hairlineWidth,
-    padding: 12,
-    gap: 8,
+    padding: 14,
+    gap: 10,
+    boxShadow: "0 8px 16px rgba(0, 0, 0, 0.06)",
   },
   goalCardTop: {
     flexDirection: "row",
@@ -536,10 +612,9 @@ const styles = StyleSheet.create({
     fontFamily: Tokens.font.family,
   },
   progressTrack: {
-    height: 7,
+    height: 8,
     borderRadius: 999,
     overflow: "hidden",
-    backgroundColor: "#D8D8DE",
   },
   progressFill: {
     height: "100%",
@@ -555,11 +630,16 @@ const styles = StyleSheet.create({
     fontFamily: Tokens.font.family,
   },
   reachedRow: {
-    minHeight: 44,
+    minHeight: 56,
     flexDirection: "row",
     alignItems: "flex-start",
     justifyContent: "space-between",
     gap: 14,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 18,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    boxShadow: "0 8px 16px rgba(0, 0, 0, 0.06)",
   },
   reachedCopy: {
     flex: 1,

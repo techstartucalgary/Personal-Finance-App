@@ -75,12 +75,12 @@ export default function TargetsScreen() {
       placeholder: activeTab === "goals" ? "Search goals..." : "Search budgets...",
       onChangeText: (event: any) => setSearchQuery(event.nativeEvent.text),
       hideWhenScrolling: true,
-      tintColor: ui.text,
+      tintColor: ui.accent,
       textColor: ui.text,
       hintTextColor: ui.mutedText,
       headerIconColor: ui.mutedText,
     }),
-    [activeTab, ui.mutedText, ui.text],
+    [activeTab, ui.accent, ui.mutedText, ui.text],
   );
 
   useEffect(() => {
@@ -93,6 +93,7 @@ export default function TargetsScreen() {
         options={{
           title: activeTab === "goals" ? "Goals" : "Budgets",
           headerSearchBarOptions,
+          headerLargeTitle: Platform.OS === "ios",
         }}
       />
 
@@ -102,6 +103,7 @@ export default function TargetsScreen() {
         contentContainerStyle={[
           styles.scrollContent,
           {
+            paddingHorizontal: 16,
             paddingBottom: tabBarHeight + 120,
             paddingTop: Platform.OS === "android" ? 16 : 0,
           },
@@ -178,10 +180,9 @@ export default function TargetsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingHorizontal: 16,
   },
   scrollContent: {
-    gap: 12,
+    gap: 14,
     paddingBottom: 100,
   },
 });

@@ -156,6 +156,31 @@ function matchesExpenseForBudget(
   return expense.account_id === Number(linkedAccountKey.replace("manual:", ""));
 }
 
+export function getBudgetCategorySpent(params: {
+  expenses: ExpenseRow[];
+  expenseCategoryId: number;
+  startDate: string;
+  endDate: string;
+  linkedAccountKey: string | null;
+  filterAccountId?: FilterAccountId;
+}) {
+  const { expenses, expenseCategoryId, startDate, endDate, linkedAccountKey, filterAccountId } =
+    params;
+
+  return expenses
+    .filter(
+      (expense) =>
+        Number(expense.expense_categoryid) === Number(expenseCategoryId) &&
+        matchesExpenseForBudget(
+          expense,
+          { start_date: startDate, end_date: endDate },
+          linkedAccountKey,
+          filterAccountId,
+        ),
+    )
+    .reduce((sum, expense) => sum + Number(expense.amount ?? 0), 0);
+}
+
 export function buildBudgetWithDetails(params: {
   budget: BudgetRow;
   categoryBudgets: BudgetBuildCollections["categoryBudgets"];

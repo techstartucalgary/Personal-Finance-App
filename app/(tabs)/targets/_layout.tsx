@@ -1,12 +1,11 @@
 import { Stack } from "expo-router";
 import React from "react";
-import { Platform, useColorScheme } from "react-native";
-import { useTheme } from "react-native-paper";
+import { Platform } from "react-native";
+
+import { getColors } from "@/constants/authTokens";
 
 export default function TargetsLayout() {
-    const colorScheme = useColorScheme();
-    const isDark = colorScheme === "dark";
-    const theme = useTheme();
+    const colors = getColors("light");
 
     return (
         <Stack
@@ -16,13 +15,13 @@ export default function TargetsLayout() {
                 headerTitleAlign: "center",
                 headerTransparent: Platform.OS === "ios",
                 headerShadowVisible: false,
-                headerStyle: { backgroundColor: Platform.OS === "android" ? (isDark ? theme.colors.surface : theme.colors.surfaceVariant) : "transparent" },
-                headerLargeStyle: { backgroundColor: Platform.OS === "ios" ? "transparent" : (isDark ? theme.colors.surface : theme.colors.surfaceVariant) },
-                headerTitleStyle: { color: isDark ? "#ffffff" : "#111111" },
-                headerLargeTitleStyle: { color: isDark ? "#ffffff" : "#111111" },
+                headerStyle: { backgroundColor: Platform.OS === "android" ? colors.bg : "transparent" },
+                headerLargeStyle: { backgroundColor: Platform.OS === "ios" ? "transparent" : colors.bg },
+                headerTitleStyle: { color: colors.text },
+                headerLargeTitleStyle: { color: colors.text },
             }}
         >
-            <Stack.Screen name="index" options={{ title: "Goals" }} />
+            <Stack.Screen name="index" options={{ title: "Goals", headerBackTitle: "" }} />
         </Stack>
     );
 }

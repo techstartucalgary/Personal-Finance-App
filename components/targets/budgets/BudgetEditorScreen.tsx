@@ -53,6 +53,7 @@ import {
   formatBudgetPeriodLabel,
   formatLongDate,
   formatMoney,
+  getBudgetCategorySpent,
   getBudgetEndDate,
 } from "./utils";
 
@@ -88,7 +89,7 @@ export function BudgetEditorScreen({ mode }: BudgetEditorScreenProps) {
   const [categories, setCategories] = useState<CategoryRow[]>([]);
   const [drafts, setDrafts] = useState<BudgetDraftCategory[]>([]);
   const [selectedAccount, setSelectedAccount] = useState<BudgetSelectableAccount | null>(null);
-  const [spentByCategory, setSpentByCategory] = useState<Record<number, number>>({});
+  const [expenses, setExpenses] = useState<ExpenseRow[]>([]);
   const [categoryPickerOpen, setCategoryPickerOpen] = useState(false);
   const [periodPickerOpen, setPeriodPickerOpen] = useState(false);
 
@@ -106,12 +107,6 @@ export function BudgetEditorScreen({ mode }: BudgetEditorScreenProps) {
           limit_amount: String(category.limit_amount ?? ""),
         })),
       );
-      setSpentByCategory(
-        budget.categoryBudgets.reduce<Record<number, number>>((accumulator, category) => {
-          accumulator[category.expense_category_id] = category.spent;
-          return accumulator;
-        }, {}),
-      );
       setSelectedAccount(
         selectableAccounts.find(
           (account) => getGoalSelectionKey(account) === budget.linkedAccountKey,
@@ -126,10 +121,11 @@ export function BudgetEditorScreen({ mode }: BudgetEditorScreenProps) {
 
     try {
       setIsLoading(true);
-      const [categoryRows, manualAccounts, plaidAccounts] = await Promise.all([
+      const [categoryRows, manualAccounts, plaidAccounts, expenseRows] = await Promise.all([
         listCategories({ profile_id: userId }),
         listAccounts({ profile_id: userId }),
         getPlaidAccounts(),
+        listExpenses({ profile_id: userId }),
       ]);
 
       const selectableAccounts = buildSelectableAccounts({
@@ -138,18 +134,17 @@ export function BudgetEditorScreen({ mode }: BudgetEditorScreenProps) {
       });
 
       setCategories(categoryRows ?? []);
+      setExpenses((expenseRows as ExpenseRow[]) ?? []);
 
       if (mode !== "edit" || !id) {
         setName("");
         setDrafts([]);
-        setSpentByCategory({});
         return;
       }
 
-      const [budgetRow, categoryLinks, expenses, preference] = await Promise.all([
+      const [budgetRow, categoryLinks, preference] = await Promise.all([
         getBudget({ id, profile_id: userId }),
         listCategoryBudgets({ budget_id: Number(id) }),
-        listExpenses({ profile_id: userId }),
         getBudgetUiPreference(id),
       ]);
 
@@ -157,7 +152,7 @@ export function BudgetEditorScreen({ mode }: BudgetEditorScreenProps) {
         budget: budgetRow as BudgetRow,
         categoryBudgets: categoryLinks,
         categories: categoryRows ?? [],
-        expenses: (expenses as ExpenseRow[]) ?? [],
+        expenses: (expenseRows as ExpenseRow[]) ?? [],
         preference,
       });
 
@@ -177,6 +172,14 @@ export function BudgetEditorScreen({ mode }: BudgetEditorScreenProps) {
 
   useFocusEffect(
     useCallback(() => {
+      if (mode === "edit") {
+        loadBudget();
+      }
+    }, [loadBudget, mode]),
+  );
+
+  useFocusEffect(
+    useCallback(() => {
       const pendingSelection = consumePendingBudgetAccountSelection();
       if (pendingSelection !== undefined) {
         setSelectedAccount(pendingSelection);
@@ -192,6 +195,28 @@ export function BudgetEditorScreen({ mode }: BudgetEditorScreenProps) {
       }, 0),
     [drafts],
   );
+
+  const budgetEndDate = useMemo(() => {
+    if (!startDate) return null;
+    return getBudgetEndDate(startDate, recurrence);
+  }, [recurrence, startDate]);
+
+  const spentByCategory = useMemo(() => {
+    if (!startDate || !budgetEndDate) return {};
+
+    const linkedAccountKey = getGoalSelectionKey(selectedAccount);
+
+    return drafts.reduce<Record<number, number>>((accumulator, draft) => {
+      accumulator[draft.expense_category_id] = getBudgetCategorySpent({
+        expenses,
+        expenseCategoryId: draft.expense_category_id,
+        startDate,
+        endDate: budgetEndDate,
+        linkedAccountKey,
+      });
+      return accumulator;
+    }, {});
+  }, [budgetEndDate, drafts, expenses, selectedAccount, startDate]);
 
   const canSave = useMemo(() => {
     return (

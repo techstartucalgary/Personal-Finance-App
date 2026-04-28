@@ -121,7 +121,15 @@ export function BudgetsView({
 
   if (!isLoading && visibleBudgets.length === 0) {
     return (
-      <View style={styles.emptyWrap}>
+      <View
+        style={[
+          styles.emptyWrap,
+          {
+            backgroundColor: ui.surface,
+            borderColor: ui.border,
+          },
+        ]}
+      >
         <ThemedText style={[styles.emptyTitle, { color: ui.text }]}>
           No Budget Found
         </ThemedText>
@@ -130,14 +138,14 @@ export function BudgetsView({
           style={({ pressed }) => [
             styles.emptyButton,
             {
-              borderColor: ui.border,
-              backgroundColor: ui.surface,
+              borderColor: ui.accent,
+              backgroundColor: ui.accent,
               opacity: pressed ? 0.72 : 1,
             },
           ]}
         >
-          <ThemedText style={[styles.emptyButtonText, { color: ui.text }]}>
-            Add A Budget
+          <ThemedText style={[styles.emptyButtonText, { color: ui.surface }]}>
+            Add a Budget
           </ThemedText>
         </Pressable>
       </View>
@@ -146,135 +154,188 @@ export function BudgetsView({
 
   return (
     <View style={styles.container}>
-      <View style={styles.overviewHeader}>
-        <ThemedText style={[styles.overviewLabel, { color: ui.text }]}>
-          Overview
-        </ThemedText>
-        <Feather name="chevron-down" size={16} color={ui.mutedText} />
-      </View>
-
       <View
         style={[
-          styles.overviewCard,
+          styles.sectionPanel,
           {
             backgroundColor: ui.surface,
             borderColor: ui.border,
           },
         ]}
       >
-        <BudgetStat label="Total Budgeted" value={formatMoney(overview.totalBudgeted)} />
-        <BudgetStat label="Total Funds Available" value={formatMoney(overview.totalFundsAvailable)} />
-        <View style={{ alignItems: "center", gap: 2 }}>
-          <ThemedText style={[styles.statusLabel, { color: ui.mutedText }]}>Status</ThemedText>
-          <ThemedText
-            style={[
-              styles.statusValue,
-              { color: overview.statusColor || getBudgetStatusTone(overview.totalFundsAvailable) },
-            ]}
-          >
-            {overview.statusLabel}
+        <View style={styles.sectionHeader}>
+          <ThemedText style={[styles.sectionTitle, { color: ui.text }]}>
+            Overview
+          </ThemedText>
+          <ThemedText style={[styles.sectionCount, { color: ui.mutedText }]}>
+            {visibleBudgets.length}
           </ThemedText>
         </View>
-      </View>
 
-      <View style={styles.stack}>
-        {visibleBudgets.map((budget) => (
-          <Pressable
-            key={budget.id}
-            onPress={() =>
-              router.push({
-                pathname: "/budget/[id]",
-                params: { id: String(budget.id) },
-              } as any)
-            }
-            style={({ pressed }) => [
-              styles.budgetCard,
+        <View style={[styles.sectionBody, { borderTopColor: ui.border }]}>
+          <View
+            style={[
+              styles.overviewCard,
               {
-                backgroundColor: ui.surface,
+                backgroundColor: ui.bg,
                 borderColor: ui.border,
-                opacity: pressed ? 0.72 : 1,
               },
             ]}
           >
-            <View style={styles.cardHeader}>
-              <View style={styles.cardHeaderLeft}>
-                <Feather name="chevron-down" size={16} color={ui.mutedText} />
-                <View style={styles.cardHeaderCopy}>
-                  <ThemedText style={[styles.cardTitle, { color: ui.text }]}>
-                    {budget.budget_name || "Budget Plan"}
-                  </ThemedText>
-                  <ThemedText style={[styles.cardSubtitle, { color: ui.mutedText }]}>
-                    {formatBudgetPeriodLabel(budget.recurrence)}
-                  </ThemedText>
-                </View>
-              </View>
-
-              <View style={styles.cardHeaderRight}>
-                <View style={{ alignItems: "flex-end", gap: 2 }}>
-                  <ThemedText style={[styles.cardMetricLabel, { color: ui.text }]}>
-                    Unused Funds
-                  </ThemedText>
-                  <ThemedText style={[styles.cardMetricValue, { color: ui.text }]}>
-                    {formatMoney(budget.availableAmount)}
-                  </ThemedText>
-                </View>
-                <Pressable
-                  onPress={() =>
-                    router.push({
-                      pathname: "/budget/[id]/edit",
-                      params: { id: String(budget.id) },
-                    } as any)
-                  }
-                  hitSlop={8}
-                  style={({ pressed }) => ({ opacity: pressed ? 0.55 : 1 })}
-                >
-                  <Feather name="edit-2" size={15} color={ui.text} />
-                </Pressable>
-              </View>
-            </View>
-
-            <View style={[styles.tableHeader, { borderBottomColor: ui.border }]}>
-              <ThemedText style={[styles.headerName, { color: ui.text }]}>Name</ThemedText>
-              <ThemedText style={[styles.headerMetric, { color: ui.mutedText }]}>
-                Budgeted
+            <BudgetStat label="Total Budgeted" value={formatMoney(overview.totalBudgeted)} />
+            <BudgetStat
+              label="Total Funds Available"
+              value={formatMoney(overview.totalFundsAvailable)}
+            />
+            <View style={styles.statusStat}>
+              <ThemedText style={[styles.statusLabel, { color: ui.mutedText }]}>
+                Status
               </ThemedText>
-              <ThemedText style={[styles.headerMetric, { color: ui.mutedText }]}>
-                Available
+              <ThemedText
+                style={[
+                  styles.statusValue,
+                  {
+                    color:
+                      overview.statusColor ||
+                      getBudgetStatusTone(overview.totalFundsAvailable),
+                  },
+                ]}
+              >
+                {overview.statusLabel}
               </ThemedText>
-              <Feather name="eye" size={14} color={ui.mutedText} />
             </View>
+          </View>
+        </View>
+      </View>
 
-            <View style={styles.tableBody}>
-              {budget.categoryBudgets.map((category) => (
-                <View key={category.id} style={styles.tableRow}>
-                  <View style={styles.nameColumn}>
-                    <ThemedText style={[styles.rowTitle, { color: ui.text }]}>
-                      {category.category_name}
-                    </ThemedText>
-                    <ThemedText style={[styles.rowFootnote, { color: ui.mutedText }]}>
-                      {formatBudgetDateRange(budget)}
-                    </ThemedText>
+      <View
+        style={[
+          styles.sectionPanel,
+          {
+            backgroundColor: ui.surface,
+            borderColor: ui.border,
+          },
+        ]}
+      >
+        <View style={styles.sectionHeader}>
+          <ThemedText style={[styles.sectionTitle, { color: ui.text }]}>
+            Budget Plans
+          </ThemedText>
+          <ThemedText style={[styles.sectionCount, { color: ui.mutedText }]}>
+            {visibleBudgets.length}
+          </ThemedText>
+        </View>
+
+        <View style={[styles.sectionBody, { borderTopColor: ui.border }]}>
+          <View style={styles.stack}>
+            {visibleBudgets.map((budget) => (
+              <Pressable
+                key={budget.id}
+                onPress={() =>
+                  router.push({
+                    pathname: "/budget/[id]",
+                    params: { id: String(budget.id) },
+                  } as any)
+                }
+                style={({ pressed }) => [
+                  styles.budgetCard,
+                  {
+                    backgroundColor: ui.bg,
+                    borderColor: ui.border,
+                    opacity: pressed ? 0.72 : 1,
+                  },
+                ]}
+              >
+                <View style={styles.cardHeader}>
+                  <View style={styles.cardHeaderLeft}>
+                    <View style={styles.cardHeaderCopy}>
+                      <ThemedText style={[styles.cardTitle, { color: ui.text }]}>
+                        {budget.budget_name || "Budget Plan"}
+                      </ThemedText>
+                      <ThemedText style={[styles.cardSubtitle, { color: ui.mutedText }]}>
+                        {formatBudgetPeriodLabel(budget.recurrence)}
+                      </ThemedText>
+                    </View>
                   </View>
 
-                  <ThemedText style={[styles.rowMetric, { color: ui.text }]}>
-                    {formatMoney(category.limit_amount)}
-                  </ThemedText>
-                  <ThemedText
-                    style={[
-                      styles.rowMetric,
-                      {
-                        color: category.available < 0 ? "#D55C4B" : ui.text,
-                      },
-                    ]}
-                  >
-                    {formatMoney(category.available)}
-                  </ThemedText>
-                  <Feather name="eye" size={14} color={ui.mutedText} />
+                  <View style={styles.cardHeaderRight}>
+                    <View style={{ alignItems: "flex-end", gap: 2 }}>
+                      <ThemedText style={[styles.cardMetricLabel, { color: ui.mutedText }]}>
+                        Unused Funds
+                      </ThemedText>
+                      <ThemedText style={[styles.cardMetricValue, { color: ui.text }]}>
+                        {formatMoney(budget.availableAmount)}
+                      </ThemedText>
+                    </View>
+                    <Pressable
+                      onPress={() =>
+                        router.push({
+                          pathname: "/budget/[id]/edit",
+                          params: { id: String(budget.id) },
+                        } as any)
+                      }
+                      hitSlop={8}
+                      style={({ pressed }) => ({ opacity: pressed ? 0.55 : 1 })}
+                    >
+                      <Feather name="edit-2" size={15} color={ui.text} />
+                    </Pressable>
+                  </View>
                 </View>
-              ))}
-            </View>
-          </Pressable>
-        ))}
+
+                <View style={[styles.tableHeader, { borderBottomColor: ui.border }]}>
+                  <ThemedText style={[styles.headerName, { color: ui.text }]}>Name</ThemedText>
+                  <ThemedText style={[styles.headerMetric, { color: ui.mutedText }]}>
+                    Budgeted
+                  </ThemedText>
+                  <ThemedText style={[styles.headerMetric, { color: ui.mutedText }]}>
+                    Available
+                  </ThemedText>
+                </View>
+
+                <View style={styles.tableBody}>
+                  {budget.categoryBudgets.map((category, index) => (
+                    <View
+                      key={category.id}
+                      style={[
+                        styles.tableRow,
+                        {
+                          borderBottomColor: ui.border,
+                          borderBottomWidth:
+                            index === budget.categoryBudgets.length - 1
+                              ? 0
+                              : StyleSheet.hairlineWidth,
+                        },
+                      ]}
+                    >
+                      <View style={styles.nameColumn}>
+                        <ThemedText style={[styles.rowTitle, { color: ui.text }]}>
+                          {category.category_name}
+                        </ThemedText>
+                        <ThemedText style={[styles.rowFootnote, { color: ui.mutedText }]}>
+                          {formatBudgetDateRange(budget)}
+                        </ThemedText>
+                      </View>
+
+                      <ThemedText style={[styles.rowMetric, { color: ui.text }]}>
+                        {formatMoney(category.limit_amount)}
+                      </ThemedText>
+                      <ThemedText
+                        style={[
+                          styles.rowMetric,
+                          {
+                            color: category.available < 0 ? "#D55C4B" : ui.text,
+                          },
+                        ]}
+                      >
+                        {formatMoney(category.available)}
+                      </ThemedText>
+                    </View>
+                  ))}
+                </View>
+              </Pressable>
+            ))}
+          </View>
+        </View>
       </View>
     </View>
   );
@@ -284,8 +345,8 @@ function BudgetStat({ label, value }: { label: string; value: string }) {
   const ui = tabsTheme.ui;
 
   return (
-    <View style={{ alignItems: "center", gap: 2 }}>
-      <ThemedText style={[styles.statLabel, { color: ui.text }]}>{label}</ThemedText>
+    <View style={styles.statBlock}>
+      <ThemedText style={[styles.statLabel, { color: ui.mutedText }]}>{label}</ThemedText>
       <ThemedText style={[styles.statValue, { color: ui.text }]}>{value}</ThemedText>
     </View>
   );
@@ -298,61 +359,89 @@ const styles = StyleSheet.create({
   stack: {
     gap: 12,
   },
-  overviewHeader: {
+  sectionPanel: {
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 24,
+    overflow: "hidden",
+  },
+  sectionHeader: {
+    paddingHorizontal: 14,
+    paddingVertical: 14,
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    gap: 4,
+    justifyContent: "space-between",
+    gap: 12,
   },
-  overviewLabel: {
+  sectionTitle: {
     fontSize: 16,
+    lineHeight: 20,
     fontFamily: Tokens.font.semiFamily ?? Tokens.font.family,
   },
-  overviewCard: {
-    borderRadius: 14,
-    borderWidth: StyleSheet.hairlineWidth,
-    paddingHorizontal: 20,
-    paddingVertical: 14,
+  sectionCount: {
+    fontSize: 12.5,
+    lineHeight: 16,
+    fontFamily: Tokens.font.family,
+  },
+  sectionBody: {
+    paddingHorizontal: 10,
+    paddingVertical: 10,
     gap: 10,
-    alignItems: "center",
+    borderTopWidth: StyleSheet.hairlineWidth,
+  },
+  overviewCard: {
+    borderRadius: 20,
+    borderWidth: StyleSheet.hairlineWidth,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    gap: 14,
+    boxShadow: "0 8px 16px rgba(0, 0, 0, 0.06)",
+  },
+  statBlock: {
+    gap: 4,
   },
   statLabel: {
-    fontSize: 15,
+    fontSize: 12,
     fontFamily: Tokens.font.semiFamily ?? Tokens.font.family,
   },
   statValue: {
-    fontSize: 28,
-    lineHeight: 32,
+    fontSize: 24,
+    lineHeight: 28,
     fontFamily: Tokens.font.boldFamily ?? Tokens.font.headingFamily,
     fontVariant: ["tabular-nums"],
   },
+  statusStat: {
+    gap: 4,
+  },
   statusLabel: {
-    fontSize: 14,
+    fontSize: 12,
     fontFamily: Tokens.font.family,
   },
   statusValue: {
-    fontSize: 24,
-    lineHeight: 28,
+    fontSize: 20,
+    lineHeight: 24,
     fontFamily: Tokens.font.boldFamily ?? Tokens.font.headingFamily,
   },
   emptyWrap: {
     minHeight: 300,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 24,
     alignItems: "center",
     justifyContent: "center",
     gap: 18,
     paddingHorizontal: 20,
+    paddingVertical: 28,
   },
   emptyTitle: {
     textAlign: "center",
-    fontSize: 26,
-    lineHeight: 30,
+    fontSize: 22,
+    lineHeight: 28,
     fontFamily: Tokens.font.boldFamily ?? Tokens.font.headingFamily,
     maxWidth: 260,
   },
   emptyButton: {
     minWidth: 150,
     borderRadius: 999,
-    borderWidth: StyleSheet.hairlineWidth,
+    borderWidth: 1,
     paddingHorizontal: 22,
     paddingVertical: 12,
     alignItems: "center",
@@ -361,14 +450,13 @@ const styles = StyleSheet.create({
   emptyButtonText: {
     fontSize: 14,
     fontFamily: Tokens.font.semiFamily ?? Tokens.font.family,
-    textTransform: "uppercase",
   },
   budgetCard: {
-    borderRadius: 18,
+    borderRadius: 20,
     borderWidth: StyleSheet.hairlineWidth,
-    padding: 12,
-    gap: 10,
-    boxShadow: "0 8px 16px rgba(0, 0, 0, 0.08)",
+    padding: 14,
+    gap: 12,
+    boxShadow: "0 8px 16px rgba(0, 0, 0, 0.06)",
   },
   cardHeader: {
     flexDirection: "row",
@@ -378,16 +466,13 @@ const styles = StyleSheet.create({
   },
   cardHeaderLeft: {
     flex: 1,
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 8,
   },
   cardHeaderCopy: {
     flex: 1,
-    gap: 2,
+    gap: 4,
   },
   cardTitle: {
-    fontSize: 15,
+    fontSize: 16,
     fontFamily: Tokens.font.semiFamily ?? Tokens.font.family,
   },
   cardSubtitle: {
@@ -404,7 +489,7 @@ const styles = StyleSheet.create({
     fontFamily: Tokens.font.semiFamily ?? Tokens.font.family,
   },
   cardMetricValue: {
-    fontSize: 13,
+    fontSize: 14,
     fontFamily: Tokens.font.boldFamily ?? Tokens.font.headingFamily,
     fontVariant: ["tabular-nums"],
   },
@@ -417,7 +502,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   tableBody: {
-    gap: 10,
+    gap: 0,
   },
   headerName: {
     flex: 1,
@@ -434,6 +519,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
+    paddingVertical: 10,
   },
   nameColumn: {
     flex: 1,

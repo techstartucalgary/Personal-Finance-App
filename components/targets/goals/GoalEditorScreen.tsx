@@ -13,7 +13,6 @@ import {
   ScrollView,
   StyleSheet,
   TextInput,
-  useColorScheme,
   View,
 } from "react-native";
 
@@ -70,18 +69,7 @@ export function GoalEditorScreen({ mode }: GoalEditorScreenProps) {
   const { session } = useAuthContext();
   const router = useRouter();
   const navigation = useNavigation();
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === "dark";
-  const baseUi = useThemeUI();
-  const ui = useMemo(() => {
-    if (!isDark) return baseUi;
-    return {
-      ...baseUi,
-      bg: "#1B1B1E",
-      surface: "#2C2C2F",
-      surface2: "#2C2C2F",
-    };
-  }, [baseUi, isDark]);
+  const ui = useThemeUI();
   const userId = session?.user.id;
   const { id, initialData } = useLocalSearchParams<{
     id?: string;

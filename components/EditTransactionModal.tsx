@@ -31,6 +31,11 @@ import {
 import { parseLocalDate, toLocalISOString } from "@/utils/date";
 import { deleteExpense, updateExpense } from "@/utils/expenses";
 import {
+  extractGoalTransactionGoalId,
+  getGoalDeltaFromTransactionAmount,
+} from "@/utils/goal-transactions";
+import { updateGoalCurrentAmountByDelta } from "@/utils/goals";
+import {
   createRecurringRule,
   deleteRecurringRule,
   updateRecurringRule,
@@ -397,8 +402,17 @@ export function EditTransactionModal({
       try {
         const originalAmount = expense.amount ?? 0;
         const originalAccountId = expense.account_id;
+        const linkedGoalId = extractGoalTransactionGoalId(expense.description);
 
         await deleteExpense({ id: expense.id, profile_id: userId });
+
+        if (linkedGoalId) {
+          await updateGoalCurrentAmountByDelta({
+            id: linkedGoalId,
+            profile_id: userId,
+            delta: -getGoalDeltaFromTransactionAmount(originalAmount),
+          });
+        }
 
         if (originalAccountId != null) {
           const originalAccount = await getAccountById({

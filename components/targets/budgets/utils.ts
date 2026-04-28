@@ -143,18 +143,14 @@ function getExpenseDate(expense: ExpenseRow) {
 function matchesExpenseForBudget(
   expense: ExpenseRow,
   budget: Pick<BudgetRow, "start_date" | "end_date">,
-  linkedAccountKey: string | null,
+  _linkedAccountKey: string | null,
   filterAccountId?: FilterAccountId,
 ) {
   const date = getExpenseDate(expense);
   if (!date) return false;
   if (date < budget.start_date || date > budget.end_date) return false;
   if (!matchesActiveAccountFilter(expense, filterAccountId)) return false;
-
-  if (!linkedAccountKey) return true;
-  if (!linkedAccountKey.startsWith("manual:")) return true;
-
-  return expense.account_id === Number(linkedAccountKey.replace("manual:", ""));
+  return true;
 }
 
 export function getBudgetCategorySpent(params: {

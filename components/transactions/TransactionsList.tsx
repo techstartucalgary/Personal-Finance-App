@@ -11,6 +11,7 @@ import {
 import { ThemedText } from "@/components/themed-text";
 import { Tokens } from "@/constants/authTokens";
 import type { TabsUi } from "@/constants/tabsTheme";
+import { stripGoalTransactionMarker } from "@/utils/goal-transactions";
 import { parseLocalDate, toLocalISOString } from "@/utils/date";
 import type { PlaidAccount, PlaidTransaction } from "@/utils/plaid";
 
@@ -211,7 +212,7 @@ function TransactionsListComponent({
           if (expense.account_id !== filterAccountId) return false;
         }
         if (!search) return true;
-        const description = expense.description ?? "";
+        const description = stripGoalTransactionMarker(expense.description);
         const amount = expense.amount?.toString() ?? "";
         const accountName =
           accounts.find((acc) => acc.id === expense.account_id)?.account_name ??
@@ -224,7 +225,8 @@ function TransactionsListComponent({
       })
       .map((expense) => {
         const account = accounts.find((acc) => acc.id === expense.account_id);
-        const title = expense.description ?? "Manual transaction";
+        const title =
+          stripGoalTransactionMarker(expense.description) || "Manual transaction";
         const accountLabel = buildAccountLabel(account?.account_name ?? null, null);
         const recurringRule = recurringRules.find(
           (rule) => rule.id === expense.recurring_rule_id,
@@ -237,7 +239,7 @@ function TransactionsListComponent({
         const visual = getVisual(title, recurringLabel ?? null);
         return {
           id: `manual:${expense.id}`,
-          source: "manual",
+          source: "manual" as const,
           title,
           date: expense.transaction_date || expense.created_at || null,
           amount: expense.amount ?? 0,
@@ -285,7 +287,7 @@ function TransactionsListComponent({
         const visual = getVisual(title, categoryLine ?? null);
         return {
           id: `plaid:${tx.transaction_id}`,
-          source: "plaid",
+          source: "plaid" as const,
           title,
           date: tx.date || null,
           amount: tx.amount ?? 0,
@@ -317,7 +319,7 @@ function TransactionsListComponent({
   const filtered = useMemo(() => {
     if (typeFilter === "all") return normalized;
     return normalized.filter((tx) => {
-      const isInflow = tx.source === "plaid" && tx.amount < 0;
+      const isInflow = tx.amount < 0;
       return typeFilter === "inflow" ? isInflow : !isInflow;
     });
   }, [normalized, typeFilter]);
@@ -495,7 +497,7 @@ function TransactionsListComponent({
             <View style={[styles.sectionCard, { backgroundColor: ui.surface, borderColor: ui.border }]}>
               <View style={[styles.sectionCard, { backgroundColor: ui.surface, borderColor: ui.border }]}>
                 {section.items.map((tx, index) => {
-                  const isInflow = tx.source === "plaid" && tx.amount < 0;
+                  const isInflow = tx.amount < 0;
                   const arrowColor = isInflow ? INFLOW_GREEN : ui.danger;
                   const amountColor = subtleAmountColors
                     ? isInflow

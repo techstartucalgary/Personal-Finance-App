@@ -14,6 +14,11 @@ import { useAuthContext } from "@/hooks/use-auth-context";
 import { getAccountById, listAccounts, updateAccount } from "@/utils/accounts";
 import { listCategories } from "@/utils/categories";
 import { deleteExpense, listExpenses } from "@/utils/expenses";
+import {
+  extractGoalTransactionGoalId,
+  getGoalDeltaFromTransactionAmount,
+} from "@/utils/goal-transactions";
+import { updateGoalCurrentAmountByDelta } from "@/utils/goals";
 import type { PlaidAccount, PlaidTransaction } from "@/utils/plaid";
 import { getPlaidAccounts, getPlaidTransactions } from "@/utils/plaid";
 import { deleteRecurringRule, getRecurringRules } from "@/utils/recurring";
@@ -245,8 +250,17 @@ export default function HomeScreen() {
         try {
           const originalAmount = expense.amount ?? 0;
           const originalAccountId = expense.account_id;
+          const linkedGoalId = extractGoalTransactionGoalId(expense.description);
 
           await deleteExpense({ id: expense.id, profile_id: userId });
+
+          if (linkedGoalId) {
+            await updateGoalCurrentAmountByDelta({
+              id: linkedGoalId,
+              profile_id: userId,
+              delta: -getGoalDeltaFromTransactionAmount(originalAmount),
+            });
+          }
 
           if (originalAccountId != null) {
             const originalAccount = await getAccountById({

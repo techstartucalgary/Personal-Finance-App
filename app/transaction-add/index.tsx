@@ -26,9 +26,10 @@ export default function TransactionAddScreen() {
   const navigation = useNavigation();
   const isDark = false;
   const userId = session?.user.id;
-  const { currentAccountId, initialDescription } = useLocalSearchParams<{
+  const { currentAccountId, initialDescription, goalId } = useLocalSearchParams<{
     currentAccountId?: string;
     initialDescription?: string;
+    goalId?: string;
   }>();
   const ui = useThemeUI();
   const modalRef = useRef<AddTransactionModalRef>(null);
@@ -98,7 +99,7 @@ export default function TransactionAddScreen() {
 
   useEffect(() => {
     navigation.setOptions({
-      title: "Add Transaction",
+      title: goalId ? "Add Goal Transaction" : "Add Transaction",
       headerBackVisible: false,
       headerTitleAlign: "center",
       headerTransparent: Platform.OS === "ios",
@@ -140,7 +141,16 @@ export default function TransactionAddScreen() {
         </Pressable>
       ),
     });
-  }, [handleSave, navigation, router, sheetUi.accent, sheetUi.bg, sheetUi.text, isValid]);
+  }, [
+    goalId,
+    handleSave,
+    navigation,
+    router,
+    sheetUi.accent,
+    sheetUi.bg,
+    sheetUi.text,
+    isValid,
+  ]);
 
   if (isLoading) {
     return (
@@ -173,6 +183,7 @@ export default function TransactionAddScreen() {
       mode="add"
       initialAccountId={currentAccountId ? Number(currentAccountId) : null}
       initialDescription={initialDescription ?? null}
+      goalId={goalId ?? null}
       recurringRules={recurringRules}
       onStateChange={(state) => {
         setIsDirty(state.isDirty);

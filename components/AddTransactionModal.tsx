@@ -35,6 +35,13 @@ import {
 import { parseLocalDate, toLocalISOString } from "@/utils/date";
 import { addExpense, updateExpense } from "@/utils/expenses";
 import {
+  buildGoalTransactionDescription,
+  extractGoalTransactionGoalId,
+  getGoalDeltaFromTransactionAmount,
+  stripGoalTransactionMarker,
+} from "@/utils/goal-transactions";
+import { updateGoalCurrentAmountByDelta } from "@/utils/goals";
+import {
   createRecurringRule,
   deleteRecurringRule,
   updateRecurringRule,
@@ -804,6 +811,7 @@ interface AddTransactionModalProps {
   onStateChange?: (state: { isDirty: boolean; isValid: boolean }) => void;
   initialAccountId?: number | null;
   initialDescription?: string | null;
+  goalId?: string | null;
 }
 
 const EMPTY_RECURRING_RULES: any[] = [];
@@ -829,6 +837,7 @@ export const AddTransactionModal = forwardRef<AddTransactionModalRef, AddTransac
     onStateChange,
     initialAccountId = null,
     initialDescription = null,
+    goalId = null,
   } = props;
   const insets = useSafeAreaInsets();
   const amountInputRef = React.useRef<TextInput>(null);
@@ -836,6 +845,8 @@ export const AddTransactionModal = forwardRef<AddTransactionModalRef, AddTransac
   const keyboardShift = React.useRef(new Animated.Value(0)).current;
   const isViewMode = mode === "view";
   const isEditMode = mode === "edit";
+  const linkedGoalId =
+    goalId ?? extractGoalTransactionGoalId(initialTransaction?.description);
 
   const [isLoading, setIsLoading] = useState(false);
   const [amount, setAmount] = useState("");
@@ -1084,7 +1095,7 @@ export const AddTransactionModal = forwardRef<AddTransactionModalRef, AddTransac
         : null;
 
       setAmount(formattedAmount);
-      setDescription(initialTransaction.description ?? "");
+      setDescription(stripGoalTransactionMarker(initialTransaction.description));
       setNotes("");
       setNotesModalOpen(false);
       setTransactionDate(
@@ -1269,7 +1280,8 @@ export const AddTransactionModal = forwardRef<AddTransactionModalRef, AddTransac
       
       const hasBasicChanges = 
         currentAmount !== initialAmount ||
-        description.trim() !== (initialTransaction.description ?? "").trim() ||
+        description.trim() !==
+          stripGoalTransactionMarker(initialTransaction.description).trim() ||
         currentType !== initialType ||
         selectedAccount?.id !== initialTransaction.account_id ||
         selectedCategory?.id !== initialTransaction.expense_categoryid ||
@@ -1378,17 +1390,32 @@ export const AddTransactionModal = forwardRef<AddTransactionModalRef, AddTransac
       // TODO(backend): Replace signed-amount convention with explicit type field if desired.
       const signedAmount = parsed * (transactionType === "income" ? -1 : 1);
 
+      const savedDescription =
+        linkedGoalId != null
+          ? buildGoalTransactionDescription(linkedGoalId, description.trim())
+          : description.trim().length
+            ? description.trim()
+            : null;
+
       // TODO(backend): This currently writes to the expenses table for both Expense and Income.
       await addExpense({
         profile_id: userId,
         account_id: selectedAccount.id,
         amount: signedAmount,
-        description: description.trim().length ? description.trim() : null,
+        description: savedDescription,
         expense_categoryid: selectedCategory.id,
         subcategory_id: selectedSubcategory ? selectedSubcategory.id : null,
         transaction_date: transactionDate || toLocalISOString(new Date()),
         recurring_rule_id,
       });
+
+      if (linkedGoalId != null) {
+        await updateGoalCurrentAmountByDelta({
+          id: linkedGoalId,
+          profile_id: userId,
+          delta: getGoalDeltaFromTransactionAmount(signedAmount),
+        });
+      }
 
       const latestAccount = await getAccountById({
         id: selectedAccount.id,
@@ -1542,6 +1569,17 @@ export const AddTransactionModal = forwardRef<AddTransactionModalRef, AddTransac
 
       const signedAmount = parsed * (transactionType === "income" ? -1 : 1);
 
+      const previousGoalId = extractGoalTransactionGoalId(
+        initialTransaction.description,
+      );
+      const nextGoalId = linkedGoalId ?? previousGoalId;
+      const savedDescription =
+        nextGoalId != null
+          ? buildGoalTransactionDescription(nextGoalId, description.trim())
+          : description.trim().length
+            ? description.trim()
+            : null;
+
       await updateExpense({
         id: initialTransaction.id,
         profile_id: userId,
@@ -1551,10 +1589,41 @@ export const AddTransactionModal = forwardRef<AddTransactionModalRef, AddTransac
           subcategory_id: selectedSubcategory ? selectedSubcategory.id : null,
           amount: signedAmount,
           recurring_rule_id: finalRecurringRuleId,
-          description: description.trim().length ? description.trim() : null,
+          description: savedDescription,
           transaction_date: transactionDate || undefined,
         },
       });
+
+      const previousGoalDelta = getGoalDeltaFromTransactionAmount(
+        initialTransaction.amount,
+      );
+      const nextGoalDelta = getGoalDeltaFromTransactionAmount(signedAmount);
+
+      if (previousGoalId && previousGoalId === nextGoalId) {
+        const deltaChange = nextGoalDelta - previousGoalDelta;
+        if (deltaChange !== 0) {
+          await updateGoalCurrentAmountByDelta({
+            id: previousGoalId,
+            profile_id: userId,
+            delta: deltaChange,
+          });
+        }
+      } else {
+        if (previousGoalId) {
+          await updateGoalCurrentAmountByDelta({
+            id: previousGoalId,
+            profile_id: userId,
+            delta: -previousGoalDelta,
+          });
+        }
+        if (nextGoalId) {
+          await updateGoalCurrentAmountByDelta({
+            id: nextGoalId,
+            profile_id: userId,
+            delta: nextGoalDelta,
+          });
+        }
+      }
 
       const originalAmount = initialTransaction.amount ?? 0;
       const originalAccountId = initialTransaction.account_id;

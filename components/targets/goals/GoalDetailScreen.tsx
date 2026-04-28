@@ -23,6 +23,7 @@ import { IconSymbol } from "@/components/ui/icon-symbol";
 import { Tokens } from "@/constants/authTokens";
 import { tabsTheme } from "@/constants/tabsTheme";
 import { useAuthContext } from "@/hooks/use-auth-context";
+import { isGoalTransactionForGoal } from "@/utils/goal-transactions";
 import { listAccounts } from "@/utils/accounts";
 import { listExpenses } from "@/utils/expenses";
 import { getGoal } from "@/utils/goals";
@@ -167,6 +168,44 @@ export function GoalDetailScreen() {
     () => (goal ? getGoalFilterAccountId(goal) : null),
     [goal],
   );
+  const goalTransactions = useMemo(
+    () =>
+      goal
+        ? expenses.filter((expense) =>
+            isGoalTransactionForGoal(expense.description, goal.id),
+          )
+        : [],
+    [expenses, goal],
+  );
+  const handleOpenEdit = useCallback(() => {
+    if (!goal) return;
+
+    const encodedGoal = encodeURIComponent(JSON.stringify(goal));
+    router.push({
+      pathname: "/goal/[id]/edit",
+      params: { id: String(goal.id), initialData: encodedGoal },
+    } as any);
+  }, [goal, router]);
+  const handleAddTransaction = useCallback(() => {
+    if (!goal) return;
+
+    if (goal.linked_account != null) {
+      router.push({
+        pathname: "/transaction-add",
+        params: {
+          currentAccountId: String(goal.linked_account),
+          initialDescription: goal.name,
+          goalId: goal.id,
+        },
+      } as any);
+      return;
+    }
+
+    Alert.alert(
+      "Manual transactions unavailable",
+      "This goal is linked to a synced account. Add transactions from a self-managed account instead.",
+    );
+  }, [goal, router]);
 
   if (isLoading || !goal) {
     return (
@@ -179,30 +218,6 @@ export function GoalDetailScreen() {
   const linkedAccountName = getGoalLinkedAccountName(goal, accounts);
   const progress = getGoalProgress(goal);
   const canCreateManualTransaction = goal.linked_account != null;
-  const handleOpenEdit = useCallback(() => {
-    const encodedGoal = encodeURIComponent(JSON.stringify(goal));
-    router.push({
-      pathname: "/goal/[id]/edit",
-      params: { id: String(goal.id), initialData: encodedGoal },
-    } as any);
-  }, [goal, router]);
-  const handleAddTransaction = useCallback(() => {
-    if (goal.linked_account != null) {
-      router.push({
-        pathname: "/transaction-add",
-        params: {
-          currentAccountId: String(goal.linked_account),
-          initialDescription: goal.name,
-        },
-      } as any);
-      return;
-    }
-
-    Alert.alert(
-      "Manual transactions unavailable",
-      "This goal is linked to a synced account. Add transactions from a self-managed account instead.",
-    );
-  }, [goal.linked_account, goal.name, router]);
 
   return (
     <ScrollView
@@ -318,8 +333,8 @@ export function GoalDetailScreen() {
           ui={ui}
           accounts={manualAccounts}
           plaidAccounts={plaidAccounts}
-          expenses={expenses}
-          plaidTransactions={plaidTransactions}
+          expenses={goalTransactions}
+          plaidTransactions={[]}
           recurringRules={recurringRules}
           filterAccountId={filterAccountId}
           onFilterAccountChange={() => {}}
@@ -331,6 +346,7 @@ export function GoalDetailScreen() {
           showMeta={false}
           showBadges={false}
           subtleAmountColors={true}
+          emptyLabel="No goal transactions found."
           onSelectTransaction={(transaction) => {
             const encoded = encodeURIComponent(JSON.stringify(transaction));
             if ("transaction_id" in transaction) {
@@ -343,7 +359,11 @@ export function GoalDetailScreen() {
 
             router.push({
               pathname: "/transaction/[id]",
-              params: { id: String(transaction.id), initialData: encoded },
+              params: {
+                id: String(transaction.id),
+                initialData: encoded,
+                goalId: goal.id,
+              },
             });
           }}
         />

@@ -1,6 +1,6 @@
 import Feather from "@expo/vector-icons/Feather";
 import { useFocusEffect } from "expo-router";
-import React, { useCallback, useEffect, useMemo, useState, forwardRef, useImperativeHandle } from "react";
+import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -34,13 +34,6 @@ import {
 } from "@/utils/categories";
 import { parseLocalDate, toLocalISOString } from "@/utils/date";
 import { addExpense, updateExpense } from "@/utils/expenses";
-import {
-  buildGoalTransactionDescription,
-  extractGoalTransactionGoalId,
-  getGoalDeltaFromTransactionAmount,
-  stripGoalTransactionMarker,
-} from "@/utils/goal-transactions";
-import { updateGoalCurrentAmountByDelta } from "@/utils/goals";
 import {
   createRecurringRule,
   deleteRecurringRule,
@@ -809,9 +802,6 @@ interface AddTransactionModalProps {
   hideHeader?: boolean;
   onOpenAccountPicker?: (currentAccountId: number | null) => void;
   onStateChange?: (state: { isDirty: boolean; isValid: boolean }) => void;
-  initialAccountId?: number | null;
-  initialDescription?: string | null;
-  goalId?: string | null;
 }
 
 const EMPTY_RECURRING_RULES: any[] = [];
@@ -835,9 +825,6 @@ export const AddTransactionModal = forwardRef<AddTransactionModalRef, AddTransac
     hideHeader = false,
     onOpenAccountPicker,
     onStateChange,
-    initialAccountId = null,
-    initialDescription = null,
-    goalId = null,
   } = props;
   const insets = useSafeAreaInsets();
   const amountInputRef = React.useRef<TextInput>(null);
@@ -845,8 +832,6 @@ export const AddTransactionModal = forwardRef<AddTransactionModalRef, AddTransac
   const keyboardShift = React.useRef(new Animated.Value(0)).current;
   const isViewMode = mode === "view";
   const isEditMode = mode === "edit";
-  const linkedGoalId =
-    goalId ?? extractGoalTransactionGoalId(initialTransaction?.description);
 
   const [isLoading, setIsLoading] = useState(false);
   const [amount, setAmount] = useState("");
@@ -997,9 +982,9 @@ export const AddTransactionModal = forwardRef<AddTransactionModalRef, AddTransac
       const full =
         normalized.length === 3
           ? normalized
-              .split("")
-              .map((char) => `${char}${char}`)
-              .join("")
+            .split("")
+            .map((char) => `${char}${char}`)
+            .join("")
           : normalized;
       const num = parseInt(full, 16);
       const r = (num >> 16) & 255;
@@ -1090,12 +1075,12 @@ export const AddTransactionModal = forwardRef<AddTransactionModalRef, AddTransac
       );
       const ruleMatch = initialTransaction.recurring_rule_id
         ? recurringRules.find(
-            (rule) => rule.id === initialTransaction.recurring_rule_id,
-          )
+          (rule) => rule.id === initialTransaction.recurring_rule_id,
+        )
         : null;
 
       setAmount(formattedAmount);
-      setDescription(stripGoalTransactionMarker(initialTransaction.description));
+      setDescription(initialTransaction.description ?? "");
       setNotes("");
       setNotesModalOpen(false);
       setTransactionDate(
@@ -1122,16 +1107,12 @@ export const AddTransactionModal = forwardRef<AddTransactionModalRef, AddTransac
     }
 
     setAmount("");
-    setDescription(initialDescription?.trim() ?? "");
+    setDescription("");
     setNotes("");
     setNotesModalOpen(false);
     setTransactionDate(toLocalISOString(new Date()));
     setTransactionType("expense");
-    setSelectedAccount(
-      initialAccountId != null
-        ? accounts.find((account) => account.id === initialAccountId) ?? null
-        : null,
-    );
+    setSelectedAccount(null);
     setSelectedCategory(null);
     setSelectedSubcategory(null);
     setSubcategories([]);
@@ -1155,8 +1136,6 @@ export const AddTransactionModal = forwardRef<AddTransactionModalRef, AddTransac
     accounts,
     categories,
     recurringRules,
-    initialAccountId,
-    initialDescription,
   ]);
 
   useEffect(() => {
@@ -1277,11 +1256,10 @@ export const AddTransactionModal = forwardRef<AddTransactionModalRef, AddTransac
       const initialAmount = Math.abs(initialTransaction.amount ?? 0);
       const currentType = transactionType;
       const initialType = (initialTransaction.amount ?? 0) < 0 ? "income" : "expense";
-      
-      const hasBasicChanges = 
+
+      const hasBasicChanges =
         currentAmount !== initialAmount ||
-        description.trim() !==
-          stripGoalTransactionMarker(initialTransaction.description).trim() ||
+        description.trim() !== (initialTransaction.description ?? "").trim() ||
         currentType !== initialType ||
         selectedAccount?.id !== initialTransaction.account_id ||
         selectedCategory?.id !== initialTransaction.expense_categoryid ||
@@ -1290,15 +1268,12 @@ export const AddTransactionModal = forwardRef<AddTransactionModalRef, AddTransac
 
       return hasBasicChanges;
     }
-    
+
     // For Add mode:
     return (
-      amount.trim() !== "" || 
-      description.trim() !== (initialDescription?.trim() ?? "") || 
-      (
-        (selectedAccount?.id ?? null) !== initialAccountId &&
-        (selectedAccount !== null && accounts.length > 1)
-      ) || // ignore seeded or auto-selected account
+      amount.trim() !== "" ||
+      description.trim() !== "" ||
+      (selectedAccount !== null && accounts.length > 1) || // ignore auto-selected if only 1
       selectedCategory !== null
     );
   }, [
@@ -1312,9 +1287,7 @@ export const AddTransactionModal = forwardRef<AddTransactionModalRef, AddTransac
     selectedCategory,
     selectedSubcategory,
     transactionDate,
-    accounts.length,
-    initialAccountId,
-    initialDescription,
+    accounts.length
   ]);
 
   useEffect(() => {
@@ -1390,32 +1363,17 @@ export const AddTransactionModal = forwardRef<AddTransactionModalRef, AddTransac
       // TODO(backend): Replace signed-amount convention with explicit type field if desired.
       const signedAmount = parsed * (transactionType === "income" ? -1 : 1);
 
-      const savedDescription =
-        linkedGoalId != null
-          ? buildGoalTransactionDescription(linkedGoalId, description.trim())
-          : description.trim().length
-            ? description.trim()
-            : null;
-
       // TODO(backend): This currently writes to the expenses table for both Expense and Income.
       await addExpense({
         profile_id: userId,
         account_id: selectedAccount.id,
         amount: signedAmount,
-        description: savedDescription,
+        description: description.trim().length ? description.trim() : null,
         expense_categoryid: selectedCategory.id,
         subcategory_id: selectedSubcategory ? selectedSubcategory.id : null,
         transaction_date: transactionDate || toLocalISOString(new Date()),
         recurring_rule_id,
       });
-
-      if (linkedGoalId != null) {
-        await updateGoalCurrentAmountByDelta({
-          id: linkedGoalId,
-          profile_id: userId,
-          delta: getGoalDeltaFromTransactionAmount(signedAmount),
-        });
-      }
 
       const latestAccount = await getAccountById({
         id: selectedAccount.id,
@@ -1452,27 +1410,27 @@ export const AddTransactionModal = forwardRef<AddTransactionModalRef, AddTransac
       Alert.alert("Category name required", "Enter a category name.");
       return;
     }
-      try {
-        const data = await addCategory({
-          profile_id: userId,
-          category_name: trimmed,
-        });
-        setNewCategoryName("");
-        setCategoryIconOverrides((prev) => ({
-          ...prev,
-          [data.id]: {
-            label: newCategoryIcon.label,
-            icon: newCategoryIcon.icon,
-            color: newCategoryColor,
-          },
-        }));
-        setNewCategoryIcon(ICON_CHOICES[0]);
-        setNewCategoryColor(COLOR_CHOICES[0]);
-        setSelectedCategory(data as CategoryRow);
-        setCreateCategoryModalOpen(false);
-        await onRefresh();
-        // Keep modal open so user can see it's selected
-      } catch (error) {
+    try {
+      const data = await addCategory({
+        profile_id: userId,
+        category_name: trimmed,
+      });
+      setNewCategoryName("");
+      setCategoryIconOverrides((prev) => ({
+        ...prev,
+        [data.id]: {
+          label: newCategoryIcon.label,
+          icon: newCategoryIcon.icon,
+          color: newCategoryColor,
+        },
+      }));
+      setNewCategoryIcon(ICON_CHOICES[0]);
+      setNewCategoryColor(COLOR_CHOICES[0]);
+      setSelectedCategory(data as CategoryRow);
+      setCreateCategoryModalOpen(false);
+      await onRefresh();
+      // Keep modal open so user can see it's selected
+    } catch (error) {
       console.error("Error creating category:", error);
       Alert.alert("Could not create category", "Please try again.");
     }
@@ -1569,17 +1527,6 @@ export const AddTransactionModal = forwardRef<AddTransactionModalRef, AddTransac
 
       const signedAmount = parsed * (transactionType === "income" ? -1 : 1);
 
-      const previousGoalId = extractGoalTransactionGoalId(
-        initialTransaction.description,
-      );
-      const nextGoalId = linkedGoalId ?? previousGoalId;
-      const savedDescription =
-        nextGoalId != null
-          ? buildGoalTransactionDescription(nextGoalId, description.trim())
-          : description.trim().length
-            ? description.trim()
-            : null;
-
       await updateExpense({
         id: initialTransaction.id,
         profile_id: userId,
@@ -1589,41 +1536,10 @@ export const AddTransactionModal = forwardRef<AddTransactionModalRef, AddTransac
           subcategory_id: selectedSubcategory ? selectedSubcategory.id : null,
           amount: signedAmount,
           recurring_rule_id: finalRecurringRuleId,
-          description: savedDescription,
+          description: description.trim().length ? description.trim() : null,
           transaction_date: transactionDate || undefined,
         },
       });
-
-      const previousGoalDelta = getGoalDeltaFromTransactionAmount(
-        initialTransaction.amount,
-      );
-      const nextGoalDelta = getGoalDeltaFromTransactionAmount(signedAmount);
-
-      if (previousGoalId && previousGoalId === nextGoalId) {
-        const deltaChange = nextGoalDelta - previousGoalDelta;
-        if (deltaChange !== 0) {
-          await updateGoalCurrentAmountByDelta({
-            id: previousGoalId,
-            profile_id: userId,
-            delta: deltaChange,
-          });
-        }
-      } else {
-        if (previousGoalId) {
-          await updateGoalCurrentAmountByDelta({
-            id: previousGoalId,
-            profile_id: userId,
-            delta: -previousGoalDelta,
-          });
-        }
-        if (nextGoalId) {
-          await updateGoalCurrentAmountByDelta({
-            id: nextGoalId,
-            profile_id: userId,
-            delta: nextGoalDelta,
-          });
-        }
-      }
 
       const originalAmount = initialTransaction.amount ?? 0;
       const originalAccountId = initialTransaction.account_id;
@@ -1838,7 +1754,7 @@ export const AddTransactionModal = forwardRef<AddTransactionModalRef, AddTransac
     const showSub = Keyboard.addListener(showEvent, (event) => {
       const height = Math.max(
         (event.endCoordinates?.height ? event.endCoordinates?.height : 0) -
-          insets.bottom,
+        insets.bottom,
         0,
       );
       Animated.timing(keyboardShift, {
@@ -1901,820 +1817,820 @@ export const AddTransactionModal = forwardRef<AddTransactionModalRef, AddTransac
         <Animated.View
           style={{ flex: 1, transform: [{ translateY: keyboardShift }] }}
         >
-            <ScrollView
-              style={{ flex: 1, backgroundColor: ui.bg }}
-              contentInsetAdjustmentBehavior={hideHeader ? "automatic" : "never"}
-              contentContainerStyle={[
-                styles.scrollContent,
-                {
-                  paddingTop: hideHeader ? 16 : 0,
-                  paddingBottom: insets.bottom + 24,
-                },
-              ]}
-              showsVerticalScrollIndicator={false}
-              keyboardShouldPersistTaps="handled"
-              keyboardDismissMode="on-drag"
-            >
-              <View style={styles.formStack}>
-                <View style={styles.heroBlock}>
-                  <Pressable
-                    onPress={() => {
-                      if (!isViewMode) amountInputRef.current?.focus();
-                    }}
-                    disabled={isViewMode}
-                    style={[
-                      styles.amountContainer,
-                      { backgroundColor: ui.surface, borderColor: ui.border },
-                    ]}
-                  >
-                    <ThemedText
-                      style={[styles.currencySymbol, { color: ui.text }]}
-                    >
-                      $
-                    </ThemedText>
-                    <TextInput
-                      ref={amountInputRef}
-                      value={amount}
-                      onChangeText={setAmount}
-                      editable={!isViewMode}
-                      onBlur={() => {
-                        if (amount) {
-                          const parsed = parseFloat(amount);
-                          if (!Number.isNaN(parsed)) {
-                            setAmount(parsed.toFixed(2));
-                          }
-                        }
-                      }}
-                      keyboardType="decimal-pad"
-                      placeholder="0.00"
-                      placeholderTextColor={ui.mutedText}
-                      style={[styles.amountInput, { color: ui.text }]}
-                    />
-                  </Pressable>
-
-                  <View
-                    style={[
-                      styles.typeToggle,
-                      { backgroundColor: ui.surface2, borderColor: ui.border },
-                    ]}
-                    onLayout={(event) => {
-                      const width = event.nativeEvent.layout.width;
-                      setToggleWidth(width);
-                    }}
-                  >
-                    {toggleWidth > 0 && (
-                      <Animated.View
-                        style={[
-                          styles.typeToggleActive,
-                          {
-                            width: (toggleWidth - togglePadding * 2) / 3,
-                            backgroundColor: ui.text,
-                            transform: [{ translateX: toggleTranslate }],
-                            left: togglePadding,
-                          },
-                        ]}
-                        pointerEvents="none"
-                      />
-                    )}
-                    {toggleOptions.map((type) => {
-                      const isActive = transactionType === type;
-                      const label =
-                        type.charAt(0).toUpperCase() + type.slice(1);
-                      return (
-                        <Pressable
-                          key={type}
-                          onPress={() => {
-                            if (!isViewMode) handleTypeChange(type);
-                          }}
-                          disabled={isViewMode}
-                          style={styles.typeToggleItem}
-                        >
-                          <ThemedText
-                            style={{
-                              color: isActive ? ui.surface : ui.text,
-                              fontWeight: isActive ? "700" : "600",
-                            }}
-                          >
-                            {label}
-                          </ThemedText>
-                        </Pressable>
-                      );
-                    })}
-                  </View>
-                  {transactionType === "transfer" && (
-                    <ThemedText
-                      style={[styles.helperText, { color: ui.mutedText }]}
-                    >
-                      Transfers are coming soon. Choose Expense or Income to
-                      continue.
-                    </ThemedText>
-                  )}
-                </View>
-
-                <View
+          <ScrollView
+            style={{ flex: 1, backgroundColor: ui.bg }}
+            contentInsetAdjustmentBehavior={hideHeader ? "automatic" : "never"}
+            contentContainerStyle={[
+              styles.scrollContent,
+              {
+                paddingTop: hideHeader ? 16 : 0,
+                paddingBottom: insets.bottom + 24,
+              },
+            ]}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
+          >
+            <View style={styles.formStack}>
+              <View style={styles.heroBlock}>
+                <Pressable
+                  onPress={() => {
+                    if (!isViewMode) amountInputRef.current?.focus();
+                  }}
+                  disabled={isViewMode}
                   style={[
-                    styles.groupCard,
+                    styles.amountContainer,
                     { backgroundColor: ui.surface, borderColor: ui.border },
                   ]}
                 >
-                  <View style={styles.inputRow}>
-                    <View style={styles.rowLeft}>
-                      <Feather
-                        name="shopping-bag"
-                        size={18}
-                        color={ui.mutedText}
-                      />
-                      <ThemedText style={[styles.rowLabel, { color: ui.text }]}>
-                        Merchant
-                      </ThemedText>
-                    </View>
-                    <TextInput
-                      value={description}
-                      onChangeText={setDescription}
-                      placeholder="Name"
-                      placeholderTextColor={ui.mutedText}
-                      editable={!isViewMode}
-                      style={[styles.rowInputRight, { color: ui.text }]}
-                    />
-                  </View>
-
-                  <View
-                    style={[
-                      styles.rowSeparator,
-                      { backgroundColor: ui.border },
-                    ]}
-                  />
-
-                  <Pressable
-                    onPress={() => {
-                      if (isViewMode) return;
-                      if (onOpenAccountPicker) {
-                        onOpenAccountPicker(selectedAccount?.id ?? null);
-                        return;
+                  <ThemedText
+                    style={[styles.currencySymbol, { color: ui.text }]}
+                  >
+                    $
+                  </ThemedText>
+                  <TextInput
+                    ref={amountInputRef}
+                    value={amount}
+                    onChangeText={setAmount}
+                    editable={!isViewMode}
+                    onBlur={() => {
+                      if (amount) {
+                        const parsed = parseFloat(amount);
+                        if (!Number.isNaN(parsed)) {
+                          setAmount(parsed.toFixed(2));
+                        }
                       }
                     }}
-                    disabled={isViewMode}
-                    style={styles.inputRow}
-                  >
-                    <View style={styles.rowLeft}>
-                      <Feather
-                        name="credit-card"
-                        size={18}
-                        color={ui.mutedText}
-                      />
-                      <ThemedText style={[styles.rowLabel, { color: ui.text }]}>
-                        Account
-                      </ThemedText>
-                    </View>
-                    <View style={styles.rowRight}>
-                      <ThemedText
-                        style={[
-                          styles.rowValueRight,
-                          !selectedAccount && { color: ui.mutedText },
-                          selectedAccount && {
-                            color: ui.accent ?? ui.text,
-                            fontWeight: "600",
-                          },
-                        ]}
-                      >
-                        {selectedAccount?.account_name ?? "Select"}
-                      </ThemedText>
-                      <Feather
-                        name="chevron-right"
-                        size={16}
-                        color={ui.mutedText}
-                      />
-                    </View>
-                  </Pressable>
-
-                  <View
-                    style={[
-                      styles.rowSeparator,
-                      { backgroundColor: ui.border },
-                    ]}
+                    keyboardType="decimal-pad"
+                    placeholder="0.00"
+                    placeholderTextColor={ui.mutedText}
+                    style={[styles.amountInput, { color: ui.text }]}
                   />
+                </Pressable>
 
-                  <DateTimePickerField
-                    label="Date"
-                    value={parseLocalDate(transactionDate)}
-                    onChange={(date) =>
-                      setTransactionDate(toLocalISOString(date))
-                    }
-                    ui={ui}
-                    icon="calendar"
-                    disabled={isViewMode}
+                <View
+                  style={[
+                    styles.typeToggle,
+                    { backgroundColor: ui.surface2, borderColor: ui.border },
+                  ]}
+                  onLayout={(event) => {
+                    const width = event.nativeEvent.layout.width;
+                    setToggleWidth(width);
+                  }}
+                >
+                  {toggleWidth > 0 && (
+                    <Animated.View
+                      style={[
+                        styles.typeToggleActive,
+                        {
+                          width: (toggleWidth - togglePadding * 2) / 3,
+                          backgroundColor: ui.text,
+                          transform: [{ translateX: toggleTranslate }],
+                          left: togglePadding,
+                        },
+                      ]}
+                      pointerEvents="none"
+                    />
+                  )}
+                  {toggleOptions.map((type) => {
+                    const isActive = transactionType === type;
+                    const label =
+                      type.charAt(0).toUpperCase() + type.slice(1);
+                    return (
+                      <Pressable
+                        key={type}
+                        onPress={() => {
+                          if (!isViewMode) handleTypeChange(type);
+                        }}
+                        disabled={isViewMode}
+                        style={styles.typeToggleItem}
+                      >
+                        <ThemedText
+                          style={{
+                            color: isActive ? ui.surface : ui.text,
+                            fontWeight: isActive ? "700" : "600",
+                          }}
+                        >
+                          {label}
+                        </ThemedText>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+                {transactionType === "transfer" && (
+                  <ThemedText
+                    style={[styles.helperText, { color: ui.mutedText }]}
+                  >
+                    Transfers are coming soon. Choose Expense or Income to
+                    continue.
+                  </ThemedText>
+                )}
+              </View>
+
+              <View
+                style={[
+                  styles.groupCard,
+                  { backgroundColor: ui.surface, borderColor: ui.border },
+                ]}
+              >
+                <View style={styles.inputRow}>
+                  <View style={styles.rowLeft}>
+                    <Feather
+                      name="shopping-bag"
+                      size={18}
+                      color={ui.mutedText}
+                    />
+                    <ThemedText style={[styles.rowLabel, { color: ui.text }]}>
+                      Merchant
+                    </ThemedText>
+                  </View>
+                  <TextInput
+                    value={description}
+                    onChangeText={setDescription}
+                    placeholder="Name"
+                    placeholderTextColor={ui.mutedText}
+                    editable={!isViewMode}
+                    style={[styles.rowInputRight, { color: ui.text }]}
                   />
                 </View>
 
                 <View
                   style={[
-                    styles.groupCard,
-                    {
-                      backgroundColor: ui.surface,
-                      borderColor: ui.border,
-                      marginTop: 12,
-                    },
+                    styles.rowSeparator,
+                    { backgroundColor: ui.border },
                   ]}
+                />
+
+                <Pressable
+                  onPress={() => {
+                    if (isViewMode) return;
+                    if (onOpenAccountPicker) {
+                      onOpenAccountPicker(selectedAccount?.id ?? null);
+                      return;
+                    }
+                  }}
+                  disabled={isViewMode}
+                  style={styles.inputRow}
                 >
-                  <Pressable
-                    onPress={() => {
-                      if (!isViewMode) setCategoryModalOpen(true);
-                    }}
-                    disabled={isViewMode}
-                    style={styles.inputRow}
-                  >
-                    <View style={styles.rowLeft}>
-                      <Feather name="tag" size={18} color={ui.mutedText} />
-                      <ThemedText style={[styles.rowLabel, { color: ui.text }]}>
-                        Category
-                      </ThemedText>
-                    </View>
-                    <View style={styles.rowRight}>
-                      <ThemedText
-                        style={[
-                          styles.rowValueRight,
-                          !selectedCategory && { color: ui.mutedText },
-                          selectedCategory && {
-                            color: ui.accent ?? ui.text,
-                            fontWeight: "600",
-                          },
-                        ]}
-                      >
-                        {selectedCategory?.category_name ?? "Select"}
-                      </ThemedText>
-                      <Feather
-                        name="chevron-right"
-                        size={16}
-                        color={ui.mutedText}
-                      />
-                    </View>
-                  </Pressable>
-
-                  {!isViewMode && (
-                    <View style={styles.quickPickWrap}>
-                      <ThemedText
-                        style={[styles.quickPickLabel, { color: ui.mutedText }]}
-                      >
-                        Quick picks
-                      </ThemedText>
-                      <View style={styles.quickPickRow}>
-                        {quickPickOptions.map((item) => {
-                          const isSelected =
-                            (selectedCategory?.category_name ?? "")
-                              .trim()
-                              .toLowerCase() === item.label.toLowerCase();
-                          return (
-                            <Pressable
-                              key={item.label}
-                              onPress={() => handleSuggestedCategory(item.label)}
-                              style={({ pressed }) => [
-                                styles.quickPickItem,
-                                { opacity: pressed ? 0.7 : 1 },
-                              ]}
-                            >
-                              <View
-                                style={[
-                                  styles.quickPickIcon,
-                                  {
-                                    backgroundColor: item.color,
-                                    borderWidth: isSelected ? 2 : 0,
-                                    borderColor: isSelected
-                                      ? (ui.accent ?? ui.text)
-                                      : "transparent",
-                                  },
-                                ]}
-                              >
-                                <Feather
-                                  name={item.icon}
-                                  size={22}
-                                  color="#FFFFFF"
-                                />
-                              </View>
-                              <ThemedText
-                                numberOfLines={2}
-                                ellipsizeMode="tail"
-                                style={[styles.quickPickText, { color: ui.text }]}
-                              >
-                                {item.label}
-                              </ThemedText>
-                            </Pressable>
-                          );
-                        })}
-                        <Pressable
-                          onPress={() => setCategoryModalOpen(true)}
-                          style={({ pressed }) => [
-                            styles.quickPickItem,
-                            { opacity: pressed ? 0.7 : 1 },
-                          ]}
-                        >
-                          <View
-                            style={[
-                              styles.quickPickIcon,
-                              styles.quickPickMoreIcon,
-                              {
-                                backgroundColor: ui.surface2,
-                                borderColor: ui.border,
-                              },
-                            ]}
-                          >
-                            <Feather name="plus" size={22} color={ui.mutedText} />
-                          </View>
-                          <ThemedText
-                            numberOfLines={2}
-                            ellipsizeMode="tail"
-                            style={[
-                              styles.quickPickText,
-                              { color: ui.mutedText },
-                            ]}
-                          >
-                            More
-                          </ThemedText>
-                        </Pressable>
-                      </View>
-                    </View>
-                  )}
-                  <View
-                    style={[
-                      styles.rowSeparator,
-                      { backgroundColor: ui.border },
-                    ]}
-                  />
-
-                  <Pressable
-                    onPress={() => {
-                      if (isViewMode) return;
-                      if (!selectedCategory) {
-                        Alert.alert("Category required", "Please select a category first.");
-                        return;
-                      }
-                      setSubcategoryModalOpen(true);
-                    }}
-                    disabled={isViewMode}
-                    style={[
-                      styles.inputRow,
-                      !selectedCategory && { opacity: 0.55 },
-                      isViewMode && { opacity: 0.75 },
-                    ]}
-                  >
-                    <View style={styles.rowLeft}>
-                      <Feather name="layers" size={18} color={ui.mutedText} />
-                      <ThemedText style={[styles.rowLabel, { color: ui.text }]}>
-                        Subcategory
-                      </ThemedText>
-                    </View>
-                    <View style={styles.rowRight}>
-                      <ThemedText
-                        style={[
-                          styles.rowValueRight,
-                          !selectedSubcategory && { color: ui.mutedText },
-                          selectedSubcategory && {
-                            color: ui.accent ?? ui.text,
-                            fontWeight: "600",
-                          },
-                        ]}
-                      >
-                        {selectedSubcategory?.category_name ?? "Select"}
-                      </ThemedText>
-                      <Feather name="chevron-right" size={16} color={ui.mutedText} />
-                    </View>
-                  </Pressable>
-
-                  <View
-                    style={[
-                      styles.rowSeparator,
-                      { backgroundColor: ui.border },
-                    ]}
-                  />
-
-                  <Pressable
-                    onPress={() => {
-                      if (!isViewMode) setAddFrequencyModalOpen(true);
-                    }}
-                    disabled={isViewMode}
-                    style={styles.inputRow}
-                  >
-                    <View style={styles.rowLeft}>
-                      <Feather name="repeat" size={18} color={ui.mutedText} />
-                      <ThemedText style={[styles.rowLabel, { color: ui.text }]}>
-                        Recurrence
-                      </ThemedText>
-                    </View>
-                    <View style={styles.rowRight}>
-                      <ThemedText
-                        style={[
-                          styles.rowValueRight,
-                          !isRecurring && { color: ui.text },
-                          isRecurring && {
-                            color: ui.accent ?? ui.text,
-                            fontWeight: "600",
-                          },
-                        ]}
-                      >
-                        {isRecurring ? recurringFrequency : "Once"}
-                      </ThemedText>
-                      <Feather
-                        name="chevron-right"
-                        size={16}
-                        color={ui.mutedText}
-                      />
-                    </View>
-                  </Pressable>
-
-                  <View
-                    style={[
-                      styles.rowSeparator,
-                      { backgroundColor: ui.border },
-                    ]}
-                  />
-
-                  <View style={styles.notesRow}>
-                    <View style={styles.rowLeft}>
-                      <Feather name="edit-3" size={18} color={ui.mutedText} />
-                      <ThemedText style={[styles.rowLabel, { color: ui.text }]}>
-                        Notes and Labels
-                      </ThemedText>
-                    </View>
-                    <View
+                  <View style={styles.rowLeft}>
+                    <Feather
+                      name="credit-card"
+                      size={18}
+                      color={ui.mutedText}
+                    />
+                    <ThemedText style={[styles.rowLabel, { color: ui.text }]}>
+                      Account
+                    </ThemedText>
+                  </View>
+                  <View style={styles.rowRight}>
+                    <ThemedText
                       style={[
-                        styles.notesField,
-                        { backgroundColor: ui.surface },
+                        styles.rowValueRight,
+                        !selectedAccount && { color: ui.mutedText },
+                        selectedAccount && {
+                          color: ui.accent ?? ui.text,
+                          fontWeight: "600",
+                        },
                       ]}
                     >
-                      <TextInput
-                        value={notes}
-                        onChangeText={setNotes}
-                        placeholder="Type here"
-                        placeholderTextColor={ui.mutedText}
-                        multiline
-                        textAlignVertical="top"
-                        editable={!isViewMode}
-                        style={[styles.notesInput, { color: ui.text }]}
-                      />
+                      {selectedAccount?.account_name ?? "Select"}
+                    </ThemedText>
+                    <Feather
+                      name="chevron-right"
+                      size={16}
+                      color={ui.mutedText}
+                    />
+                  </View>
+                </Pressable>
+
+                <View
+                  style={[
+                    styles.rowSeparator,
+                    { backgroundColor: ui.border },
+                  ]}
+                />
+
+                <DateTimePickerField
+                  label="Date"
+                  value={parseLocalDate(transactionDate)}
+                  onChange={(date) =>
+                    setTransactionDate(toLocalISOString(date))
+                  }
+                  ui={ui}
+                  icon="calendar"
+                  disabled={isViewMode}
+                />
+              </View>
+
+              <View
+                style={[
+                  styles.groupCard,
+                  {
+                    backgroundColor: ui.surface,
+                    borderColor: ui.border,
+                    marginTop: 12,
+                  },
+                ]}
+              >
+                <Pressable
+                  onPress={() => {
+                    if (!isViewMode) setCategoryModalOpen(true);
+                  }}
+                  disabled={isViewMode}
+                  style={styles.inputRow}
+                >
+                  <View style={styles.rowLeft}>
+                    <Feather name="tag" size={18} color={ui.mutedText} />
+                    <ThemedText style={[styles.rowLabel, { color: ui.text }]}>
+                      Category
+                    </ThemedText>
+                  </View>
+                  <View style={styles.rowRight}>
+                    <ThemedText
+                      style={[
+                        styles.rowValueRight,
+                        !selectedCategory && { color: ui.mutedText },
+                        selectedCategory && {
+                          color: ui.accent ?? ui.text,
+                          fontWeight: "600",
+                        },
+                      ]}
+                    >
+                      {selectedCategory?.category_name ?? "Select"}
+                    </ThemedText>
+                    <Feather
+                      name="chevron-right"
+                      size={16}
+                      color={ui.mutedText}
+                    />
+                  </View>
+                </Pressable>
+
+                {!isViewMode && (
+                  <View style={styles.quickPickWrap}>
+                    <ThemedText
+                      style={[styles.quickPickLabel, { color: ui.mutedText }]}
+                    >
+                      Quick picks
+                    </ThemedText>
+                    <View style={styles.quickPickRow}>
+                      {quickPickOptions.map((item) => {
+                        const isSelected =
+                          (selectedCategory?.category_name ?? "")
+                            .trim()
+                            .toLowerCase() === item.label.toLowerCase();
+                        return (
+                          <Pressable
+                            key={item.label}
+                            onPress={() => handleSuggestedCategory(item.label)}
+                            style={({ pressed }) => [
+                              styles.quickPickItem,
+                              { opacity: pressed ? 0.7 : 1 },
+                            ]}
+                          >
+                            <View
+                              style={[
+                                styles.quickPickIcon,
+                                {
+                                  backgroundColor: item.color,
+                                  borderWidth: isSelected ? 2 : 0,
+                                  borderColor: isSelected
+                                    ? (ui.accent ?? ui.text)
+                                    : "transparent",
+                                },
+                              ]}
+                            >
+                              <Feather
+                                name={item.icon}
+                                size={22}
+                                color="#FFFFFF"
+                              />
+                            </View>
+                            <ThemedText
+                              numberOfLines={2}
+                              ellipsizeMode="tail"
+                              style={[styles.quickPickText, { color: ui.text }]}
+                            >
+                              {item.label}
+                            </ThemedText>
+                          </Pressable>
+                        );
+                      })}
                       <Pressable
-                        style={styles.notesExpand}
-                        hitSlop={8}
-                        onPress={() => {
-                          if (!isViewMode) setNotesModalOpen(true);
-                        }}
-                        disabled={isViewMode}
+                        onPress={() => setCategoryModalOpen(true)}
+                        style={({ pressed }) => [
+                          styles.quickPickItem,
+                          { opacity: pressed ? 0.7 : 1 },
+                        ]}
                       >
-                        <Feather
-                          name="maximize-2"
-                          size={18}
-                          color={ui.mutedText}
-                        />
+                        <View
+                          style={[
+                            styles.quickPickIcon,
+                            styles.quickPickMoreIcon,
+                            {
+                              backgroundColor: ui.surface2,
+                              borderColor: ui.border,
+                            },
+                          ]}
+                        >
+                          <Feather name="plus" size={22} color={ui.mutedText} />
+                        </View>
+                        <ThemedText
+                          numberOfLines={2}
+                          ellipsizeMode="tail"
+                          style={[
+                            styles.quickPickText,
+                            { color: ui.mutedText },
+                          ]}
+                        >
+                          More
+                        </ThemedText>
                       </Pressable>
                     </View>
                   </View>
+                )}
+                <View
+                  style={[
+                    styles.rowSeparator,
+                    { backgroundColor: ui.border },
+                  ]}
+                />
 
-                  {isRecurring && (
-                    <>
-                      <View
-                        style={[
-                          styles.rowSeparator,
-                          { backgroundColor: ui.border },
-                        ]}
-                      />
-                      <DateTimePickerField
-                        label="Next Run"
-                        value={parseLocalDate(addRuleNextRunDate)}
-                        onChange={(date) =>
-                          setAddRuleNextRunDate(toLocalISOString(date))
-                        }
-                        ui={ui}
-                        icon="calendar.badge.clock"
-                        disabled={isViewMode}
-                      />
+                <Pressable
+                  onPress={() => {
+                    if (isViewMode) return;
+                    if (!selectedCategory) {
+                      Alert.alert("Category required", "Please select a category first.");
+                      return;
+                    }
+                    setSubcategoryModalOpen(true);
+                  }}
+                  disabled={isViewMode}
+                  style={[
+                    styles.inputRow,
+                    !selectedCategory && { opacity: 0.55 },
+                    isViewMode && { opacity: 0.75 },
+                  ]}
+                >
+                  <View style={styles.rowLeft}>
+                    <Feather name="layers" size={18} color={ui.mutedText} />
+                    <ThemedText style={[styles.rowLabel, { color: ui.text }]}>
+                      Subcategory
+                    </ThemedText>
+                  </View>
+                  <View style={styles.rowRight}>
+                    <ThemedText
+                      style={[
+                        styles.rowValueRight,
+                        !selectedSubcategory && { color: ui.mutedText },
+                        selectedSubcategory && {
+                          color: ui.accent ?? ui.text,
+                          fontWeight: "600",
+                        },
+                      ]}
+                    >
+                      {selectedSubcategory?.category_name ?? "Select"}
+                    </ThemedText>
+                    <Feather name="chevron-right" size={16} color={ui.mutedText} />
+                  </View>
+                </Pressable>
 
-                      <View
-                        style={[
-                          styles.rowSeparator,
-                          { backgroundColor: ui.border },
-                        ]}
-                      />
-                      <View style={styles.inputRow}>
-                        <Feather
-                          name="calendar"
-                          size={18}
-                          color={ui.mutedText}
-                        />
-                        <ThemedText style={styles.rowLabelInline}>
-                          Ends
-                        </ThemedText>
-                        <Switch
-                          value={hasEndDate}
-                          disabled={isViewMode}
-                          onValueChange={(val) => {
-                            setHasEndDate(val);
-                            if (val) {
-                              setAddRuleEndsOn(addRuleNextRunDate);
-                            } else {
-                              setAddRuleEndsOn("");
-                            }
-                          }}
-                          trackColor={{ false: ui.border, true: "#34C759" }}
-                        />
-                      </View>
+                <View
+                  style={[
+                    styles.rowSeparator,
+                    { backgroundColor: ui.border },
+                  ]}
+                />
 
-                      {hasEndDate && (
-                        <>
-                          <View
-                            style={[
-                              styles.rowSeparator,
-                              { backgroundColor: ui.border },
-                            ]}
-                          />
-                          <DateTimePickerField
-                            label="Ends On"
-                            value={parseLocalDate(addRuleEndsOn)}
-                            onChange={(date) =>
-                              setAddRuleEndsOn(toLocalISOString(date))
-                            }
-                            ui={ui}
-                            icon="calendar"
-                            placeholder="Select Date"
-                            disabled={isViewMode}
-                          />
-                        </>
-                      )}
-                    </>
-                  )}
-                </View>
-                <View style={styles.footerStack}>
-                  {isViewMode ? (
-                    <View style={styles.viewActionRow}>
-                      <Pressable
-                        onPress={onEditRequest}
-                        disabled={!onEditRequest}
-                        style={({ pressed }) => [
-                          styles.viewActionButton,
-                          {
-                            backgroundColor: isDark ? "#FFFFFF" : "#000000",
-                            borderColor: ui.border,
-                            opacity: pressed ? 0.8 : 1,
-                          },
-                          !onEditRequest && styles.buttonDisabled,
-                        ]}
-                      >
-                        <ThemedText
-                          type="defaultSemiBold"
-                          style={{ color: isDark ? "#1C1C1E" : "#FFFFFF" }}
-                        >
-                          Edit
-                        </ThemedText>
-                      </Pressable>
-                      <Pressable
-                        onPress={onDeleteRequest}
-                        disabled={!onDeleteRequest}
-                        style={({ pressed }) => [
-                          styles.viewActionButton,
-                          styles.viewActionDanger,
-                          {
-                            borderColor: ui.border,
-                            opacity: pressed ? 0.8 : 1,
-                          },
-                          !onDeleteRequest && styles.buttonDisabled,
-                        ]}
-                      >
-                        <ThemedText
-                          type="defaultSemiBold"
-                          style={styles.viewActionDangerText}
-                        >
-                          Delete
-                        </ThemedText>
-                      </Pressable>
-                    </View>
-                  ) : (
+                <Pressable
+                  onPress={() => {
+                    if (!isViewMode) setAddFrequencyModalOpen(true);
+                  }}
+                  disabled={isViewMode}
+                  style={styles.inputRow}
+                >
+                  <View style={styles.rowLeft}>
+                    <Feather name="repeat" size={18} color={ui.mutedText} />
+                    <ThemedText style={[styles.rowLabel, { color: ui.text }]}>
+                      Recurrence
+                    </ThemedText>
+                  </View>
+                  <View style={styles.rowRight}>
+                    <ThemedText
+                      style={[
+                        styles.rowValueRight,
+                        !isRecurring && { color: ui.text },
+                        isRecurring && {
+                          color: ui.accent ?? ui.text,
+                          fontWeight: "600",
+                        },
+                      ]}
+                    >
+                      {isRecurring ? recurringFrequency : "Once"}
+                    </ThemedText>
+                    <Feather
+                      name="chevron-right"
+                      size={16}
+                      color={ui.mutedText}
+                    />
+                  </View>
+                </Pressable>
+
+                <View
+                  style={[
+                    styles.rowSeparator,
+                    { backgroundColor: ui.border },
+                  ]}
+                />
+
+                <View style={styles.notesRow}>
+                  <View style={styles.rowLeft}>
+                    <Feather name="edit-3" size={18} color={ui.mutedText} />
+                    <ThemedText style={[styles.rowLabel, { color: ui.text }]}>
+                      Notes and Labels
+                    </ThemedText>
+                  </View>
+                  <View
+                    style={[
+                      styles.notesField,
+                      { backgroundColor: ui.surface },
+                    ]}
+                  >
+                    <TextInput
+                      value={notes}
+                      onChangeText={setNotes}
+                      placeholder="Type here"
+                      placeholderTextColor={ui.mutedText}
+                      multiline
+                      textAlignVertical="top"
+                      editable={!isViewMode}
+                      style={[styles.notesInput, { color: ui.text }]}
+                    />
                     <Pressable
-                      onPress={handleSubmit}
-                      disabled={!isValid || isLoading}
+                      style={styles.notesExpand}
+                      hitSlop={8}
+                      onPress={() => {
+                        if (!isViewMode) setNotesModalOpen(true);
+                      }}
+                      disabled={isViewMode}
+                    >
+                      <Feather
+                        name="maximize-2"
+                        size={18}
+                        color={ui.mutedText}
+                      />
+                    </Pressable>
+                  </View>
+                </View>
+
+                {isRecurring && (
+                  <>
+                    <View
+                      style={[
+                        styles.rowSeparator,
+                        { backgroundColor: ui.border },
+                      ]}
+                    />
+                    <DateTimePickerField
+                      label="Next Run"
+                      value={parseLocalDate(addRuleNextRunDate)}
+                      onChange={(date) =>
+                        setAddRuleNextRunDate(toLocalISOString(date))
+                      }
+                      ui={ui}
+                      icon="calendar.badge.clock"
+                      disabled={isViewMode}
+                    />
+
+                    <View
+                      style={[
+                        styles.rowSeparator,
+                        { backgroundColor: ui.border },
+                      ]}
+                    />
+                    <View style={styles.inputRow}>
+                      <Feather
+                        name="calendar"
+                        size={18}
+                        color={ui.mutedText}
+                      />
+                      <ThemedText style={styles.rowLabelInline}>
+                        Ends
+                      </ThemedText>
+                      <Switch
+                        value={hasEndDate}
+                        disabled={isViewMode}
+                        onValueChange={(val) => {
+                          setHasEndDate(val);
+                          if (val) {
+                            setAddRuleEndsOn(addRuleNextRunDate);
+                          } else {
+                            setAddRuleEndsOn("");
+                          }
+                        }}
+                        trackColor={{ false: ui.border, true: "#34C759" }}
+                      />
+                    </View>
+
+                    {hasEndDate && (
+                      <>
+                        <View
+                          style={[
+                            styles.rowSeparator,
+                            { backgroundColor: ui.border },
+                          ]}
+                        />
+                        <DateTimePickerField
+                          label="Ends On"
+                          value={parseLocalDate(addRuleEndsOn)}
+                          onChange={(date) =>
+                            setAddRuleEndsOn(toLocalISOString(date))
+                          }
+                          ui={ui}
+                          icon="calendar"
+                          placeholder="Select Date"
+                          disabled={isViewMode}
+                        />
+                      </>
+                    )}
+                  </>
+                )}
+              </View>
+              <View style={styles.footerStack}>
+                {isViewMode ? (
+                  <View style={styles.viewActionRow}>
+                    <Pressable
+                      onPress={onEditRequest}
+                      disabled={!onEditRequest}
                       style={({ pressed }) => [
-                        styles.button,
+                        styles.viewActionButton,
                         {
                           backgroundColor: isDark ? "#FFFFFF" : "#000000",
                           borderColor: ui.border,
                           opacity: pressed ? 0.8 : 1,
                         },
-                        (!isValid || isLoading) && styles.buttonDisabled,
+                        !onEditRequest && styles.buttonDisabled,
                       ]}
-                    >
-                      {isLoading ? (
-                        <ActivityIndicator
-                          color={isDark ? "#1C1C1E" : "#FFFFFF"}
-                        />
-                      ) : (
-                        <ThemedText
-                          type="defaultSemiBold"
-                          style={{ color: isDark ? "#1C1C1E" : "#FFFFFF" }}
-                        >
-                          {isEditMode ? "Save Changes" : "Submit"}
-                        </ThemedText>
-                      )}
-                    </Pressable>
-                  )}
-                </View>
-              </View>
-            </ScrollView>
-
-        {/* Frequency Picker */}
-        <Modal
-          visible={addFrequencyModalOpen}
-          transparent
-          animationType="fade"
-          onRequestClose={() => setAddFrequencyModalOpen(false)}
-        >
-          <View style={styles.popupOverlay}>
-            <Pressable
-              style={[
-                styles.popupBackdrop,
-                { backgroundColor: ui.backdrop ?? "rgba(0,0,0,0.35)" },
-              ]}
-              onPress={() => setAddFrequencyModalOpen(false)}
-            />
-            <View
-              style={[
-                styles.popupCard,
-                { backgroundColor: ui.surface, borderColor: ui.border },
-              ]}
-            >
-              <View style={styles.popupHeader}>
-                <ThemedText type="defaultSemiBold" style={{ color: ui.text }}>
-                  Select Recurrence
-                </ThemedText>
-                <Pressable
-                  onPress={() => setAddFrequencyModalOpen(false)}
-                  hitSlop={12}
-                  style={[styles.popupClose, { backgroundColor: ui.surface2 }]}
-                >
-                  <Feather name="x" size={16} color={ui.text} />
-                </Pressable>
-              </View>
-
-              <View style={styles.frequencyPillWrap}>
-                {["Once", "Daily", "Weekly", "Monthly", "Yearly"].map((freq) => {
-                  const isSelected =
-                    freq === "Once"
-                      ? !isRecurring
-                      : isRecurring && recurringFrequency === freq;
-                  return (
-                    <Pressable
-                      key={freq}
-                      style={({ pressed }) => [
-                        styles.frequencyPill,
-                        {
-                          borderColor: isSelected ? (ui.accent ?? ui.text) : ui.border,
-                          backgroundColor: isSelected ? ui.accentSoft : ui.surface2,
-                          opacity: pressed ? 0.7 : 1,
-                        },
-                      ]}
-                      onPress={() => {
-                        if (isEditMode) {
-                          setRecurrenceTouched(true);
-                        }
-                        if (freq === "Once") {
-                          setIsRecurring(false);
-                          setAddFrequencyModalOpen(false);
-                          return;
-                        }
-                        setIsRecurring(true);
-                        setRecurringFrequency(freq);
-                        setAddFrequencyModalOpen(false);
-                      }}
                     >
                       <ThemedText
-                        numberOfLines={1}
-                        style={[
-                          styles.frequencyPillText,
-                          { color: isSelected ? (ui.accent ?? ui.text) : ui.text },
-                        ]}
+                        type="defaultSemiBold"
+                        style={{ color: isDark ? "#1C1C1E" : "#FFFFFF" }}
                       >
-                        {freq}
+                        Edit
                       </ThemedText>
-                      {isSelected && (
-                        <Feather name="check" size={14} color={ui.accent ?? ui.text} />
-                      )}
                     </Pressable>
-                  );
-                })}
+                    <Pressable
+                      onPress={onDeleteRequest}
+                      disabled={!onDeleteRequest}
+                      style={({ pressed }) => [
+                        styles.viewActionButton,
+                        styles.viewActionDanger,
+                        {
+                          borderColor: ui.border,
+                          opacity: pressed ? 0.8 : 1,
+                        },
+                        !onDeleteRequest && styles.buttonDisabled,
+                      ]}
+                    >
+                      <ThemedText
+                        type="defaultSemiBold"
+                        style={styles.viewActionDangerText}
+                      >
+                        Delete
+                      </ThemedText>
+                    </Pressable>
+                  </View>
+                ) : (
+                  <Pressable
+                    onPress={handleSubmit}
+                    disabled={!isValid || isLoading}
+                    style={({ pressed }) => [
+                      styles.button,
+                      {
+                        backgroundColor: isDark ? "#FFFFFF" : "#000000",
+                        borderColor: ui.border,
+                        opacity: pressed ? 0.8 : 1,
+                      },
+                      (!isValid || isLoading) && styles.buttonDisabled,
+                    ]}
+                  >
+                    {isLoading ? (
+                      <ActivityIndicator
+                        color={isDark ? "#1C1C1E" : "#FFFFFF"}
+                      />
+                    ) : (
+                      <ThemedText
+                        type="defaultSemiBold"
+                        style={{ color: isDark ? "#1C1C1E" : "#FFFFFF" }}
+                      >
+                        {isEditMode ? "Save Changes" : "Submit"}
+                      </ThemedText>
+                    )}
+                  </Pressable>
+                )}
               </View>
             </View>
-          </View>
-        </Modal>
+          </ScrollView>
 
-        <CategoryPickerModal
-          visible={categoryModalOpen}
-          onClose={() => setCategoryModalOpen(false)}
-          ui={ui}
-          suggestedCategories={suggestedCategories}
-          categories={categories}
-          selectedCategoryId={selectedCategory?.id ?? null}
-          resolveCategoryIcon={resolveCategoryIcon}
-          onSelectCategory={(cat) => {
-            setSelectedCategory(cat);
-            setCategoryModalOpen(false);
-          }}
-          onDeleteCategory={handleDeleteCategory}
-          onPickSuggested={handleSuggestedCategory}
-          onOpenCreate={() => {
-            setCategoryModalOpen(false);
-            setCreateCategoryModalOpen(true);
-          }}
-        />
-        <CreateCategoryModal
-          visible={createCategoryModalOpen}
-          onClose={() => setCreateCategoryModalOpen(false)}
-          ui={ui}
-          iconGroups={ICON_GROUPS}
-          newCategoryIcon={newCategoryIcon}
-          onSelectNewCategoryIcon={setNewCategoryIcon}
-          colorChoices={COLOR_CHOICES}
-          newCategoryColor={newCategoryColor}
-          onSelectNewCategoryColor={setNewCategoryColor}
-          newCategoryName={newCategoryName}
-          onChangeNewCategoryName={setNewCategoryName}
-          onCreateCategory={createCategory}
-        />
-        <SubcategoryPickerModal
-          visible={subcategoryModalOpen}
-          onClose={() => setSubcategoryModalOpen(false)}
-          ui={ui}
-          subcategories={subcategories}
-          suggestedSubcategories={subcategoryOptions}
-          selectedSubcategoryId={selectedSubcategory?.id ?? null}
-          onSelectSubcategory={(sub) => {
-            setSelectedSubcategory(sub);
-            setSubcategoryModalOpen(false);
-          }}
-          onPickSuggested={handleSuggestedSubcategory}
-          onDeleteSubcategory={handleDeleteSubcategory}
-          onOpenCreate={() => {
-            setSubcategoryModalOpen(false);
-            setCreateSubcategoryModalOpen(true);
-          }}
-        />
-        <CreateSubcategoryModal
-          visible={createSubcategoryModalOpen}
-          onClose={() => setCreateSubcategoryModalOpen(false)}
-          ui={ui}
-          newSubcategoryName={newSubcategoryName}
-          onChangeNewSubcategoryName={setNewSubcategoryName}
-          onCreateSubcategory={createSubcategory}
-        />
-
-        {/* Notes Fullscreen Editor */}
-        <Modal
-          visible={notesModalOpen}
-          animationType="slide"
-          presentationStyle="pageSheet"
-          onRequestClose={() => setNotesModalOpen(false)}
-        >
-          <ThemedView
-            style={{
-              flex: 1,
-              backgroundColor: ui.bg ? ui.bg : ui.surface,
-              paddingTop: Platform.OS === "ios" ? 16 : insets.top + 12,
-              paddingBottom: insets.bottom + 16,
-            }}
+          {/* Frequency Picker */}
+          <Modal
+            visible={addFrequencyModalOpen}
+            transparent
+            animationType="fade"
+            onRequestClose={() => setAddFrequencyModalOpen(false)}
           >
-            <View style={styles.modalHeader}>
-              <View style={styles.headerSpacer} />
-              <ThemedText
-                type="defaultSemiBold"
-                style={[styles.modalHeaderTitle, { color: ui.text }]}
+            <View style={styles.popupOverlay}>
+              <Pressable
+                style={[
+                  styles.popupBackdrop,
+                  { backgroundColor: ui.backdrop ?? "rgba(0,0,0,0.35)" },
+                ]}
+                onPress={() => setAddFrequencyModalOpen(false)}
+              />
+              <View
+                style={[
+                  styles.popupCard,
+                  { backgroundColor: ui.surface, borderColor: ui.border },
+                ]}
               >
-                Notes & Labels
-              </ThemedText>
-              <View style={styles.headerRight}>
-                <Pressable
-                  onPress={() => setNotesModalOpen(false)}
-                  hitSlop={20}
-                  style={[styles.closeButton, { backgroundColor: ui.surface2 }]}
-                >
-                  <Feather name="x" size={18} color={ui.text} />
-                </Pressable>
+                <View style={styles.popupHeader}>
+                  <ThemedText type="defaultSemiBold" style={{ color: ui.text }}>
+                    Select Recurrence
+                  </ThemedText>
+                  <Pressable
+                    onPress={() => setAddFrequencyModalOpen(false)}
+                    hitSlop={12}
+                    style={[styles.popupClose, { backgroundColor: ui.surface2 }]}
+                  >
+                    <Feather name="x" size={16} color={ui.text} />
+                  </Pressable>
+                </View>
+
+                <View style={styles.frequencyPillWrap}>
+                  {["Once", "Daily", "Weekly", "Monthly", "Yearly"].map((freq) => {
+                    const isSelected =
+                      freq === "Once"
+                        ? !isRecurring
+                        : isRecurring && recurringFrequency === freq;
+                    return (
+                      <Pressable
+                        key={freq}
+                        style={({ pressed }) => [
+                          styles.frequencyPill,
+                          {
+                            borderColor: isSelected ? (ui.accent ?? ui.text) : ui.border,
+                            backgroundColor: isSelected ? ui.accentSoft : ui.surface2,
+                            opacity: pressed ? 0.7 : 1,
+                          },
+                        ]}
+                        onPress={() => {
+                          if (isEditMode) {
+                            setRecurrenceTouched(true);
+                          }
+                          if (freq === "Once") {
+                            setIsRecurring(false);
+                            setAddFrequencyModalOpen(false);
+                            return;
+                          }
+                          setIsRecurring(true);
+                          setRecurringFrequency(freq);
+                          setAddFrequencyModalOpen(false);
+                        }}
+                      >
+                        <ThemedText
+                          numberOfLines={1}
+                          style={[
+                            styles.frequencyPillText,
+                            { color: isSelected ? (ui.accent ?? ui.text) : ui.text },
+                          ]}
+                        >
+                          {freq}
+                        </ThemedText>
+                        {isSelected && (
+                          <Feather name="check" size={14} color={ui.accent ?? ui.text} />
+                        )}
+                      </Pressable>
+                    );
+                  })}
+                </View>
               </View>
             </View>
+          </Modal>
 
-            <View style={{ paddingHorizontal: 16, flex: 1 }}>
-              <TextInput
-                value={notes}
-                onChangeText={setNotes}
-                placeholder="Type here"
-                placeholderTextColor={ui.mutedText}
-                multiline
-                textAlignVertical="top"
-                editable={!isViewMode}
-                style={[
-                  styles.notesModalInput,
-                  { color: ui.text, backgroundColor: ui.surface },
-                ]}
-              />
-            </View>
-          </ThemedView>
-        </Modal>
-      </Animated.View>
-    </View>
-  </ThemedView>
+          <CategoryPickerModal
+            visible={categoryModalOpen}
+            onClose={() => setCategoryModalOpen(false)}
+            ui={ui}
+            suggestedCategories={suggestedCategories}
+            categories={categories}
+            selectedCategoryId={selectedCategory?.id ?? null}
+            resolveCategoryIcon={resolveCategoryIcon}
+            onSelectCategory={(cat) => {
+              setSelectedCategory(cat);
+              setCategoryModalOpen(false);
+            }}
+            onDeleteCategory={handleDeleteCategory}
+            onPickSuggested={handleSuggestedCategory}
+            onOpenCreate={() => {
+              setCategoryModalOpen(false);
+              setCreateCategoryModalOpen(true);
+            }}
+          />
+          <CreateCategoryModal
+            visible={createCategoryModalOpen}
+            onClose={() => setCreateCategoryModalOpen(false)}
+            ui={ui}
+            iconGroups={ICON_GROUPS}
+            newCategoryIcon={newCategoryIcon}
+            onSelectNewCategoryIcon={setNewCategoryIcon}
+            colorChoices={COLOR_CHOICES}
+            newCategoryColor={newCategoryColor}
+            onSelectNewCategoryColor={setNewCategoryColor}
+            newCategoryName={newCategoryName}
+            onChangeNewCategoryName={setNewCategoryName}
+            onCreateCategory={createCategory}
+          />
+          <SubcategoryPickerModal
+            visible={subcategoryModalOpen}
+            onClose={() => setSubcategoryModalOpen(false)}
+            ui={ui}
+            subcategories={subcategories}
+            suggestedSubcategories={subcategoryOptions}
+            selectedSubcategoryId={selectedSubcategory?.id ?? null}
+            onSelectSubcategory={(sub) => {
+              setSelectedSubcategory(sub);
+              setSubcategoryModalOpen(false);
+            }}
+            onPickSuggested={handleSuggestedSubcategory}
+            onDeleteSubcategory={handleDeleteSubcategory}
+            onOpenCreate={() => {
+              setSubcategoryModalOpen(false);
+              setCreateSubcategoryModalOpen(true);
+            }}
+          />
+          <CreateSubcategoryModal
+            visible={createSubcategoryModalOpen}
+            onClose={() => setCreateSubcategoryModalOpen(false)}
+            ui={ui}
+            newSubcategoryName={newSubcategoryName}
+            onChangeNewSubcategoryName={setNewSubcategoryName}
+            onCreateSubcategory={createSubcategory}
+          />
+
+          {/* Notes Fullscreen Editor */}
+          <Modal
+            visible={notesModalOpen}
+            animationType="slide"
+            presentationStyle="pageSheet"
+            onRequestClose={() => setNotesModalOpen(false)}
+          >
+            <ThemedView
+              style={{
+                flex: 1,
+                backgroundColor: ui.bg ? ui.bg : ui.surface,
+                paddingTop: Platform.OS === "ios" ? 16 : insets.top + 12,
+                paddingBottom: insets.bottom + 16,
+              }}
+            >
+              <View style={styles.modalHeader}>
+                <View style={styles.headerSpacer} />
+                <ThemedText
+                  type="defaultSemiBold"
+                  style={[styles.modalHeaderTitle, { color: ui.text }]}
+                >
+                  Notes & Labels
+                </ThemedText>
+                <View style={styles.headerRight}>
+                  <Pressable
+                    onPress={() => setNotesModalOpen(false)}
+                    hitSlop={20}
+                    style={[styles.closeButton, { backgroundColor: ui.surface2 }]}
+                  >
+                    <Feather name="x" size={18} color={ui.text} />
+                  </Pressable>
+                </View>
+              </View>
+
+              <View style={{ paddingHorizontal: 16, flex: 1 }}>
+                <TextInput
+                  value={notes}
+                  onChangeText={setNotes}
+                  placeholder="Type here"
+                  placeholderTextColor={ui.mutedText}
+                  multiline
+                  textAlignVertical="top"
+                  editable={!isViewMode}
+                  style={[
+                    styles.notesModalInput,
+                    { color: ui.text, backgroundColor: ui.surface },
+                  ]}
+                />
+              </View>
+            </ThemedView>
+          </Modal>
+        </Animated.View>
+      </View>
+    </ThemedView>
   );
 
   if (isSheet || hideHeader) {
@@ -2773,17 +2689,19 @@ const styles = StyleSheet.create({
   },
   currencySymbol: {
     fontSize: 60,
+    fontWeight: "300",
     marginRight: 4,
     lineHeight: 68,
     paddingVertical: 8,
     includeFontPadding: false,
-    fontFamily: Tokens.font.numberFamily ?? Tokens.font.family,
+    fontFamily: "Lato-Light",
   },
   amountInput: {
     fontSize: 60,
+    fontWeight: "300",
     lineHeight: 68,
     paddingVertical: 8,
-    fontFamily: Tokens.font.numberFamily ?? Tokens.font.family,
+    fontFamily: "Lato-Light",
   },
   heroBlock: {
     gap: 10,

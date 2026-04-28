@@ -7,6 +7,7 @@ import {
 import { SplashScreen, Stack, useRouter, useSegments } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import React, { useEffect, useMemo } from "react";
+import { Platform } from "react-native";
 import { MD3DarkTheme, MD3LightTheme, PaperProvider } from "react-native-paper";
 
 import { SplashScreenController } from "@/components/splash-screen-controller";
@@ -180,6 +181,9 @@ function ProtectedLayout() {
             Platform.OS === "android"
               ? { backgroundColor: ui.surface }
               : undefined,
+        }}
+      />
+      <Stack.Screen
         name="notifications"
         options={{
           presentation: "card",

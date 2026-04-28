@@ -7,6 +7,7 @@ import type {
   BudgetCategoryView,
   BudgetPreferencesMap,
   BudgetRow,
+  BudgetSubcategoryView,
   BudgetUiPreference,
   BudgetWithDetails,
 } from "./types";
@@ -181,10 +182,67 @@ export function getBudgetCategorySpent(params: {
     .reduce((sum, expense) => sum + Number(expense.amount ?? 0), 0);
 }
 
+export function getBudgetCategorySubcategoryBreakdown(params: {
+  expenses: ExpenseRow[];
+  subcategories: BudgetBuildCollections["subcategories"];
+  expenseCategoryId: number;
+  startDate: string;
+  endDate: string;
+  linkedAccountKey: string | null;
+  filterAccountId?: FilterAccountId;
+}) {
+  const {
+    expenses,
+    subcategories,
+    expenseCategoryId,
+    startDate,
+    endDate,
+    linkedAccountKey,
+    filterAccountId,
+  } = params;
+
+  const grouped = new Map<number, BudgetSubcategoryView>();
+
+  expenses.forEach((expense) => {
+    if (Number(expense.expense_categoryid) !== Number(expenseCategoryId)) return;
+    if (expense.subcategory_id == null) return;
+    if (
+      !matchesExpenseForBudget(
+        expense,
+        { start_date: startDate, end_date: endDate },
+        linkedAccountKey,
+        filterAccountId,
+      )
+    ) {
+      return;
+    }
+
+    const subcategoryId = Number(expense.subcategory_id);
+    const match = subcategories.find((entry) => entry.id === subcategoryId);
+    const current = grouped.get(subcategoryId);
+
+    if (current) {
+      current.spent += Number(expense.amount ?? 0);
+      current.transactionCount += 1;
+      return;
+    }
+
+    grouped.set(subcategoryId, {
+      id: subcategoryId,
+      name: match?.category_name ?? "Subcategory",
+      spent: Number(expense.amount ?? 0),
+      transactionCount: 1,
+    });
+  });
+
+  return Array.from(grouped.values()).sort((left, right) => right.spent - left.spent);
+}
+
 export function buildBudgetWithDetails(params: {
   budget: BudgetRow;
   categoryBudgets: BudgetBuildCollections["categoryBudgets"];
   categories: BudgetBuildCollections["categories"];
+  subcategories: BudgetBuildCollections["subcategories"];
   expenses: BudgetBuildCollections["expenses"];
   preference?: Partial<BudgetUiPreference> | null;
   filterAccountId?: FilterAccountId;
@@ -193,6 +251,7 @@ export function buildBudgetWithDetails(params: {
     budget,
     categoryBudgets,
     categories,
+    subcategories,
     expenses,
     preference,
     filterAccountId,
@@ -222,6 +281,15 @@ export function buildBudgetWithDetails(params: {
     const categoryName =
       categories.find((category) => category.id === link.expense_category_id)?.category_name ??
       "Expense";
+    const subcategoryBreakdown = getBudgetCategorySubcategoryBreakdown({
+      expenses,
+      subcategories,
+      expenseCategoryId: link.expense_category_id,
+      startDate: budget.start_date,
+      endDate: budget.end_date,
+      linkedAccountKey: resolvedPreference.linkedAccountKey,
+      filterAccountId,
+    });
 
     return {
       ...link,
@@ -234,6 +302,7 @@ export function buildBudgetWithDetails(params: {
         const rightTime = new Date(right.transaction_date || right.created_at || 0).getTime();
         return rightTime - leftTime;
       }),
+      subcategories: subcategoryBreakdown,
     };
   });
 
@@ -263,6 +332,7 @@ export function buildBudgetCollection(params: BudgetBuildCollections) {
         budget,
         categoryBudgets: params.categoryBudgets,
         categories: params.categories,
+        subcategories: params.subcategories,
         expenses: params.expenses,
         preference: preferences[String(budget.id)],
         filterAccountId,

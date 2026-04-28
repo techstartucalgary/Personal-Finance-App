@@ -2704,19 +2704,17 @@ const styles = StyleSheet.create({
   },
   currencySymbol: {
     fontSize: 60,
-    fontWeight: "300",
     marginRight: 4,
     lineHeight: 68,
     paddingVertical: 8,
     includeFontPadding: false,
-    fontFamily: "Lato-Light",
+    fontFamily: Tokens.font.numberFamily ?? Tokens.font.family,
   },
   amountInput: {
     fontSize: 60,
-    fontWeight: "300",
     lineHeight: 68,
     paddingVertical: 8,
-    fontFamily: "Lato-Light",
+    fontFamily: Tokens.font.numberFamily ?? Tokens.font.family,
   },
   heroBlock: {
     gap: 10,

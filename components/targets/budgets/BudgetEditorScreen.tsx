@@ -28,7 +28,12 @@ import {
   listCategoryBudgets,
   type BudgetPeriod,
 } from "@/utils/categoryBudgets";
-import { listCategories, type CategoryRow } from "@/utils/categories";
+import {
+  listAllSubcategories,
+  listCategories,
+  type CategoryRow,
+  type SubcategoryRow,
+} from "@/utils/categories";
 import { parseLocalDate, toLocalISOString } from "@/utils/date";
 import { listExpenses } from "@/utils/expenses";
 import { listAccounts } from "@/utils/accounts";
@@ -54,6 +59,7 @@ import {
   formatLongDate,
   formatMoney,
   getBudgetCategorySpent,
+  getBudgetCategorySubcategoryBreakdown,
   getBudgetEndDate,
 } from "./utils";
 
@@ -87,6 +93,7 @@ export function BudgetEditorScreen({ mode }: BudgetEditorScreenProps) {
   const [recurrence, setRecurrence] = useState<BudgetPeriod>("monthly");
   const [rolloverEnabled, setRolloverEnabled] = useState(false);
   const [categories, setCategories] = useState<CategoryRow[]>([]);
+  const [subcategories, setSubcategories] = useState<SubcategoryRow[]>([]);
   const [drafts, setDrafts] = useState<BudgetDraftCategory[]>([]);
   const [selectedAccount, setSelectedAccount] = useState<BudgetSelectableAccount | null>(null);
   const [expenses, setExpenses] = useState<ExpenseRow[]>([]);
@@ -121,8 +128,10 @@ export function BudgetEditorScreen({ mode }: BudgetEditorScreenProps) {
 
     try {
       setIsLoading(true);
-      const [categoryRows, manualAccounts, plaidAccounts, expenseRows] = await Promise.all([
+      const [categoryRows, subcategoryRows, manualAccounts, plaidAccounts, expenseRows] =
+        await Promise.all([
         listCategories({ profile_id: userId }),
+        listAllSubcategories({ profile_id: userId }),
         listAccounts({ profile_id: userId }),
         getPlaidAccounts(),
         listExpenses({ profile_id: userId }),
@@ -134,6 +143,7 @@ export function BudgetEditorScreen({ mode }: BudgetEditorScreenProps) {
       });
 
       setCategories(categoryRows ?? []);
+      setSubcategories(subcategoryRows ?? []);
       setExpenses((expenseRows as ExpenseRow[]) ?? []);
 
       if (mode !== "edit" || !id) {
@@ -152,6 +162,7 @@ export function BudgetEditorScreen({ mode }: BudgetEditorScreenProps) {
         budget: budgetRow as BudgetRow,
         categoryBudgets: categoryLinks,
         categories: categoryRows ?? [],
+        subcategories: subcategoryRows ?? [],
         expenses: (expenseRows as ExpenseRow[]) ?? [],
         preference,
       });
@@ -217,6 +228,29 @@ export function BudgetEditorScreen({ mode }: BudgetEditorScreenProps) {
       return accumulator;
     }, {});
   }, [budgetEndDate, drafts, expenses, selectedAccount, startDate]);
+
+  const subcategorySummaryByCategory = useMemo(() => {
+    if (!startDate || !budgetEndDate) return {};
+
+    const linkedAccountKey = getGoalSelectionKey(selectedAccount);
+
+    return drafts.reduce<Record<number, string>>((accumulator, draft) => {
+      const breakdown = getBudgetCategorySubcategoryBreakdown({
+        expenses,
+        subcategories,
+        expenseCategoryId: draft.expense_category_id,
+        startDate,
+        endDate: budgetEndDate,
+        linkedAccountKey,
+      });
+
+      accumulator[draft.expense_category_id] = breakdown
+        .map((subcategory) => `${subcategory.name} ${formatMoney(subcategory.spent)}`)
+        .join("  •  ");
+
+      return accumulator;
+    }, {});
+  }, [budgetEndDate, drafts, expenses, selectedAccount, startDate, subcategories]);
 
   const canSave = useMemo(() => {
     return (
@@ -597,6 +631,11 @@ export function BudgetEditorScreen({ mode }: BudgetEditorScreenProps) {
                       {mode === "edit" ? (
                         <ThemedText style={[styles.rowFootnote, { color: ui.mutedText }]}>
                           Spent {formatMoney(spent)}
+                        </ThemedText>
+                      ) : null}
+                      {subcategorySummaryByCategory[draft.expense_category_id] ? (
+                        <ThemedText style={[styles.rowFootnote, { color: ui.mutedText }]}>
+                          {subcategorySummaryByCategory[draft.expense_category_id]}
                         </ThemedText>
                       ) : null}
                     </View>

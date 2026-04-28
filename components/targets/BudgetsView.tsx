@@ -10,7 +10,7 @@ import { tabsTheme } from "@/constants/tabsTheme";
 import { useAuthContext } from "@/hooks/use-auth-context";
 import { listBudgets } from "@/utils/budgets";
 import type { CategoryBudgetRow } from "@/utils/categoryBudgets";
-import { listCategories } from "@/utils/categories";
+import { listAllSubcategories, listCategories } from "@/utils/categories";
 import { listExpenses } from "@/utils/expenses";
 import type { PlaidAccount } from "@/utils/plaid";
 import { supabase } from "@/utils/supabase";
@@ -59,10 +59,11 @@ export function BudgetsView({
 
       if (!silent) setIsLoading(true);
       try {
-        const [budgetRows, categoryRows, expenseRows, linksResponse, preferences] =
+        const [budgetRows, categoryRows, subcategoryRows, expenseRows, linksResponse, preferences] =
           await Promise.all([
             listBudgets({ profile_id: userId }),
             listCategories({ profile_id: userId }),
+            listAllSubcategories({ profile_id: userId }),
             listExpenses({ profile_id: userId }),
             supabase.from("Expense_category_budget").select("*"),
             getAllBudgetUiPreferences(),
@@ -75,6 +76,7 @@ export function BudgetsView({
             budgets: (budgetRows as BudgetRow[]) ?? [],
             categoryBudgets: ((linksResponse.data as CategoryBudgetRow[]) ?? []).filter(Boolean),
             categories: categoryRows ?? [],
+            subcategories: subcategoryRows ?? [],
             expenses: (expenseRows as any[]) ?? [],
             preferences,
             filterAccountId,
@@ -406,7 +408,7 @@ const styles = StyleSheet.create({
   statValue: {
     fontSize: 24,
     lineHeight: 28,
-    fontFamily: Tokens.font.boldFamily ?? Tokens.font.headingFamily,
+    fontFamily: Tokens.font.numberFamily ?? Tokens.font.family,
     fontVariant: ["tabular-nums"],
   },
   statusStat: {
@@ -490,7 +492,7 @@ const styles = StyleSheet.create({
   },
   cardMetricValue: {
     fontSize: 14,
-    fontFamily: Tokens.font.boldFamily ?? Tokens.font.headingFamily,
+    fontFamily: Tokens.font.numberFamily ?? Tokens.font.family,
     fontVariant: ["tabular-nums"],
   },
   tableHeader: {

@@ -465,7 +465,7 @@ const localStyles = StyleSheet.create({
     fontSize: 29,
     lineHeight: 33,
     fontVariant: ["tabular-nums"],
-    fontFamily: Tokens.font.boldFamily ?? Tokens.font.family,
+    fontFamily: Tokens.font.numberFamily ?? Tokens.font.family,
   },
   bottomRow: {
     minHeight: 28,

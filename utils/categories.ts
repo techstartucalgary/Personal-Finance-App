@@ -47,6 +47,21 @@ export async function listSubcategories(params: {
   return data as SubcategoryRow[];
 }
 
+export async function listAllSubcategories(params: { profile_id: string }) {
+  const { profile_id } = params;
+
+  const { data, error } = await supabase
+    .from("SubExpense_category")
+    .select(
+      "id, category_name, expense_categoryid, profile_id, created_at",
+    )
+    .eq("profile_id", profile_id)
+    .order("created_at", { ascending: false });
+
+  if (error) throw error;
+  return data as SubcategoryRow[];
+}
+
 export async function addCategory(params: {
   profile_id: string;
   category_name: string;

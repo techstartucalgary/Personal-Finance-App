@@ -1,7 +1,7 @@
 import type { ExpenseRow, FilterAccountId } from "@/components/transactions/tab/types";
 import type { TabsUi } from "@/constants/tabsTheme";
 import type { BudgetPeriod, CategoryBudgetRow } from "@/utils/categoryBudgets";
-import type { CategoryRow } from "@/utils/categories";
+import type { CategoryRow, SubcategoryRow } from "@/utils/categories";
 
 import type { GoalSelectableAccount } from "../goals/types";
 
@@ -27,12 +27,20 @@ export type BudgetUiPreference = {
   rolloverEnabled: boolean;
 };
 
+export type BudgetSubcategoryView = {
+  id: number;
+  name: string;
+  spent: number;
+  transactionCount: number;
+};
+
 export type BudgetCategoryView = CategoryBudgetRow & {
   category_name: string;
   spent: number;
   available: number;
   progress: number;
   transactions: ExpenseRow[];
+  subcategories: BudgetSubcategoryView[];
 };
 
 export type BudgetWithDetails = BudgetRow &
@@ -52,6 +60,7 @@ export type BudgetBuildCollections = {
   budgets: BudgetRow[];
   categoryBudgets: CategoryBudgetRow[];
   categories: CategoryRow[];
+  subcategories: SubcategoryRow[];
   expenses: ExpenseRow[];
   preferences?: BudgetPreferencesMap;
   filterAccountId?: FilterAccountId;

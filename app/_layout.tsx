@@ -139,13 +139,10 @@ function ProtectedLayout() {
 
 export default function RootLayout() {
   const [loaded] = useFonts({
-    "Avenir LT Std 55 Roman": require("../assets/fonts/AvenirLTStd-Roman.otf"),
-    "Avenir LT Std 55 Oblique": require("../assets/fonts/AvenirLTStd-Oblique.otf"),
-    "Avenir LT Std 65 Medium": require("../assets/fonts/AvenirLTStd-Medium.otf"),
-    "Avenir LT Std 85 Heavy": require("../assets/fonts/AvenirLTStd-Heavy.otf"),
-    "Avenir LT Std 95 Black": require("../assets/fonts/AvenirLTStd-Black.otf"),
     "Lato-Bold": require("../assets/fonts/Lato-Bold.ttf"),
+    "Lato-Italic": require("../assets/fonts/Lato-Italic.ttf"),
     "Lato-Light": require("../assets/fonts/Lato-Light.ttf"),
+    "Lato-Regular": require("../assets/fonts/Lato-Regular.ttf"),
   });
   const colorScheme = useColorScheme() ?? "light";
 
@@ -234,7 +231,7 @@ export default function RootLayout() {
           <AuthProvider>
             <SplashScreenController />
             <ProtectedLayout />
-            <StatusBar style="auto" />
+            <StatusBar style="dark" />
           </AuthProvider>
         </ThemeProvider>
       </PaperProvider>

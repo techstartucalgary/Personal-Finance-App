@@ -20,7 +20,7 @@ import { useAuthContext } from "@/hooks/use-auth-context";
 import { listAccounts } from "@/utils/accounts";
 import { getBudget } from "@/utils/budgets";
 import { listCategoryBudgets } from "@/utils/categoryBudgets";
-import { listCategories } from "@/utils/categories";
+import { listAllSubcategories, listCategories } from "@/utils/categories";
 import { listExpenses } from "@/utils/expenses";
 import { getPlaidAccounts } from "@/utils/plaid";
 
@@ -62,6 +62,7 @@ export function BudgetDetailScreen() {
           budgetRow,
           categoryLinks,
           categoryRows,
+          subcategoryRows,
           expenses,
           manualAccounts,
           plaidAccounts,
@@ -70,6 +71,7 @@ export function BudgetDetailScreen() {
           getBudget({ id, profile_id: userId }),
           listCategoryBudgets({ budget_id: Number(id) }),
           listCategories({ profile_id: userId }),
+          listAllSubcategories({ profile_id: userId }),
           listExpenses({ profile_id: userId }),
           listAccounts({ profile_id: userId }),
           getPlaidAccounts(),
@@ -87,6 +89,7 @@ export function BudgetDetailScreen() {
             budget: budgetRow as BudgetRow,
             categoryBudgets: categoryLinks,
             categories: categoryRows ?? [],
+            subcategories: subcategoryRows ?? [],
             expenses: (expenses as ExpenseRow[]) ?? [],
             preference,
           }),
@@ -305,9 +308,18 @@ export function BudgetDetailScreen() {
 
           {budget.categoryBudgets.map((category) => (
             <View key={category.id} style={styles.tableRow}>
-              <ThemedText style={[styles.rowName, { color: ui.text }]}>
-                {category.category_name}
-              </ThemedText>
+              <View style={styles.rowNameWrap}>
+                <ThemedText style={[styles.rowName, { color: ui.text }]}>
+                  {category.category_name}
+                </ThemedText>
+                {category.subcategories.length > 0 ? (
+                  <ThemedText style={[styles.rowMeta, { color: ui.mutedText }]}>
+                    {category.subcategories
+                      .map((subcategory) => `${subcategory.name} ${formatMoney(subcategory.spent)}`)
+                      .join("  •  ")}
+                  </ThemedText>
+                ) : null}
+              </View>
               <ThemedText style={[styles.rowMetric, { color: ui.text }]}>
                 {formatMoney(category.limit_amount)}
               </ThemedText>
@@ -574,8 +586,15 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   rowName: {
-    flex: 1,
     fontSize: 13,
+    fontFamily: Tokens.font.family,
+  },
+  rowNameWrap: {
+    flex: 1,
+    gap: 2,
+  },
+  rowMeta: {
+    fontSize: 10,
     fontFamily: Tokens.font.family,
   },
   rowMetric: {

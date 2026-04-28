@@ -147,12 +147,12 @@ const styles = StyleSheet.create({
   listTitle: {
     color: "#FFFFFF",
     fontSize: 18,
-    fontFamily: "Avenir",
+    fontFamily: Tokens.font.semiFamily ?? Tokens.font.family,
   },
   listBalance: {
     color: "#FFFFFF",
     fontSize: 22,
-    fontFamily: "Lato-Light",
+    fontFamily: Tokens.font.numberFamily ?? Tokens.font.family,
   },
   listMetaRow: {
     flexDirection: "row",
@@ -162,7 +162,7 @@ const styles = StyleSheet.create({
   listMetaText: {
     color: "rgba(255,255,255,0.92)",
     fontSize: 13,
-    fontFamily: "Avenir",
+    fontFamily: Tokens.font.family,
   },
   waveCard: {
     borderRadius: 22,
@@ -195,12 +195,12 @@ const styles = StyleSheet.create({
   waveTitle: {
     color: "#FFFFFF",
     fontSize: 18,
-    fontFamily: "Avenir",
+    fontFamily: Tokens.font.semiFamily ?? Tokens.font.family,
   },
   waveBalance: {
     color: "#FFFFFF",
     fontSize: 26,
-    fontFamily: "Lato-Light",
+    fontFamily: Tokens.font.numberFamily ?? Tokens.font.family,
   },
   waveIcon: {
     width: 34,
@@ -219,7 +219,7 @@ const styles = StyleSheet.create({
   waveMetaText: {
     color: "#FFFFFF",
     fontSize: 13,
-    fontFamily: "Avenir",
+    fontFamily: Tokens.font.family,
   },
   heroShadow: {
     borderRadius: 22,
@@ -275,7 +275,7 @@ const styles = StyleSheet.create({
   heroTitle: {
     color: "#F6F6F6",
     fontSize: 17.5,
-    fontFamily: "Avenir",
+    fontFamily: Tokens.font.semiFamily ?? Tokens.font.family,
     letterSpacing: 0.3,
   },
   heroChip: {
@@ -291,7 +291,7 @@ const styles = StyleSheet.create({
     fontSize: 30,
     paddingTop: 10,
     marginTop: -2,
-    fontFamily: "Lato-Light",
+    fontFamily: Tokens.font.numberFamily ?? Tokens.font.family,
     letterSpacing: 0.35,
   },
   heroMetaGrid: {
@@ -307,12 +307,12 @@ const styles = StyleSheet.create({
   heroDetailLabel: {
     color: "rgba(255,255,255,0.88)",
     fontSize: 12.5,
-    fontFamily: "Avenir",
+    fontFamily: Tokens.font.family,
   },
   heroDetailValue: {
     color: "#FFFFFF",
     fontSize: 13.5,
-    fontFamily: "Avenir",
+    fontFamily: Tokens.font.semiFamily ?? Tokens.font.family,
     letterSpacing: 0.2,
   },
 });

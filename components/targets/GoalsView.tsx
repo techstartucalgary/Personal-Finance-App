@@ -600,7 +600,7 @@ const styles = StyleSheet.create({
   },
   goalCardAmount: {
     fontSize: 16,
-    fontFamily: Tokens.font.boldFamily ?? Tokens.font.headingFamily,
+    fontFamily: Tokens.font.numberFamily ?? Tokens.font.family,
     fontVariant: ["tabular-nums"],
   },
   goalMeta: {

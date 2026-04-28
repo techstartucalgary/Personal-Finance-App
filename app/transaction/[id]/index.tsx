@@ -10,14 +10,13 @@ import { getRecurringRules } from "@/utils/recurring";
 import { usePreventRemove } from "@react-navigation/native";
 import { useLocalSearchParams, useNavigation, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Alert, Platform, Pressable, useColorScheme, View } from "react-native";
+import { ActivityIndicator, Alert, Platform, Pressable, View } from "react-native";
 
 export default function TransactionEditScreen() {
   const { session } = useAuthContext();
   const router = useRouter();
   const navigation = useNavigation();
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === "dark";
+  const isDark = false;
   const { id, initialData } = useLocalSearchParams<{ id: string; initialData?: string }>();
   const userId = session?.user.id;
   const ui = useThemeUI();

@@ -345,7 +345,7 @@ export default function DashboardScreen() {
                 <ThemedText style={[styles.heroLabel, { color: ui.mutedText }]}>
                   Total Balance
                 </ThemedText>
-                <ThemedText style={[styles.heroValue, { color: ui.text }]}>
+                <ThemedText type="heroNumber" style={[styles.heroValue, { color: ui.text }]}>
                   {formatMoney(totalBalance)}
                 </ThemedText>
               </View>
@@ -549,9 +549,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.2,
   },
   heroValue: {
-    fontFamily: Tokens.font.boldFamily ?? Tokens.font.headingFamily,
-    fontSize: 36,
-    lineHeight: 38,
+    fontFamily: Tokens.font.numberFamily ?? Tokens.font.family,
   },
   heroBadge: {
     flexDirection: "row",

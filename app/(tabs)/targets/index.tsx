@@ -9,6 +9,7 @@ import { AccountFilterChips } from "@/components/transactions/tab/AccountFilterC
 import { NativeFab } from "@/components/ui/native-fab";
 import { BudgetsView } from "@/components/targets/BudgetsView";
 import { GoalsView } from "@/components/targets/GoalsView";
+import { Tokens } from "@/constants/authTokens";
 import { tabsTheme } from "@/constants/tabsTheme";
 import { useAuthContext } from "@/hooks/use-auth-context";
 import { listAccounts } from "@/utils/accounts";
@@ -126,8 +127,8 @@ export default function TargetsScreen() {
           }}
           tintColor={ui.accent}
           backgroundColor={ui.surface2}
-          fontStyle={{ color: ui.text, fontWeight: "500" }}
-          activeFontStyle={{ color: ui.surface, fontWeight: "600" }}
+          fontStyle={{ color: ui.text, fontFamily: Tokens.font.family }}
+          activeFontStyle={{ color: ui.surface, fontFamily: Tokens.font.semiFamily }}
         />
 
         <AccountFilterChips

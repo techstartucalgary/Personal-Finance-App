@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { AccountsEditForm } from "@/components/accounts/tab/AccountsEditModal";
 import { ThemedText } from "@/components/themed-text";
+import { Tokens } from "@/constants/authTokens";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useAuthContext } from "@/hooks/use-auth-context";
 import { useThemeUI } from "@/hooks/use-theme-ui";
@@ -482,9 +483,9 @@ const styles = StyleSheet.create({
   },
   amount: {
     fontSize: 48,
-    fontWeight: "800",
     lineHeight: 56,
     paddingVertical: 8,
+    fontFamily: Tokens.font.numberFamily ?? Tokens.font.family,
   },
   accountName: {
     fontSize: 16,

@@ -2,14 +2,13 @@ import { IconSymbol } from "@/components/ui/icon-symbol";
 import Feather from "@expo/vector-icons/Feather";
 import { Stack, useRouter } from "expo-router";
 import React from "react";
-import { Alert, Platform, Pressable, useColorScheme } from "react-native";
-import { useTheme } from "react-native-paper";
+import { Platform, Pressable } from "react-native";
+
+import { getColors } from "@/constants/authTokens";
 
 export default function IndexLayout() {
-    const colorScheme = useColorScheme();
-    const isDark = colorScheme === "dark";
     const router = useRouter();
-    const theme = useTheme();
+    const colors = getColors("light");
 
     return (
         <Stack
@@ -19,15 +18,13 @@ export default function IndexLayout() {
                 headerTransparent: Platform.OS === "ios",
                 headerTitleAlign: "center",
                 headerShadowVisible: false,
-                headerStyle: { backgroundColor: Platform.OS === "android" ? (isDark ? theme.colors.surface : theme.colors.surfaceVariant) : "transparent" },
-                headerLargeStyle: { backgroundColor: Platform.OS === "ios" ? "transparent" : (isDark ? theme.colors.surface : theme.colors.surfaceVariant) },
-                headerTitleStyle: { color: isDark ? "#ffffff" : "#111111" },
-                headerLargeTitleStyle: { color: isDark ? "#ffffff" : "#111111" },
+                headerStyle: { backgroundColor: Platform.OS === "android" ? colors.bg : "transparent" },
+                headerLargeStyle: { backgroundColor: Platform.OS === "ios" ? "transparent" : colors.bg },
+                headerTitleStyle: { color: colors.text },
+                headerLargeTitleStyle: { color: colors.text },
                 headerLeft: () => (
                     <Pressable
-                        onPress={() =>
-                            Alert.alert("Notifications", "You have no new notifications.")
-                        }
+                        onPress={() => router.push("/notifications")}
                         hitSlop={10}
                         style={({ pressed }) => ({
                             width: 36,
@@ -41,7 +38,7 @@ export default function IndexLayout() {
                         <Feather
                             name="bell"
                             size={24}
-                            color={isDark ? "#ffffff" : "#111111"}
+                            color={colors.text}
                         />
                     </Pressable>
                 ),
@@ -60,7 +57,7 @@ export default function IndexLayout() {
                         <IconSymbol
                             size={24}
                             name="person"
-                            color={isDark ? "#ffffff" : "#111111"}
+                            color={colors.text}
                         />
                     </Pressable>
                 ),

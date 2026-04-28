@@ -252,7 +252,13 @@ export default function ProfileScreen() {
 
             <View style={[styles.divider, { backgroundColor: ui.border }]} />
 
-            <View style={styles.row}>
+            <Pressable
+              onPress={() => router.push("/notification-settings")}
+              style={({ pressed }) => [
+                styles.row,
+                pressed && { opacity: 0.7 },
+              ]}
+            >
               <View style={styles.rowLeft}>
                 <View style={[styles.iconBox, { backgroundColor: ui.surface }]}>
                   <Feather name="bell" size={18} color={ui.text} />
@@ -263,7 +269,7 @@ export default function ProfileScreen() {
                 <ThemedText style={{ color: ui.mutedText }}>On</ThemedText>
                 <Feather name="chevron-right" size={20} color={ui.mutedText} />
               </View>
-            </View>
+            </Pressable>
           </View>
         </View>
 

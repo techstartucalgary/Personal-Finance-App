@@ -44,7 +44,7 @@ export function RecurringRulesList({
 
   if (filteredRules.length === 0) {
     return (
-      <ThemedText style={{ padding: 16 }}>
+      <ThemedText style={{ padding: 16, color: ui.mutedText }}>
         {isLoading ? "Loading…" : "No recurrences found."}
       </ThemedText>
     );
@@ -95,7 +95,7 @@ function RecurringRuleRow({
       ]}
     >
       <View style={{ flex: 1 }}>
-        <ThemedText type="defaultSemiBold">
+        <ThemedText type="defaultSemiBold" style={{ color: ui.text }}>
           {rule.name ?? "Subscription"}
         </ThemedText>
         <ThemedText type="default" style={{ color: ui.mutedText, fontSize: 13 }}>
@@ -110,7 +110,7 @@ function RecurringRuleRow({
         )}
       </View>
       <View style={{ alignItems: "flex-end", gap: 8 }}>
-        <ThemedText type="defaultSemiBold">
+        <ThemedText type="defaultSemiBold" style={{ color: ui.text }}>
           {formatMoney(rule.amount ?? 0)}
         </ThemedText>
       </View>

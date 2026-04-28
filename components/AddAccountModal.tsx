@@ -19,6 +19,7 @@ import { DateTimePickerField } from "./ui/DateTimePickerField";
 import { IconSymbol } from "./ui/icon-symbol";
 import { SelectionModal } from "./ui/SelectionModal";
 
+import { Tokens } from "@/constants/authTokens";
 import { createAccount as createAccountApi } from "@/utils/accounts";
 import { parseLocalDate, toLocalISOString } from "@/utils/date";
 import { formatBalanceAsYouType, formatBalanceOnBlur, cleanMoneyInput } from "@/utils/money";
@@ -465,17 +466,17 @@ const styles = StyleSheet.create({
   },
   currencySymbol: {
     fontSize: 48,
-    fontWeight: "800",
     marginRight: 4,
     lineHeight: 56,
     paddingVertical: 8,
     includeFontPadding: false,
+    fontFamily: Tokens.font.numberFamily ?? Tokens.font.family,
   },
   amountInput: {
     fontSize: 48,
-    fontWeight: "800",
     lineHeight: 56,
     paddingVertical: 8,
+    fontFamily: Tokens.font.numberFamily ?? Tokens.font.family,
   },
   sectionHeader: {
     paddingHorizontal: 4,

@@ -1,11 +1,12 @@
+import Feather from "@expo/vector-icons/Feather";
 import React, { useMemo } from "react";
-import { Platform, Pressable, View } from "react-native";
+import { Image, Pressable, StyleSheet, View } from "react-native";
 
+import { getBrandStyle } from "@/components/accounts/AccountCardCarousel";
 import { ThemedText } from "@/components/themed-text";
-import { IconSymbol } from "@/components/ui/icon-symbol";
+import { Tokens } from "@/constants/authTokens";
 import type { PlaidTransaction } from "@/utils/plaid";
 
-import { styles } from "./styles";
 import type {
   ExpenseRow,
   FilterAccountId,
@@ -22,12 +23,109 @@ type TransactionsListProps = {
   isLoading: boolean;
   onSelectTransaction: (transaction: ExpenseRow | PlaidTransaction) => void;
   ui: TransactionsUi;
-  isDark: boolean;
   formatDate: (value?: string | null) => string;
   formatMoney: (value?: number | null) => string;
 };
 
-// Renders the combined list of manual and Plaid-synced transactions.
+const MANUAL_OUTFLOW_PALETTE = ["#701D26", "#8A2431", "#5A1520", "#9B2B3A"];
+const MANUAL_INFLOW_PALETTE = ["#2F2F35", "#3A3A42", "#25252B", "#4B4B53"];
+
+type TransactionCardProps = {
+  color: string;
+  title: string;
+  metaPrimary: string;
+  metaSecondary?: string | null;
+  subtitle: string;
+  amount: string;
+  sourceLabel: string;
+  icon: React.ComponentProps<typeof Feather>["name"];
+  onPress: () => void;
+};
+
+function TransactionCard({
+  color,
+  title,
+  metaPrimary,
+  metaSecondary,
+  subtitle,
+  amount,
+  sourceLabel,
+  icon,
+  onPress,
+}: TransactionCardProps) {
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [
+        localStyles.card,
+        { backgroundColor: color, opacity: pressed ? 0.93 : 1 },
+      ]}
+    >
+      <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+        <Image
+          source={require("../../../assets/images/accounts-vector.png")}
+          style={localStyles.waveImage}
+          resizeMode="cover"
+        />
+      </View>
+
+      <View style={localStyles.topRow}>
+        <View style={localStyles.titleGroup}>
+          <ThemedText style={localStyles.eyebrow}>{sourceLabel}</ThemedText>
+          <ThemedText style={localStyles.cardName} numberOfLines={2} ellipsizeMode="tail">
+            {title}
+          </ThemedText>
+          <View style={localStyles.metaRow}>
+            <ThemedText style={localStyles.metaText} numberOfLines={1} ellipsizeMode="tail">
+              {metaPrimary}
+            </ThemedText>
+            {metaSecondary ? (
+              <>
+                <View style={localStyles.metaDot} />
+                <ThemedText style={localStyles.metaText} numberOfLines={1} ellipsizeMode="tail">
+                  {metaSecondary}
+                </ThemedText>
+              </>
+            ) : null}
+          </View>
+        </View>
+        <View style={localStyles.iconCircle}>
+          <Feather name={icon} size={17} color="#FFFFFF" />
+        </View>
+      </View>
+
+      <View style={localStyles.balanceBlock}>
+        <ThemedText style={localStyles.balance}>{amount}</ThemedText>
+      </View>
+
+      <View style={localStyles.bottomRow}>
+        <View style={localStyles.bottomMeta}>
+          <ThemedText style={localStyles.subtitle} numberOfLines={1} ellipsizeMode="tail">
+            {subtitle}
+          </ThemedText>
+        </View>
+        <View style={localStyles.sourceChip}>
+          <ThemedText style={localStyles.sourceChipText}>{sourceLabel}</ThemedText>
+        </View>
+      </View>
+    </Pressable>
+  );
+}
+
+function formatSignedMoney(
+  amount: number | null | undefined,
+  formatMoney: (value?: number | null) => string,
+) {
+  const value = amount ?? 0;
+  const prefix = value > 0 ? "-" : value < 0 ? "+" : "";
+  return `${prefix}${formatMoney(Math.abs(value))}`;
+}
+
+function getManualTransactionColor(amount: number | null | undefined, index: number) {
+  const palette = (amount ?? 0) > 0 ? MANUAL_OUTFLOW_PALETTE : MANUAL_INFLOW_PALETTE;
+  return palette[index % palette.length];
+}
+
 export function TransactionsList({
   expenses,
   plaidTransactions,
@@ -37,7 +135,6 @@ export function TransactionsList({
   isLoading,
   onSelectTransaction,
   ui,
-  isDark,
   formatDate,
   formatMoney,
 }: TransactionsListProps) {
@@ -98,249 +195,196 @@ export function TransactionsList({
       });
   }, [plaidTransactions, filterAccountId, searchQuery, showPlaidSection]);
 
+  if (filteredExpenses.length === 0 && filteredPlaidTransactions.length === 0) {
+    return (
+      <ThemedText style={{ color: ui.mutedText }}>
+        {isLoading ? "Loading..." : "No transactions found."}
+      </ThemedText>
+    );
+  }
+
   return (
-    <>
-      {filteredExpenses.length === 0 ? (
-        <ThemedText>
-          {isLoading ? "Loading…" : "No transactions found."}
-        </ThemedText>
-      ) : (
-        filteredExpenses.map((expense) => (
-          <ExpenseRow
+    <View style={localStyles.root}>
+      {filteredExpenses.map((expense, index) => {
+        const linkedRule = recurringRules.find(
+          (rule) => rule.id === expense.recurring_rule_id,
+        );
+
+        return (
+          <TransactionCard
             key={expense.id}
-            expense={expense}
-            recurringRules={recurringRules}
-            ui={ui}
-            formatDate={formatDate}
-            formatMoney={formatMoney}
+            color={getManualTransactionColor(expense.amount, index)}
+            title={expense.description ?? "Transaction"}
+            metaPrimary={formatDate(expense.transaction_date || expense.created_at)}
+            metaSecondary={
+              linkedRule
+                ? `Recurring ${linkedRule.is_active ? "active" : "paused"}`
+                : null
+            }
+            subtitle={linkedRule ? "Self managed recurring transaction" : "Self managed transaction"}
+            amount={formatSignedMoney(expense.amount, formatMoney)}
+            sourceLabel="Manual"
+            icon="credit-card"
             onPress={() => onSelectTransaction(expense)}
           />
-        ))
-      )}
+        );
+      })}
 
-      {showPlaidSection && (
-        <>
-          {filterAccountId === null && (
-            <View style={{ marginTop: 16, marginBottom: 8 }}>
-              <ThemedText
-                type="defaultSemiBold"
-                style={{
-                  color: ui.mutedText,
-                  fontSize: 13,
-                  letterSpacing: 0.5,
-                }}
-              >
-                BANK TRANSACTIONS
-              </ThemedText>
-            </View>
-          )}
-          {filteredPlaidTransactions.map((transaction) => (
-            <PlaidTransactionRow
-              key={transaction.transaction_id}
-              transaction={transaction}
-              ui={ui}
-              isDark={isDark}
-              formatDate={formatDate}
-              formatMoney={formatMoney}
-              onPress={() => onSelectTransaction(transaction)}
-            />
-          ))}
-        </>
-      )}
-    </>
+      {filteredPlaidTransactions.map((transaction, index) => {
+        const fallbackColor = getManualTransactionColor(transaction.amount, index);
+        const brandColor =
+          getBrandStyle(transaction.institution_name)?.color || fallbackColor;
+        const categoryLabel =
+          transaction.category && transaction.category.length > 0
+            ? transaction.category.join(" / ")
+            : transaction.account_name || "Bank transaction";
+
+        return (
+          <TransactionCard
+            key={transaction.transaction_id}
+            color={brandColor}
+            title={transaction.merchant_name || transaction.name}
+            metaPrimary={formatDate(transaction.date)}
+            metaSecondary={
+              transaction.pending
+                ? "Pending"
+                : transaction.account_mask
+                  ? `Account ${transaction.account_mask}`
+                  : transaction.institution_name
+            }
+            subtitle={categoryLabel}
+            amount={formatSignedMoney(transaction.amount, formatMoney)}
+            sourceLabel="Plaid"
+            icon="link"
+            onPress={() => onSelectTransaction(transaction)}
+          />
+        );
+      })}
+    </View>
   );
 }
 
-type ExpenseRowProps = {
-  expense: ExpenseRow;
-  recurringRules: RecurringRule[];
-  ui: TransactionsUi;
-  formatDate: (value?: string | null) => string;
-  formatMoney: (value?: number | null) => string;
-  onPress: () => void;
-};
-
-// Single manual expense row with optional recurring badge.
-function ExpenseRow({
-  expense,
-  recurringRules,
-  ui,
-  formatDate,
-  formatMoney,
-  onPress,
-}: ExpenseRowProps) {
-  const linkedRule = recurringRules.find(
-    (rule) => rule.id === expense.recurring_rule_id,
-  );
-  const recurringColor = linkedRule?.is_active ? "#FF9500" : ui.mutedText;
-  const rowBackgroundColor =
-    Platform.OS === "ios" && !isDarkColor(ui.surface2) ? "#FFFFFF" : ui.surface2;
-
-  return (
-    <Pressable
-      onPress={onPress}
-      style={({ pressed }) => [
-        styles.row,
-        {
-          borderColor: ui.border,
-          backgroundColor: rowBackgroundColor,
-          opacity: pressed ? 0.7 : 1,
-        },
-      ]}
-    >
-      <View style={{ flex: 1 }}>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-          <ThemedText type="defaultSemiBold">
-            {expense.description ?? "Transaction"}
-          </ThemedText>
-          {linkedRule && (
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-              <IconSymbol
-                name="arrow.triangle.2.circlepath"
-                size={12}
-                color={recurringColor}
-              />
-              <ThemedText
-                style={{
-                  color: recurringColor,
-                  fontSize: 12,
-                  fontWeight: "500",
-                }}
-              >
-                {linkedRule.is_active ? "Active" : "Inactive"}
-              </ThemedText>
-            </View>
-          )}
-        </View>
-        <ThemedText type="default">
-          {formatDate(expense.transaction_date || expense.created_at)}
-        </ThemedText>
-      </View>
-      <ThemedText type="defaultSemiBold">
-        {formatMoney(expense.amount ?? 0)}
-      </ThemedText>
-    </Pressable>
-  );
-}
-
-type PlaidTransactionRowProps = {
-  transaction: PlaidTransaction;
-  ui: TransactionsUi;
-  isDark: boolean;
-  formatDate: (value?: string | null) => string;
-  formatMoney: (value?: number | null) => string;
-  onPress: () => void;
-};
-
-// Single Plaid transaction row with pending status and account metadata.
-function PlaidTransactionRow({
-  transaction,
-  ui,
-  isDark,
-  formatDate,
-  formatMoney,
-  onPress,
-}: PlaidTransactionRowProps) {
-  const rowBackgroundColor =
-    Platform.OS === "ios" && !isDarkColor(ui.surface2) ? "#FFFFFF" : ui.surface2;
-
-  return (
-    <Pressable
-      onPress={onPress}
-      style={({ pressed }) => [
-        styles.row,
-        {
-          borderColor: ui.border,
-          backgroundColor: rowBackgroundColor,
-          opacity: pressed ? 0.7 : 1,
-        },
-      ]}
-    >
-      <View style={{ flex: 1 }}>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-          <ThemedText type="defaultSemiBold">
-            {transaction.merchant_name || transaction.name}
-          </ThemedText>
-          {transaction.pending && (
-            <View
-              style={{
-                backgroundColor: isDark
-                  ? "rgba(255,165,0,0.2)"
-                  : "rgba(255,165,0,0.15)",
-                paddingHorizontal: 6,
-                paddingVertical: 2,
-                borderRadius: 4,
-              }}
-            >
-              <ThemedText
-                style={{ fontSize: 10, color: "#FF9500", fontWeight: "600" }}
-              >
-                PENDING
-              </ThemedText>
-            </View>
-          )}
-        </View>
-
-        {transaction.institution_name && (
-          <ThemedText
-            style={{
-              fontSize: 10,
-              color: isDark ? "#8CF2D1" : "#1F6F5B",
-              fontWeight: "700",
-              letterSpacing: 0.5,
-              marginTop: 1,
-            }}
-          >
-            {transaction.institution_name.toUpperCase()}
-          </ThemedText>
-        )}
-
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 2 }}>
-          <ThemedText type="default" style={{ color: ui.mutedText, fontSize: 13 }}>
-            {formatDate(transaction.date)}
-          </ThemedText>
-          <ThemedText
-            style={{
-              fontSize: 11,
-              color: ui.mutedText,
-              fontWeight: "500",
-            }}
-          >
-            {[
-              transaction.account_name,
-              transaction.account_mask ? `••${transaction.account_mask}` : null,
-            ]
-              .filter(Boolean)
-              .join(" ")}
-          </ThemedText>
-        </View>
-
-        {transaction.category && transaction.category.length > 0 && (
-          <ThemedText style={{ color: ui.mutedText, fontSize: 12, marginTop: 2 }}>
-            {transaction.category.join(" › ")}
-          </ThemedText>
-        )}
-      </View>
-      <ThemedText
-        type="defaultSemiBold"
-        style={{
-          color:
-            transaction.amount > 0
-              ? isDark
-                ? "#FF6B6B"
-                : "#D32F2F"
-              : isDark
-                ? "#69F0AE"
-                : "#2E7D32",
-        }}
-      >
-        {transaction.amount > 0 ? "-" : "+"}
-        {formatMoney(Math.abs(transaction.amount))}
-      </ThemedText>
-    </Pressable>
-  );
-}
-
-function isDarkColor(color: string) {
-  return color === "#2C2C2E" || color === "#2C2C2F" || color === "#1B1B1E";
-}
+const localStyles = StyleSheet.create({
+  root: {
+    gap: 12,
+  },
+  card: {
+    minHeight: 154,
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.16)",
+    overflow: "hidden",
+    justifyContent: "space-between",
+    boxShadow: "0 10px 15px rgba(0, 0, 0, 0.25)",
+  },
+  waveImage: {
+    position: "absolute",
+    width: 360,
+    height: 180,
+    right: -30,
+    top: 54,
+    opacity: 0.72,
+  },
+  topRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    gap: 10,
+  },
+  titleGroup: {
+    flex: 1,
+    minWidth: 0,
+    gap: 3,
+    minHeight: 48,
+  },
+  eyebrow: {
+    color: "rgba(255,255,255,0.64)",
+    fontSize: 10.5,
+    lineHeight: 12,
+    letterSpacing: 1,
+    textTransform: "uppercase",
+    fontFamily: Tokens.font.semiFamily ?? Tokens.font.family,
+  },
+  cardName: {
+    color: "#FFFFFF",
+    fontSize: 18,
+    lineHeight: 21,
+    fontFamily: Tokens.font.boldFamily ?? Tokens.font.headingFamily,
+  },
+  metaRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    minWidth: 0,
+  },
+  metaDot: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: "rgba(255,255,255,0.36)",
+  },
+  metaText: {
+    color: "rgba(255,255,255,0.8)",
+    fontSize: 11.5,
+    lineHeight: 14,
+    fontFamily: Tokens.font.family,
+    flexShrink: 1,
+  },
+  iconCircle: {
+    width: 34,
+    height: 34,
+    borderRadius: 11,
+    backgroundColor: "rgba(255,255,255,0.13)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.14)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  balanceBlock: {
+    marginTop: 6,
+  },
+  balance: {
+    color: "#FFFFFF",
+    fontSize: 29,
+    lineHeight: 33,
+    fontVariant: ["tabular-nums"],
+    fontFamily: Tokens.font.numberFamily ?? Tokens.font.family,
+  },
+  bottomRow: {
+    minHeight: 28,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 10,
+  },
+  bottomMeta: {
+    flex: 1,
+    minWidth: 0,
+    gap: 2,
+  },
+  subtitle: {
+    color: "rgba(255,255,255,0.82)",
+    fontSize: 12.5,
+    lineHeight: 15,
+    fontFamily: Tokens.font.family,
+  },
+  sourceChip: {
+    flexShrink: 0,
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    backgroundColor: "rgba(255,255,255,0.12)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.14)",
+  },
+  sourceChipText: {
+    color: "rgba(255,255,255,0.86)",
+    fontSize: 10,
+    lineHeight: 12,
+    letterSpacing: 0.4,
+    textTransform: "uppercase",
+    fontFamily: Tokens.font.semiFamily ?? Tokens.font.family,
+  },
+});

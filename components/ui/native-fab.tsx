@@ -10,12 +10,13 @@ import {
 } from "@expo/ui/swift-ui";
 import { frame, glassEffect, onTapGesture } from "@expo/ui/swift-ui/modifiers";
 import React from "react";
-import { Platform, Pressable, StyleSheet, View, useColorScheme } from "react-native";
+import { Platform, Pressable, StyleSheet, View } from "react-native";
 
 import { IconSymbol } from "@/components/ui/icon-symbol";
 
 const IOS_SIZE = 58;
 const ANDROID_SIZE = 56;
+const VISUAL_BOTTOM_ADJUSTMENT = 10;
 
 type NativeFabProps = {
   accessibilityLabel: string;
@@ -28,9 +29,10 @@ export function NativeFab({
   bottom,
   onPress,
 }: NativeFabProps) {
-  const colorScheme = useColorScheme() === "dark" ? "dark" : "light";
-  const surfaceColor = colorScheme === "dark" ? "#FFFFFF" : "#111111";
-  const iconColor = colorScheme === "dark" ? "#111111" : "#FFFFFF";
+  const colorScheme = "light" as const;
+  const surfaceColor = "#111111";
+  const iconColor = "#FFFFFF";
+  const anchoredBottom = Math.max(bottom - VISUAL_BOTTOM_ADJUSTMENT, 12);
 
   return (
     <View
@@ -38,7 +40,7 @@ export function NativeFab({
       style={[
         styles.anchor,
         {
-          bottom,
+          bottom: anchoredBottom,
           right: 16,
         },
       ]}

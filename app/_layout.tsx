@@ -7,7 +7,6 @@ import {
 import { SplashScreen, Stack, useRouter, useSegments } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import React, { useEffect, useMemo } from "react";
-import { Platform } from "react-native";
 import { MD3DarkTheme, MD3LightTheme, PaperProvider } from "react-native-paper";
 
 import { SplashScreenController } from "@/components/splash-screen-controller";
@@ -83,6 +82,34 @@ function ProtectedLayout() {
         }}
       />
       <Stack.Screen
+        name="goal-add"
+        options={{
+          presentation: "pageSheet",
+          headerShown: false,
+        }}
+      />
+      <Stack.Screen
+        name="goal/[id]"
+        options={{
+          presentation: "card",
+          headerShown: false,
+        }}
+      />
+      <Stack.Screen
+        name="budget-add"
+        options={{
+          presentation: "pageSheet",
+          headerShown: false,
+        }}
+      />
+      <Stack.Screen
+        name="budget/[id]"
+        options={{
+          presentation: "card",
+          headerShown: false,
+        }}
+      />
+      <Stack.Screen
         name="transaction/[id]"
         options={{
           presentation: "card",
@@ -153,6 +180,17 @@ function ProtectedLayout() {
             Platform.OS === "android"
               ? { backgroundColor: ui.surface }
               : undefined,
+        name="notifications"
+        options={{
+          presentation: "card",
+          headerShown: false,
+        }}
+      />
+      <Stack.Screen
+        name="notification-settings"
+        options={{
+          presentation: "card",
+          headerShown: false,
         }}
       />
     </Stack>
@@ -161,13 +199,10 @@ function ProtectedLayout() {
 
 export default function RootLayout() {
   const [loaded] = useFonts({
-    "Avenir LT Std 55 Roman": require("../assets/fonts/AvenirLTStd-Roman.otf"),
-    "Avenir LT Std 55 Oblique": require("../assets/fonts/AvenirLTStd-Oblique.otf"),
-    "Avenir LT Std 65 Medium": require("../assets/fonts/AvenirLTStd-Medium.otf"),
-    "Avenir LT Std 85 Heavy": require("../assets/fonts/AvenirLTStd-Heavy.otf"),
-    "Avenir LT Std 95 Black": require("../assets/fonts/AvenirLTStd-Black.otf"),
     "Lato-Bold": require("../assets/fonts/Lato-Bold.ttf"),
+    "Lato-Italic": require("../assets/fonts/Lato-Italic.ttf"),
     "Lato-Light": require("../assets/fonts/Lato-Light.ttf"),
+    "Lato-Regular": require("../assets/fonts/Lato-Regular.ttf"),
   });
   const colorScheme = useColorScheme() ?? "light";
 
@@ -256,7 +291,7 @@ export default function RootLayout() {
           <AuthProvider>
             <SplashScreenController />
             <ProtectedLayout />
-            <StatusBar style="auto" />
+            <StatusBar style="dark" />
           </AuthProvider>
         </ThemeProvider>
       </PaperProvider>

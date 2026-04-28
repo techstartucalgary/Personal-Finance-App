@@ -1,6 +1,7 @@
-import React from "react";
 import SegmentedControl from "@react-native-segmented-control/segmented-control";
+import React from "react";
 
+import { Platform } from "react-native";
 import type { GoalSegment, GoalsUi } from "./types";
 
 type GoalSegmentedControlProps = {
@@ -25,7 +26,7 @@ export function GoalSegmentedControl({
         onChange(index === 0 ? "activity" : index === 1 ? "active" : "reached");
       }}
       tintColor={ui.accent}
-      backgroundColor={ui.surface2}
+      backgroundColor={Platform.OS === "ios" ? "transparent" : ui.surface2}
       fontStyle={{ color: ui.text, fontWeight: "500" }}
       activeFontStyle={{ color: ui.surface, fontWeight: "600" }}
     />

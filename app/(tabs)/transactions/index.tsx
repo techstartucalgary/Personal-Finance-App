@@ -9,7 +9,7 @@ import {
 import { Stack, useFocusEffect, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { tabsTheme } from "@/constants/tabsTheme";
+import { useTabsTheme } from "@/constants/tabsTheme";
 import { useAuthContext } from "@/hooks/use-auth-context";
 import { getAccountById, listAccounts, updateAccount } from "@/utils/accounts";
 import { listCategories } from "@/utils/categories";
@@ -23,11 +23,11 @@ import type { PlaidAccount, PlaidTransaction } from "@/utils/plaid";
 import { getPlaidAccounts, getPlaidTransactions } from "@/utils/plaid";
 import { deleteRecurringRule, getRecurringRules } from "@/utils/recurring";
 
+import { TransactionsList } from "@/components/transactions/TransactionsList";
 import { AccountFilterChips } from "@/components/transactions/tab/AccountFilterChips";
 import { EditRecurrenceSheet } from "@/components/transactions/tab/EditRecurrenceSheet";
 import { RecurringRulesList } from "@/components/transactions/tab/RecurringRulesList";
 import { TransactionsFab } from "@/components/transactions/tab/TransactionsFab";
-import { TransactionsList } from "@/components/transactions/TransactionsList";
 import { TransactionsSegmentedControl } from "@/components/transactions/tab/TransactionsSegmentedControl";
 import { styles } from "@/components/transactions/tab/styles";
 import type {
@@ -43,7 +43,6 @@ export default function HomeScreen() {
   const { session } = useAuthContext();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const isDark = false;
   const isAndroid = Platform.OS === "android";
 
   // Dynamic tab bar height (NativeTabs-safe)
@@ -51,7 +50,8 @@ export default function HomeScreen() {
   const fabBottom = tabBarHeight + 2;
 
   // Keep tab screens on the auth palette for a more consistent app shell.
-  const ui = tabsTheme.ui;
+  const { ui } = useTabsTheme();
+  const isDark = ui.bg === "#000000";
 
   const userId = session?.user.id;
 

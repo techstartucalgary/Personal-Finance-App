@@ -19,7 +19,7 @@ import { ThemedText } from "@/components/themed-text";
 import { DateTimePickerField } from "@/components/ui/DateTimePickerField";
 import { SelectionModal } from "@/components/ui/SelectionModal";
 import { Tokens } from "@/constants/authTokens";
-import { tabsTheme } from "@/constants/tabsTheme";
+import { useTabsTheme } from "@/constants/tabsTheme";
 import { useAuthContext } from "@/hooks/use-auth-context";
 import { createBudget, deleteBudget, editBudget, getBudget } from "@/utils/budgets";
 import {
@@ -83,7 +83,7 @@ export function BudgetEditorScreen({ mode }: BudgetEditorScreenProps) {
   const { session } = useAuthContext();
   const navigation = useNavigation();
   const router = useRouter();
-  const ui = tabsTheme.ui;
+  const { ui } = useTabsTheme();
   const userId = session?.user.id;
   const { id } = useLocalSearchParams<{ id?: string }>();
 
@@ -441,7 +441,7 @@ export function BudgetEditorScreen({ mode }: BudgetEditorScreenProps) {
 
   if (isLoading) {
     return (
-      <View style={styles.loaderWrap}>
+      <View style={[styles.loaderWrap, { backgroundColor: ui.bg }]}>
         <ActivityIndicator size="large" color={ui.accent} />
       </View>
     );
@@ -801,7 +801,6 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: tabsTheme.ui.bg,
   },
   scrollContent: {
     paddingBottom: 40,

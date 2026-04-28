@@ -2,10 +2,10 @@ import { Stack } from "expo-router";
 import React from "react";
 import { Platform } from "react-native";
 
-import { getColors } from "@/constants/authTokens";
+import { useTabsTheme } from "@/constants/tabsTheme";
 
 export default function TargetsLayout() {
-    const colors = getColors("light");
+    const { colors } = useTabsTheme();
 
     return (
         <Stack
@@ -17,6 +17,7 @@ export default function TargetsLayout() {
                 headerShadowVisible: false,
                 headerStyle: { backgroundColor: Platform.OS === "android" ? colors.bg : "transparent" },
                 headerLargeStyle: { backgroundColor: Platform.OS === "ios" ? "transparent" : colors.bg },
+                headerTintColor: colors.text,
                 headerTitleStyle: { color: colors.text },
                 headerLargeTitleStyle: { color: colors.text },
             }}

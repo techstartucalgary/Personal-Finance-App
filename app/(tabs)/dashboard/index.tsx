@@ -16,7 +16,7 @@ import { AccountsTrendChart } from "@/components/accounts/AccountsTrendChart";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { Tokens } from "@/constants/authTokens";
-import { tabsTheme } from "@/constants/tabsTheme";
+import { useTabsTheme } from "@/constants/tabsTheme";
 import { useAuthContext } from "@/hooks/use-auth-context";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -60,7 +60,7 @@ export default function DashboardScreen() {
 
   // Dynamic tab bar height (NativeTabs-safe)
   const tabBarHeight = insets.bottom + 60;
-  const ui = tabsTheme.ui;
+  const { ui } = useTabsTheme();
   const pageBackground = ui.bg;
   const cardBackground = ui.surface;
   const insetBackground = ui.surface2;

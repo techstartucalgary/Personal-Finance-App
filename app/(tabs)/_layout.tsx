@@ -1,9 +1,9 @@
+import { useTabsTheme } from "@/constants/tabsTheme";
 import { NativeTabs } from "expo-router/unstable-native-tabs";
 import React from "react";
-import { getColors } from "@/constants/authTokens";
 
 export default function TabLayout() {
-  const colors = getColors("light");
+  const { colors } = useTabsTheme();
 
   return (
     <NativeTabs
@@ -15,8 +15,8 @@ export default function TabLayout() {
         default: { color: colors.muted },
         selected: { color: colors.primaryBtn },
       }}
-      indicatorColor="rgba(31, 31, 31, 0.08)"
-      rippleColor="rgba(31, 31, 31, 0.05)"
+      indicatorColor={colors.line}
+      rippleColor={colors.chipBorder}
       backgroundColor={colors.inputBg}
       labelVisibilityMode="labeled"
     >

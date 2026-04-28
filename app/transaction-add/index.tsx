@@ -24,7 +24,6 @@ export default function TransactionAddScreen() {
   const { session } = useAuthContext();
   const router = useRouter();
   const navigation = useNavigation();
-  const isDark = false;
   const userId = session?.user.id;
   const { currentAccountId, initialDescription, goalId } = useLocalSearchParams<{
     currentAccountId?: string;
@@ -32,6 +31,7 @@ export default function TransactionAddScreen() {
     goalId?: string;
   }>();
   const ui = useThemeUI();
+  const isDark = ui.bg === "#000000";
   const modalRef = useRef<AddTransactionModalRef>(null);
   const sheetUi = useMemo(() => ui, [ui]);
 

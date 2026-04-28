@@ -1,6 +1,7 @@
 import { AuthButton } from "@/components/auth_buttons/auth-button";
 import { InputField } from "@/components/auth_buttons/input-field";
-import { Tokens, getColors } from "@/constants/authTokens";
+import { getColors, Tokens } from "@/constants/authTokens";
+import { useColorScheme } from "@/hooks/use-color-scheme";
 import { supabase } from "@/utils/supabase";
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
@@ -23,7 +24,8 @@ import {
 } from "react-native-safe-area-context";
 
 export default function VerifyEmail() {
-  const C = getColors("light");
+  const scheme = useColorScheme();
+  const C = getColors(scheme);
   const { height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{ email: string }>();
@@ -34,7 +36,7 @@ export default function VerifyEmail() {
   const [resendLoading, setResendLoading] = useState(false);
   const [error, setError] = useState("");
   const [resendCooldown, setResendCooldown] = useState(0);
-  const cooldownRef = useRef<NodeJS.Timeout>();
+  const cooldownRef = useRef<NodeJS.Timeout | null>(null);
 
   const compact = height < 760;
   const horizontalPad = compact ? 20 : 26;
@@ -116,7 +118,7 @@ export default function VerifyEmail() {
 
   return (
     <SafeAreaView style={[styles.screen, { backgroundColor: C.bg }]}>
-      <StatusBar style="dark" backgroundColor={C.bg} />
+      <StatusBar style={scheme === "dark" ? "light" : "dark"} backgroundColor={C.bg} />
       <View style={[styles.screen, { backgroundColor: C.bg }]}>
         <View
           style={[

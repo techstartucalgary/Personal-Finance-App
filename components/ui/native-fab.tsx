@@ -13,6 +13,8 @@ import React from "react";
 import { Platform, Pressable, StyleSheet, View } from "react-native";
 
 import { IconSymbol } from "@/components/ui/icon-symbol";
+import { getColors } from "@/constants/authTokens";
+import { useColorScheme } from "@/hooks/use-color-scheme";
 
 const IOS_SIZE = 58;
 const ANDROID_SIZE = 56;
@@ -29,9 +31,11 @@ export function NativeFab({
   bottom,
   onPress,
 }: NativeFabProps) {
-  const colorScheme = "light" as const;
-  const surfaceColor = "#111111";
-  const iconColor = "#FFFFFF";
+  const scheme = useColorScheme();
+  const colors = getColors(scheme);
+  const colorScheme = scheme;
+  const surfaceColor = colors.primaryBtn;
+  const iconColor = colors.primaryText;
   const anchoredBottom = Math.max(bottom - VISUAL_BOTTOM_ADJUSTMENT, 12);
 
   return (

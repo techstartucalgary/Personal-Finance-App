@@ -1,5 +1,6 @@
 import { AuthButton } from "@/components/auth_buttons/auth-button";
 import { Tokens, getColors } from "@/constants/authTokens";
+import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Feather } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import { StatusBar } from "expo-status-bar";
@@ -16,7 +17,8 @@ import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
 type CurrencyOption = { label: string; value: "CAD" | "USD" };
 
 export default function OnboardingCurrency() {
-  const C = getColors("light");
+  const scheme = useColorScheme();
+  const C = getColors(scheme);
   const { height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const compact = height < 760;
@@ -54,7 +56,7 @@ export default function OnboardingCurrency() {
 
   return (
     <SafeAreaView style={[styles.screen, { backgroundColor: C.bg }]}>
-      <StatusBar style="dark" backgroundColor={C.bg} />
+      <StatusBar style={scheme === "dark" ? "light" : "dark"} backgroundColor={C.bg} />
       <View style={[styles.screen, { backgroundColor: C.bg }]}>
         <View
           style={[

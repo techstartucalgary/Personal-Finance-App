@@ -295,7 +295,7 @@ export default function RootLayout() {
           <AuthProvider>
             <SplashScreenController />
             <ProtectedLayout />
-            <StatusBar style="dark" />
+            <StatusBar style={colorScheme === "dark" ? "light" : "dark"} />
           </AuthProvider>
         </ThemeProvider>
       </PaperProvider>

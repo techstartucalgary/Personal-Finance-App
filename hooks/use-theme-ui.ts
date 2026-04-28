@@ -1,10 +1,12 @@
+import { getColors } from "@/constants/authTokens";
 import { useMemo } from "react";
 import { Platform } from "react-native";
-import { getColors } from "@/constants/authTokens";
+import { useColorScheme } from "./use-color-scheme";
 
 export function useThemeUI() {
-  const isDark = false;
-  const colors = getColors("light");
+  const scheme = useColorScheme();
+  const isDark = scheme === "dark";
+  const colors = getColors(scheme);
   const isAndroid = Platform.OS === "android";
 
   const ui = useMemo(

@@ -5,12 +5,12 @@ import SegmentedControl from "@react-native-segmented-control/segmented-control"
 import { Stack, useFocusEffect, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { AccountFilterChips } from "@/components/transactions/tab/AccountFilterChips";
-import { NativeFab } from "@/components/ui/native-fab";
 import { BudgetsView } from "@/components/targets/BudgetsView";
 import { GoalsView } from "@/components/targets/GoalsView";
+import { AccountFilterChips } from "@/components/transactions/tab/AccountFilterChips";
+import { NativeFab } from "@/components/ui/native-fab";
 import { Tokens } from "@/constants/authTokens";
-import { tabsTheme } from "@/constants/tabsTheme";
+import { useTabsTheme } from "@/constants/tabsTheme";
 import { useAuthContext } from "@/hooks/use-auth-context";
 import { listAccounts } from "@/utils/accounts";
 import { getPlaidAccounts, type PlaidAccount } from "@/utils/plaid";
@@ -20,7 +20,7 @@ type Tab = "goals" | "budgets";
 export default function TargetsScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const ui = tabsTheme.ui;
+  const { ui } = useTabsTheme();
 
   const tabBarHeight = insets.bottom + 48;
   const fabBottom = tabBarHeight + 2;
@@ -126,9 +126,9 @@ export default function TargetsScreen() {
             setActiveTab(index === 0 ? "goals" : "budgets");
           }}
           tintColor={ui.accent}
-          backgroundColor={ui.surface2}
+          backgroundColor={Platform.OS === "ios" ? "transparent" : ui.surface2}
           fontStyle={{ color: ui.text, fontFamily: Tokens.font.family }}
-          activeFontStyle={{ color: ui.surface, fontFamily: Tokens.font.semiFamily }}
+          activeFontStyle={{ color: ui.primaryText, fontFamily: Tokens.font.semiFamily }}
         />
 
         <AccountFilterChips

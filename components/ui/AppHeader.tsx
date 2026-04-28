@@ -4,9 +4,9 @@ import React from "react";
 import { Pressable, StyleSheet, View, type TextStyle } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { tabsTheme } from "@/constants/tabsTheme";
 import { ThemedText } from "@/components/themed-text";
 import { Tokens } from "@/constants/authTokens";
+import { useTabsTheme } from "@/constants/tabsTheme";
 
 type AppHeaderProps = {
   title: string;
@@ -26,7 +26,7 @@ export function AppHeader({
   titleStyle,
 }: AppHeaderProps) {
   const insets = useSafeAreaInsets();
-  const ui = tabsTheme.ui;
+  const { ui } = useTabsTheme();
   const router = useRouter();
   const pathname = usePathname();
   const handleLeftPress =

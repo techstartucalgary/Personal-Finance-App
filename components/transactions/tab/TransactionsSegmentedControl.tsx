@@ -1,6 +1,7 @@
-import React from "react";
 import SegmentedControl from "@react-native-segmented-control/segmented-control";
+import React from "react";
 
+import { Platform } from "react-native";
 import type { TransactionsTab, TransactionsUi } from "./types";
 
 type TransactionsSegmentedControlProps = {
@@ -28,9 +29,9 @@ export function TransactionsSegmentedControl({
         onChange(index === 0 ? "transactions" : "recurrences");
       }}
       tintColor={tintColor}
-      backgroundColor={backgroundColor}
+      backgroundColor={Platform.OS === "ios" ? "transparent" : backgroundColor}
       fontStyle={{ color: ui.text, fontWeight: "500" }}
-      activeFontStyle={{ color: ui.surface, fontWeight: "600" }}
+      activeFontStyle={{ color: ui.primaryText, fontWeight: "600" }}
     />
   );
 }

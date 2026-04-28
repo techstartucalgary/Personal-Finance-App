@@ -9,14 +9,14 @@ import {
 
 import { GoalAccountSelectionScreen } from "@/components/targets/goals/GoalAccountSelectionScreen";
 import { setPendingGoalAccountSelection } from "@/components/targets/goals/pending-goal-account-selection";
-import { tabsTheme } from "@/constants/tabsTheme";
+import { useTabsTheme } from "@/constants/tabsTheme";
 import { useAuthContext } from "@/hooks/use-auth-context";
 
 export default function GoalEditAccountSelectScreen() {
   const { session } = useAuthContext();
   const router = useRouter();
   const navigation = useNavigation();
-  const ui = tabsTheme.ui;
+  const { ui } = useTabsTheme();
   const userId = session?.user.id;
   const { currentAccountKey } = useLocalSearchParams<{
     currentAccountKey?: string;

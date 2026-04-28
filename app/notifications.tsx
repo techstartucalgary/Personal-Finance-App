@@ -16,7 +16,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { AppHeader } from "@/components/ui/AppHeader";
 import { ThemedText } from "@/components/themed-text";
-import { tabsTheme } from "@/constants/tabsTheme";
+import { useTabsTheme } from "@/constants/tabsTheme";
 import { Tokens } from "@/constants/authTokens";
 import { useAuthContext } from "@/hooks/use-auth-context";
 import {
@@ -28,8 +28,7 @@ import {
 } from "@/utils/notifications";
 
 export default function NotificationsScreen() {
-  const ui = tabsTheme.ui;
-  const colors = tabsTheme.colors;
+  const { ui, colors } = useTabsTheme();
   const router = useRouter();
   const { session } = useAuthContext();
   const userId = session?.user.id;

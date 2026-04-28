@@ -1,6 +1,7 @@
 import { AuthButton } from "@/components/auth_buttons/auth-button";
 import { InputField } from "@/components/auth_buttons/input-field";
 import { Tokens, getColors } from "@/constants/authTokens";
+import { useColorScheme } from "@/hooks/use-color-scheme";
 import { supabase } from "@/utils/supabase";
 import { Ionicons } from "@expo/vector-icons";
 import { Link, router } from "expo-router";
@@ -21,7 +22,8 @@ import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
 import { configureGoogleOnce, signInWithGoogle } from "@/utils/authGoogle";
 
 export default function Login() {
-  const C = getColors("light");
+  const scheme = useColorScheme();
+  const C = getColors(scheme);
   const { height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
 
@@ -128,7 +130,7 @@ export default function Login() {
 
   return (
     <SafeAreaView style={[styles.screen, { backgroundColor: C.bg }]}>
-      <StatusBar style="dark" backgroundColor={C.bg} />
+      <StatusBar style={scheme === "dark" ? "light" : "dark"} backgroundColor={C.bg} />
       <View style={[styles.screen, { backgroundColor: C.bg }]}>
         <View
           style={[

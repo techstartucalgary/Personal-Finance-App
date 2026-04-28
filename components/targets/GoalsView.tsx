@@ -6,7 +6,7 @@ import { useFocusEffect, useRouter } from "expo-router";
 import { ThemedText } from "@/components/themed-text";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { Tokens } from "@/constants/authTokens";
-import { tabsTheme } from "@/constants/tabsTheme";
+import { TabsUi, useTabsTheme } from "@/constants/tabsTheme";
 import { useAuthContext } from "@/hooks/use-auth-context";
 import { listGoals } from "@/utils/goals";
 
@@ -46,7 +46,7 @@ export function GoalsView({
 }: GoalsViewProps) {
   const { session } = useAuthContext();
   const router = useRouter();
-  const ui = tabsTheme.ui;
+  const { ui } = useTabsTheme();
   const userId = session?.user.id;
 
   const [goals, setGoals] = useState<GoalRow[]>([]);
@@ -356,7 +356,7 @@ function GoalsSection({
   labelColor: string;
   goals: GoalRow[];
   selectableAccounts: GoalSelectableAccount[];
-  ui: typeof tabsTheme.ui;
+  ui: TabsUi;
   onOpenGoal: (goal: GoalRow) => void;
 }) {
   return (
@@ -447,7 +447,7 @@ function EmptyState({
   buttonLabel?: string;
   onPress?: () => void;
 }) {
-  const ui = tabsTheme.ui;
+  const { ui } = useTabsTheme();
 
   return (
     <View

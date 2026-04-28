@@ -6,7 +6,7 @@ import { Pressable, StyleSheet, View } from "react-native";
 import type { AccountRow, FilterAccountId } from "@/components/transactions/tab/types";
 import { ThemedText } from "@/components/themed-text";
 import { Tokens } from "@/constants/authTokens";
-import { tabsTheme } from "@/constants/tabsTheme";
+import { useTabsTheme } from "@/constants/tabsTheme";
 import { useAuthContext } from "@/hooks/use-auth-context";
 import { listBudgets } from "@/utils/budgets";
 import type { CategoryBudgetRow } from "@/utils/categoryBudgets";
@@ -44,7 +44,7 @@ export function BudgetsView({
 }: BudgetsViewProps) {
   const { session } = useAuthContext();
   const router = useRouter();
-  const ui = tabsTheme.ui;
+  const { ui } = useTabsTheme();
   const userId = session?.user.id;
 
   const [budgets, setBudgets] = useState<BudgetWithDetails[]>([]);
@@ -344,7 +344,7 @@ export function BudgetsView({
 }
 
 function BudgetStat({ label, value }: { label: string; value: string }) {
-  const ui = tabsTheme.ui;
+  const { ui } = useTabsTheme();
 
   return (
     <View style={styles.statBlock}>

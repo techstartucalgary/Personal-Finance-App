@@ -15,7 +15,7 @@ import {
 import type { ExpenseRow } from "@/components/transactions/tab/types";
 import { ThemedText } from "@/components/themed-text";
 import { Tokens } from "@/constants/authTokens";
-import { tabsTheme } from "@/constants/tabsTheme";
+import { useTabsTheme } from "@/constants/tabsTheme";
 import { useAuthContext } from "@/hooks/use-auth-context";
 import { listAccounts } from "@/utils/accounts";
 import { getBudget } from "@/utils/budgets";
@@ -43,7 +43,7 @@ export function BudgetDetailScreen() {
   const { session } = useAuthContext();
   const navigation = useNavigation();
   const router = useRouter();
-  const ui = tabsTheme.ui;
+  const { ui } = useTabsTheme();
   const userId = session?.user.id;
   const { id } = useLocalSearchParams<{ id: string }>();
 
@@ -178,7 +178,7 @@ export function BudgetDetailScreen() {
 
   if (isLoading || !budget) {
     return (
-      <View style={styles.loaderWrap}>
+      <View style={[styles.loaderWrap, { backgroundColor: ui.bg }]}>
         <ActivityIndicator size="large" color={ui.accent} />
       </View>
     );
@@ -447,7 +447,6 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: tabsTheme.ui.bg,
   },
   scrollContent: {
     paddingBottom: 40,

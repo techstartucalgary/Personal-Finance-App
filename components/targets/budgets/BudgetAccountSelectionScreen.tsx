@@ -15,7 +15,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { Tokens } from "@/constants/authTokens";
-import { tabsTheme } from "@/constants/tabsTheme";
+import { useTabsTheme } from "@/constants/tabsTheme";
 import { listAccounts } from "@/utils/accounts";
 import { getPlaidAccounts } from "@/utils/plaid";
 
@@ -41,7 +41,7 @@ export function BudgetAccountSelectionScreen({
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
   const router = useRouter();
-  const ui = tabsTheme.ui;
+  const { ui } = useTabsTheme();
   const [accounts, setAccounts] = useState<BudgetSelectableAccount[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");

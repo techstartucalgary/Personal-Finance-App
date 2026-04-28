@@ -5,6 +5,7 @@ import {
   Platform,
   RefreshControl,
   ScrollView,
+  useColorScheme
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -12,6 +13,7 @@ import { Stack, useFocusEffect, useRouter } from "expo-router";
 
 import { useTabTransition } from "@/components/ui/useTabTransition";
 import { useAuthContext } from "@/hooks/use-auth-context";
+import { useThemeUI } from "@/hooks/use-theme-ui";
 import { listGoals } from "@/utils/goals";
 import {
   getPlaidAccounts
@@ -26,7 +28,6 @@ import {
 } from "@/components/accounts/tab/AccountsState";
 import { styles } from "@/components/accounts/tab/styles";
 import type { AccountRow, GoalRow } from "@/components/accounts/tab/types";
-import { tabsTheme } from "@/constants/tabsTheme";
 import type { PlaidAccount } from "@/utils/plaid";
 
 export default function AccountsScreen() {
@@ -34,11 +35,12 @@ export default function AccountsScreen() {
   const router = useRouter();
 
   const insets = useSafeAreaInsets();
+  const isDark = useColorScheme() === "dark";
 
   // Dynamic tab bar height (NativeTabs-safe)
   const tabBarHeight = insets.bottom + 48;
   const fabBottom = tabBarHeight + 2;
-  const ui = tabsTheme.ui;
+  const ui = useThemeUI();
   const transition = useTabTransition();
 
   const userId = session?.user.id;

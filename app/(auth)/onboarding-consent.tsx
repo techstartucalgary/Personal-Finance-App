@@ -1,5 +1,6 @@
 import { AuthButton } from "@/components/auth_buttons/auth-button";
 import { Tokens, getColors } from "@/constants/authTokens";
+import { useColorScheme } from "@/hooks/use-color-scheme";
 import { supabase } from "@/utils/supabase";
 import { Feather } from "@expo/vector-icons";
 import Checkbox from "expo-checkbox";
@@ -20,7 +21,8 @@ import {
 } from "react-native-safe-area-context";
 
 export default function OnboardingConsent() {
-  const C = getColors("light");
+  const scheme = useColorScheme();
+  const C = getColors(scheme);
   const { height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const compact = height < 760;
@@ -72,7 +74,7 @@ export default function OnboardingConsent() {
 
   return (
     <SafeAreaView style={[styles.screen, { backgroundColor: C.bg }]}>
-      <StatusBar style="dark" backgroundColor={C.bg} />
+      <StatusBar style={scheme === "dark" ? "light" : "dark"} backgroundColor={C.bg} />
       <View style={[styles.screen, { backgroundColor: C.bg }]}>
         <View
           style={[

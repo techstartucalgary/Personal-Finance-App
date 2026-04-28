@@ -2,10 +2,10 @@ import { Stack } from "expo-router";
 import React from "react";
 import { Platform } from "react-native";
 
-import { getColors } from "@/constants/authTokens";
+import { useTabsTheme } from "@/constants/tabsTheme";
 
 export default function AccountsLayout() {
-  const colors = getColors("light");
+  const { colors } = useTabsTheme();
 
   return (
     <Stack

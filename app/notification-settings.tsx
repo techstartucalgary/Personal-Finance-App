@@ -22,7 +22,7 @@ import {
   type NotificationPreferenceKey,
   type NotificationSectionTitle,
 } from "@/constants/notificationPreferences";
-import { tabsTheme } from "@/constants/tabsTheme";
+import { useTabsTheme } from "@/constants/tabsTheme";
 import { Tokens } from "@/constants/authTokens";
 import { useAuthContext } from "@/hooks/use-auth-context";
 import {
@@ -45,7 +45,7 @@ const PREFERENCE_BY_ID = Object.fromEntries(
 const EMPTY_SAVING_STATE = {} as Record<NotificationPreferenceKey, boolean>;
 
 export default function NotificationSettingsScreen() {
-  const ui = tabsTheme.ui;
+  const { ui } = useTabsTheme();
   const router = useRouter();
   const { animate } = useLocalSearchParams<{ animate?: string }>();
   const insets = useSafeAreaInsets();

@@ -12,7 +12,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { IconSymbol } from "@/components/ui/icon-symbol";
-import { tabsTheme } from "@/constants/tabsTheme";
+import { useTabsTheme } from "@/constants/tabsTheme";
 import { listAccounts } from "@/utils/accounts";
 import { getPlaidAccounts } from "@/utils/plaid";
 
@@ -31,7 +31,7 @@ export function GoalAccountSelectionScreen({
   onSelectAccount,
 }: GoalAccountSelectionScreenProps) {
   const insets = useSafeAreaInsets();
-  const ui = tabsTheme.ui;
+  const { ui } = useTabsTheme();
   const [accounts, setAccounts] = useState<GoalSelectableAccount[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 

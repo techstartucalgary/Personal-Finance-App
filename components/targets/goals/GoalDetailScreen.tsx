@@ -21,7 +21,7 @@ import { ThemedText } from "@/components/themed-text";
 import { TransactionsList } from "@/components/transactions/TransactionsList";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { Tokens } from "@/constants/authTokens";
-import { tabsTheme } from "@/constants/tabsTheme";
+import { useTabsTheme } from "@/constants/tabsTheme";
 import { useAuthContext } from "@/hooks/use-auth-context";
 import { isGoalTransactionForGoal } from "@/utils/goal-transactions";
 import { listAccounts } from "@/utils/accounts";
@@ -51,7 +51,7 @@ export function GoalDetailScreen() {
   const { session } = useAuthContext();
   const router = useRouter();
   const navigation = useNavigation();
-  const ui = tabsTheme.ui;
+  const { ui } = useTabsTheme();
   const userId = session?.user.id;
   const { id, initialData } = useLocalSearchParams<{
     id: string;
@@ -373,7 +373,7 @@ export function GoalDetailScreen() {
 }
 
 function DetailRow({ label, value }: { label: string; value: string }) {
-  const ui = tabsTheme.ui;
+  const { ui } = useTabsTheme();
 
   return (
     <View style={detailStyles.detailRow}>
@@ -392,7 +392,6 @@ const detailStyles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: tabsTheme.ui.bg,
   },
   scrollContent: {
     paddingHorizontal: 16,

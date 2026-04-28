@@ -12,6 +12,7 @@ import { MD3DarkTheme, MD3LightTheme, PaperProvider } from "react-native-paper";
 import { SplashScreenController } from "@/components/splash-screen-controller";
 import { useAuthContext } from "@/hooks/use-auth-context";
 import { useColorScheme } from "@/hooks/use-color-scheme";
+import { useThemeUI } from "@/hooks/use-theme-ui";
 import AuthProvider from "@/providers/auth-provider";
 import { useFonts } from "expo-font";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
@@ -21,6 +22,7 @@ function ProtectedLayout() {
   const { session, isLoading } = useAuthContext();
   const segments = useSegments();
   const router = useRouter();
+  const ui = useThemeUI();
 
   useEffect(() => {
     if (isLoading) return;
@@ -46,7 +48,9 @@ function ProtectedLayout() {
         return;
       }
 
-      if (inAuthGroup) {
+      // Allow the MFA verify screen to stay active
+      const onMfaVerify = segments[0] === "mfa-verify";
+      if (inAuthGroup && !onMfaVerify) {
         router.replace("/(tabs)/dashboard");
       }
       return;
@@ -120,6 +124,62 @@ function ProtectedLayout() {
         }}
       />
       <Stack.Screen
+        name="mfa-setup"
+        options={{
+          presentation: "pageSheet",
+          headerShown: false,
+        }}
+      />
+      <Stack.Screen
+        name="mfa-verify"
+        options={{
+          presentation: "card",
+          headerShown: true,
+          title: "Verify Identity",
+          gestureEnabled: false,
+          headerBackVisible: false,
+        }}
+      />
+      <Stack.Screen
+        name="settings"
+        options={{
+          presentation: "card",
+          headerShown: true,
+          title: "Settings",
+        }}
+      />
+      <Stack.Screen
+        name="change-password/index"
+        options={{
+          presentation: "card",
+          headerShown: true,
+          title: "Change Password",
+          headerTransparent: Platform.OS === "ios",
+          headerBackButtonDisplayMode: "minimal",
+          headerTitleAlign: "center",
+          headerTintColor: ui.text,
+          headerShadowVisible: false,
+          headerStyle:
+            Platform.OS === "android"
+              ? { backgroundColor: ui.surface }
+              : undefined,
+        }}
+      />
+      <Stack.Screen
+        name="change-password/verify"
+        options={{
+          presentation: "card",
+          headerShown: true,
+          title: "Verify Code",
+          headerTransparent: Platform.OS === "ios",
+          headerBackButtonDisplayMode: "minimal",
+          headerTitleAlign: "center",
+          headerTintColor: ui.text,
+          headerShadowVisible: false,
+          headerStyle:
+            Platform.OS === "android"
+              ? { backgroundColor: ui.surface }
+              : undefined,
         name="notifications"
         options={{
           presentation: "card",

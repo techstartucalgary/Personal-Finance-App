@@ -1,4 +1,4 @@
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useLocalSearchParams } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -6,6 +6,7 @@ import {
   Animated,
   Easing,
   InteractionManager,
+  Platform,
   ScrollView,
   StyleSheet,
   Switch,
@@ -13,8 +14,8 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { AppHeader } from "@/components/ui/AppHeader";
 import { ThemedText } from "@/components/themed-text";
+import { Tokens } from "@/constants/authTokens";
 import {
   NOTIFICATION_PREFERENCES,
   NOTIFICATION_PREFERENCE_DEFAULTS,
@@ -23,7 +24,6 @@ import {
   type NotificationSectionTitle,
 } from "@/constants/notificationPreferences";
 import { useTabsTheme } from "@/constants/tabsTheme";
-import { Tokens } from "@/constants/authTokens";
 import { useAuthContext } from "@/hooks/use-auth-context";
 import {
   subscribeToNotificationPreferences,
@@ -46,7 +46,6 @@ const EMPTY_SAVING_STATE = {} as Record<NotificationPreferenceKey, boolean>;
 
 export default function NotificationSettingsScreen() {
   const { ui } = useTabsTheme();
-  const router = useRouter();
   const { animate } = useLocalSearchParams<{ animate?: string }>();
   const insets = useSafeAreaInsets();
   const { session } = useAuthContext();
@@ -139,7 +138,6 @@ export default function NotificationSettingsScreen() {
     [toggles, userId],
   );
 
-  const topPadding = 14;
   const bottomPadding = tabBarHeight + 40;
   const shouldScroll = contentHeight - bottomPadding > containerHeight + 1;
 
@@ -190,18 +188,6 @@ export default function NotificationSettingsScreen() {
 
   return (
     <View style={[styles.screen, { backgroundColor: ui.bg }]}>
-      <AppHeader
-        title="Notifications"
-        leftIcon="arrow-left"
-        rightIcon={null}
-        onLeftPress={() => {
-          router.back();
-        }}
-        titleStyle={{
-          fontFamily: Tokens.font.semiFamily ?? Tokens.font.family,
-          fontSize: 21,
-        }}
-      />
       <Animated.View
         style={[
           styles.bodyWrap,
@@ -229,11 +215,14 @@ export default function NotificationSettingsScreen() {
             bounces={shouldScroll}
             alwaysBounceVertical={false}
             overScrollMode="never"
-            contentInsetAdjustmentBehavior="automatic"
+            contentInsetAdjustmentBehavior="never"
             showsVerticalScrollIndicator={false}
             contentContainerStyle={[
               styles.scrollContent,
-              { paddingTop: topPadding, paddingBottom: bottomPadding },
+              {
+                paddingTop: Platform.OS === "ios" ? insets.top + 56 : 12,
+                paddingBottom: bottomPadding,
+              },
             ]}
           >
             <ThemedText style={[styles.helperText, { color: ui.mutedText }]}>

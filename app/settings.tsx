@@ -38,6 +38,14 @@ export default function SettingsScreen() {
             router.push("/change-password");
           },
         },
+        {
+          icon: "bell",
+          label: "Notification Settings",
+          value: "",
+          onPress: () => {
+            router.push("/notification-settings");
+          },
+        },
       ],
     },
     {

@@ -187,14 +187,38 @@ function ProtectedLayout() {
         name="notifications"
         options={{
           presentation: "card",
-          headerShown: false,
+          headerShown: true,
+          title: "Notifications",
+          headerBackTitle: "Dashboard",
+          headerBackButtonDisplayMode: "minimal",
+          headerTitleAlign: "center",
+          headerLargeTitle: false,
+          headerTransparent: Platform.OS === "ios",
+          headerShadowVisible: false,
+          headerStyle:
+            Platform.OS === "android"
+              ? { backgroundColor: ui.surface }
+              : undefined,
+          headerTintColor: ui.text,
+          headerRight: () => null,
         }}
       />
       <Stack.Screen
         name="notification-settings"
         options={{
           presentation: "card",
-          headerShown: false,
+          headerShown: true,
+          title: "Notification Settings",
+          headerBackButtonDisplayMode: "minimal",
+          headerTitleAlign: "center",
+          headerLargeTitle: false,
+          headerTransparent: Platform.OS === "ios",
+          headerShadowVisible: false,
+          headerStyle:
+            Platform.OS === "android"
+              ? { backgroundColor: ui.surface }
+              : undefined,
+          headerTintColor: ui.text,
         }}
       />
     </Stack>

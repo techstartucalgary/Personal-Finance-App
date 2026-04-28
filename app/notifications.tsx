@@ -1,12 +1,13 @@
 import Feather from "@expo/vector-icons/Feather";
-import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
-import React, { useCallback, useMemo, useRef, useState } from "react";
+import { useFocusEffect, useRouter } from "expo-router";
+import React, { useCallback, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
   Animated,
   Easing,
   FlatList,
+  Platform,
   Pressable,
   RefreshControl,
   StyleSheet,
@@ -14,10 +15,9 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { AppHeader } from "@/components/ui/AppHeader";
 import { ThemedText } from "@/components/themed-text";
-import { useTabsTheme } from "@/constants/tabsTheme";
 import { Tokens } from "@/constants/authTokens";
+import { useTabsTheme } from "@/constants/tabsTheme";
 import { useAuthContext } from "@/hooks/use-auth-context";
 import {
   listNotifications,
@@ -32,11 +32,9 @@ export default function NotificationsScreen() {
   const router = useRouter();
   const { session } = useAuthContext();
   const userId = session?.user.id;
-  const { from } = useLocalSearchParams<{ from?: string }>();
   const insets = useSafeAreaInsets();
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const translateAnim = useRef(new Animated.Value(8)).current;
-  const [isNavigating, setIsNavigating] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isMarkingAll, setIsMarkingAll] = useState(false);
@@ -106,48 +104,6 @@ export default function NotificationsScreen() {
     }, [fadeAnim, loadNotifications, translateAnim, userId]),
   );
 
-  const returnTo = useMemo(() => {
-    if (typeof from !== "string") return "";
-    if (!from.startsWith("/")) return "";
-    return from;
-  }, [from]);
-
-  const handleClose = useCallback(() => {
-    if (returnTo) {
-      router.replace(returnTo);
-      return;
-    }
-    router.back();
-  }, [returnTo, router]);
-
-  const handleOpenSettings = useCallback(() => {
-    if (isNavigating) return;
-    setIsNavigating(true);
-    Animated.parallel([
-      Animated.timing(fadeAnim, {
-        toValue: 0.92,
-        duration: 160,
-        easing: Easing.inOut(Easing.cubic),
-        useNativeDriver: true,
-      }),
-      Animated.timing(translateAnim, {
-        toValue: -6,
-        duration: 160,
-        easing: Easing.inOut(Easing.cubic),
-        useNativeDriver: true,
-      }),
-    ]).start(() => {
-      router.push({
-        pathname: "/notification-settings",
-        params: {
-          animate: "1",
-          ...(returnTo ? { from: returnTo } : {}),
-        },
-      });
-      setIsNavigating(false);
-    });
-  }, [fadeAnim, translateAnim, isNavigating, router, returnTo]);
-
   const handleOpenNotification = useCallback(
     async (item: NotificationRecord) => {
       if (!userId) return;
@@ -159,10 +115,10 @@ export default function NotificationsScreen() {
             prev.map((notification) =>
               notification.id === item.id
                 ? {
-                    ...notification,
-                    is_read: true,
-                    read_at: new Date().toISOString(),
-                  }
+                  ...notification,
+                  is_read: true,
+                  read_at: new Date().toISOString(),
+                }
                 : notification,
             ),
           );
@@ -218,17 +174,6 @@ export default function NotificationsScreen() {
 
   return (
     <View style={[styles.screen, { backgroundColor: ui.bg }]}>
-      <AppHeader
-        title="Notifications"
-        leftIcon="x"
-        rightIcon="settings"
-        onLeftPress={handleClose}
-        onRightPress={handleOpenSettings}
-        titleStyle={{
-          fontFamily: Tokens.font.semiFamily ?? Tokens.font.family,
-          fontSize: 21,
-        }}
-      />
       <Animated.View
         style={[
           styles.body,
@@ -274,8 +219,12 @@ export default function NotificationsScreen() {
                 tintColor={ui.text}
               />
             }
+            contentInsetAdjustmentBehavior="never"
             showsVerticalScrollIndicator={false}
-            contentContainerStyle={styles.listContent}
+            contentContainerStyle={[
+              styles.listContent,
+              { paddingTop: Platform.OS === "ios" ? insets.top + 56 : 32 },
+            ]}
             ListHeaderComponent={
               <View
                 style={[
@@ -286,9 +235,8 @@ export default function NotificationsScreen() {
                 <View style={styles.summaryTextWrap}>
                   <ThemedText style={[styles.summaryTitle, { color: ui.text }]}>
                     {unreadCount > 0
-                      ? `${unreadCount} unread notification${
-                          unreadCount === 1 ? "" : "s"
-                        }`
+                      ? `${unreadCount} unread notification${unreadCount === 1 ? "" : "s"
+                      }`
                       : "All notifications read"}
                   </ThemedText>
                   <ThemedText

@@ -2,7 +2,7 @@ import { IconSymbol } from "@/components/ui/icon-symbol";
 import Feather from "@expo/vector-icons/Feather";
 import { Stack, useRouter } from "expo-router";
 import React from "react";
-import { Alert, Platform, Pressable, useColorScheme } from "react-native";
+import { Platform, Pressable, useColorScheme } from "react-native";
 import { useTheme } from "react-native-paper";
 
 export default function IndexLayout() {
@@ -25,9 +25,7 @@ export default function IndexLayout() {
                 headerLargeTitleStyle: { color: isDark ? "#ffffff" : "#111111" },
                 headerLeft: () => (
                     <Pressable
-                        onPress={() =>
-                            Alert.alert("Notifications", "You have no new notifications.")
-                        }
+                        onPress={() => router.push("/notifications")}
                         hitSlop={10}
                         style={({ pressed }) => ({
                             width: 36,

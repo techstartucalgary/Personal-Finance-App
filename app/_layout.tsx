@@ -7,7 +7,6 @@ import {
 import { SplashScreen, Stack, useRouter, useSegments } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import React, { useEffect, useMemo } from "react";
-import { Platform } from "react-native";
 import { MD3DarkTheme, MD3LightTheme, PaperProvider } from "react-native-paper";
 
 import { SplashScreenController } from "@/components/splash-screen-controller";
@@ -90,6 +89,20 @@ function ProtectedLayout() {
         options={{
           presentation: "card",
           headerShown: true,
+        }}
+      />
+      <Stack.Screen
+        name="notifications"
+        options={{
+          presentation: "card",
+          headerShown: false,
+        }}
+      />
+      <Stack.Screen
+        name="notification-settings"
+        options={{
+          presentation: "card",
+          headerShown: false,
         }}
       />
     </Stack>

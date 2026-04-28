@@ -84,3 +84,20 @@ export async function listGoals(params: { profile_id: string }) {
   if (error) throw error;
   return data; // data will be an array
 }
+
+export async function updateGoalCurrentAmountByDelta(params: {
+  id: string | number;
+  profile_id: string;
+  delta: number;
+}) {
+  const { id, profile_id, delta } = params;
+  const goal = await getGoal({ id: String(id), profile_id });
+  const currentAmount = Number(goal.current_amount ?? 0);
+  const nextAmount = Math.max(0, currentAmount + delta);
+
+  return editGoal({
+    id,
+    profile_id,
+    update: { current_amount: nextAmount },
+  });
+}

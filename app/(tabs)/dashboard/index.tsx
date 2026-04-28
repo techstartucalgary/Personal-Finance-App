@@ -9,7 +9,6 @@ import {
   RefreshControl,
   ScrollView,
   StyleSheet,
-  useColorScheme,
   View
 } from "react-native";
 
@@ -17,10 +16,9 @@ import { AccountsTrendChart } from "@/components/accounts/AccountsTrendChart";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { Tokens } from "@/constants/authTokens";
+import { tabsTheme } from "@/constants/tabsTheme";
 import { useAuthContext } from "@/hooks/use-auth-context";
-import { useTheme } from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useThemeUI } from "@/hooks/use-theme-ui";
 
 import { listAccounts } from "@/utils/accounts";
 import { listExpenses } from "@/utils/expenses";
@@ -60,20 +58,12 @@ export default function DashboardScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
 
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === "dark";
-
   // Dynamic tab bar height (NativeTabs-safe)
   const tabBarHeight = insets.bottom + 60;
-
-  const theme = useTheme();
-
-  const isAndroid = Platform.OS === "android";
-
-  const ui = useThemeUI();
+  const ui = tabsTheme.ui;
   const pageBackground = ui.bg;
-  const cardBackground = isDark ? "#1B1B1E" : isAndroid ? "#F2F2F7" : "#FFFFFF";
-  const insetBackground = isDark ? "#2C2C2F" : isAndroid ? "#FFFFFF" : "#F2F2F7";
+  const cardBackground = ui.surface;
+  const insetBackground = ui.surface2;
   const subtleBorder = ui.border;
 
   const [isLoading, setIsLoading] = useState(false);
@@ -313,8 +303,12 @@ export default function DashboardScreen() {
   if (!session) {
     return (
       <ThemedView style={[styles.container, { paddingTop: 16 + insets.top }]}>
-        <ThemedText type="title">Dashboard</ThemedText>
-        <ThemedText>Please sign in to view your dashboard.</ThemedText>
+        <ThemedText type="title" style={{ color: ui.text }}>
+          Dashboard
+        </ThemedText>
+        <ThemedText style={{ color: ui.mutedText }}>
+          Please sign in to view your dashboard.
+        </ThemedText>
       </ThemedView>
     );
   }
@@ -351,7 +345,7 @@ export default function DashboardScreen() {
                 <ThemedText style={[styles.heroLabel, { color: ui.mutedText }]}>
                   Total Balance
                 </ThemedText>
-                <ThemedText style={[styles.heroValue, { color: ui.text }]}>
+                <ThemedText type="heroNumber" style={[styles.heroValue, { color: ui.text }]}>
                   {formatMoney(totalBalance)}
                 </ThemedText>
               </View>
@@ -484,7 +478,9 @@ export default function DashboardScreen() {
         </Animated.View>
 
         <View style={styles.sectionHeader}>
-          <ThemedText type="subtitle">Recent Activity</ThemedText>
+          <ThemedText type="subtitle" style={{ color: ui.text }}>
+            Recent Activity
+          </ThemedText>
           <Pressable onPress={() => router.push("/(tabs)/transactions")}>
             <ThemedText style={{ color: ui.accent }}>View All</ThemedText>
           </Pressable>
@@ -504,7 +500,9 @@ export default function DashboardScreen() {
                       {formatDateShort(tx.date)} {tx.isPlaid && "• Bank"}
                     </ThemedText>
                   </View>
-                  <ThemedText style={[styles.txAmount, { color: isNegative ? ui.text : ui.positive }]}>
+                  <ThemedText
+                    style={[styles.txAmount, { color: isNegative ? ui.negative : ui.positive }]}
+                  >
                     {isNegative ? "-" : "+"}{formatMoney(Math.abs(tx.amount))}
                   </ThemedText>
                 </View>
@@ -551,9 +549,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.2,
   },
   heroValue: {
-    fontFamily: Tokens.font.boldFamily ?? Tokens.font.headingFamily,
-    fontSize: 36,
-    lineHeight: 38,
+    fontFamily: Tokens.font.numberFamily ?? Tokens.font.family,
   },
   heroBadge: {
     flexDirection: "row",

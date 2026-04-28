@@ -17,6 +17,7 @@ import { consumePendingAddAccountType } from "@/components/accounts/add-account-
 import type { AccountType } from "@/components/accounts/tab/types";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
+import { Tokens } from "@/constants/authTokens";
 import { DateTimePickerField } from "@/components/ui/DateTimePickerField";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useAuthContext } from "@/hooks/use-auth-context";
@@ -375,13 +376,13 @@ const styles = StyleSheet.create({
   currencySymbol: {
     fontSize: 28,
     lineHeight: 34,
-    fontWeight: "700",
+    fontFamily: Tokens.font.numberFamily ?? Tokens.font.family,
   },
   amountInput: {
     flex: 1,
     fontSize: 32,
     lineHeight: 38,
-    fontWeight: "700",
+    fontFamily: Tokens.font.numberFamily ?? Tokens.font.family,
     paddingVertical: 0,
   },
   groupCard: {

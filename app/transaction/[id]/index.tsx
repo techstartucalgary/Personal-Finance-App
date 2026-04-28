@@ -3,6 +3,7 @@ import { AddTransactionModal, AddTransactionModalRef } from "@/components/AddTra
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useAuthContext } from "@/hooks/use-auth-context";
 import { useThemeUI } from "@/hooks/use-theme-ui";
+import { extractGoalTransactionGoalId } from "@/utils/goal-transactions";
 import { listAccounts } from "@/utils/accounts";
 import { listCategories } from "@/utils/categories";
 import { listExpenses } from "@/utils/expenses";
@@ -10,15 +11,18 @@ import { getRecurringRules } from "@/utils/recurring";
 import { usePreventRemove } from "@react-navigation/native";
 import { useLocalSearchParams, useNavigation, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Alert, Platform, Pressable, useColorScheme, View } from "react-native";
+import { ActivityIndicator, Alert, Platform, Pressable, View } from "react-native";
 
 export default function TransactionEditScreen() {
   const { session } = useAuthContext();
   const router = useRouter();
   const navigation = useNavigation();
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === "dark";
-  const { id, initialData } = useLocalSearchParams<{ id: string; initialData?: string }>();
+  const isDark = false;
+  const { id, initialData, goalId } = useLocalSearchParams<{
+    id: string;
+    initialData?: string;
+    goalId?: string;
+  }>();
   const userId = session?.user.id;
   const ui = useThemeUI();
   const modalRef = useRef<AddTransactionModalRef>(null);
@@ -40,6 +44,9 @@ export default function TransactionEditScreen() {
   const [isDirty, setIsDirty] = useState(false);
   const [isValid, setIsValid] = useState(false);
   const [allowRemoval, setAllowRemoval] = useState(false);
+  const isGoalTransaction =
+    Boolean(goalId) ||
+    Boolean(extractGoalTransactionGoalId(initialTransaction?.description));
 
   const loadData = useCallback(async () => {
     if (!userId || !id) return;
@@ -125,7 +132,7 @@ export default function TransactionEditScreen() {
 
   useEffect(() => {
     navigation.setOptions({
-      title: "Edit Transaction",
+      title: isGoalTransaction ? "Edit Goal Transaction" : "Edit Transaction",
       headerBackButtonDisplayMode: "minimal",
       headerTitleAlign: "center",
       headerTransparent: Platform.OS === "ios",
@@ -155,7 +162,7 @@ export default function TransactionEditScreen() {
         );
       },
     });
-  }, [navigation, handleSave, ui.accent, ui.text, ui.bg, isDirty, isValid]);
+  }, [navigation, handleSave, ui.accent, ui.text, ui.bg, isDirty, isValid, isGoalTransaction]);
 
   if (isLoading) {
     return (
@@ -180,6 +187,7 @@ export default function TransactionEditScreen() {
       userId={userId}
       mode="edit"
       initialTransaction={initialTransaction}
+      goalId={goalId ?? null}
       recurringRules={recurringRules}
       onStateChange={(state) => {
         setIsDirty(state.isDirty);

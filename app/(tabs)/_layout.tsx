@@ -1,37 +1,23 @@
 import { NativeTabs } from "expo-router/unstable-native-tabs";
 import React from "react";
-import { useTheme } from "react-native-paper";
-
-import { Colors } from "@/constants/theme";
-import { useColorScheme } from "@/hooks/use-color-scheme";
+import { getColors } from "@/constants/authTokens";
 
 export default function TabLayout() {
-  const colorScheme = useColorScheme();
-  const theme = useTheme();
+  const colors = getColors("light");
 
   return (
     <NativeTabs
       iconColor={{
-        default: theme.colors.onSurfaceVariant,
-        selected: Colors[colorScheme === "dark" ? "dark" : "light"].tint,
+        default: colors.muted,
+        selected: colors.primaryBtn,
       }}
       labelStyle={{
-        default: { color: theme.colors.onSurfaceVariant },
-        selected: { color: Colors[colorScheme === "dark" ? "dark" : "light"].tint },
+        default: { color: colors.muted },
+        selected: { color: colors.primaryBtn },
       }}
-      indicatorColor={
-        colorScheme === "dark"
-          ? "rgba(255, 255, 255, 0.12)"
-          : "rgba(0, 0, 0, 0.08)"
-      }
-      rippleColor={
-        colorScheme === "dark"
-          ? "rgba(255, 255, 255, 0.1)"
-          : "rgba(0, 0, 0, 0.05)"
-      }
-      backgroundColor={
-        colorScheme === "dark" ? theme.colors.surface : theme.colors.surfaceVariant
-      }
+      indicatorColor="rgba(31, 31, 31, 0.08)"
+      rippleColor="rgba(31, 31, 31, 0.05)"
+      backgroundColor={colors.inputBg}
       labelVisibilityMode="labeled"
     >
       <NativeTabs.Trigger name="dashboard">

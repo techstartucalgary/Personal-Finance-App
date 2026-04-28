@@ -1,716 +1,661 @@
-import { ThemedText } from "@/components/themed-text";
-import { ThemedView } from "@/components/themed-view";
-import { SelectionModal } from "@/components/ui/SelectionModal";
-import { DateTimePickerField } from "@/components/ui/DateTimePickerField";
-import { IconSymbol } from "@/components/ui/icon-symbol";
-import { useAuthContext } from "@/hooks/use-auth-context";
-import { listAccounts, type AccountRow } from "@/utils/accounts";
-import { parseLocalDate, toLocalISOString } from "@/utils/date";
-import { createGoal, deleteGoal, editGoal, listGoals } from "@/utils/goals";
-import { getPlaidAccounts } from "@/utils/plaid";
-import { useThemeUI } from "@/hooks/use-theme-ui";
-import Feather from "@expo/vector-icons/Feather";
-import { useFocusEffect } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { Platform, Pressable, StyleSheet, View } from "react-native";
+
+import { useFocusEffect, useRouter } from "expo-router";
+
+import { ThemedText } from "@/components/themed-text";
+import { IconSymbol } from "@/components/ui/icon-symbol";
+import { Tokens } from "@/constants/authTokens";
+import { tabsTheme } from "@/constants/tabsTheme";
+import { useAuthContext } from "@/hooks/use-auth-context";
+import { listGoals } from "@/utils/goals";
+
+import { GoalSegmentedControl } from "./goals/GoalSegmentedControl";
+import type {
+  GoalAccountCollections,
+  GoalSegment,
+  GoalSelectableAccount,
+  GoalRow,
+} from "./goals/types";
 import {
-    Alert,
-    Modal,
-    Platform,
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    TextInput,
-    View
-} from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+  buildGoalActivity,
+  buildSelectableAccounts,
+  formatActivityDateLabel,
+  formatMoney,
+  formatShortDate,
+  getDaysUntilTarget,
+  getGoalDeadlineCopy,
+  getGoalLinkedAccountName,
+  getGoalProgress,
+  isGoalReached,
+  normalizeGoal,
+} from "./goals/utils";
 
-type GoalRow = {
-    id: string;
-    name: string;
-    target_amount: number;
-    current_amount: number | null;
-    target_date: string | null;
-    linked_account: number | null;
-    linked_plaid_account: string | null;
-    created_at?: string;
+type GoalsViewProps = GoalAccountCollections & {
+  filterAccountId?: string | number | null;
+  refreshKey?: number;
+  searchQuery?: string;
 };
 
-type SelectableAccount = {
-    id: string | number;
-    isPlaid: boolean;
-    name: string;
-    type: string | null;
-    balance: number | null;
-};
+export function GoalsView({
+  accounts,
+  plaidAccounts,
+  filterAccountId = null,
+  refreshKey = 0,
+  searchQuery = "",
+}: GoalsViewProps) {
+  const { session } = useAuthContext();
+  const router = useRouter();
+  const ui = tabsTheme.ui;
+  const userId = session?.user.id;
 
-type GoalsViewProps = {
-    filterAccountId?: string | number | null;
-    refreshKey?: number;
-    createRequested?: number;
-    searchQuery?: string;
-};
+  const [goals, setGoals] = useState<GoalRow[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState<GoalSegment>("active");
 
-export function GoalsView({ filterAccountId = null, refreshKey = 0, createRequested = 0, searchQuery = "" }: GoalsViewProps) {
-    const { session } = useAuthContext();
-    const userId = session?.user.id;
-    const insets = useSafeAreaInsets();
-    const ui = useThemeUI();
+  const selectableAccounts = useMemo<GoalSelectableAccount[]>(
+    () =>
+      buildSelectableAccounts({
+        manualAccounts: accounts,
+        plaidAccounts,
+      }),
+    [accounts, plaidAccounts],
+  );
 
-    // Dynamic tab bar height
-    const tabBarHeight = insets.bottom + 60;
-    const fabBottom = tabBarHeight + 60;
+  const loadGoals = useCallback(
+    async (silent = false) => {
+      if (!userId) {
+        setGoals([]);
+        return;
+      }
 
+      if (!silent) setIsLoading(true);
+      try {
+        const data = await listGoals({ profile_id: userId });
+        setGoals(((data as any[]) ?? []).map(normalizeGoal));
+      } catch (error) {
+        console.error("Error loading goals:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [userId],
+  );
 
-    const [isLoading, setIsLoading] = useState(false);
-    const [goals, setGoals] = useState<GoalRow[]>([]);
-    const [createModalOpen, setCreateModalOpen] = useState(false);
-    const [editingGoal, setEditingGoal] = useState<GoalRow | null>(null);
+  useFocusEffect(
+    useCallback(() => {
+      loadGoals(true);
+    }, [loadGoals]),
+  );
 
-    // Form State
-    const [name, setName] = useState("");
-    const [targetAmount, setTargetAmount] = useState("");
-    const [currentAmount, setCurrentAmount] = useState("");
-    const [targetDate, setTargetDate] = useState("");
-    const [accounts, setAccounts] = useState<SelectableAccount[]>([]);
-    const [selectedAccount, setSelectedAccount] = useState<SelectableAccount | null>(null);
-    const [accountModalOpen, setAccountModalOpen] = useState(false);
-    const [allocationModalOpen, setAllocationModalOpen] = useState(false);
-    const [allocationAmount, setAllocationAmount] = useState("");
+  useEffect(() => {
+    if (refreshKey > 0) {
+      loadGoals(true);
+    }
+  }, [loadGoals, refreshKey]);
 
-    const loadGoals = useCallback(async (silent = false) => {
-        if (!userId) return;
-        
-        const hasData = goals.length > 0;
-        if (!silent && !hasData) setIsLoading(true);
+  const filteredGoals = useMemo(() => {
+    return goals.filter((goal) => {
+      const matchesAccount =
+        filterAccountId == null ||
+        goal.linked_account === filterAccountId ||
+        goal.linked_plaid_account === filterAccountId;
+      const matchesSearch =
+        !searchQuery ||
+        goal.name.toLowerCase().includes(searchQuery.toLowerCase());
+      return matchesAccount && matchesSearch;
+    });
+  }, [filterAccountId, goals, searchQuery]);
 
-        try {
-            const data = await listGoals({ profile_id: userId });
+  const activityItems = useMemo(
+    () => buildGoalActivity(filteredGoals),
+    [filteredGoals],
+  );
 
-            // Ensure data conforms to GoalRow type
-            const formattedGoals: GoalRow[] = (data || []).map((item: any) => ({
-                id: item.id,
-                name: item.name,
-                linked_account: item.linked_account,
-                linked_plaid_account: item.linked_plaid_account,
-                target_amount: item.target_amount,
-                current_amount: item.current_amount,
-                target_date: item.target_date,
-                created_at: item.created_at,
-            }));
+  const reachedGoals = useMemo(
+    () =>
+      filteredGoals
+        .filter(isGoalReached)
+        .sort((left, right) => {
+          const rightTime = new Date(
+            right.target_date || right.created_at || 0,
+          ).getTime();
+          const leftTime = new Date(
+            left.target_date || left.created_at || 0,
+          ).getTime();
+          return rightTime - leftTime;
+        }),
+    [filteredGoals],
+  );
 
-            setGoals(formattedGoals);
-        } catch (error) {
-            console.error("Error loading goals:", error);
-        } finally {
-            setIsLoading(false);
-        }
-    }, [userId, goals.length]);
+  const activeGoals = useMemo(
+    () =>
+      filteredGoals
+        .filter((goal) => !isGoalReached(goal))
+        .sort((left, right) => {
+          const leftDays = getDaysUntilTarget(left);
+          const rightDays = getDaysUntilTarget(right);
+          if (leftDays == null && rightDays == null) return 0;
+          if (leftDays == null) return 1;
+          if (rightDays == null) return -1;
+          return leftDays - rightDays;
+        }),
+    [filteredGoals],
+  );
 
-    const loadAccounts = useCallback(async () => {
-        if (!userId) return;
-        try {
-            const [manualData, plaidData] = await Promise.all([
-                listAccounts({ profile_id: userId }) as Promise<AccountRow[]>,
-                getPlaidAccounts()
-            ]);
+  const approachingDeadlineGoals = useMemo(
+    () =>
+      activeGoals.filter((goal) => {
+        const days = getDaysUntilTarget(goal);
+        return days != null && days <= 30;
+      }),
+    [activeGoals],
+  );
 
-            const selectableManual: SelectableAccount[] = manualData.map(a => ({
-                id: a.id,
-                isPlaid: false,
-                name: a.account_name || "Unnamed",
-                type: a.account_type,
-                balance: a.balance
-            }));
+  const otherActiveGoals = useMemo(
+    () =>
+      activeGoals.filter((goal) => {
+        const days = getDaysUntilTarget(goal);
+        return days == null || days > 30;
+      }),
+    [activeGoals],
+  );
 
-            const selectablePlaid: SelectableAccount[] = plaidData.map(pa => ({
-                id: pa.account_id,
-                isPlaid: true,
-                name: `${pa.name} (${pa.institution_name})`,
-                type: pa.type,
-                balance: pa.balances.current
-            }));
+  const handleOpenGoal = useCallback(
+    (goal: GoalRow) => {
+      const initialData = encodeURIComponent(JSON.stringify(goal));
+      router.push({
+        pathname: "/goal/[id]",
+        params: { id: String(goal.id), initialData },
+      } as any);
+    },
+    [router],
+  );
 
-            setAccounts([...selectableManual, ...selectablePlaid]);
-        } catch (error) {
-            console.error("Error loading accounts:", error);
-        }
-    }, [userId]);
+  return (
+    <View style={styles.container}>
+      <GoalSegmentedControl activeTab={activeTab} onChange={setActiveTab} ui={ui} />
 
-    useFocusEffect(
-        useCallback(() => {
-            // Parallelize initial load
-            Promise.all([loadGoals(true), loadAccounts()]);
-        }, [loadGoals, loadAccounts])
-    );
-
-    useEffect(() => {
-        if (refreshKey > 0) {
-            loadGoals();
-            loadAccounts();
-        }
-    }, [refreshKey]);
-
-    useEffect(() => {
-        if (createRequested > 0) {
-            openCreateModal();
-        }
-    }, [createRequested]);
-
-    const handleSaveGoal = useCallback(async () => {
-        if (!userId) return;
-        const trimmedName = name.trim();
-        const parsedTarget = parseFloat(targetAmount);
-
-        const isPlaid = selectedAccount?.isPlaid;
-        const linkedAccount = !isPlaid && selectedAccount ? (selectedAccount.id as number) : null;
-        const linkedPlaidAccount = isPlaid && selectedAccount ? (selectedAccount.id as string) : null;
-
-        if (!trimmedName || isNaN(parsedTarget) || (!linkedAccount && !linkedPlaidAccount)) {
-            Alert.alert("Invalid Input", "Please enter a valid name, target amount, and select an account.");
-            return;
-        }
-
-        try {
-            if (editingGoal) {
-                await editGoal({
-                    id: editingGoal.id,
-                    profile_id: userId,
-                    update: {
-                        name: trimmedName,
-                        target_amount: parsedTarget,
-                        current_amount: currentAmount ? parseFloat(currentAmount) : 0,
-                        target_date: targetDate.trim() || null,
-                        linked_account: linkedAccount,
-                        linked_plaid_account: linkedPlaidAccount,
-                    },
-                });
-            } else {
-                await createGoal({
-                    profile_id: userId,
-                    name: trimmedName,
-                    target_amount: parsedTarget,
-                    current_amount: currentAmount ? parseFloat(currentAmount) : 0,
-                    target_date: targetDate.trim() || null,
-                    linked_account: linkedAccount,
-                    linked_plaid_account: linkedPlaidAccount,
-                });
-            }
-            closeModal();
-            await loadGoals();
-        } catch (error) {
-            console.error("Error saving goal:", error);
-            Alert.alert("Error", "Could not save goal.");
-        }
-    }, [userId, name, targetAmount, currentAmount, targetDate, selectedAccount, editingGoal, loadGoals]);
-
-    const handleDeleteGoal = useCallback(async () => {
-        if (!userId || !editingGoal) return;
-        Alert.alert("Delete Goal", "Are you sure you want to delete this goal?", [
-            { text: "Cancel", style: "cancel" },
-            {
-                text: "Delete",
-                style: "destructive",
-                onPress: async () => {
-                    try {
-                        await deleteGoal({ id: editingGoal.id, profile_id: userId });
-                        closeModal();
-                        await loadGoals();
-                    } catch (error) {
-                        console.error("Error deleting goal:", error);
-                        Alert.alert("Error", "Could not delete goal.");
-                    }
-                },
-            },
-        ]);
-    }, [userId, editingGoal, loadGoals]);
-
-    const openCreateModal = () => {
-        setEditingGoal(null);
-        setName("");
-        setTargetAmount("");
-        setCurrentAmount("");
-        setTargetDate("");
-        setSelectedAccount(null);
-        setCreateModalOpen(true);
-    };
-
-    const openEditModal = (goal: GoalRow) => {
-        setEditingGoal(goal);
-        setName(goal.name);
-        setTargetAmount(goal.target_amount.toString());
-        setCurrentAmount(goal.current_amount ? goal.current_amount.toString() : "");
-        setTargetDate(goal.target_date || "");
-
-        const accountMatch = accounts.find(a => {
-            if (a.isPlaid) return a.id === goal.linked_plaid_account;
-            return a.id === goal.linked_account;
-        });
-        setSelectedAccount(accountMatch || null);
-
-        setCreateModalOpen(true);
-    };
-
-    const closeModal = () => {
-        setCreateModalOpen(false);
-        setEditingGoal(null);
-        setName("");
-        setTargetAmount("");
-        setCurrentAmount("");
-        setTargetDate("");
-        setSelectedAccount(null);
-    };
-
-    const handleAllocate = () => {
-        const amountToAdd = parseFloat(allocationAmount);
-        if (isNaN(amountToAdd) || amountToAdd <= 0) {
-            Alert.alert("Invalid Amount", "Please enter a valid amount to allocate.");
-            return;
-        }
-
-        const current = parseFloat(currentAmount) || 0;
-        setCurrentAmount((current + amountToAdd).toString());
-        setAllocationAmount("");
-        setAllocationModalOpen(false);
-    };
-
-    const filteredGoals = useMemo(() => {
-        let result = goals;
-        if (filterAccountId !== null) {
-            result = result.filter((g) => {
-                // Check against both manual ID (number) or Plaid ID (string)
-                return g.linked_account === filterAccountId || g.linked_plaid_account === filterAccountId;
-            });
-        }
-        if (searchQuery) {
-            result = result.filter(g => g.name.toLowerCase().includes(searchQuery.toLowerCase()));
-        }
-        return result;
-    }, [goals, filterAccountId, searchQuery]);
-
-    return (
-        <View style={styles.container}>
-            <View style={styles.scrollContent}>
-                {filteredGoals.length === 0 ? (
-                    <ThemedText style={{ textAlign: "center", marginTop: 24, opacity: 0.6 }}>
-                        {filterAccountId ? "No goals for this account." : "No goals yet. Create one below!"}
-                    </ThemedText>
-                ) : (
-                    filteredGoals.map((goal) => (
-                        <Pressable
-                            key={goal.id}
-                            onPress={() => openEditModal(goal)}
-                            style={({ pressed }) => [
-                                styles.card,
-                                {
-                                    backgroundColor: ui.surface2,
-                                    borderColor: ui.border,
-                                    opacity: pressed ? 0.7 : 1,
-                                },
-                            ]}
-                        >
-                            <View style={{ marginBottom: 4 }}>
-                                <ThemedText type="defaultSemiBold" style={{ fontSize: 17 }}>{goal.name}</ThemedText>
-                                <ThemedText type="default" style={{ opacity: 0.8, marginTop: 2 }}>
-                                    ${goal.current_amount ?? 0} / ${goal.target_amount} ({Math.round(((goal.current_amount ?? 0) / goal.target_amount) * 100)}%)
-                                </ThemedText>
-                            </View>
-                            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                                {goal.target_date && (
-                                    <ThemedText style={{ opacity: 0.6, fontSize: 12 }}>
-                                        Target: {goal.target_date}
-                                    </ThemedText>
-                                )}
-                                {(goal.linked_account || goal.linked_plaid_account) && (
-                                    <ThemedText style={{ opacity: 0.6, fontSize: 12, flexWrap: 'wrap', flex: 1, textAlign: 'right', marginLeft: 16 }}>
-                                        Account: {accounts.find(a => a.isPlaid ? a.id === goal.linked_plaid_account : a.id === goal.linked_account)?.name || 'Unknown'}
-                                    </ThemedText>
-                                )}
-                            </View>
-                            {/* Progress Bar  */}
-                            <View
-                                style={{
-                                    height: 6,
-                                    backgroundColor: ui.surface2,
-                                    borderRadius: 3,
-                                    marginTop: 8,
-                                    overflow: "hidden",
-                                }}
-                            >
-                                <View
-                                    style={{
-                                        height: "100%",
-                                        width: `${Math.min(
-                                            ((goal.current_amount ?? 0) / goal.target_amount) * 100,
-                                            100
-                                        )}%`,
-                                        backgroundColor: "#34C759", // Green
-                                    }}
-                                />
-                            </View>
-                        </Pressable>
-                    ))
-                )}
+      {activeTab === "activity" ? (
+        activityItems.length === 0 ? (
+          <EmptyState
+            message={isLoading ? "Loading activity..." : "No Activity Found"}
+          />
+        ) : (
+          <View style={[styles.panel, { backgroundColor: ui.surface, borderColor: ui.border }]}>
+            <View style={styles.panelHeader}>
+              <ThemedText style={[styles.panelTitle, { color: ui.text }]}>
+                Recent Activity
+              </ThemedText>
+              <ThemedText style={[styles.panelCount, { color: ui.mutedText }]}>
+                {activityItems.length}
+              </ThemedText>
             </View>
 
-            <Modal
-                visible={createModalOpen}
-                animationType="slide"
-                presentationStyle="pageSheet"
-                onRequestClose={closeModal}
-            >
-                <ThemedView
-                    style={{
-                        flex: 1,
-                        padding: 16,
-                        paddingTop: Platform.OS === 'ios' ? 12 : (16 + insets.top),
-                        paddingBottom: 16 + insets.bottom,
-                        backgroundColor: ui.surface,
-                    }}
-                >
-                    <View style={styles.modalHeader}>
-                        <View style={styles.modalHeaderLeft} />
-                        <ThemedText type="defaultSemiBold" style={styles.modalHeaderTitle}>{editingGoal ? "Edit Goal" : "New Goal"}</ThemedText>
-                        <View style={styles.modalHeaderRight}>
-                            <Pressable
-                                onPress={closeModal}
-                                hitSlop={20}
-                                style={[styles.modalCloseButton, { backgroundColor: ui.surface2 }]}
-                            >
-                                <Feather name="x" size={18} color={ui.text} />
-                            </Pressable>
-                        </View>
-                    </View>
+            <View style={[styles.panelBody, { borderTopColor: ui.border }]}>
+              {activityItems.map((item, index) => {
+                const previous = activityItems[index - 1];
+                const showLabel = !previous || previous.date !== item.date;
 
-                    <ScrollView contentContainerStyle={styles.formContent}>
-                        <View style={styles.fieldGroup}>
-                            <ThemedText type="defaultSemiBold">Goal Name</ThemedText>
-                            <TextInput
-                                value={name}
-                                onChangeText={setName}
-                                placeholder="e.g. New Laptop"
-                                placeholderTextColor={ui.mutedText}
-                                style={[
-                                    styles.input,
-                                    { borderColor: ui.border, backgroundColor: ui.surface2, color: ui.text },
-                                ]}
-                            />
-                        </View>
+                return (
+                  <View key={item.id} style={styles.stack}>
+                    {showLabel ? (
+                      <ThemedText style={[styles.groupLabel, { color: ui.mutedText }]}>
+                        {formatActivityDateLabel(item.date)}
+                      </ThemedText>
+                    ) : null}
 
-                        <View style={styles.fieldGroup}>
-                            <ThemedText type="defaultSemiBold">Target Amount</ThemedText>
-                            <TextInput
-                                value={targetAmount}
-                                onChangeText={setTargetAmount}
-                                keyboardType="numeric"
-                                placeholder="0.00"
-                                placeholderTextColor={ui.mutedText}
-                                style={[
-                                    styles.input,
-                                    { borderColor: ui.border, backgroundColor: ui.surface2, color: ui.text },
-                                ]}
-                            />
-                        </View>
-
-                        {editingGoal && (
-                            <View style={styles.fieldGroup}>
-                                <ThemedText type="defaultSemiBold">Current Amount</ThemedText>
-                                <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
-                                    <ThemedText style={{ fontSize: 18, marginTop: 4 }}>
-                                        ${parseFloat(currentAmount || "0").toFixed(2)}
-                                    </ThemedText>
-                                    <Pressable
-                                        onPress={() => setAllocationModalOpen(true)}
-                                        style={[styles.button, { backgroundColor: ui.text, marginTop: 0, paddingVertical: 8 }]}
-                                    >
-                                        <ThemedText style={{ color: ui.surface, fontSize: 13, fontWeight: "600" }}>Allocate Funds</ThemedText>
-                                    </Pressable>
-                                </View>
-                            </View>
-                        )}
-
-                        <DateTimePickerField
-                            label="Target Date (Optional)"
-                            value={parseLocalDate(targetDate)}
-                            onChange={(date) => setTargetDate(toLocalISOString(date))}
-                            ui={ui}
-                        />
-
-                        <View style={styles.fieldGroup}>
-                            <ThemedText type="defaultSemiBold">Linked Account</ThemedText>
-                            <Pressable
-                                onPress={() => setAccountModalOpen(true)}
-                                style={[
-                                    styles.input,
-                                    {
-                                        borderColor: ui.border,
-                                        backgroundColor: ui.surface2,
-                                        flexDirection: "row",
-                                        justifyContent: "space-between",
-                                        alignItems: "center",
-                                        minHeight: 48,
-                                    },
-                                ]}
-                            >
-                                <ThemedText style={{ color: selectedAccount ? ui.text : ui.mutedText, flexWrap: 'wrap', flex: 1 }}>
-                                    {selectedAccount ? selectedAccount.name : "Select an account"}
-                                </ThemedText>
-                                <IconSymbol name="chevron.right" size={16} color={ui.mutedText} />
-                            </Pressable>
-                        </View>
-
-                        <Pressable
-                            onPress={handleSaveGoal}
-                            style={[
-                                styles.button,
-                                {
-                                    backgroundColor: ui.text,
-                                    borderColor: ui.border,
-                                    marginTop: 16,
-                                    alignSelf: "center",
-                                    width: "100%",
-                                    alignItems: "center",
-                                },
-                            ]}
-                        >
-                            <ThemedText type="defaultSemiBold" style={{ color: ui.surface }}>
-                                {editingGoal ? "Save Changes" : "Create Goal"}
-                            </ThemedText>
-                        </Pressable>
-
-                        {editingGoal && (
-                            <Pressable
-                                onPress={handleDeleteGoal}
-                                style={[
-                                    styles.deleteAction,
-                                    { borderColor: ui.border, backgroundColor: ui.surface2 },
-                                ]}
-                            >
-                                <ThemedText type="defaultSemiBold" style={{ color: ui.danger }}>
-                                    Delete Goal
-                                </ThemedText>
-                            </Pressable>
-                        )}
-                    </ScrollView>
-
-                    {/* Account Selection Modal */}
-                    <SelectionModal
-                        visible={accountModalOpen}
-                        onClose={() => setAccountModalOpen(false)}
-                        title="Select Account"
-                        ui={ui}
+                    <Pressable
+                      onPress={() => {
+                        const match = goals.find((goal) => goal.id === item.goalId);
+                        if (match) handleOpenGoal(match);
+                      }}
+                      style={({ pressed }) => [
+                        styles.activityRow,
+                        {
+                          backgroundColor: ui.bg,
+                          borderColor: ui.border,
+                          opacity: pressed ? 0.72 : 1,
+                        },
+                      ]}
                     >
-                        {accounts.map((account) => (
-                            <Pressable
-                                key={account.id}
-                                onPress={() => {
-                                    setSelectedAccount(account);
-                                    setAccountModalOpen(false);
-                                }}
-                                style={({ pressed }) => [
-                                    styles.accountOption,
-                                    {
-                                        backgroundColor:
-                                            selectedAccount?.id === account.id
-                                                ? ui.accentSoft
-                                                : ui.surface2,
-                                        opacity: pressed ? 0.7 : 1,
-                                        borderColor: ui.border,
-                                        flexDirection: 'row',
-                                        alignItems: 'center',
-                                        justifyContent: 'space-between',
-                                        borderRadius: 16,
-                                    },
-                                ]}
-                            >
-                                <View style={{ flex: 1 }}>
-                                    <ThemedText style={{ flexWrap: 'wrap', marginBottom: 2, color: selectedAccount?.id === account.id ? ui.accent : ui.text }}>
-                                        {account.name}{account.isPlaid ? " (Plaid)" : ""}
-                                    </ThemedText>
-                                    <ThemedText style={{ fontSize: 12, opacity: 0.6, color: selectedAccount?.id === account.id ? ui.accent : ui.text }}>
-                                        {account.type} • ${account.balance}
-                                    </ThemedText>
-                                </View>
-                                {selectedAccount?.id === account.id && (
-                                    <IconSymbol name="checkmark" size={18} color={ui.accent} />
-                                )}
-                            </Pressable>
-                        ))}
-                    </SelectionModal>
+                      <View style={{ flex: 1 }}>
+                        <ThemedText style={[styles.rowTitle, { color: ui.text }]}>
+                          {item.name}
+                        </ThemedText>
+                      </View>
 
-                    {/* Allocate Funds Overlay - Moved inside Create Modal to avoid iOS sibling modal issues */}
-                    {allocationModalOpen && (
-                        <Pressable
-                            style={[
-                                StyleSheet.absoluteFill,
-                                { backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", alignItems: "center", zIndex: 100 }
-                            ]}
-                            onPress={() => setAllocationModalOpen(false)}
+                      <View style={styles.amountRow}>
+                        <IconSymbol
+                          name={item.direction === "in" ? "arrow.up" : "arrow.down"}
+                          size={12}
+                          color={item.direction === "in" ? ui.positive : ui.negative}
+                        />
+                        <ThemedText
+                          style={[
+                            styles.amountText,
+                            {
+                              color:
+                                item.direction === "in" ? ui.positive : ui.negative,
+                            },
+                          ]}
                         >
-                            <ThemedView
-                                style={{
-                                    backgroundColor: ui.surface,
-                                    padding: 24,
-                                    width: '85%',
-                                    borderRadius: 16,
-                                    elevation: 5,
-                                    shadowColor: "#000",
-                                    shadowOffset: { width: 0, height: 2 },
-                                    shadowOpacity: 0.25,
-                                    shadowRadius: 3.84,
-                                }}
-                                onStartShouldSetResponder={() => true}
-                            >
-                                <ThemedText type="subtitle" style={{ marginBottom: 8 }}>Allocate Funds</ThemedText>
-                                <ThemedText style={{ marginBottom: 16, opacity: 0.7 }}>
-                                    {"Allocation will increase the goal's current amount."}
-                                    {selectedAccount ? `\nFrom: ${selectedAccount.name}` : ""}
-                                </ThemedText>
+                          {formatMoney(item.amount)}
+                        </ThemedText>
+                      </View>
+                    </Pressable>
+                  </View>
+                );
+              })}
+            </View>
+          </View>
+        )
+      ) : activeTab === "active" ? (
+        <View style={styles.stack}>
+          {approachingDeadlineGoals.length > 0 ? (
+            <GoalsSection
+              label="Approaching deadline"
+              labelColor="#B63A34"
+              goals={approachingDeadlineGoals}
+              selectableAccounts={selectableAccounts}
+              ui={ui}
+              onOpenGoal={handleOpenGoal}
+            />
+          ) : null}
 
-                                <TextInput
-                                    value={allocationAmount}
-                                    onChangeText={setAllocationAmount}
-                                    keyboardType="numeric"
-                                    placeholder="Amount (e.g. 50.00)"
-                                    placeholderTextColor={ui.mutedText}
-                                    autoFocus
-                                    style={[
-                                        styles.input,
-                                        {
-                                            borderColor: ui.border,
-                                            backgroundColor: ui.surface2,
-                                            color: ui.text,
-                                            marginBottom: 16
-                                        },
-                                    ]}
-                                />
+          {otherActiveGoals.length > 0 ? (
+            <GoalsSection
+              label={approachingDeadlineGoals.length > 0 ? "Active goals" : "Goals"}
+              labelColor={ui.text}
+              goals={otherActiveGoals}
+              selectableAccounts={selectableAccounts}
+              ui={ui}
+              onOpenGoal={handleOpenGoal}
+            />
+          ) : null}
 
-                                <View style={{ flexDirection: "row", justifyContent: "flex-end", gap: 12 }}>
-                                    <Pressable
-                                        onPress={() => setAllocationModalOpen(false)}
-                                        style={{ padding: 10 }}
-                                    >
-                                        <ThemedText style={{ color: ui.mutedText }}>Cancel</ThemedText>
-                                    </Pressable>
-                                    <Pressable
-                                        onPress={handleAllocate}
-                                        style={{ padding: 10, backgroundColor: ui.text, borderRadius: 8 }}
-                                    >
-                                        <ThemedText style={{ color: ui.surface, fontWeight: "600" }}>Allocate</ThemedText>
-                                    </Pressable>
-                                </View>
-                            </ThemedView>
-                        </Pressable>
-                    )}
-                </ThemedView>
-            </Modal>
-
+          {activeGoals.length === 0 ? (
+            <EmptyState
+              message={isLoading ? "Loading goals..." : "No Goals Found"}
+              buttonLabel={!isLoading ? "Add a Goal" : undefined}
+              onPress={
+                !isLoading
+                  ? () => {
+                      router.push("/goal-add" as any);
+                    }
+                  : undefined
+              }
+            />
+          ) : null}
         </View>
-    );
+      ) : reachedGoals.length === 0 ? (
+        <EmptyState
+          message={
+            isLoading
+              ? "Loading reached goals..."
+              : "There are no recent goals that has been reached"
+          }
+        />
+        ) : (
+        <View style={[styles.panel, { backgroundColor: ui.surface, borderColor: ui.border }]}>
+          <View style={styles.panelHeader}>
+            <ThemedText style={[styles.panelTitle, { color: ui.text }]}>
+              Reached goals
+            </ThemedText>
+            <ThemedText style={[styles.panelCount, { color: ui.mutedText }]}>
+              {reachedGoals.length}
+            </ThemedText>
+          </View>
+
+          <View style={[styles.panelBody, { borderTopColor: ui.border }]}>
+            {reachedGoals.map((goal) => (
+              <Pressable
+                key={goal.id}
+                onPress={() => handleOpenGoal(goal)}
+                style={({ pressed }) => [
+                  styles.reachedRow,
+                  {
+                    backgroundColor: ui.bg,
+                    borderColor: ui.border,
+                    opacity: pressed ? 0.72 : 1,
+                  },
+                ]}
+              >
+                <View style={styles.reachedCopy}>
+                  <ThemedText style={[styles.reachedTitle, { color: ui.text }]}>
+                    {goal.name}
+                  </ThemedText>
+                  <ThemedText style={[styles.reachedSubtitle, { color: ui.text }]}>
+                    Goal reached: {formatMoney(goal.target_amount)}
+                  </ThemedText>
+                </View>
+
+                {goal.target_date ? (
+                  <ThemedText style={[styles.reachedDate, { color: ui.mutedText }]}>
+                    Due {formatShortDate(goal.target_date)}
+                  </ThemedText>
+                ) : null}
+              </Pressable>
+            ))}
+          </View>
+        </View>
+      )}
+    </View>
+  );
+}
+
+function GoalsSection({
+  label,
+  labelColor,
+  goals,
+  selectableAccounts,
+  ui,
+  onOpenGoal,
+}: {
+  label: string;
+  labelColor: string;
+  goals: GoalRow[];
+  selectableAccounts: GoalSelectableAccount[];
+  ui: typeof tabsTheme.ui;
+  onOpenGoal: (goal: GoalRow) => void;
+}) {
+  return (
+    <View style={[styles.panel, { backgroundColor: ui.surface, borderColor: ui.border }]}>
+      <View style={styles.panelHeader}>
+        <ThemedText style={[styles.panelTitle, { color: labelColor }]}>
+          {label}
+        </ThemedText>
+        <ThemedText style={[styles.panelCount, { color: ui.mutedText }]}>
+          {goals.length}
+        </ThemedText>
+      </View>
+
+      <View style={[styles.panelBody, { borderTopColor: ui.border }]}>
+        {goals.map((goal) => {
+          const progress = getGoalProgress(goal);
+          return (
+            <Pressable
+              key={goal.id}
+              onPress={() => onOpenGoal(goal)}
+              style={({ pressed }) => [
+                styles.goalCard,
+                {
+                  backgroundColor: ui.bg,
+                  borderColor: ui.border,
+                  opacity: pressed ? 0.72 : 1,
+                },
+              ]}
+            >
+              <View style={styles.goalCardTop}>
+                <View style={styles.goalCopy}>
+                  <ThemedText style={[styles.goalCardTitle, { color: ui.text }]}>
+                    {goal.name}
+                  </ThemedText>
+                  <ThemedText style={[styles.goalCardAmount, { color: ui.text }]}>
+                    {formatMoney(goal.current_amount ?? 0)}
+                  </ThemedText>
+                </View>
+
+                <View style={styles.goalMeta}>
+                  <IconSymbol name="plus" size={14} color={ui.mutedText} />
+                  <ThemedText style={[styles.goalTarget, { color: ui.mutedText }]}>
+                    Goal: {formatMoney(goal.target_amount)}
+                  </ThemedText>
+                </View>
+              </View>
+
+              <View style={[styles.progressTrack, { backgroundColor: ui.surface2 }]}>
+                <View
+                  style={[
+                    styles.progressFill,
+                    {
+                      width: `${Math.max(progress, 10)}%`,
+                      backgroundColor: ui.accent,
+                    },
+                  ]}
+                />
+              </View>
+
+              <View style={styles.goalFooter}>
+                <ThemedText style={[styles.goalFootnote, { color: ui.mutedText }]}>
+                  {getGoalDeadlineCopy(goal)}
+                </ThemedText>
+                <ThemedText
+                  numberOfLines={1}
+                  style={[
+                    styles.goalFootnote,
+                    { color: ui.mutedText, flex: 1, textAlign: "right" },
+                  ]}
+                >
+                  {getGoalLinkedAccountName(goal, selectableAccounts)}
+                </ThemedText>
+              </View>
+            </Pressable>
+          );
+        })}
+      </View>
+    </View>
+  );
+}
+
+function EmptyState({
+  message,
+  buttonLabel,
+  onPress,
+}: {
+  message: string;
+  buttonLabel?: string;
+  onPress?: () => void;
+}) {
+  const ui = tabsTheme.ui;
+
+  return (
+    <View
+      style={[
+        styles.emptyWrap,
+        {
+          backgroundColor: ui.surface,
+          borderColor: ui.border,
+        },
+      ]}
+    >
+      <ThemedText style={[styles.emptyText, { color: ui.text }]}>{message}</ThemedText>
+      {buttonLabel && onPress ? (
+        <Pressable
+          onPress={onPress}
+          style={({ pressed }) => [
+            styles.emptyButton,
+            {
+              borderColor: ui.accent,
+              backgroundColor: ui.accent,
+              opacity: pressed ? 0.72 : 1,
+            },
+          ]}
+        >
+          <ThemedText style={[styles.emptyButtonText, { color: ui.surface }]}>
+            {buttonLabel}
+          </ThemedText>
+        </Pressable>
+      ) : null}
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-    },
-    scrollContent: {
-        gap: 12,
-        paddingBottom: 80,
-    },
-    card: {
-        padding: 12,
-        borderRadius: 20,
-        borderWidth: StyleSheet.hairlineWidth,
-    },
-    cardHeader: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-        alignItems: "center",
-        marginBottom: 4,
-    },
-    fab: {
-        position: "absolute",
-        right: 4,
-        width: 56,
-        height: 56,
-        borderRadius: 28,
-        alignItems: "center",
-        justifyContent: "center",
-        shadowColor: "#000",
-        shadowOpacity: 0.3,
-        shadowOffset: { width: 0, height: 4 },
-        shadowRadius: 6,
-        elevation: 6,
-    },
-    formContent: {
-        gap: 12,
-        paddingBottom: 24,
-    },
-    fieldGroup: {
-        gap: 6,
-    },
-    input: {
-        borderWidth: StyleSheet.hairlineWidth,
-        borderRadius: 12,
-        padding: 12,
-        fontSize: 16,
-    },
-    button: {
-        alignSelf: "flex-start",
-        paddingHorizontal: 14,
-        paddingVertical: 10,
-        borderRadius: 24,
-        borderWidth: StyleSheet.hairlineWidth,
-    },
-    deleteAction: {
-        alignSelf: "center",
-        width: "100%",
-        alignItems: "center",
-        paddingHorizontal: 14,
-        paddingVertical: 12,
-        borderRadius: 24,
-        borderWidth: StyleSheet.hairlineWidth,
-    },
-    modalBackdrop: {
-        flex: 1,
-        backgroundColor: "rgba(0,0,0,0.5)",
-        justifyContent: "flex-end",
-    },
-    accountOption: {
-        padding: 16,
-        borderRadius: 12,
-        marginBottom: 8,
-        borderWidth: StyleSheet.hairlineWidth,
-    },
-    chip: {
-        paddingHorizontal: 14,
-        paddingVertical: 6,
-        borderRadius: 12,
-        borderWidth: StyleSheet.hairlineWidth,
-    },
-    modalHeader: {
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "space-between",
-        paddingVertical: 8,
-    },
-    modalHeaderTitle: {
-        flex: 1,
-        textAlign: "center",
-    },
-    modalHeaderLeft: {
-        width: 44,
-    },
-    modalHeaderRight: {
-        width: 44,
-        alignItems: "flex-end",
-    },
-    modalCloseButton: {
-        width: 30,
-        height: 30,
-        borderRadius: 15,
-        alignItems: "center",
-        justifyContent: "center",
-    },
+  container: {
+    gap: 14,
+  },
+  stack: {
+    gap: 10,
+  },
+  panel: {
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 24,
+    overflow: "hidden",
+  },
+  panelHeader: {
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  panelTitle: {
+    fontSize: 16,
+    lineHeight: 20,
+    fontFamily: Tokens.font.semiFamily ?? Tokens.font.family,
+  },
+  panelCount: {
+    fontSize: 12.5,
+    lineHeight: 16,
+    fontFamily: Tokens.font.family,
+  },
+  panelBody: {
+    paddingHorizontal: 10,
+    paddingVertical: 10,
+    gap: 10,
+    borderTopWidth: StyleSheet.hairlineWidth,
+  },
+  groupLabel: {
+    fontSize: 12,
+    letterSpacing: 0.2,
+    fontFamily: Tokens.font.semiFamily ?? Tokens.font.family,
+  },
+  emptyWrap: {
+    minHeight: 260,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 24,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 18,
+    paddingHorizontal: 20,
+    paddingVertical: 28,
+  },
+  emptyText: {
+    textAlign: "center",
+    fontSize: 22,
+    lineHeight: 28,
+    fontFamily: Tokens.font.boldFamily ?? Tokens.font.headingFamily,
+    maxWidth: 280,
+  },
+  emptyButton: {
+    minWidth: 150,
+    borderRadius: 999,
+    borderWidth: 1,
+    paddingHorizontal: 22,
+    paddingVertical: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  emptyButtonText: {
+    fontSize: 14,
+    fontFamily: Tokens.font.semiFamily ?? Tokens.font.family,
+  },
+  activityRow: {
+    minHeight: 48,
+    borderRadius: 18,
+    borderWidth: StyleSheet.hairlineWidth,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 10,
+    boxShadow: "0 8px 16px rgba(0, 0, 0, 0.06)",
+  },
+  rowTitle: {
+    fontSize: 15,
+    fontFamily: Tokens.font.semiFamily ?? Tokens.font.family,
+  },
+  amountRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  amountText: {
+    fontSize: 15,
+    fontFamily: Tokens.font.semiFamily ?? Tokens.font.family,
+    fontVariant: ["tabular-nums"],
+  },
+  goalCard: {
+    borderRadius: 20,
+    borderWidth: StyleSheet.hairlineWidth,
+    padding: 14,
+    gap: 10,
+    boxShadow: "0 8px 16px rgba(0, 0, 0, 0.06)",
+  },
+  goalCardTop: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  goalCopy: {
+    flex: 1,
+    gap: 3,
+  },
+  goalCardTitle: {
+    fontSize: 15,
+    fontFamily: Tokens.font.semiFamily ?? Tokens.font.family,
+  },
+  goalCardAmount: {
+    fontSize: 16,
+    fontFamily: Tokens.font.numberFamily ?? Tokens.font.family,
+    fontVariant: ["tabular-nums"],
+  },
+  goalMeta: {
+    alignItems: "flex-end",
+    gap: 2,
+  },
+  goalTarget: {
+    fontSize: 11,
+    fontFamily: Tokens.font.family,
+  },
+  progressTrack: {
+    height: 8,
+    borderRadius: 999,
+    overflow: "hidden",
+  },
+  progressFill: {
+    height: "100%",
+    borderRadius: 999,
+  },
+  goalFooter: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  goalFootnote: {
+    fontSize: 11,
+    fontFamily: Tokens.font.family,
+  },
+  reachedRow: {
+    minHeight: 56,
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: 14,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 18,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    boxShadow: "0 8px 16px rgba(0, 0, 0, 0.06)",
+  },
+  reachedCopy: {
+    flex: 1,
+    gap: 2,
+  },
+  reachedTitle: {
+    fontSize: 15,
+    fontFamily: Tokens.font.semiFamily ?? Tokens.font.family,
+  },
+  reachedSubtitle: {
+    fontSize: 13,
+    fontFamily: Tokens.font.family,
+  },
+  reachedDate: {
+    fontSize: 11,
+    fontFamily: Tokens.font.family,
+    marginTop: Platform.OS === "android" ? 2 : 3,
+  },
 });
-
-

@@ -10,14 +10,13 @@ import { listAccounts } from "@/utils/accounts";
 import { listCategories } from "@/utils/categories";
 import { getRecurringRules } from "@/utils/recurring";
 import { usePreventRemove } from "@react-navigation/native";
-import { useNavigation, useRouter } from "expo-router";
+import { useLocalSearchParams, useNavigation, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
   Platform,
   Pressable,
-  useColorScheme,
   View,
 } from "react-native";
 
@@ -25,20 +24,16 @@ export default function TransactionAddScreen() {
   const { session } = useAuthContext();
   const router = useRouter();
   const navigation = useNavigation();
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === "dark";
+  const isDark = false;
   const userId = session?.user.id;
+  const { currentAccountId, initialDescription, goalId } = useLocalSearchParams<{
+    currentAccountId?: string;
+    initialDescription?: string;
+    goalId?: string;
+  }>();
   const ui = useThemeUI();
   const modalRef = useRef<AddTransactionModalRef>(null);
-  const sheetUi = useMemo(() => {
-    if (!isDark) return ui;
-    return {
-      ...ui,
-      bg: "#1B1B1E",
-      surface: "#2C2C2F",
-      surface2: "#2C2C2F",
-    };
-  }, [isDark, ui]);
+  const sheetUi = useMemo(() => ui, [ui]);
 
   const [accounts, setAccounts] = useState<AccountRow[]>([]);
   const [categories, setCategories] = useState<CategoryRow[]>([]);
@@ -104,7 +99,7 @@ export default function TransactionAddScreen() {
 
   useEffect(() => {
     navigation.setOptions({
-      title: "Add Transaction",
+      title: goalId ? "Add Goal Transaction" : "Add Transaction",
       headerBackVisible: false,
       headerTitleAlign: "center",
       headerTransparent: Platform.OS === "ios",
@@ -146,7 +141,16 @@ export default function TransactionAddScreen() {
         </Pressable>
       ),
     });
-  }, [handleSave, navigation, router, sheetUi.accent, sheetUi.bg, sheetUi.text, isValid]);
+  }, [
+    goalId,
+    handleSave,
+    navigation,
+    router,
+    sheetUi.accent,
+    sheetUi.bg,
+    sheetUi.text,
+    isValid,
+  ]);
 
   if (isLoading) {
     return (
@@ -177,6 +181,9 @@ export default function TransactionAddScreen() {
       isDark={isDark}
       userId={userId}
       mode="add"
+      initialAccountId={currentAccountId ? Number(currentAccountId) : null}
+      initialDescription={initialDescription ?? null}
+      goalId={goalId ?? null}
       recurringRules={recurringRules}
       onStateChange={(state) => {
         setIsDirty(state.isDirty);

@@ -1,5 +1,6 @@
 // Shared types for the Transactions tab and its child components.
 export type TransactionsUi = {
+  bg: string;
   surface: string;
   surface2: string;
   border: string;
@@ -9,6 +10,8 @@ export type TransactionsUi = {
   accent: string;
   accentSoft: string;
   danger: string;
+  positive: string;
+  negative: string;
 };
 
 export type TransactionsTab = "transactions" | "recurrences";

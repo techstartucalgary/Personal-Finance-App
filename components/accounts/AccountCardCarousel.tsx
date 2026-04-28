@@ -543,7 +543,7 @@ const styles = StyleSheet.create({
   },
   balance: {
     fontSize: 28,
-    fontFamily: Tokens.font.boldFamily ?? Tokens.font.family,
+    fontFamily: Tokens.font.numberFamily ?? Tokens.font.family,
     color: "#FFFFFF",
     lineHeight: 33,
     fontVariant: ["tabular-nums"],

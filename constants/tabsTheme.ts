@@ -1,23 +1,25 @@
 import { getColors } from "@/constants/authTokens";
 
 const base = getColors("light");
+const surface = base.surface;
+const surface2 = "#E5E5EA";
 
 export const tabsTheme = {
   colors: base,
   ui: {
     bg: base.bg,
-    surface: "#FFFFFF",
-    surface2: "#F7F7FA",
-    border: "rgba(2,2,2,0.12)",
+    surface,
+    surface2,
+    border: base.line,
     text: base.text,
     mutedText: base.muted,
-    backdrop: "rgba(0,0,0,0.35)",
+    backdrop: "rgba(34,34,37,0.18)",
     accent: base.primaryBtn,
-    accentSoft: "rgba(31,31,31,0.08)",
-    hero: "#FFFFFF",
-    heroAlt: "#F7F7FA",
+    accentSoft: "rgba(17,17,17,0.08)",
+    hero: surface,
+    heroAlt: surface2,
     danger: base.danger,
-    positive: base.primaryBtn,
+    positive: "#4B4B51",
     negative: base.danger,
   },
 };

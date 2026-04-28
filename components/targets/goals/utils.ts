@@ -146,7 +146,7 @@ export function buildGoalActivity(goals: GoalRow[]) {
       name: goal.name,
       amount: goal.current_amount ?? 0,
       date: goal.created_at ?? goal.target_date ?? null,
-      direction: "in",
+      direction: "in" as const,
     }))
     .sort((left, right) => {
       const leftTime = left.date ? parseLocalDate(left.date).getTime() : 0;

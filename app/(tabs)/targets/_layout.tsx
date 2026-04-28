@@ -22,7 +22,7 @@ export default function TargetsLayout() {
                 headerLargeTitleStyle: { color: isDark ? "#ffffff" : "#111111" },
             }}
         >
-            <Stack.Screen name="index" options={{ title: "Targets" }} />
+            <Stack.Screen name="index" options={{ title: "Goals" }} />
         </Stack>
     );
 }

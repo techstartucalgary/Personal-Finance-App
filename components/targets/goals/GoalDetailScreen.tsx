@@ -9,8 +9,8 @@ import {
   View,
 } from "react-native";
 
-import { useFocusEffect } from "expo-router";
 import {
+  useFocusEffect,
   useLocalSearchParams,
   useNavigation,
   useRouter,
@@ -18,6 +18,7 @@ import {
 
 import { ThemedText } from "@/components/themed-text";
 import { TransactionsList } from "@/components/transactions/tab/TransactionsList";
+import { IconSymbol } from "@/components/ui/icon-symbol";
 import { Tokens } from "@/constants/authTokens";
 import { tabsTheme } from "@/constants/tabsTheme";
 import { useAuthContext } from "@/hooks/use-auth-context";
@@ -63,6 +64,7 @@ export function GoalDetailScreen() {
     }
   });
   const [accounts, setAccounts] = useState<GoalSelectableAccount[]>([]);
+  const [manualAccounts, setManualAccounts] = useState<any[]>([]);
   const [expenses, setExpenses] = useState<any[]>([]);
   const [plaidTransactions, setPlaidTransactions] = useState<PlaidTransaction[]>([]);
   const [recurringRules, setRecurringRules] = useState<any[]>([]);
@@ -92,6 +94,7 @@ export function GoalDetailScreen() {
         ]);
 
         setGoal(normalizeGoal(goalData));
+        setManualAccounts((manualAccounts as any[]) ?? []);
         setAccounts(
           buildSelectableAccounts({
             manualAccounts: (manualAccounts as any[]) ?? [],
@@ -139,7 +142,7 @@ export function GoalDetailScreen() {
               router.push({
                 pathname: "/goal/[id]/edit",
                 params: { id: String(goal.id), initialData: encodedGoal },
-              });
+              } as any);
             }}
             hitSlop={10}
             style={({ pressed }) => ({
@@ -238,6 +241,7 @@ export function GoalDetailScreen() {
 
       <View style={detailStyles.listWrap}>
         <TransactionsList
+          accounts={manualAccounts}
           expenses={expenses}
           plaidTransactions={plaidTransactions}
           recurringRules={recurringRules}

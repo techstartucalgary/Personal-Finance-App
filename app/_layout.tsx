@@ -78,6 +78,20 @@ function ProtectedLayout() {
         }}
       />
       <Stack.Screen
+        name="goal-add"
+        options={{
+          presentation: "pageSheet",
+          headerShown: false,
+        }}
+      />
+      <Stack.Screen
+        name="goal/[id]"
+        options={{
+          presentation: "card",
+          headerShown: false,
+        }}
+      />
+      <Stack.Screen
         name="transaction/[id]"
         options={{
           presentation: "card",

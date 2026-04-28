@@ -1,12 +1,6 @@
 import Feather from "@expo/vector-icons/Feather";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo } from "react";
 import { Image, Pressable, StyleSheet, View } from "react-native";
-import Animated, {
-  Easing,
-  useAnimatedStyle,
-  useSharedValue,
-  withTiming,
-} from "react-native-reanimated";
 
 import { getBrandStyle } from "@/components/accounts/AccountCardCarousel";
 import { ThemedText } from "@/components/themed-text";
@@ -14,7 +8,6 @@ import { Tokens } from "@/constants/authTokens";
 import type { PlaidTransaction } from "@/utils/plaid";
 
 import type {
-  AccountRow,
   ExpenseRow,
   FilterAccountId,
   RecurringRule,
@@ -22,7 +15,6 @@ import type {
 } from "./types";
 
 type TransactionsListProps = {
-  accounts: AccountRow[];
   expenses: ExpenseRow[];
   plaidTransactions: PlaidTransaction[];
   recurringRules: RecurringRule[];
@@ -37,112 +29,6 @@ type TransactionsListProps = {
 
 const MANUAL_OUTFLOW_PALETTE = ["#701D26", "#8A2431", "#5A1520", "#9B2B3A"];
 const MANUAL_INFLOW_PALETTE = ["#2F2F35", "#3A3A42", "#25252B", "#4B4B53"];
-
-const CHEVRON_TIMING_CONFIG = {
-  duration: 180,
-  easing: Easing.out(Easing.cubic),
-};
-
-const ACCORDION_OPEN_HEIGHT_TIMING_CONFIG = {
-  duration: 190,
-  easing: Easing.out(Easing.cubic),
-};
-
-const ACCORDION_CLOSE_HEIGHT_TIMING_CONFIG = {
-  duration: 200,
-  easing: Easing.inOut(Easing.quad),
-};
-
-const ACCORDION_OPEN_OPACITY_TIMING_CONFIG = {
-  duration: 130,
-  easing: Easing.out(Easing.quad),
-};
-
-const ACCORDION_CLOSE_OPACITY_TIMING_CONFIG = {
-  duration: 180,
-  easing: Easing.inOut(Easing.quad),
-};
-
-function SectionChevron({
-  collapsed,
-  color,
-}: {
-  collapsed: boolean;
-  color: string;
-}) {
-  const rotation = useSharedValue(collapsed ? 0 : 1);
-
-  useEffect(() => {
-    rotation.value = withTiming(collapsed ? 0 : 1, CHEVRON_TIMING_CONFIG);
-  }, [collapsed, rotation]);
-
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ rotate: `${rotation.value * 180}deg` }],
-  }));
-
-  return (
-    <Animated.View style={animatedStyle}>
-      <Feather name="chevron-down" size={18} color={color} />
-    </Animated.View>
-  );
-}
-
-function AccordionBody({
-  expanded,
-  borderColor,
-  children,
-}: {
-  expanded: boolean;
-  borderColor: string;
-  children: React.ReactNode;
-}) {
-  const [contentHeight, setContentHeight] = useState(0);
-  const height = useSharedValue(expanded ? contentHeight : 0);
-  const opacity = useSharedValue(expanded ? 1 : 0);
-
-  useEffect(() => {
-    height.value = withTiming(
-      expanded ? contentHeight : 0,
-      expanded
-        ? ACCORDION_OPEN_HEIGHT_TIMING_CONFIG
-        : ACCORDION_CLOSE_HEIGHT_TIMING_CONFIG,
-    );
-    opacity.value = withTiming(
-      expanded ? 1 : 0,
-      expanded
-        ? ACCORDION_OPEN_OPACITY_TIMING_CONFIG
-        : ACCORDION_CLOSE_OPACITY_TIMING_CONFIG,
-    );
-  }, [contentHeight, expanded, height, opacity]);
-
-  const animatedStyle = useAnimatedStyle(() => ({
-    height: height.value,
-    opacity: opacity.value,
-    overflow: "hidden",
-  }));
-
-  return (
-    <Animated.View
-      pointerEvents={expanded ? "auto" : "none"}
-      style={animatedStyle}
-    >
-      <View
-        onLayout={(event) => {
-          const nextHeight = Math.ceil(event.nativeEvent.layout.height);
-          if (nextHeight !== contentHeight) {
-            setContentHeight(nextHeight);
-          }
-        }}
-        style={[
-          localStyles.sectionContent,
-          { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: borderColor },
-        ]}
-      >
-        {children}
-      </View>
-    </Animated.View>
-  );
-}
 
 type TransactionCardProps = {
   color: string;
@@ -226,25 +112,6 @@ function TransactionCard({
   );
 }
 
-function EmptyState({
-  ui,
-  message,
-}: {
-  ui: TransactionsUi;
-  message: string;
-}) {
-  return (
-    <View
-      style={[
-        localStyles.emptyState,
-        { borderColor: ui.border, backgroundColor: ui.surface2 },
-      ]}
-    >
-      <ThemedText style={{ color: ui.text }}>{message}</ThemedText>
-    </View>
-  );
-}
-
 function formatSignedMoney(
   amount: number | null | undefined,
   formatMoney: (value?: number | null) => string,
@@ -260,7 +127,6 @@ function getManualTransactionColor(amount: number | null | undefined, index: num
 }
 
 export function TransactionsList({
-  accounts,
   expenses,
   plaidTransactions,
   recurringRules,
@@ -272,17 +138,6 @@ export function TransactionsList({
   formatDate,
   formatMoney,
 }: TransactionsListProps) {
-  const [manualCollapsed, setManualCollapsed] = useState(false);
-  const [linkedCollapsed, setLinkedCollapsed] = useState(false);
-
-  const accountNamesById = useMemo(
-    () =>
-      new Map(
-        accounts.map((account) => [account.id, account.account_name ?? "Account"]),
-      ),
-    [accounts],
-  );
-
   const filteredExpenses = useMemo(() => {
     return expenses
       .filter((expense) => {
@@ -301,7 +156,15 @@ export function TransactionsList({
       });
   }, [expenses, filterAccountId, searchQuery]);
 
+  const showPlaidSection =
+    plaidTransactions.length > 0 &&
+    (filterAccountId === null ||
+      (typeof filterAccountId === "string" &&
+        filterAccountId.startsWith("plaid:")));
+
   const filteredPlaidTransactions = useMemo(() => {
+    if (!showPlaidSection) return [] as PlaidTransaction[];
+
     return plaidTransactions
       .filter((transaction) => {
         let matchesAccount = true;
@@ -316,7 +179,6 @@ export function TransactionsList({
             matchesAccount = false;
           }
         }
-
         const matchesSearch =
           !searchQuery ||
           (transaction.merchant_name || transaction.name)
@@ -331,182 +193,80 @@ export function TransactionsList({
         const dateB = new Date(b.date || 0).getTime();
         return dateB - dateA;
       });
-  }, [plaidTransactions, filterAccountId, searchQuery]);
+  }, [plaidTransactions, filterAccountId, searchQuery, showPlaidSection]);
 
-  const isSearching = searchQuery.trim().length > 0;
-
-  useEffect(() => {
-    if (!isSearching) return;
-    if (filteredExpenses.length > 0) setManualCollapsed(false);
-    if (filteredPlaidTransactions.length > 0) setLinkedCollapsed(false);
-  }, [filteredExpenses.length, filteredPlaidTransactions.length, isSearching]);
+  if (filteredExpenses.length === 0 && filteredPlaidTransactions.length === 0) {
+    return (
+      <ThemedText style={{ color: ui.mutedText }}>
+        {isLoading ? "Loading..." : "No transactions found."}
+      </ThemedText>
+    );
+  }
 
   return (
     <View style={localStyles.root}>
-      <Animated.View
-        style={[localStyles.sectionPanel, { backgroundColor: ui.surface, borderColor: ui.border }]}
-      >
-        <Pressable
-          onPress={() => setManualCollapsed((prev) => !prev)}
-          style={localStyles.sectionToggle}
-        >
-          <ThemedText style={[localStyles.sectionTitle, { color: ui.text }]}>
-            Self Managed
-          </ThemedText>
-          <View style={localStyles.sectionToggleRight}>
-            <ThemedText style={[localStyles.sectionSubtitle, { color: ui.mutedText }]}>
-              {filteredExpenses.length}
-            </ThemedText>
-            <SectionChevron collapsed={manualCollapsed} color={ui.mutedText} />
-          </View>
-        </Pressable>
+      {filteredExpenses.map((expense, index) => {
+        const linkedRule = recurringRules.find(
+          (rule) => rule.id === expense.recurring_rule_id,
+        );
 
-        <AccordionBody expanded={!manualCollapsed} borderColor={ui.border}>
-          {filteredExpenses.length === 0 ? (
-            <EmptyState
-              ui={ui}
-              message={isLoading ? "Loading..." : "No matches found."}
-            />
-          ) : (
-            <View style={localStyles.cardStack}>
-              {filteredExpenses.map((expense, index) => {
-                const linkedRule = recurringRules.find(
-                  (rule) => rule.id === expense.recurring_rule_id,
-                );
-                const accountName = accountNamesById.get(expense.account_id ?? -1) ?? "Account";
+        return (
+          <TransactionCard
+            key={expense.id}
+            color={getManualTransactionColor(expense.amount, index)}
+            title={expense.description ?? "Transaction"}
+            metaPrimary={formatDate(expense.transaction_date || expense.created_at)}
+            metaSecondary={
+              linkedRule
+                ? `Recurring ${linkedRule.is_active ? "active" : "paused"}`
+                : null
+            }
+            subtitle={linkedRule ? "Self managed recurring transaction" : "Self managed transaction"}
+            amount={formatSignedMoney(expense.amount, formatMoney)}
+            sourceLabel="Manual"
+            icon="credit-card"
+            onPress={() => onSelectTransaction(expense)}
+          />
+        );
+      })}
 
-                return (
-                  <TransactionCard
-                    key={expense.id}
-                    color={getManualTransactionColor(expense.amount, index)}
-                    title={expense.description ?? "Transaction"}
-                    metaPrimary={accountName}
-                    metaSecondary={
-                      linkedRule
-                        ? `Recurring ${linkedRule.is_active ? "active" : "paused"}`
-                        : null
-                    }
-                    subtitle={formatDate(expense.transaction_date || expense.created_at)}
-                    amount={formatSignedMoney(expense.amount, formatMoney)}
-                    sourceLabel="Manual"
-                    icon="credit-card"
-                    onPress={() => onSelectTransaction(expense)}
-                  />
-                );
-              })}
-            </View>
-          )}
-        </AccordionBody>
-      </Animated.View>
+      {filteredPlaidTransactions.map((transaction, index) => {
+        const fallbackColor = getManualTransactionColor(transaction.amount, index);
+        const brandColor =
+          getBrandStyle(transaction.institution_name)?.color || fallbackColor;
+        const categoryLabel =
+          transaction.category && transaction.category.length > 0
+            ? transaction.category.join(" / ")
+            : transaction.account_name || "Bank transaction";
 
-      <Animated.View
-        style={[localStyles.sectionPanel, { backgroundColor: ui.surface, borderColor: ui.border }]}
-      >
-        <Pressable
-          onPress={() => setLinkedCollapsed((prev) => !prev)}
-          style={localStyles.sectionToggle}
-        >
-          <ThemedText style={[localStyles.sectionTitle, { color: ui.text }]}>
-            Linked
-          </ThemedText>
-          <View style={localStyles.sectionToggleRight}>
-            <ThemedText style={[localStyles.sectionSubtitle, { color: ui.mutedText }]}>
-              {filteredPlaidTransactions.length}
-            </ThemedText>
-            <SectionChevron collapsed={linkedCollapsed} color={ui.mutedText} />
-          </View>
-        </Pressable>
-
-        <AccordionBody expanded={!linkedCollapsed} borderColor={ui.border}>
-          {filteredPlaidTransactions.length === 0 ? (
-            <EmptyState
-              ui={ui}
-              message={isLoading ? "Loading..." : "No linked transactions found."}
-            />
-          ) : (
-            <View style={localStyles.cardStack}>
-              {filteredPlaidTransactions.map((transaction, index) => {
-                const fallbackColor = getManualTransactionColor(transaction.amount, index);
-                const brandColor =
-                  getBrandStyle(transaction.institution_name)?.color || fallbackColor;
-                const categoryLabel =
-                  transaction.category && transaction.category.length > 0
-                    ? transaction.category.join(" / ")
-                    : transaction.account_name || "Bank transaction";
-
-                return (
-                  <TransactionCard
-                    key={transaction.transaction_id}
-                    color={brandColor}
-                    title={transaction.merchant_name || transaction.name}
-                    metaPrimary={transaction.institution_name || "Linked bank"}
-                    metaSecondary={
-                      transaction.account_mask
-                        ? `Account ${transaction.account_mask}`
-                        : transaction.pending
-                          ? "Pending"
-                          : transaction.account_subtype
-                    }
-                    subtitle={`${formatDate(transaction.date)} | ${categoryLabel}`}
-                    amount={formatSignedMoney(transaction.amount, formatMoney)}
-                    sourceLabel="Plaid"
-                    icon="link"
-                    onPress={() => onSelectTransaction(transaction)}
-                  />
-                );
-              })}
-            </View>
-          )}
-        </AccordionBody>
-      </Animated.View>
+        return (
+          <TransactionCard
+            key={transaction.transaction_id}
+            color={brandColor}
+            title={transaction.merchant_name || transaction.name}
+            metaPrimary={formatDate(transaction.date)}
+            metaSecondary={
+              transaction.pending
+                ? "Pending"
+                : transaction.account_mask
+                  ? `Account ${transaction.account_mask}`
+                  : transaction.institution_name
+            }
+            subtitle={categoryLabel}
+            amount={formatSignedMoney(transaction.amount, formatMoney)}
+            sourceLabel="Plaid"
+            icon="link"
+            onPress={() => onSelectTransaction(transaction)}
+          />
+        );
+      })}
     </View>
   );
 }
 
 const localStyles = StyleSheet.create({
   root: {
-    gap: 14,
-  },
-  sectionPanel: {
-    borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: 24,
-    overflow: "hidden",
-  },
-  sectionToggle: {
-    paddingHorizontal: 14,
-    paddingVertical: 14,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  sectionContent: {
-    paddingHorizontal: 10,
-    paddingVertical: 10,
-  },
-  sectionToggleRight: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    lineHeight: 20,
-    fontFamily: Tokens.font.semiFamily ?? Tokens.font.family,
-  },
-  sectionSubtitle: {
-    fontSize: 12.5,
-    lineHeight: 16,
-    fontFamily: Tokens.font.family,
-  },
-  cardStack: {
     gap: 12,
-  },
-  emptyState: {
-    borderRadius: 16,
-    borderWidth: StyleSheet.hairlineWidth,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    marginTop: 2,
   },
   card: {
     minHeight: 154,

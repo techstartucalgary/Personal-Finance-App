@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Alert,
-  Animated,
   Platform,
   RefreshControl,
   ScrollView,
@@ -12,7 +11,6 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { tabsTheme } from "@/constants/tabsTheme";
 import { useAuthContext } from "@/hooks/use-auth-context";
-import { useTabTransition } from "@/components/ui/useTabTransition";
 import { getAccountById, listAccounts, updateAccount } from "@/utils/accounts";
 import { listCategories } from "@/utils/categories";
 import { deleteExpense, listExpenses } from "@/utils/expenses";
@@ -49,7 +47,6 @@ export default function HomeScreen() {
 
   // Keep tab screens on the auth palette for a more consistent app shell.
   const ui = tabsTheme.ui;
-  const transition = useTabTransition();
 
   const userId = session?.user.id;
 
@@ -386,38 +383,31 @@ export default function HomeScreen() {
           ui={ui}
         />
 
-        <Animated.View
-          style={transition.style}
-          renderToHardwareTextureAndroid
-          shouldRasterizeIOS
-        >
-          {activeTab === "transactions" ? (
-            <TransactionsList
-              accounts={accounts}
-              expenses={expenses}
-              plaidTransactions={plaidTransactions}
-              recurringRules={recurringRules}
-              filterAccountId={filterAccountId}
-              searchQuery={searchQuery}
-              isLoading={isLoading}
-              onSelectTransaction={handleSelectTransaction}
-              ui={ui}
-              formatDate={formatDate}
-              formatMoney={formatMoney}
-            />
-          ) : (
-            <RecurringRulesList
-              recurringRules={recurringRules}
-              filterAccountId={filterAccountId}
-              searchQuery={searchQuery}
-              isLoading={isLoading}
-              onEditRule={setEditingRule}
-              ui={ui}
-              formatDate={formatDate}
-              formatMoney={formatMoney}
-            />
-          )}
-        </Animated.View>
+        {activeTab === "transactions" ? (
+          <TransactionsList
+            expenses={expenses}
+            plaidTransactions={plaidTransactions}
+            recurringRules={recurringRules}
+            filterAccountId={filterAccountId}
+            searchQuery={searchQuery}
+            isLoading={isLoading}
+            onSelectTransaction={handleSelectTransaction}
+            ui={ui}
+            formatDate={formatDate}
+            formatMoney={formatMoney}
+          />
+        ) : (
+          <RecurringRulesList
+            recurringRules={recurringRules}
+            filterAccountId={filterAccountId}
+            searchQuery={searchQuery}
+            isLoading={isLoading}
+            onEditRule={setEditingRule}
+            ui={ui}
+            formatDate={formatDate}
+            formatMoney={formatMoney}
+          />
+        )}
       </ScrollView>
 
       <TransactionsFab

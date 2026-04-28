@@ -1,22 +1,19 @@
-import React, { useMemo, useState } from "react";
-import { Platform, Pressable, RefreshControl, ScrollView, StyleSheet, View, useColorScheme } from "react-native";
+import React, { useEffect, useMemo, useState } from "react";
+import { Platform, RefreshControl, ScrollView, StyleSheet, View } from "react-native";
 
 import SegmentedControl from "@react-native-segmented-control/segmented-control";
+import { Stack, useFocusEffect, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { ThemedText } from "@/components/themed-text";
-import { useTheme } from "react-native-paper";
-
+import { AccountFilterChips } from "@/components/transactions/tab/AccountFilterChips";
 import { NativeFab } from "@/components/ui/native-fab";
-
 import { BudgetsView } from "@/components/targets/BudgetsView";
 import { GoalsView } from "@/components/targets/GoalsView";
+import { tabsTheme } from "@/constants/tabsTheme";
 import { useAuthContext } from "@/hooks/use-auth-context";
-import { useThemeUI } from "@/hooks/use-theme-ui";
 import { listAccounts } from "@/utils/accounts";
-import type { PlaidAccount } from "@/utils/plaid";
-import { getPlaidAccounts } from "@/utils/plaid";
-import { Stack, useFocusEffect, useRouter } from "expo-router";
+import { getPlaidAccounts, type PlaidAccount } from "@/utils/plaid";
+
 import { useCallback } from "react";
 
 type Tab = "goals" | "budgets";
@@ -24,15 +21,8 @@ type Tab = "goals" | "budgets";
 export default function TargetsScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === "dark";
-  const theme = useTheme();
+  const ui = tabsTheme.ui;
 
-  const isAndroid = Platform.OS === "android";
-
-  const ui = useThemeUI();
-
-  // Dynamic tab bar height for FAB positioning (NativeTabs-safe)
   const tabBarHeight = insets.bottom + 48;
   const fabBottom = tabBarHeight + 2;
 
@@ -41,12 +31,13 @@ export default function TargetsScreen() {
   const userId = session?.user.id;
   const [accounts, setAccounts] = useState<any[]>([]);
   const [plaidAccounts, setPlaidAccounts] = useState<PlaidAccount[]>([]);
-  const [filterAccountId, setFilterAccountId] = useState<string | number | null>(null);
+  const [filterAccountId, setFilterAccountId] = useState<string | number | null>(
+    null,
+  );
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [createRequested, setCreateRequested] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
-  const [isAndroidSearching, setIsAndroidSearching] = useState(false);
 
   const loadAccounts = useCallback(async () => {
     if (!userId) return;
@@ -71,7 +62,7 @@ export default function TargetsScreen() {
     useCallback(() => {
       loadAccounts();
       loadPlaidAccounts();
-    }, [loadAccounts, loadPlaidAccounts])
+    }, [loadAccounts, loadPlaidAccounts]),
   );
 
   const handleRefresh = useCallback(async () => {
@@ -84,23 +75,40 @@ export default function TargetsScreen() {
 
   const headerSearchBarOptions = useMemo(
     () => ({
-      placeholder: "Search targets...",
+      placeholder: activeTab === "goals" ? "Search goals..." : "Search budgets...",
       onChangeText: (event: any) => setSearchQuery(event.nativeEvent.text),
       hideWhenScrolling: true,
       tintColor: ui.text,
+      textColor: ui.text,
       hintTextColor: ui.mutedText,
       headerIconColor: ui.mutedText,
     }),
-    [setSearchQuery, ui.mutedText, ui.text],
+    [activeTab, ui.mutedText, ui.text],
   );
+
+  useEffect(() => {
+    setSearchQuery("");
+  }, [activeTab]);
 
   return (
     <>
-      <Stack.Screen options={{ headerSearchBarOptions }} />
+      <Stack.Screen
+        options={{
+          title: activeTab === "goals" ? "Goals" : "Budgets",
+          headerSearchBarOptions,
+        }}
+      />
+
       <ScrollView
         style={[styles.container, { backgroundColor: ui.bg }]}
         contentInsetAdjustmentBehavior="automatic"
-        contentContainerStyle={[styles.scrollContent, { paddingBottom: tabBarHeight + 120, paddingTop: Platform.OS === "android" ? 16 : 0 }]}
+        contentContainerStyle={[
+          styles.scrollContent,
+          {
+            paddingBottom: tabBarHeight + 120,
+            paddingTop: Platform.OS === "android" ? 16 : 0,
+          },
+        ]}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
@@ -110,8 +118,6 @@ export default function TargetsScreen() {
           />
         }
       >
-
-        {/* Native Segmented Control */}
         <SegmentedControl
           values={["Goals", "Budgets"]}
           selectedIndex={activeTab === "goals" ? 0 : 1}
@@ -120,101 +126,38 @@ export default function TargetsScreen() {
             setActiveTab(index === 0 ? "goals" : "budgets");
             setCreateRequested(0);
           }}
-          tintColor={isAndroid ? theme.colors.background : (isDark ? "#3A3A3C" : "#FFFFFF")}
-          backgroundColor={isAndroid ? theme.colors.surface : "transparent"}
+          tintColor={ui.accent}
+          backgroundColor={ui.surface2}
           fontStyle={{ color: ui.text, fontWeight: "500" }}
-          activeFontStyle={{ color: ui.text, fontWeight: "600" }}
+          activeFontStyle={{ color: ui.surface, fontWeight: "600" }}
         />
 
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ gap: 8, paddingVertical: 8 }}
-          style={{ flexGrow: 0 }}
-        >
-          <Pressable
-            onPress={() => setFilterAccountId(null)}
-            style={[
-              styles.chip,
-              {
-                backgroundColor: filterAccountId === null ? ui.text : ui.surface2,
-                borderColor: ui.border,
-              },
-            ]}
-          >
-            <ThemedText
-              style={{
-                fontSize: 13,
-                fontWeight: "600",
-                color: filterAccountId === null ? ui.surface : ui.text,
-              }}
-            >
-              All
-            </ThemedText>
-          </Pressable>
-          {accounts.map((acct) => (
-            <Pressable
-              key={acct.id}
-              onPress={() => setFilterAccountId(acct.id)}
-              style={[
-                styles.chip,
-                {
-                  backgroundColor:
-                    filterAccountId === acct.id ? ui.text : ui.surface2,
-                  borderColor: ui.border,
-                },
-              ]}
-            >
-              <ThemedText
-                style={{
-                  fontSize: 13,
-                  fontWeight: "600",
-                  color: filterAccountId === acct.id ? ui.surface : ui.text,
-                }}
-              >
-                {acct.account_name ?? "Account"}
-              </ThemedText>
-            </Pressable>
-          ))}
-          {plaidAccounts.map((pa) => {
-            const chipId = `plaid:${pa.account_id}`;
-            const isSelected = filterAccountId === chipId;
-            return (
-              <Pressable
-                key={chipId}
-                onPress={() => setFilterAccountId(chipId)}
-                style={[
-                  styles.chip,
-                  {
-                    backgroundColor: isSelected
-                      ? (isDark ? "#8CF2D1" : "#1F6F5B")
-                      : ui.surface2,
-                    borderColor: isSelected
-                      ? "transparent"
-                      : (isDark ? "rgba(140,242,209,0.2)" : "rgba(31,111,91,0.15)"),
-                  },
-                ]}
-              >
-                <ThemedText
-                  style={{
-                    fontSize: 13,
-                    fontWeight: "600",
-                    color: isSelected ? "#FFFFFF" : (isDark ? "#8CF2D1" : "#1F6F5B"),
-                  }}
-                >
-                  {pa.name}{pa.mask ? ` ••${pa.mask}` : ""}
-                </ThemedText>
-              </Pressable>
-            );
-          })}
-        </ScrollView>
+        <AccountFilterChips
+          accounts={accounts}
+          plaidAccounts={plaidAccounts}
+          filterAccountId={filterAccountId}
+          onSelect={setFilterAccountId}
+          ui={ui}
+        />
 
         <View style={{ flex: 1 }}>
           <View style={{ display: activeTab === "goals" ? "flex" : "none" }}>
-            <GoalsView filterAccountId={filterAccountId} refreshKey={refreshKey} createRequested={createRequested} searchQuery={searchQuery} />
+            <GoalsView
+              accounts={accounts}
+              plaidAccounts={plaidAccounts}
+              filterAccountId={filterAccountId}
+              refreshKey={refreshKey}
+              searchQuery={searchQuery}
+            />
           </View>
+
           <View style={{ display: activeTab === "budgets" ? "flex" : "none" }}>
-            <BudgetsView filterAccountId={filterAccountId} refreshKey={refreshKey} createRequested={createRequested} searchQuery={searchQuery} />
+            <BudgetsView
+              filterAccountId={filterAccountId}
+              refreshKey={refreshKey}
+              createRequested={createRequested}
+              searchQuery={searchQuery}
+            />
           </View>
         </View>
       </ScrollView>
@@ -222,7 +165,14 @@ export default function TargetsScreen() {
       <NativeFab
         accessibilityLabel={activeTab === "goals" ? "Add goal" : "Add budget"}
         bottom={fabBottom}
-        onPress={() => setCreateRequested(Date.now())}
+        onPress={() => {
+          if (activeTab === "goals") {
+            router.push("/goal-add" as any);
+            return;
+          }
+
+          setCreateRequested(Date.now());
+        }}
       />
     </>
   );
@@ -236,18 +186,5 @@ const styles = StyleSheet.create({
   scrollContent: {
     gap: 12,
     paddingBottom: 100,
-  },
-  headerRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  tabsContainer: {
-  },
-  chip: {
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderRadius: 20,
-    borderWidth: StyleSheet.hairlineWidth,
   },
 });

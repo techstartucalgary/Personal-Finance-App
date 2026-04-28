@@ -167,7 +167,7 @@ export function GoalsView({
       router.push({
         pathname: "/goal/[id]",
         params: { id: String(goal.id), initialData },
-      });
+      } as any);
     },
     [router],
   );
@@ -271,7 +271,7 @@ export function GoalsView({
               onPress={
                 !isLoading
                   ? () => {
-                      router.push("/goal-add");
+                      router.push("/goal-add" as any);
                     }
                   : undefined
               }

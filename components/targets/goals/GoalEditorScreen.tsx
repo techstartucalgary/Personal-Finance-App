@@ -41,10 +41,9 @@ import {
 import type { GoalRow, GoalSelectableAccount } from "./types";
 import {
   buildSelectableAccounts,
-  formatMoney,
   formatLongDate,
+  formatMoney,
   getGoalLinkedAccountName,
-  getGoalProgress,
   getGoalRowSelectionKey,
   getGoalSelectionKey,
   normalizeGoal,
@@ -476,7 +475,7 @@ export function GoalEditorScreen({ mode }: GoalEditorScreenProps) {
                     }
                   : {}),
               },
-            });
+            } as any);
           }}
           style={({ pressed }) => [
             styles.accountField,

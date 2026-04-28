@@ -255,7 +255,13 @@ export function GoalEditorScreen({ mode }: GoalEditorScreenProps) {
     } catch (error) {
       setAllowRemoval(false);
       console.error("Error saving goal:", error);
-      Alert.alert("Error", "Could not save goal.");
+      const message =
+        error instanceof Error
+          ? error.message
+          : typeof error === "object" && error && "message" in error
+            ? String((error as { message?: unknown }).message ?? "Could not save goal.")
+            : "Could not save goal.";
+      Alert.alert("Error saving goal", message);
     }
   }, [
     id,

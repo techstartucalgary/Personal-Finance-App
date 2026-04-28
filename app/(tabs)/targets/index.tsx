@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Platform, RefreshControl, ScrollView, StyleSheet, View } from "react-native";
 
 import SegmentedControl from "@react-native-segmented-control/segmented-control";
@@ -13,8 +13,6 @@ import { tabsTheme } from "@/constants/tabsTheme";
 import { useAuthContext } from "@/hooks/use-auth-context";
 import { listAccounts } from "@/utils/accounts";
 import { getPlaidAccounts, type PlaidAccount } from "@/utils/plaid";
-
-import { useCallback } from "react";
 
 type Tab = "goals" | "budgets";
 
@@ -36,7 +34,6 @@ export default function TargetsScreen() {
   );
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
-  const [createRequested, setCreateRequested] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
 
   const loadAccounts = useCallback(async () => {
@@ -124,7 +121,6 @@ export default function TargetsScreen() {
           onChange={(event) => {
             const index = event.nativeEvent.selectedSegmentIndex;
             setActiveTab(index === 0 ? "goals" : "budgets");
-            setCreateRequested(0);
           }}
           tintColor={ui.accent}
           backgroundColor={ui.surface2}
@@ -153,9 +149,10 @@ export default function TargetsScreen() {
 
           <View style={{ display: activeTab === "budgets" ? "flex" : "none" }}>
             <BudgetsView
+              accounts={accounts}
+              plaidAccounts={plaidAccounts}
               filterAccountId={filterAccountId}
               refreshKey={refreshKey}
-              createRequested={createRequested}
               searchQuery={searchQuery}
             />
           </View>
@@ -171,7 +168,7 @@ export default function TargetsScreen() {
             return;
           }
 
-          setCreateRequested(Date.now());
+          router.push("/budget-add" as any);
         }}
       />
     </>

@@ -92,6 +92,20 @@ function ProtectedLayout() {
         }}
       />
       <Stack.Screen
+        name="budget-add"
+        options={{
+          presentation: "pageSheet",
+          headerShown: false,
+        }}
+      />
+      <Stack.Screen
+        name="budget/[id]"
+        options={{
+          presentation: "card",
+          headerShown: false,
+        }}
+      />
+      <Stack.Screen
         name="transaction/[id]"
         options={{
           presentation: "card",

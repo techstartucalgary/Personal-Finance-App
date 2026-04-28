@@ -372,23 +372,25 @@ function formatRelativeTime(value: string) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "";
 
-  const diffMs = date.getTime() - Date.now();
+  const diffMs = Date.now() - date.getTime();
   const diffMinutes = Math.round(diffMs / (1000 * 60));
   const absMinutes = Math.abs(diffMinutes);
-  const formatter = new Intl.RelativeTimeFormat(undefined, { numeric: "auto" });
 
   if (absMinutes < 60) {
-    return formatter.format(diffMinutes, "minute");
+    if (absMinutes <= 1) return "Just now";
+    return `${absMinutes} min ago`;
   }
 
   const diffHours = Math.round(diffMinutes / 60);
   if (Math.abs(diffHours) < 24) {
-    return formatter.format(diffHours, "hour");
+    if (Math.abs(diffHours) === 1) return "1 hour ago";
+    return `${Math.abs(diffHours)} hours ago`;
   }
 
   const diffDays = Math.round(diffHours / 24);
   if (Math.abs(diffDays) < 7) {
-    return formatter.format(diffDays, "day");
+    if (Math.abs(diffDays) === 1) return "1 day ago";
+    return `${Math.abs(diffDays)} days ago`;
   }
 
   return date.toLocaleDateString(undefined, {

@@ -1,5 +1,5 @@
 import React, { useMemo } from "react";
-import { Platform, Pressable, View } from "react-native";
+import { Pressable, View } from "react-native";
 
 import { ThemedText } from "@/components/themed-text";
 import { IconSymbol } from "@/components/ui/icon-symbol";
@@ -22,7 +22,6 @@ type TransactionsListProps = {
   isLoading: boolean;
   onSelectTransaction: (transaction: ExpenseRow | PlaidTransaction) => void;
   ui: TransactionsUi;
-  isDark: boolean;
   formatDate: (value?: string | null) => string;
   formatMoney: (value?: number | null) => string;
 };
@@ -37,7 +36,6 @@ export function TransactionsList({
   isLoading,
   onSelectTransaction,
   ui,
-  isDark,
   formatDate,
   formatMoney,
 }: TransactionsListProps) {
@@ -101,12 +99,12 @@ export function TransactionsList({
   return (
     <>
       {filteredExpenses.length === 0 ? (
-        <ThemedText>
+        <ThemedText style={{ color: ui.mutedText }}>
           {isLoading ? "Loading…" : "No transactions found."}
         </ThemedText>
       ) : (
         filteredExpenses.map((expense) => (
-          <ExpenseRow
+          <ManualExpenseRow
             key={expense.id}
             expense={expense}
             recurringRules={recurringRules}
@@ -139,7 +137,6 @@ export function TransactionsList({
               key={transaction.transaction_id}
               transaction={transaction}
               ui={ui}
-              isDark={isDark}
               formatDate={formatDate}
               formatMoney={formatMoney}
               onPress={() => onSelectTransaction(transaction)}
@@ -151,7 +148,7 @@ export function TransactionsList({
   );
 }
 
-type ExpenseRowProps = {
+type ManualExpenseRowProps = {
   expense: ExpenseRow;
   recurringRules: RecurringRule[];
   ui: TransactionsUi;
@@ -161,20 +158,18 @@ type ExpenseRowProps = {
 };
 
 // Single manual expense row with optional recurring badge.
-function ExpenseRow({
+function ManualExpenseRow({
   expense,
   recurringRules,
   ui,
   formatDate,
   formatMoney,
   onPress,
-}: ExpenseRowProps) {
+}: ManualExpenseRowProps) {
   const linkedRule = recurringRules.find(
     (rule) => rule.id === expense.recurring_rule_id,
   );
-  const recurringColor = linkedRule?.is_active ? "#FF9500" : ui.mutedText;
-  const rowBackgroundColor =
-    Platform.OS === "ios" && !isDarkColor(ui.surface2) ? "#FFFFFF" : ui.surface2;
+  const recurringColor = linkedRule?.is_active ? ui.accent : ui.mutedText;
 
   return (
     <Pressable
@@ -183,14 +178,14 @@ function ExpenseRow({
         styles.row,
         {
           borderColor: ui.border,
-          backgroundColor: rowBackgroundColor,
+          backgroundColor: ui.surface,
           opacity: pressed ? 0.7 : 1,
         },
       ]}
     >
       <View style={{ flex: 1 }}>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-          <ThemedText type="defaultSemiBold">
+          <ThemedText type="defaultSemiBold" style={{ color: ui.text }}>
             {expense.description ?? "Transaction"}
           </ThemedText>
           {linkedRule && (
@@ -212,11 +207,11 @@ function ExpenseRow({
             </View>
           )}
         </View>
-        <ThemedText type="default">
+        <ThemedText type="default" style={{ color: ui.mutedText }}>
           {formatDate(expense.transaction_date || expense.created_at)}
         </ThemedText>
       </View>
-      <ThemedText type="defaultSemiBold">
+      <ThemedText type="defaultSemiBold" style={{ color: ui.negative }}>
         {formatMoney(expense.amount ?? 0)}
       </ThemedText>
     </Pressable>
@@ -226,7 +221,6 @@ function ExpenseRow({
 type PlaidTransactionRowProps = {
   transaction: PlaidTransaction;
   ui: TransactionsUi;
-  isDark: boolean;
   formatDate: (value?: string | null) => string;
   formatMoney: (value?: number | null) => string;
   onPress: () => void;
@@ -236,14 +230,10 @@ type PlaidTransactionRowProps = {
 function PlaidTransactionRow({
   transaction,
   ui,
-  isDark,
   formatDate,
   formatMoney,
   onPress,
 }: PlaidTransactionRowProps) {
-  const rowBackgroundColor =
-    Platform.OS === "ios" && !isDarkColor(ui.surface2) ? "#FFFFFF" : ui.surface2;
-
   return (
     <Pressable
       onPress={onPress}
@@ -251,29 +241,27 @@ function PlaidTransactionRow({
         styles.row,
         {
           borderColor: ui.border,
-          backgroundColor: rowBackgroundColor,
+          backgroundColor: ui.surface,
           opacity: pressed ? 0.7 : 1,
         },
       ]}
     >
       <View style={{ flex: 1 }}>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-          <ThemedText type="defaultSemiBold">
+          <ThemedText type="defaultSemiBold" style={{ color: ui.text }}>
             {transaction.merchant_name || transaction.name}
           </ThemedText>
           {transaction.pending && (
             <View
               style={{
-                backgroundColor: isDark
-                  ? "rgba(255,165,0,0.2)"
-                  : "rgba(255,165,0,0.15)",
+                backgroundColor: ui.accentSoft,
                 paddingHorizontal: 6,
                 paddingVertical: 2,
-                borderRadius: 4,
+                borderRadius: 999,
               }}
             >
               <ThemedText
-                style={{ fontSize: 10, color: "#FF9500", fontWeight: "600" }}
+                style={{ fontSize: 10, color: ui.accent, fontWeight: "600" }}
               >
                 PENDING
               </ThemedText>
@@ -285,7 +273,7 @@ function PlaidTransactionRow({
           <ThemedText
             style={{
               fontSize: 10,
-              color: isDark ? "#8CF2D1" : "#1F6F5B",
+              color: ui.accent,
               fontWeight: "700",
               letterSpacing: 0.5,
               marginTop: 1,
@@ -324,14 +312,7 @@ function PlaidTransactionRow({
       <ThemedText
         type="defaultSemiBold"
         style={{
-          color:
-            transaction.amount > 0
-              ? isDark
-                ? "#FF6B6B"
-                : "#D32F2F"
-              : isDark
-                ? "#69F0AE"
-                : "#2E7D32",
+          color: transaction.amount > 0 ? ui.negative : ui.positive,
         }}
       >
         {transaction.amount > 0 ? "-" : "+"}
@@ -339,8 +320,4 @@ function PlaidTransactionRow({
       </ThemedText>
     </Pressable>
   );
-}
-
-function isDarkColor(color: string) {
-  return color === "#2C2C2E" || color === "#2C2C2F" || color === "#1B1B1E";
 }

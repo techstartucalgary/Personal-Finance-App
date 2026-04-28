@@ -4,15 +4,13 @@ import {
   Platform,
   RefreshControl,
   ScrollView,
-  useColorScheme,
 } from "react-native";
 
 import { Stack, useFocusEffect, useRouter } from "expo-router";
-import { useTheme } from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { tabsTheme } from "@/constants/tabsTheme";
 import { useAuthContext } from "@/hooks/use-auth-context";
-import { useThemeUI } from "@/hooks/use-theme-ui";
 import { getAccountById, listAccounts, updateAccount } from "@/utils/accounts";
 import { listCategories } from "@/utils/categories";
 import { deleteExpense, listExpenses } from "@/utils/expenses";
@@ -34,24 +32,21 @@ import type {
   FilterAccountId,
   RecurringRule,
   TransactionsTab,
-  TransactionsUi,
 } from "@/components/transactions/tab/types";
 
 export default function HomeScreen() {
   const { session } = useAuthContext();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const theme = useTheme();
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === "dark";
+  const isDark = false;
   const isAndroid = Platform.OS === "android";
 
   // Dynamic tab bar height (NativeTabs-safe)
   const tabBarHeight = insets.bottom + 48;
   const fabBottom = tabBarHeight + 2;
 
-  // Shared UI palette derived from the active theme.
-  const ui = useThemeUI();
+  // Keep tab screens on the auth palette for a more consistent app shell.
+  const ui = tabsTheme.ui;
 
   const userId = session?.user.id;
 
@@ -376,10 +371,8 @@ export default function HomeScreen() {
           activeTab={activeTab}
           onChange={setActiveTab}
           ui={ui}
-          tintColor={
-            isAndroid ? theme.colors.background : isDark ? "#3A3A3C" : "#FFFFFF"
-          }
-          backgroundColor={isAndroid ? theme.colors.surface : "transparent"}
+          tintColor={ui.accent}
+          backgroundColor={ui.surface2}
         />
 
         <AccountFilterChips
@@ -388,10 +381,6 @@ export default function HomeScreen() {
           filterAccountId={filterAccountId}
           onSelect={setFilterAccountId}
           ui={ui}
-          isAndroid={isAndroid}
-          isDark={isDark}
-          androidSelectedBg={theme.colors.tertiary}
-          androidSelectedText={theme.colors.onTertiary}
         />
 
         {activeTab === "transactions" ? (
@@ -404,7 +393,6 @@ export default function HomeScreen() {
             isLoading={isLoading}
             onSelectTransaction={handleSelectTransaction}
             ui={ui}
-            isDark={isDark}
             formatDate={formatDate}
             formatMoney={formatMoney}
           />

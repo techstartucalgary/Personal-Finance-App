@@ -30,7 +30,7 @@ export function TransactionsSegmentedControl({
       tintColor={tintColor}
       backgroundColor={backgroundColor}
       fontStyle={{ color: ui.text, fontWeight: "500" }}
-      activeFontStyle={{ color: ui.text, fontWeight: "600" }}
+      activeFontStyle={{ color: ui.surface, fontWeight: "600" }}
     />
   );
 }

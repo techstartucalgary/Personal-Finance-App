@@ -13,10 +13,6 @@ type AccountFilterChipsProps = {
   filterAccountId: FilterAccountId;
   onSelect: (nextId: FilterAccountId) => void;
   ui: TransactionsUi;
-  isAndroid: boolean;
-  isDark: boolean;
-  androidSelectedBg: string;
-  androidSelectedText: string;
 };
 
 // Horizontal chip list for filtering by local or Plaid-linked accounts.
@@ -26,10 +22,6 @@ export function AccountFilterChips({
   filterAccountId,
   onSelect,
   ui,
-  isAndroid,
-  isDark,
-  androidSelectedBg,
-  androidSelectedText,
 }: AccountFilterChipsProps) {
   return (
     <ScrollView
@@ -42,13 +34,8 @@ export function AccountFilterChips({
         style={[
           styles.chip,
           {
-            backgroundColor:
-              filterAccountId === null
-                ? isAndroid
-                  ? androidSelectedBg
-                  : ui.text
-                : ui.surface2,
-            borderColor: ui.border,
+            backgroundColor: filterAccountId === null ? ui.accent : ui.surface,
+            borderColor: filterAccountId === null ? ui.accent : ui.border,
           },
         ]}
       >
@@ -56,12 +43,7 @@ export function AccountFilterChips({
           style={{
             fontSize: 13,
             fontWeight: "600",
-            color:
-              filterAccountId === null
-                ? isAndroid
-                  ? androidSelectedText
-                  : ui.surface
-                : ui.text,
+            color: filterAccountId === null ? ui.surface : ui.text,
           }}
         >
           All
@@ -75,29 +57,19 @@ export function AccountFilterChips({
           style={[
             styles.chip,
             {
-              backgroundColor:
-                filterAccountId === acct.id
-                  ? isAndroid
-                    ? androidSelectedBg
-                    : ui.text
-                  : ui.surface2,
-              borderColor: ui.border,
+              backgroundColor: filterAccountId === acct.id ? ui.accent : ui.surface,
+              borderColor: filterAccountId === acct.id ? ui.accent : ui.border,
             },
           ]}
         >
           <ThemedText
-            style={{
-              fontSize: 13,
-              fontWeight: "600",
-              color:
-                filterAccountId === acct.id
-                  ? isAndroid
-                    ? androidSelectedText
-                    : ui.surface
-                  : ui.text,
-            }}
-          >
-            {acct.account_name ?? "Account"}
+              style={{
+                fontSize: 13,
+                fontWeight: "600",
+                color: filterAccountId === acct.id ? ui.surface : ui.text,
+              }}
+            >
+              {acct.account_name ?? "Account"}
           </ThemedText>
         </Pressable>
       ))}
@@ -112,12 +84,8 @@ export function AccountFilterChips({
             style={[
               styles.chip,
               {
-                backgroundColor: isSelected
-                  ? isDark
-                    ? "#1F6F5B"
-                    : "#2A8A6E"
-                  : ui.surface2,
-                borderColor: ui.border,
+                backgroundColor: isSelected ? ui.accent : ui.surface,
+                borderColor: isSelected ? ui.accent : ui.border,
               },
             ]}
           >
@@ -125,11 +93,7 @@ export function AccountFilterChips({
               style={{
                 fontSize: 13,
                 fontWeight: "600",
-                color: isSelected
-                  ? "#FFFFFF"
-                  : isDark
-                    ? "#8CF2D1"
-                    : "#1F6F5B",
+                color: isSelected ? ui.surface : ui.text,
               }}
             >
               {account.name}

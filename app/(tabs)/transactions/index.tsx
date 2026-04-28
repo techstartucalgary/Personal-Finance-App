@@ -22,7 +22,7 @@ import { AccountFilterChips } from "@/components/transactions/tab/AccountFilterC
 import { EditRecurrenceSheet } from "@/components/transactions/tab/EditRecurrenceSheet";
 import { RecurringRulesList } from "@/components/transactions/tab/RecurringRulesList";
 import { TransactionsFab } from "@/components/transactions/tab/TransactionsFab";
-import { TransactionsList } from "@/components/transactions/tab/TransactionsList";
+import { TransactionsList } from "@/components/transactions/TransactionsList";
 import { TransactionsSegmentedControl } from "@/components/transactions/tab/TransactionsSegmentedControl";
 import { styles } from "@/components/transactions/tab/styles";
 import type {
@@ -385,16 +385,23 @@ export default function HomeScreen() {
 
         {activeTab === "transactions" ? (
           <TransactionsList
+            accounts={accounts}
             expenses={expenses}
             plaidTransactions={plaidTransactions}
             recurringRules={recurringRules}
+            plaidAccounts={plaidAccounts}
             filterAccountId={filterAccountId}
+            onFilterAccountChange={setFilterAccountId}
             searchQuery={searchQuery}
+            onSearchQueryChange={setSearchQuery}
             isLoading={isLoading}
             onSelectTransaction={handleSelectTransaction}
             ui={ui}
-            formatDate={formatDate}
-            formatMoney={formatMoney}
+            showSearch={false}
+            showFilters={false}
+            showMeta={false}
+            showBadges={false}
+            subtleAmountColors
           />
         ) : (
           <RecurringRulesList

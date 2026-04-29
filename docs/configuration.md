@@ -76,6 +76,41 @@ Set vault secrets at Supabase Dashboard → Project Settings → Vault.
 
 ---
 
+## Local development setup — `.env.local`
+
+To run the chatbot locally, create a `.env.local` file at the project root
+with these variables:
+
+```bash
+# Supabase credentials (get from Project Settings → API)
+EXPO_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_SECRET_KEY=your_service_role_key_here
+
+# Embedding model (must match edge function EMBEDDING_MODEL)
+EMBEDDING_MODEL=openai/text-embedding-3-small
+
+# Production API URL (dev uses Expo origin; set this if deploying to Vercel/etc)
+# EXPO_PUBLIC_API_BASE_URL=https://your-api-domain.com/api/chat
+```
+
+| Variable | Where to get |
+|---|---|
+| `EXPO_PUBLIC_SUPABASE_URL` | Supabase Dashboard → Project Settings → API → Project URL |
+| `SUPABASE_SECRET_KEY` | Supabase Dashboard → Project Settings → API → Service role key (with the "secret" label) |
+| `EMBEDDING_MODEL` | Use `openai/text-embedding-3-small` (1536 dimensions). Must match Edge Function `EMBEDDING_MODEL` |
+| `EXPO_PUBLIC_API_BASE_URL` | Only needed for production. In dev, the API route runs locally and Expo knows where to find it |
+
+**Important:** Never commit `.env.local` to git. It contains secrets. Git will
+ignore it by default (check `.gitignore`).
+
+**Restart the dev server after changing `.env.local`** — the server reads
+env vars at startup, not dynamically.
+
+For the full cold-start setup (new Supabase project, vault secrets, edge
+function deployment), see "Setup checklist (cold start)" below.
+
+---
+
 ## The two model strings that must match
 
 There are *two* places that reference the embedding model name:

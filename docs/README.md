@@ -7,7 +7,31 @@ that holds it together.
 Scope of this folder: the chatbot feature only. App-wide setup (Expo, native
 builds, auth) lives in the [project root README](../README.md).
 
-If you're new to the chatbot, read in this order:
+---
+
+## Quick start (local dev)
+
+1. **Create `.env.local`** at the project root with Supabase credentials:
+   ```bash
+   EXPO_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+   SUPABASE_SECRET_KEY=your_service_role_key_here
+   EMBEDDING_MODEL=openai/text-embedding-3-small
+   ```
+   See [configuration.md](configuration.md#local-development-setup--envlocal) for
+   where to find each value.
+
+2. **Start the dev server:** `npx expo start`
+
+3. **Run the mobile app:** scan QR code or `npx expo run:ios` / `npx expo run:android`
+
+Chatbot is at the chat tab. The API route runs on the same Expo origin and
+will auto-connect.
+
+---
+
+## Full reading order
+
+If you're new to the chatbot architecture, read in this order:
 
 1. **[architecture.md](architecture.md)** — the mental model. How the pieces
    fit together: client → API route → AI SDK → tools → Supabase. The hybrid

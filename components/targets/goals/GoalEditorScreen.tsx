@@ -341,10 +341,8 @@ export function GoalEditorScreen({ mode }: GoalEditorScreenProps) {
 
   useEffect(() => {
     const canSave = mode === "edit" ? isDirty && isValid : isValid;
-    const parent = navigation.getParent();
-    if (!parent) return;
 
-    parent.setOptions({
+    navigation.setOptions({
       title: mode === "edit" ? "Edit Goal" : "Add Goal",
       headerBackVisible: false,
       headerTitleAlign: "center",

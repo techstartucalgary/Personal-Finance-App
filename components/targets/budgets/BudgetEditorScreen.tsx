@@ -1,8 +1,8 @@
 import Feather from "@expo/vector-icons/Feather";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, usePreventRemove } from "@react-navigation/native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -18,7 +18,6 @@ import {
 import { ThemedText } from "@/components/themed-text";
 import type { ExpenseRow } from "@/components/transactions/tab/types";
 import { DateTimePickerField } from "@/components/ui/DateTimePickerField";
-import { SelectionModal } from "@/components/ui/SelectionModal";
 import { Tokens } from "@/constants/authTokens";
 import { useTabsTheme } from "@/constants/tabsTheme";
 import { useAuthContext } from "@/hooks/use-auth-context";
@@ -43,6 +42,10 @@ import { getPlaidAccounts } from "@/utils/plaid";
 import {
   consumePendingBudgetAccountSelection,
 } from "./pending-budget-account-selection";
+import {
+  consumePendingBudgetExpenseSelection,
+  consumePendingBudgetRecurrenceSelection,
+} from "./pending-budget-editor-selection";
 import {
   getBudgetUiPreference,
   removeBudgetUiPreference,
@@ -71,15 +74,28 @@ type BudgetEditorScreenProps = {
   mode: "add" | "edit";
 };
 
-const PERIOD_OPTIONS: BudgetPeriod[] = [
-  "weekly",
-  "biweekly",
-  "monthly",
-  "quarterly",
-  "yearly",
-];
+type BudgetDraftSnapshot = {
+  name: string;
+  startDate: string | null;
+  recurrence: BudgetPeriod;
+  rolloverEnabled: boolean;
+  selectedAccountKey: string | null;
+  drafts: {
+    expense_category_id: number;
+    limit_amount: string;
+  }[];
+};
 
 const AVATAR_COLORS = ["#DE7C78", "#67C7C0", "#D96CB9", "#6F8BEA", "#F2B35D"];
+
+function serializeBudgetDraft(snapshot: BudgetDraftSnapshot) {
+  return JSON.stringify({
+    ...snapshot,
+    drafts: [...snapshot.drafts].sort(
+      (left, right) => left.expense_category_id - right.expense_category_id,
+    ),
+  });
+}
 
 export function BudgetEditorScreen({ mode }: BudgetEditorScreenProps) {
   const { session } = useAuthContext();
@@ -116,7 +132,6 @@ export function BudgetEditorScreen({ mode }: BudgetEditorScreenProps) {
   const [rolloverEnabled, setRolloverEnabled] = useState(() =>
     preHydrated ? preHydrated.rolloverEnabled : false,
   );
-  const [categories, setCategories] = useState<CategoryRow[]>([]);
   const [subcategories, setSubcategories] = useState<SubcategoryRow[]>([]);
   const [drafts, setDrafts] = useState<BudgetDraftCategory[]>(() =>
     preHydrated
@@ -130,8 +145,24 @@ export function BudgetEditorScreen({ mode }: BudgetEditorScreenProps) {
   );
   const [selectedAccount, setSelectedAccount] = useState<BudgetSelectableAccount | null>(null);
   const [expenses, setExpenses] = useState<ExpenseRow[]>([]);
-  const [categoryPickerOpen, setCategoryPickerOpen] = useState(false);
-  const [periodPickerOpen, setPeriodPickerOpen] = useState(false);
+  const [allowRemoval, setAllowRemoval] = useState(false);
+  const initialDraftRef = useRef<string>(
+    serializeBudgetDraft({
+      name: preHydrated ? (preHydrated.budget_name ?? "").trim() : "",
+      startDate: preHydrated
+        ? (preHydrated.start_date ?? toLocalISOString(new Date()))
+        : toLocalISOString(new Date()),
+      recurrence: preHydrated ? preHydrated.recurrence : "monthly",
+      rolloverEnabled: preHydrated ? preHydrated.rolloverEnabled : false,
+      selectedAccountKey: null,
+      drafts: preHydrated
+        ? preHydrated.categoryBudgets.map((category) => ({
+          expense_category_id: category.expense_category_id,
+          limit_amount: String(category.limit_amount ?? "").trim(),
+        }))
+        : [],
+    }),
+  );
 
   const hydrateFromBudget = useCallback(
     (budget: BudgetWithDetails, selectableAccounts: BudgetSelectableAccount[]) => {
@@ -152,6 +183,17 @@ export function BudgetEditorScreen({ mode }: BudgetEditorScreenProps) {
           (account) => getGoalSelectionKey(account) === budget.linkedAccountKey,
         ) ?? null,
       );
+      initialDraftRef.current = serializeBudgetDraft({
+        name: (budget.budget_name ?? "").trim(),
+        startDate: budget.start_date ?? toLocalISOString(new Date()),
+        recurrence: budget.recurrence,
+        rolloverEnabled: budget.rolloverEnabled,
+        selectedAccountKey: budget.linkedAccountKey,
+        drafts: budget.categoryBudgets.map((category) => ({
+          expense_category_id: category.expense_category_id,
+          limit_amount: String(category.limit_amount ?? "").trim(),
+        })),
+      });
     },
     [],
   );
@@ -161,16 +203,12 @@ export function BudgetEditorScreen({ mode }: BudgetEditorScreenProps) {
 
     if (mode !== "edit") {
       try {
-        const [categoryRows, subcategoryRows, manualAccounts, plaidAccounts, expenseRows] =
+        const [subcategoryRows, expenseRows] =
           await Promise.all([
-            listCategories({ profile_id: userId }),
             listAllSubcategories({ profile_id: userId }),
-            listAccounts({ profile_id: userId }),
-            getPlaidAccounts(),
             listExpenses({ profile_id: userId }),
           ]);
 
-        setCategories(categoryRows ?? []);
         setSubcategories(subcategoryRows ?? []);
         setExpenses((expenseRows as ExpenseRow[]) ?? []);
       } catch (error) {
@@ -207,7 +245,6 @@ export function BudgetEditorScreen({ mode }: BudgetEditorScreenProps) {
         plaidAccounts,
       });
 
-      setCategories(categoryRows ?? []);
       setSubcategories(subcategoryRows ?? []);
       setExpenses((expenseRows as ExpenseRow[]) ?? []);
 
@@ -235,23 +272,6 @@ export function BudgetEditorScreen({ mode }: BudgetEditorScreenProps) {
   useEffect(() => {
     loadBudget();
   }, [loadBudget]);
-
-  useFocusEffect(
-    useCallback(() => {
-      if (mode === "edit") {
-        loadBudget();
-      }
-    }, [loadBudget, mode]),
-  );
-
-  useFocusEffect(
-    useCallback(() => {
-      const pendingSelection = consumePendingBudgetAccountSelection();
-      if (pendingSelection !== undefined) {
-        setSelectedAccount(pendingSelection);
-      }
-    }, []),
-  );
 
   const totalBudgeted = useMemo(
     () =>
@@ -316,6 +336,22 @@ export function BudgetEditorScreen({ mode }: BudgetEditorScreenProps) {
     );
   }, [drafts, name, startDate]);
 
+  const currentDraft = useMemo<BudgetDraftSnapshot>(
+    () => ({
+      name: name.trim(),
+      startDate,
+      recurrence,
+      rolloverEnabled,
+      selectedAccountKey: getGoalSelectionKey(selectedAccount),
+      drafts: drafts.map((draft) => ({
+        expense_category_id: draft.expense_category_id,
+        limit_amount: draft.limit_amount.trim(),
+      })),
+    }),
+    [drafts, name, recurrence, rolloverEnabled, selectedAccount, startDate],
+  );
+  const isDirty = serializeBudgetDraft(currentDraft) !== initialDraftRef.current;
+
   const handleAddCategory = useCallback(
     (category: CategoryRow) => {
       setDrafts((current) => {
@@ -333,9 +369,27 @@ export function BudgetEditorScreen({ mode }: BudgetEditorScreenProps) {
           },
         ];
       });
-      setCategoryPickerOpen(false);
     },
     [],
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      const pendingSelection = consumePendingBudgetAccountSelection();
+      if (pendingSelection !== undefined) {
+        setSelectedAccount(pendingSelection);
+      }
+
+      const pendingRecurrence = consumePendingBudgetRecurrenceSelection();
+      if (pendingRecurrence) {
+        setRecurrence(pendingRecurrence);
+      }
+
+      const pendingCategory = consumePendingBudgetExpenseSelection();
+      if (pendingCategory) {
+        handleAddCategory(pendingCategory);
+      }
+    }, [handleAddCategory]),
   );
 
   const handleSave = useCallback(async () => {
@@ -355,6 +409,7 @@ export function BudgetEditorScreen({ mode }: BudgetEditorScreenProps) {
     }
 
     try {
+      setAllowRemoval(true);
       const endDate = getBudgetEndDate(startDate, recurrence);
       const totalAmount = parsedDrafts.reduce((sum, draft) => sum + draft.amount, 0);
       let budgetId = Number(id);
@@ -402,6 +457,7 @@ export function BudgetEditorScreen({ mode }: BudgetEditorScreenProps) {
 
       router.back();
     } catch (error) {
+      setAllowRemoval(false);
       console.error("Error saving budget:", error);
       Alert.alert("Error", "Could not save budget.");
     }
@@ -419,11 +475,28 @@ export function BudgetEditorScreen({ mode }: BudgetEditorScreenProps) {
     userId,
   ]);
 
-  useEffect(() => {
-    const parent = navigation.getParent();
-    if (!parent) return;
+  usePreventRemove(isDirty && !allowRemoval, ({ data }) => {
+    Alert.alert(
+      "Discard changes?",
+      "You have unsaved changes. Are you sure you want to leave this screen?",
+      [
+        { text: "Keep Editing", style: "cancel" },
+        {
+          text: "Discard",
+          style: "destructive",
+          onPress: () => {
+            setAllowRemoval(true);
+            requestAnimationFrame(() => {
+              navigation.dispatch(data.action);
+            });
+          },
+        },
+      ],
+    );
+  });
 
-    parent.setOptions({
+  useEffect(() => {
+    navigation.setOptions({
       title: "Budget Plan",
       headerTitleAlign: "center",
       headerTransparent: Platform.OS === "ios",
@@ -437,8 +510,10 @@ export function BudgetEditorScreen({ mode }: BudgetEditorScreenProps) {
       },
       headerTintColor: ui.text,
       headerBackButtonDisplayMode: "minimal",
-      headerLeft: () =>
-        mode === "add" ? (
+      headerBackVisible: mode !== "add",
+      headerLeft:
+        mode === "add"
+          ? () => (
           <Pressable
             onPress={() => router.back()}
             hitSlop={10}
@@ -452,7 +527,8 @@ export function BudgetEditorScreen({ mode }: BudgetEditorScreenProps) {
           >
             <IconSymbol name="xmark" size={22} color={ui.text} />
           </Pressable>
-        ) : undefined,
+          )
+          : undefined,
       headerRight: () => (
         <Pressable
           onPress={handleSave}
@@ -506,10 +582,6 @@ export function BudgetEditorScreen({ mode }: BudgetEditorScreenProps) {
     );
   }
 
-  const availableCategories = categories.filter(
-    (category) => !drafts.some((draft) => draft.expense_category_id === category.id),
-  );
-
   return (
     <>
       <ScrollView
@@ -546,7 +618,7 @@ export function BudgetEditorScreen({ mode }: BudgetEditorScreenProps) {
               onPress={() => {
                 const pathname =
                   mode === "edit" && id
-                    ? "/budget/[id]/account-select"
+                    ? "/budget-edit-account-select"
                     : "/budget-add/account-select";
                 router.push({
                   pathname,
@@ -578,7 +650,20 @@ export function BudgetEditorScreen({ mode }: BudgetEditorScreenProps) {
         <View style={styles.formStack}>
           <View style={styles.topSettingsRow}>
             <Pressable
-              onPress={() => setPeriodPickerOpen(true)}
+              onPress={() => {
+                const pathname =
+                  mode === "edit" && id
+                    ? "/budget-edit-recurrence-select"
+                    : "/budget-add/recurrence-select";
+
+                router.push({
+                  pathname,
+                  params: {
+                    ...(mode === "edit" && id ? { id } : {}),
+                    currentPeriod: recurrence,
+                  },
+                } as any);
+              }}
               style={({ pressed }) => [
                 styles.settingCard,
                 {
@@ -597,7 +682,7 @@ export function BudgetEditorScreen({ mode }: BudgetEditorScreenProps) {
                 <ThemedText style={[styles.settingValue, { color: ui.mutedText }]}>
                   {formatBudgetPeriodLabel(recurrence)}
                 </ThemedText>
-                <Feather name="chevron-down" size={14} color={ui.mutedText} />
+                <Feather name="chevron-right" size={14} color={ui.mutedText} />
               </View>
             </Pressable>
 
@@ -638,7 +723,22 @@ export function BudgetEditorScreen({ mode }: BudgetEditorScreenProps) {
               Expenses
             </ThemedText>
             <Pressable
-              onPress={() => setCategoryPickerOpen(true)}
+              onPress={() => {
+                const pathname =
+                  mode === "edit" && id
+                    ? "/budget-edit-expense-select"
+                    : "/budget-add/expense-select";
+
+                router.push({
+                  pathname,
+                  params: {
+                    ...(mode === "edit" && id ? { id } : {}),
+                    excludedCategoryIds: drafts
+                      .map((draft) => String(draft.expense_category_id))
+                      .join(","),
+                  },
+                } as any);
+              }}
               style={({ pressed }) => [
                 styles.addButton,
                 {
@@ -782,65 +882,6 @@ export function BudgetEditorScreen({ mode }: BudgetEditorScreenProps) {
         </View>
       </ScrollView>
 
-      <SelectionModal
-        visible={categoryPickerOpen}
-        onClose={() => setCategoryPickerOpen(false)}
-        title="Add Expense"
-        ui={ui}
-      >
-        {availableCategories.map((category) => (
-          <Pressable
-            key={category.id}
-            onPress={() => handleAddCategory(category)}
-            style={({ pressed }) => [
-              styles.modalRow,
-              {
-                backgroundColor: ui.surface,
-                borderColor: ui.border,
-                opacity: pressed ? 0.72 : 1,
-              },
-            ]}
-          >
-            <ThemedText style={{ color: ui.text }}>
-              {category.category_name ?? "Expense"}
-            </ThemedText>
-            <Feather name="plus" size={14} color={ui.text} />
-          </Pressable>
-        ))}
-      </SelectionModal>
-
-      <SelectionModal
-        visible={periodPickerOpen}
-        onClose={() => setPeriodPickerOpen(false)}
-        title="Select Recurrence"
-        ui={ui}
-      >
-        {PERIOD_OPTIONS.map((period) => {
-          const isSelected = period === recurrence;
-          return (
-            <Pressable
-              key={period}
-              onPress={() => {
-                setRecurrence(period);
-                setPeriodPickerOpen(false);
-              }}
-              style={({ pressed }) => [
-                styles.modalRow,
-                {
-                  backgroundColor: isSelected ? ui.surface2 : ui.surface,
-                  borderColor: ui.border,
-                  opacity: pressed ? 0.72 : 1,
-                },
-              ]}
-            >
-              <ThemedText style={{ color: ui.text }}>
-                {formatBudgetPeriodLabel(period)}
-              </ThemedText>
-              {isSelected ? <Feather name="check" size={14} color={ui.text} /> : null}
-            </Pressable>
-          );
-        })}
-      </SelectionModal>
     </>
   );
 }
@@ -1079,15 +1120,5 @@ const styles = StyleSheet.create({
     textAlign: "center",
     fontSize: 12,
     fontFamily: Tokens.font.family,
-  },
-  modalRow: {
-    minHeight: 50,
-    borderRadius: 14,
-    borderWidth: StyleSheet.hairlineWidth,
-    paddingHorizontal: 14,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 12,
   },
 });

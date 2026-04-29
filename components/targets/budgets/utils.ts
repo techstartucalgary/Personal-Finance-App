@@ -14,6 +14,14 @@ import type {
 
 import type { BudgetPeriod } from "@/utils/categoryBudgets";
 
+export const BUDGET_PERIOD_OPTIONS: BudgetPeriod[] = [
+  "weekly",
+  "biweekly",
+  "monthly",
+  "quarterly",
+  "yearly",
+];
+
 const PERIOD_LABELS: Record<BudgetPeriod, string> = {
   weekly: "Weekly",
   biweekly: "Biweekly",

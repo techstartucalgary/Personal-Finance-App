@@ -236,7 +236,10 @@ export function BudgetsView({
                 onPress={() =>
                   router.push({
                     pathname: "/budget/[id]",
-                    params: { id: String(budget.id) },
+                    params: {
+                      id: String(budget.id),
+                      initialData: encodeURIComponent(JSON.stringify(budget)),
+                    },
                   } as any)
                 }
                 style={({ pressed }) => [
@@ -272,7 +275,7 @@ export function BudgetsView({
                     <Pressable
                       onPress={() =>
                         router.push({
-                          pathname: "/budget/[id]/edit",
+                          pathname: "/budget-edit/[id]",
                           params: {
                             id: String(budget.id),
                             initialData: encodeURIComponent(JSON.stringify(budget)),

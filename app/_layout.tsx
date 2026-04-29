@@ -86,13 +86,8 @@ function ProtectedLayout() {
       <Stack.Screen
         name="goal-add"
         options={{
-          headerTitle: "New Goal",
           presentation: "pageSheet",
-          headerShown: true,
-          headerBackButtonDisplayMode: "minimal",
-          headerTransparent: Platform.OS === "ios",
-          headerShadowVisible: false,
-          headerTitleAlign: "center",
+          headerShown: false,
         }}
       />
       <Stack.Screen
@@ -114,36 +109,54 @@ function ProtectedLayout() {
         name="goal-edit"
         options={{
           presentation: "pageSheet",
-          headerShown: true,
-          headerTitleAlign: "center",
-          headerBackButtonDisplayMode: "minimal",
-          headerTransparent: Platform.OS === "ios",
-          headerShadowVisible: false,
+          headerShown: false,
         }}
       />
       <Stack.Screen
         name="budget-add"
         options={{
-          headerTitle: "New Budget",
           presentation: "pageSheet",
-          headerShown: true,
-          headerBackButtonDisplayMode: "minimal",
-          headerTransparent: Platform.OS === "ios",
-          headerStyle: {
-            backgroundColor: Platform.OS === "ios" ? "transparent" : ui.surface,
-          },
-          headerShadowVisible: false,
-          headerTitleAlign: "center",
+          headerShown: false,
         }}
       />
       <Stack.Screen
         name="budget/[id]"
         options={{
-          headerTitle: "Edit Budget",
           presentation: "card",
+          headerTitle: "Budget Details",
           headerShown: true,
           headerBackButtonDisplayMode: "minimal",
           headerTransparent: Platform.OS === "ios",
+          headerShadowVisible: false,
+          headerTitleAlign: "center",
+        }}
+      />
+      <Stack.Screen
+        name="budget-edit/[id]"
+        options={{
+          presentation: "card",
+          headerShown: true,
+        }}
+      />
+      <Stack.Screen
+        name="budget-edit-account-select"
+        options={{
+          presentation: "card",
+          headerShown: true,
+        }}
+      />
+      <Stack.Screen
+        name="budget-edit-recurrence-select"
+        options={{
+          presentation: "card",
+          headerShown: true,
+        }}
+      />
+      <Stack.Screen
+        name="budget-edit-expense-select"
+        options={{
+          presentation: "card",
+          headerShown: true,
         }}
       />
       <Stack.Screen

@@ -48,16 +48,31 @@ export function BudgetDetailScreen() {
   const isDark = ui.bg === "#000000";
   const budgetRed = isDark ? "#FF8F82" : "#FF5252";
   const userId = session?.user.id;
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, initialData } = useLocalSearchParams<{
+    id?: string;
+    initialData?: string;
+  }>();
+  const preHydrated = useMemo(() => {
+    if (!initialData) return null;
+    try {
+      return JSON.parse(decodeURIComponent(initialData)) as BudgetWithDetails;
+    } catch {
+      return null;
+    }
+  }, [initialData]);
+  const budgetId = id ?? (preHydrated ? String(preHydrated.id) : undefined);
 
-  const [isLoading, setIsLoading] = useState(true);
-  const [budget, setBudget] = useState<BudgetWithDetails | null>(null);
+  const [isLoading, setIsLoading] = useState(!preHydrated);
+  const [budget, setBudget] = useState<BudgetWithDetails | null>(preHydrated);
   const [accounts, setAccounts] = useState<BudgetSelectableAccount[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
 
   const loadBudget = useCallback(
     async (silent = false) => {
-      if (!userId || !id) return;
+      if (!userId || !budgetId) {
+        setIsLoading(false);
+        return;
+      }
 
       if (!silent) setIsLoading(true);
       try {
@@ -71,14 +86,14 @@ export function BudgetDetailScreen() {
           plaidAccounts,
           preference,
         ] = await Promise.all([
-          getBudget({ id, profile_id: userId }),
-          listCategoryBudgets({ budget_id: Number(id) }),
+          getBudget({ id: budgetId, profile_id: userId }),
+          listCategoryBudgets({ budget_id: Number(budgetId) }),
           listCategories({ profile_id: userId }),
           listAllSubcategories({ profile_id: userId }),
           listExpenses({ profile_id: userId }),
           listAccounts({ profile_id: userId }),
           getPlaidAccounts(),
-          getBudgetUiPreference(id),
+          getBudgetUiPreference(budgetId),
         ]);
 
         const selectableAccounts = buildSelectableAccounts({
@@ -103,7 +118,7 @@ export function BudgetDetailScreen() {
         setIsLoading(false);
       }
     },
-    [id, userId],
+    [budgetId, userId],
   );
 
   useEffect(() => {
@@ -135,7 +150,7 @@ export function BudgetDetailScreen() {
           <Pressable
             onPress={() =>
               router.push({
-                pathname: "/budget/[id]/edit",
+                pathname: "/budget-edit/[id]",
                 params: {
                   id: String(budget.id),
                   initialData: encodeURIComponent(JSON.stringify(budget)),
@@ -220,7 +235,7 @@ export function BudgetDetailScreen() {
           <Pressable
             onPress={() =>
               router.push({
-                pathname: "/budget/[id]/edit",
+                pathname: "/budget-edit/[id]",
                 params: {
                   id: String(budget.id),
                   initialData: encodeURIComponent(JSON.stringify(budget)),
@@ -294,7 +309,7 @@ export function BudgetDetailScreen() {
           <Pressable
             onPress={() =>
               router.push({
-                pathname: "/budget/[id]/edit",
+                pathname: "/budget-edit/[id]",
                 params: {
                   id: String(budget.id),
                   initialData: encodeURIComponent(JSON.stringify(budget)),

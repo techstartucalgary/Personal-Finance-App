@@ -1,5 +1,6 @@
 import Feather from "@expo/vector-icons/Feather";
 import { useNavigation } from "@react-navigation/native";
+import { LinearGradient } from "expo-linear-gradient";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
@@ -12,15 +13,15 @@ import {
   View,
 } from "react-native";
 
-import type { ExpenseRow } from "@/components/transactions/tab/types";
 import { ThemedText } from "@/components/themed-text";
+import type { ExpenseRow } from "@/components/transactions/tab/types";
 import { Tokens } from "@/constants/authTokens";
 import { useTabsTheme } from "@/constants/tabsTheme";
 import { useAuthContext } from "@/hooks/use-auth-context";
 import { listAccounts } from "@/utils/accounts";
 import { getBudget } from "@/utils/budgets";
-import { listCategoryBudgets } from "@/utils/categoryBudgets";
 import { listAllSubcategories, listCategories } from "@/utils/categories";
+import { listCategoryBudgets } from "@/utils/categoryBudgets";
 import { listExpenses } from "@/utils/expenses";
 import { getPlaidAccounts } from "@/utils/plaid";
 
@@ -44,6 +45,8 @@ export function BudgetDetailScreen() {
   const navigation = useNavigation();
   const router = useRouter();
   const { ui } = useTabsTheme();
+  const isDark = ui.bg === "#000000";
+  const budgetRed = isDark ? "#FF8F82" : "#FF5252";
   const userId = session?.user.id;
   const { id } = useLocalSearchParams<{ id: string }>();
 
@@ -197,7 +200,10 @@ export function BudgetDetailScreen() {
       ]}
       showsVerticalScrollIndicator={false}
     >
-      <View style={styles.heroWrap}>
+      <LinearGradient
+        colors={["rgba(255, 211, 143, 0)", "#FFD38F"]}
+        style={styles.heroWrap}
+      >
         <View style={styles.heroPanel}>
           <ThemedText style={[styles.heroName, { color: ui.text }]}>
             {budget.budget_name}
@@ -205,7 +211,7 @@ export function BudgetDetailScreen() {
           <ThemedText
             style={[
               styles.heroAmount,
-              { color: budget.availableAmount < 0 ? "#F15A46" : ui.text },
+              { color: budget.availableAmount < 0 ? budgetRed : ui.text },
             ]}
           >
             {formatMoney(budget.total_amount)}
@@ -235,7 +241,7 @@ export function BudgetDetailScreen() {
             )}
           </Pressable>
         </View>
-      </View>
+      </LinearGradient>
 
       <View style={styles.bodyStack}>
         <View style={styles.topMetaRow}>
@@ -336,7 +342,7 @@ export function BudgetDetailScreen() {
                 style={[
                   styles.rowMetric,
                   {
-                    color: category.available < 0 ? "#D55C4B" : getBudgetStatusTone(category.available),
+                    color: category.available < 0 ? budgetRed : getBudgetStatusTone(category.available),
                   },
                 ]}
               >
@@ -462,15 +468,16 @@ const styles = StyleSheet.create({
     gap: 18,
   },
   heroWrap: {
-    borderBottomLeftRadius: 28,
-    borderBottomRightRadius: 28,
+    marginTop: Platform.OS === "ios" ? -100 : -20,
+    paddingTop: Platform.OS === "ios" ? 100 : 20,
+    borderBottomLeftRadius: 36,
+    borderBottomRightRadius: 36,
     overflow: "hidden",
-    backgroundColor: "#FFD38F",
     boxShadow: "0 10px 16px rgba(0, 0, 0, 0.14)",
   },
   heroPanel: {
     paddingHorizontal: 16,
-    paddingTop: 16,
+    paddingTop: 0,
     paddingBottom: 18,
     alignItems: "center",
     gap: 8,
@@ -478,7 +485,7 @@ const styles = StyleSheet.create({
   heroName: {
     fontSize: 28,
     fontFamily: Tokens.font.semiFamily ?? Tokens.font.family,
-    textDecorationLine: "underline",
+
   },
   heroAmount: {
     fontSize: 50,

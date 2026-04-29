@@ -1,5 +1,6 @@
 import Feather from "@expo/vector-icons/Feather";
 import { useNavigation } from "@react-navigation/native";
+import { LinearGradient } from "expo-linear-gradient";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
@@ -85,6 +86,8 @@ export function BudgetEditorScreen({ mode }: BudgetEditorScreenProps) {
   const navigation = useNavigation();
   const router = useRouter();
   const { ui } = useTabsTheme();
+  const isDark = ui.bg === "#000000";
+  const budgetRed = isDark ? "#FF8F82" : "#FF5252";
   const userId = session?.user.id;
   const { id, initialData } = useLocalSearchParams<{ id?: string; initialData?: string }>();
   const sheetUi = useMemo(() => ui, [ui]);
@@ -118,11 +121,11 @@ export function BudgetEditorScreen({ mode }: BudgetEditorScreenProps) {
   const [drafts, setDrafts] = useState<BudgetDraftCategory[]>(() =>
     preHydrated
       ? preHydrated.categoryBudgets.map((category) => ({
-          localKey: String(category.id),
-          expense_category_id: category.expense_category_id,
-          category_name: category.category_name,
-          limit_amount: String(category.limit_amount ?? ""),
-        }))
+        localKey: String(category.id),
+        expense_category_id: category.expense_category_id,
+        category_name: category.category_name,
+        limit_amount: String(category.limit_amount ?? ""),
+      }))
       : [],
   );
   const [selectedAccount, setSelectedAccount] = useState<BudgetSelectableAccount | null>(null);
@@ -156,8 +159,6 @@ export function BudgetEditorScreen({ mode }: BudgetEditorScreenProps) {
   const loadBudget = useCallback(async () => {
     if (!userId) return;
 
-    // In "add" mode, don't show a spinner — let the user start editing immediately
-    // while reference data loads in the background.
     if (mode !== "edit") {
       try {
         const [categoryRows, subcategoryRows, manualAccounts, plaidAccounts, expenseRows] =
@@ -178,8 +179,6 @@ export function BudgetEditorScreen({ mode }: BudgetEditorScreenProps) {
       return;
     }
 
-    // "edit" mode — load data in the background without a spinner
-    // (the form was pre-hydrated from initialData)
     if (!id) return;
     try {
       if (!preHydrated) setIsLoading(true);
@@ -523,17 +522,23 @@ export function BudgetEditorScreen({ mode }: BudgetEditorScreenProps) {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        <View style={styles.heroWrap}>
+        <LinearGradient
+          colors={["rgba(255, 211, 143, 0)", "#FFD38F"]}
+          style={styles.heroWrap}
+        >
           <View style={styles.heroPanel}>
-            <TextInput
-              value={name}
-              onChangeText={setName}
-              placeholder="Budget Plan 1"
-              placeholderTextColor={ui.text}
-              style={[styles.heroNameInput, { color: ui.text }]}
-            />
+            <View style={styles.heroNameWrap}>
+              <TextInput
+                value={name}
+                onChangeText={setName}
+                placeholder="Budget Plan 1"
+                placeholderTextColor={ui.text}
+                style={[styles.heroNameInput, { color: ui.text }]}
+              />
+              <Feather name="edit-2" size={14} color={ui.text} style={styles.heroEditIcon} />
+            </View>
 
-            <ThemedText style={[styles.heroAmount, { color: totalBudgeted > 0 ? "#F15A46" : ui.text }]}>
+            <ThemedText style={[styles.heroAmount, { color: totalBudgeted > 0 ? budgetRed : ui.text }]}>
               {formatMoney(totalBudgeted)}
             </ThemedText>
 
@@ -568,7 +573,7 @@ export function BudgetEditorScreen({ mode }: BudgetEditorScreenProps) {
               )}
             </Pressable>
           </View>
-        </View>
+        </LinearGradient>
 
         <View style={styles.formStack}>
           <View style={styles.topSettingsRow}>
@@ -728,7 +733,7 @@ export function BudgetEditorScreen({ mode }: BudgetEditorScreenProps) {
                       style={[
                         styles.rowMetric,
                         {
-                          color: available < 0 ? "#D55C4B" : ui.text,
+                          color: available < 0 ? budgetRed : ui.text,
                         },
                       ]}
                     >
@@ -763,7 +768,7 @@ export function BudgetEditorScreen({ mode }: BudgetEditorScreenProps) {
                 },
               ]}
             >
-              <ThemedText style={[styles.deleteButtonText, { color: "#D55C4B" }]}>
+              <ThemedText style={[styles.deleteButtonText, { color: budgetRed }]}>
                 Delete Budget
               </ThemedText>
             </Pressable>
@@ -867,11 +872,11 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   heroWrap: {
-    borderBottomLeftRadius: 28,
-    borderBottomRightRadius: 28,
+    marginTop: Platform.OS === "ios" ? -100 : -20,
+    paddingTop: Platform.OS === "ios" ? 100 : 20,
+    borderBottomLeftRadius: 36,
+    borderBottomRightRadius: 36,
     overflow: "hidden",
-    backgroundColor: "#FFD38F",
-    boxShadow: "0 10px 16px rgba(0, 0, 0, 0.14)",
   },
   heroPanel: {
     paddingHorizontal: 16,
@@ -880,13 +885,22 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 8,
   },
+  heroNameWrap: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginLeft: 20, // Offset for the icon to keep name centered
+  },
   heroNameInput: {
-    minWidth: 180,
+    minWidth: 150,
     textAlign: "center",
     fontSize: 28,
     paddingVertical: 0,
     fontFamily: Tokens.font.semiFamily ?? Tokens.font.family,
-    textDecorationLine: "underline",
+  },
+  heroEditIcon: {
+    opacity: 0.5,
+    marginTop: 4,
   },
   heroAmount: {
     fontSize: 50,

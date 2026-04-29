@@ -769,7 +769,7 @@ export function EditTransactionModal({
               styles.deleteButton,
               {
                 borderColor: ui.border,
-                backgroundColor: ui.surface3,
+                backgroundColor: ui.surface2,
                 marginTop: 12,
                 opacity: pressed ? 0.7 : 1,
               },

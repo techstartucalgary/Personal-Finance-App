@@ -97,6 +97,11 @@ export function GoalDetailScreen() {
           getRecurringRules({ profile_id: userId }),
         ]);
 
+        if (!goalData) {
+          router.back();
+          return;
+        }
+
         setGoal(normalizeGoal(goalData));
         setManualAccounts((manualAccounts as any[]) ?? []);
         setAccounts(
@@ -115,7 +120,7 @@ export function GoalDetailScreen() {
         setIsLoading(false);
       }
     },
-    [id, userId],
+    [id, router, userId],
   );
 
   const isFirstMount = useRef(true);

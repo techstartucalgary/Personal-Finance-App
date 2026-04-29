@@ -308,7 +308,7 @@ export function GoalEditorScreen({ mode }: GoalEditorScreenProps) {
           try {
             setAllowRemoval(true);
             await deleteGoal({ id, profile_id: userId });
-            router.back();
+            router.dismissTo("/(tabs)/targets" as any);
           } catch (error) {
             setAllowRemoval(false);
             console.error("Error deleting goal:", error);

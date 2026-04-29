@@ -66,7 +66,7 @@ export async function getGoal(params: { id: string; profile_id: string }) {
     .select("*")
     .eq("id", id)
     .eq("profile_id", profile_id)
-    .single();
+    .maybeSingle();
 
   if (error) throw error;
   return data;
@@ -92,6 +92,9 @@ export async function updateGoalCurrentAmountByDelta(params: {
 }) {
   const { id, profile_id, delta } = params;
   const goal = await getGoal({ id: String(id), profile_id });
+  if (!goal) {
+    throw new Error("Goal not found");
+  }
   const currentAmount = Number(goal.current_amount ?? 0);
   const nextAmount = Math.max(0, currentAmount + delta);
 

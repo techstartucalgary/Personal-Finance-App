@@ -99,7 +99,7 @@ export default function TransactionAddScreen() {
 
   useEffect(() => {
     navigation.setOptions({
-      title: goalId ? "Add Goal Transaction" : "Add Transaction",
+      title: goalId ? "Add Allocation" : "Add Transaction",
       headerBackVisible: false,
       headerTitleAlign: "center",
       headerTransparent: Platform.OS === "ios",

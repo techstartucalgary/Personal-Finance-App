@@ -18,7 +18,7 @@ import {
   extractGoalTransactionGoalId,
   getGoalDeltaFromTransactionAmount,
 } from "@/utils/goal-transactions";
-import { updateGoalCurrentAmountByDelta } from "@/utils/goals";
+import { listGoals, updateGoalCurrentAmountByDelta } from "@/utils/goals";
 import type { PlaidAccount, PlaidTransaction } from "@/utils/plaid";
 import { getPlaidAccounts, getPlaidTransactions } from "@/utils/plaid";
 import { deleteRecurringRule, getRecurringRules } from "@/utils/recurring";
@@ -59,6 +59,7 @@ export default function HomeScreen() {
   const [accounts, setAccounts] = useState<AccountRow[]>([]);
   const [categories, setCategories] = useState<CategoryRow[]>([]);
   const [expenses, setExpenses] = useState<ExpenseRow[]>([]);
+  const [goals, setGoals] = useState<{ id: string | number; name?: string | null }[]>([]);
   const [plaidTransactions, setPlaidTransactions] = useState<
     PlaidTransaction[]
   >([]);
@@ -152,6 +153,20 @@ export default function HomeScreen() {
     }
   }, [userId]);
 
+  const loadGoals = useCallback(async () => {
+    if (!userId) {
+      setGoals([]);
+      return;
+    }
+
+    try {
+      const data = await listGoals({ profile_id: userId });
+      setGoals((data as { id: string | number; name?: string | null }[]) ?? []);
+    } catch (error) {
+      console.error("Error loading goals:", error);
+    }
+  }, [userId]);
+
   const loadRecurringRules = useCallback(async () => {
     if (!userId) {
       setRecurringRules([]);
@@ -171,14 +186,16 @@ export default function HomeScreen() {
 
   useEffect(() => {
     loadExpenses();
+    loadGoals();
     loadRecurringRules();
-  }, [loadExpenses, loadRecurringRules]);
+  }, [loadExpenses, loadGoals, loadRecurringRules]);
 
   useFocusEffect(
     useCallback(() => {
       loadAccounts(true);
       loadCategories();
       loadExpenses();
+      loadGoals();
       loadRecurringRules();
       // Also load Plaid transactions and accounts.
       if (userId) {
@@ -197,6 +214,7 @@ export default function HomeScreen() {
       loadAccounts,
       loadCategories,
       loadExpenses,
+      loadGoals,
       loadRecurringRules,
       userId,
     ]),
@@ -220,15 +238,17 @@ export default function HomeScreen() {
     loadAccounts();
     loadCategories();
     loadExpenses();
+    loadGoals();
     loadRecurringRules();
-  }, [loadAccounts, loadCategories, loadExpenses, loadRecurringRules]);
+  }, [loadAccounts, loadCategories, loadExpenses, loadGoals, loadRecurringRules]);
 
   const handleModalRefresh = useCallback(async () => {
     await loadExpenses();
+    await loadGoals();
     await loadAccounts();
     await loadCategories();
     await loadRecurringRules();
-  }, [loadAccounts, loadCategories, loadExpenses, loadRecurringRules]);
+  }, [loadAccounts, loadCategories, loadExpenses, loadGoals, loadRecurringRules]);
 
   const applyTransactionToBalance = useCallback(
     (account: AccountRow, transactionAmount: number) => {
@@ -262,7 +282,7 @@ export default function HomeScreen() {
             });
           }
 
-          if (originalAccountId != null) {
+          if (!linkedGoalId && originalAccountId != null) {
             const originalAccount = await getAccountById({
               id: originalAccountId,
               profile_id: userId,
@@ -400,6 +420,7 @@ export default function HomeScreen() {
         {activeTab === "transactions" ? (
           <TransactionsList
             accounts={accounts}
+            goals={goals}
             expenses={expenses}
             plaidTransactions={plaidTransactions}
             recurringRules={recurringRules}

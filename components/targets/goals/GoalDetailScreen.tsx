@@ -200,7 +200,6 @@ export function GoalDetailScreen() {
         pathname: "/transaction-add",
         params: {
           currentAccountId: String(goal.linked_account),
-          initialDescription: goal.name,
           goalId: goal.id,
         },
       } as any);
@@ -307,14 +306,14 @@ export function GoalDetailScreen() {
                 { color: canCreateManualTransaction ? ui.surface : ui.text },
               ]}
             >
-              Add Transaction
+              Add Allocation
             </ThemedText>
           </Pressable>
         </View>
 
         <View style={detailStyles.sectionHeader}>
           <ThemedText style={[detailStyles.sectionTitle, { color: ui.text }]}>
-            Transactions
+            Allocations
           </ThemedText>
         </View>
 
@@ -338,6 +337,7 @@ export function GoalDetailScreen() {
           <TransactionsList
             ui={ui}
             accounts={manualAccounts}
+            goals={[goal]}
             plaidAccounts={plaidAccounts}
             expenses={goalTransactions}
             plaidTransactions={[]}
@@ -352,7 +352,7 @@ export function GoalDetailScreen() {
             showMeta={false}
             showBadges={false}
             subtleAmountColors={true}
-            emptyLabel="No goal transactions found."
+            emptyLabel="No goal allocations found."
             onSelectTransaction={(transaction) => {
               const encoded = encodeURIComponent(JSON.stringify(transaction));
               if ("transaction_id" in transaction) {

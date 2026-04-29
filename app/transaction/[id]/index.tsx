@@ -3,11 +3,14 @@ import { AddTransactionModal, AddTransactionModalRef } from "@/components/AddTra
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useAuthContext } from "@/hooks/use-auth-context";
 import { useThemeUI } from "@/hooks/use-theme-ui";
-import { listAccounts } from "@/utils/accounts";
+import { getAccountById, listAccounts, updateAccount } from "@/utils/accounts";
 import { listCategories } from "@/utils/categories";
-import { listExpenses } from "@/utils/expenses";
-import { extractGoalTransactionGoalId } from "@/utils/goal-transactions";
-import { getRecurringRules } from "@/utils/recurring";
+import { deleteExpense, listExpenses } from "@/utils/expenses";
+import {
+  deleteGoalTransaction,
+  extractGoalTransactionGoalId,
+} from "@/utils/goal-transactions";
+import { deleteRecurringRule, getRecurringRules } from "@/utils/recurring";
 import { usePreventRemove } from "@react-navigation/native";
 import { useLocalSearchParams, useNavigation, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
@@ -110,6 +113,115 @@ export default function TransactionEditScreen() {
     }
   }, [isValid]);
 
+  const applyTransactionToBalance = useCallback(
+    (account: AccountRow, transactionAmount: number) => {
+      const currentBalance = account.balance ?? 0;
+      const isCredit = account.account_type === "credit";
+      return isCredit
+        ? currentBalance + transactionAmount
+        : currentBalance - transactionAmount;
+    },
+    [],
+  );
+
+  const handleDelete = useCallback(() => {
+    if (!userId || !initialTransaction) return;
+
+    const linkedGoalId = extractGoalTransactionGoalId(initialTransaction.description);
+    const title = linkedGoalId ? "Delete allocation?" : "Delete transaction?";
+    const message = linkedGoalId
+      ? "This will remove the allocation from the goal. It will not change the account balance."
+      : "This action cannot be undone.";
+
+    const executeDelete = async () => {
+      if (!userId || !initialTransaction) return;
+      setIsLoading(true);
+      try {
+        const originalAmount = initialTransaction.amount ?? 0;
+        const originalAccountId = initialTransaction.account_id;
+
+        if (linkedGoalId) {
+          await deleteGoalTransaction({
+            id: initialTransaction.id,
+            profile_id: userId,
+            amount: originalAmount,
+            description: initialTransaction.description,
+          });
+        } else {
+          await deleteExpense({ id: initialTransaction.id, profile_id: userId });
+        }
+
+        if (!linkedGoalId && originalAccountId != null) {
+          const originalAccount = await getAccountById({
+            id: originalAccountId,
+            profile_id: userId,
+          });
+          if (originalAccount) {
+            const revertedBalance = applyTransactionToBalance(
+              originalAccount as AccountRow,
+              -originalAmount,
+            );
+            await updateAccount({
+              id: String(originalAccount.id),
+              profile_id: userId,
+              update: { balance: revertedBalance },
+            });
+          }
+        }
+
+        setAllowRemoval(true);
+        router.back();
+      } catch (error) {
+        console.error("Error deleting transaction:", error);
+        Alert.alert("Error", linkedGoalId ? "Could not delete allocation." : "Could not delete transaction.");
+        setIsLoading(false);
+      }
+    };
+
+    if (!linkedGoalId && initialTransaction.recurring_rule_id) {
+      Alert.alert(
+        "Recurring Transaction",
+        "This transaction is part of a recurring series. What would you like to do?",
+        [
+          { text: "Cancel", style: "cancel" },
+          {
+            text: "Delete and Cancel Future Recurring",
+            style: "destructive",
+            onPress: async () => {
+              setIsLoading(true);
+              try {
+                await deleteRecurringRule({
+                  id: initialTransaction.recurring_rule_id!,
+                  profile_id: userId,
+                });
+                await executeDelete();
+              } catch (error) {
+                console.error("Error updating rule:", error);
+                Alert.alert("Error", "Could not cancel future recurring transactions.");
+                setIsLoading(false);
+              }
+            },
+          },
+          {
+            text: "Delete This Transaction Only",
+            style: "default",
+            onPress: executeDelete,
+          },
+        ],
+      );
+      return;
+    }
+
+    Alert.alert(title, message, [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: executeDelete,
+      },
+    ]);
+  }, [applyTransactionToBalance, initialTransaction, router, userId]);
+
   usePreventRemove(isDirty && !allowRemoval, ({ data }) => {
     Alert.alert(
       "Discard changes?",
@@ -132,7 +244,7 @@ export default function TransactionEditScreen() {
 
   useEffect(() => {
     navigation.setOptions({
-      title: isGoalTransaction ? "Edit Goal Transaction" : "Edit Transaction",
+      title: isGoalTransaction ? "Edit Allocation" : "Edit Transaction",
       headerBackButtonDisplayMode: "minimal",
       headerTitleAlign: "center",
       headerTransparent: Platform.OS === "ios",
@@ -189,6 +301,7 @@ export default function TransactionEditScreen() {
       initialTransaction={initialTransaction}
       goalId={goalId ?? null}
       recurringRules={recurringRules}
+      onDeleteRequest={handleDelete}
       onStateChange={(state) => {
         setIsDirty(state.isDirty);
         setIsValid(state.isValid);

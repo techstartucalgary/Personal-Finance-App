@@ -35,6 +35,13 @@ import {
 import { parseLocalDate, toLocalISOString } from "@/utils/date";
 import { addExpense, updateExpense } from "@/utils/expenses";
 import {
+  buildGoalTransactionDescription,
+  extractGoalTransactionGoalId,
+  getGoalDeltaFromTransactionAmount,
+  stripGoalTransactionMarker,
+} from "@/utils/goal-transactions";
+import { updateGoalCurrentAmountByDelta } from "@/utils/goals";
+import {
   createRecurringRule,
   deleteRecurringRule,
   updateRecurringRule,
@@ -800,13 +807,19 @@ interface AddTransactionModalProps {
   onDeleteRequest?: () => void;
   isSheet?: boolean;
   hideHeader?: boolean;
+  initialAccountId?: number | null;
+  initialDescription?: string | null;
+  goalId?: string | null;
   onOpenAccountPicker?: (currentAccountId: number | null) => void;
   onStateChange?: (state: { isDirty: boolean; isValid: boolean }) => void;
 }
 
 const EMPTY_RECURRING_RULES: any[] = [];
 
-export const AddTransactionModal = forwardRef<AddTransactionModalRef, AddTransactionModalProps>((props, ref) => {
+export const AddTransactionModal = forwardRef<AddTransactionModalRef, AddTransactionModalProps>(function AddTransactionModal(
+  props,
+  ref,
+) {
   const {
     visible,
     onClose,
@@ -823,6 +836,9 @@ export const AddTransactionModal = forwardRef<AddTransactionModalRef, AddTransac
     onDeleteRequest,
     isSheet = false,
     hideHeader = false,
+    initialAccountId = null,
+    initialDescription = null,
+    goalId = null,
     onOpenAccountPicker,
     onStateChange,
   } = props;
@@ -832,6 +848,9 @@ export const AddTransactionModal = forwardRef<AddTransactionModalRef, AddTransac
   const keyboardShift = React.useRef(new Animated.Value(0)).current;
   const isViewMode = mode === "view";
   const isEditMode = mode === "edit";
+  const linkedGoalId =
+    goalId ?? extractGoalTransactionGoalId(initialTransaction?.description);
+  const isGoalAllocationMode = Boolean(linkedGoalId);
 
   const [isLoading, setIsLoading] = useState(false);
   const [amount, setAmount] = useState("");
@@ -1080,7 +1099,11 @@ export const AddTransactionModal = forwardRef<AddTransactionModalRef, AddTransac
         : null;
 
       setAmount(formattedAmount);
-      setDescription(initialTransaction.description ?? "");
+      setDescription(
+        isGoalAllocationMode
+          ? stripGoalTransactionMarker(initialTransaction.description)
+          : initialTransaction.description ?? "",
+      );
       setNotes("");
       setNotesModalOpen(false);
       setTransactionDate(
@@ -1107,12 +1130,16 @@ export const AddTransactionModal = forwardRef<AddTransactionModalRef, AddTransac
     }
 
     setAmount("");
-    setDescription("");
+    setDescription(isGoalAllocationMode ? "" : initialDescription ?? "");
     setNotes("");
     setNotesModalOpen(false);
     setTransactionDate(toLocalISOString(new Date()));
     setTransactionType("expense");
-    setSelectedAccount(null);
+    setSelectedAccount(
+      initialAccountId != null
+        ? accounts.find((account) => account.id === initialAccountId) ?? null
+        : null,
+    );
     setSelectedCategory(null);
     setSelectedSubcategory(null);
     setSubcategories([]);
@@ -1133,6 +1160,9 @@ export const AddTransactionModal = forwardRef<AddTransactionModalRef, AddTransac
     isViewMode,
     isEditMode,
     initialTransaction,
+    initialDescription,
+    initialAccountId,
+    isGoalAllocationMode,
     accounts,
     categories,
     recurringRules,
@@ -1230,6 +1260,14 @@ export const AddTransactionModal = forwardRef<AddTransactionModalRef, AddTransac
   const isValid = useMemo(() => {
     if (isViewMode) return false;
     const parsed = parseFloat(amount);
+    if (isGoalAllocationMode) {
+      return (
+        !!userId &&
+        !!selectedAccount &&
+        Number.isFinite(parsed) &&
+        parsed > 0
+      );
+    }
     return (
       !!userId &&
       !!selectedAccount &&
@@ -1247,6 +1285,7 @@ export const AddTransactionModal = forwardRef<AddTransactionModalRef, AddTransac
     description,
     transactionType,
     isViewMode,
+    isGoalAllocationMode,
   ]);
 
   const isDirty = useMemo(() => {
@@ -1259,11 +1298,18 @@ export const AddTransactionModal = forwardRef<AddTransactionModalRef, AddTransac
 
       const hasBasicChanges =
         currentAmount !== initialAmount ||
-        description.trim() !== (initialTransaction.description ?? "").trim() ||
+        description.trim() !==
+          (isGoalAllocationMode
+            ? stripGoalTransactionMarker(initialTransaction.description)
+            : initialTransaction.description ?? ""
+          ).trim() ||
         currentType !== initialType ||
         selectedAccount?.id !== initialTransaction.account_id ||
-        selectedCategory?.id !== initialTransaction.expense_categoryid ||
-        (selectedSubcategory?.id ?? null) !== (initialTransaction.subcategory_id ?? null) ||
+        (!isGoalAllocationMode &&
+          selectedCategory?.id !== initialTransaction.expense_categoryid) ||
+        (!isGoalAllocationMode &&
+          (selectedSubcategory?.id ?? null) !==
+          (initialTransaction.subcategory_id ?? null)) ||
         transactionDate !== (initialTransaction.transaction_date || "");
 
       return hasBasicChanges;
@@ -1274,7 +1320,7 @@ export const AddTransactionModal = forwardRef<AddTransactionModalRef, AddTransac
       amount.trim() !== "" ||
       description.trim() !== "" ||
       (selectedAccount !== null && accounts.length > 1) || // ignore auto-selected if only 1
-      selectedCategory !== null
+      (!isGoalAllocationMode && selectedCategory !== null)
     );
   }, [
     isViewMode,
@@ -1287,7 +1333,8 @@ export const AddTransactionModal = forwardRef<AddTransactionModalRef, AddTransac
     selectedCategory,
     selectedSubcategory,
     transactionDate,
-    accounts.length
+    accounts.length,
+    isGoalAllocationMode,
   ]);
 
   useEffect(() => {
@@ -1315,17 +1362,17 @@ export const AddTransactionModal = forwardRef<AddTransactionModalRef, AddTransac
       Alert.alert("Invalid amount", "Enter a valid amount greater than 0.");
       return;
     }
-    if (!description.trim()) {
+    if (!isGoalAllocationMode && !description.trim()) {
       Alert.alert("Missing description", "Enter a description.");
       return;
     }
-    if (!selectedCategory) return;
+    if (!isGoalAllocationMode && !selectedCategory) return;
 
     setIsLoading(true);
 
     try {
       let recurring_rule_id: number | null = null;
-      if (isRecurring) {
+      if (!isGoalAllocationMode && isRecurring && selectedCategory) {
         let finalNextRunDate = addRuleNextRunDate.trim();
         if (!finalNextRunDate) {
           const fallbackDate = new Date();
@@ -1341,7 +1388,7 @@ export const AddTransactionModal = forwardRef<AddTransactionModalRef, AddTransac
         }
 
         const ruleName =
-          description.trim() || `${selectedCategory.category_name} expense`;
+          description.trim() || `${selectedCategory!.category_name} expense`;
         const rule = await createRecurringRule({
           profile_id: userId,
           name: ruleName,
@@ -1354,44 +1401,63 @@ export const AddTransactionModal = forwardRef<AddTransactionModalRef, AddTransac
           next_run_date: finalNextRunDate,
           is_active: true,
           account_id: selectedAccount.id,
-          expense_categoryid: selectedCategory.id,
+          expense_categoryid: selectedCategory!.id,
           subcategory_id: selectedSubcategory ? selectedSubcategory.id : null,
         });
         recurring_rule_id = rule.id;
       }
 
       // TODO(backend): Replace signed-amount convention with explicit type field if desired.
-      const signedAmount = parsed * (transactionType === "income" ? -1 : 1);
+      const signedAmount = isGoalAllocationMode
+        ? parsed
+        : parsed * (transactionType === "income" ? -1 : 1);
+      const finalDescription = isGoalAllocationMode && linkedGoalId
+        ? buildGoalTransactionDescription(linkedGoalId, description.trim() || null)
+        : description.trim().length
+          ? description.trim()
+          : null;
 
       // TODO(backend): This currently writes to the expenses table for both Expense and Income.
       await addExpense({
         profile_id: userId,
         account_id: selectedAccount.id,
         amount: signedAmount,
-        description: description.trim().length ? description.trim() : null,
-        expense_categoryid: selectedCategory.id,
-        subcategory_id: selectedSubcategory ? selectedSubcategory.id : null,
+        description: finalDescription,
+        expense_categoryid: isGoalAllocationMode ? null : selectedCategory!.id,
+        subcategory_id: isGoalAllocationMode
+          ? null
+          : selectedSubcategory
+            ? selectedSubcategory.id
+            : null,
         transaction_date: transactionDate || toLocalISOString(new Date()),
-        recurring_rule_id,
+        recurring_rule_id: isGoalAllocationMode ? null : recurring_rule_id,
       });
 
-      const latestAccount = await getAccountById({
-        id: selectedAccount.id,
-        profile_id: userId,
-      });
-      const balanceSource = latestAccount ? latestAccount : selectedAccount;
-      const currentBalance = balanceSource.balance ? balanceSource.balance : 0;
-      const isCredit = balanceSource.account_type === "credit";
-      // TODO(backend): If backend adds transfer routing, update both source and destination balances here.
-      const nextBalance = isCredit
-        ? currentBalance + signedAmount
-        : currentBalance - signedAmount;
+      if (isGoalAllocationMode && linkedGoalId) {
+        await updateGoalCurrentAmountByDelta({
+          id: linkedGoalId,
+          profile_id: userId,
+          delta: getGoalDeltaFromTransactionAmount(signedAmount),
+        });
+      } else {
+        const latestAccount = await getAccountById({
+          id: selectedAccount.id,
+          profile_id: userId,
+        });
+        const balanceSource = latestAccount ? latestAccount : selectedAccount;
+        const currentBalance = balanceSource.balance ? balanceSource.balance : 0;
+        const isCredit = balanceSource.account_type === "credit";
+        // TODO(backend): If backend adds transfer routing, update both source and destination balances here.
+        const nextBalance = isCredit
+          ? currentBalance + signedAmount
+          : currentBalance - signedAmount;
 
-      await updateAccount({
-        id: String(selectedAccount.id),
-        profile_id: userId,
-        update: { balance: nextBalance },
-      });
+        await updateAccount({
+          id: String(selectedAccount.id),
+          profile_id: userId,
+          update: { balance: nextBalance },
+        });
+      }
 
       await onRefresh();
       onClose();
@@ -1438,14 +1504,14 @@ export const AddTransactionModal = forwardRef<AddTransactionModalRef, AddTransac
 
   const updateTransaction = async () => {
     if (!userId || !initialTransaction) return;
-    if (!selectedAccount || !selectedCategory) return;
+    if (!selectedAccount || (!isGoalAllocationMode && !selectedCategory)) return;
 
     const parsed = parseFloat(amount.trim());
     if (!Number.isFinite(parsed) || parsed <= 0) {
       Alert.alert("Invalid amount", "Enter a valid amount greater than 0.");
       return;
     }
-    if (!description.trim()) {
+    if (!isGoalAllocationMode && !description.trim()) {
       Alert.alert("Missing description", "Enter a description.");
       return;
     }
@@ -1455,7 +1521,9 @@ export const AddTransactionModal = forwardRef<AddTransactionModalRef, AddTransac
     try {
       let finalRecurringRuleId = initialTransaction.recurring_rule_id ?? null;
 
-      if (initialTransaction.recurring_rule_id && !isRecurring) {
+      if (isGoalAllocationMode) {
+        finalRecurringRuleId = null;
+      } else if (initialTransaction.recurring_rule_id && !isRecurring) {
         const confirmed = await new Promise<boolean>((resolve) => {
           Alert.alert(
             "Remove recurrence?",
@@ -1506,7 +1574,7 @@ export const AddTransactionModal = forwardRef<AddTransactionModalRef, AddTransac
         }
 
         const ruleName =
-          description.trim() || `${selectedCategory.category_name} expense`;
+          description.trim() || `${selectedCategory!.category_name} expense`;
         const rule = await createRecurringRule({
           profile_id: userId,
           name: ruleName,
@@ -1519,24 +1587,35 @@ export const AddTransactionModal = forwardRef<AddTransactionModalRef, AddTransac
           next_run_date: finalNextRunDate,
           is_active: true,
           account_id: selectedAccount.id,
-          expense_categoryid: selectedCategory.id,
+          expense_categoryid: selectedCategory!.id,
           subcategory_id: selectedSubcategory ? selectedSubcategory.id : null,
         });
         finalRecurringRuleId = rule.id;
       }
 
-      const signedAmount = parsed * (transactionType === "income" ? -1 : 1);
+      const signedAmount = isGoalAllocationMode
+        ? parsed
+        : parsed * (transactionType === "income" ? -1 : 1);
+      const finalDescription = isGoalAllocationMode && linkedGoalId
+        ? buildGoalTransactionDescription(linkedGoalId, description.trim() || null)
+        : description.trim().length
+          ? description.trim()
+          : null;
 
       await updateExpense({
         id: initialTransaction.id,
         profile_id: userId,
         update: {
           account_id: selectedAccount.id,
-          expense_categoryid: selectedCategory.id,
-          subcategory_id: selectedSubcategory ? selectedSubcategory.id : null,
+          expense_categoryid: isGoalAllocationMode ? null : selectedCategory!.id,
+          subcategory_id: isGoalAllocationMode
+            ? null
+            : selectedSubcategory
+              ? selectedSubcategory.id
+              : null,
           amount: signedAmount,
           recurring_rule_id: finalRecurringRuleId,
-          description: description.trim().length ? description.trim() : null,
+          description: finalDescription,
           transaction_date: transactionDate || undefined,
         },
       });
@@ -1545,7 +1624,15 @@ export const AddTransactionModal = forwardRef<AddTransactionModalRef, AddTransac
       const originalAccountId = initialTransaction.account_id;
       const updatedAccountId = selectedAccount.id;
 
-      if (originalAccountId != null && originalAccountId === updatedAccountId) {
+      if (isGoalAllocationMode && linkedGoalId) {
+        await updateGoalCurrentAmountByDelta({
+          id: linkedGoalId,
+          profile_id: userId,
+          delta:
+            getGoalDeltaFromTransactionAmount(signedAmount) -
+            getGoalDeltaFromTransactionAmount(originalAmount),
+        });
+      } else if (originalAccountId != null && originalAccountId === updatedAccountId) {
         const originalAccount = await getAccountById({
           id: originalAccountId,
           profile_id: userId,
@@ -1793,7 +1880,17 @@ export const AddTransactionModal = forwardRef<AddTransactionModalRef, AddTransac
               type="defaultSemiBold"
               style={[styles.modalHeaderTitle, { color: ui.text }]}
             >
-              {isViewMode ? "Transaction Details" : isEditMode ? "Edit Transaction" : "Add Transaction"}
+              {isGoalAllocationMode
+                ? isViewMode
+                  ? "Allocation Details"
+                  : isEditMode
+                    ? "Edit Allocation"
+                    : "Add Allocation"
+                : isViewMode
+                  ? "Transaction Details"
+                  : isEditMode
+                    ? "Edit Transaction"
+                    : "Add Transaction"}
             </ThemedText>
             <View style={styles.headerRight}>
               <Pressable
@@ -1868,56 +1965,66 @@ export const AddTransactionModal = forwardRef<AddTransactionModalRef, AddTransac
                   />
                 </Pressable>
 
-                <View
-                  style={[
-                    styles.typeToggle,
-                    { backgroundColor: ui.surface2, borderColor: ui.border },
-                  ]}
-                  onLayout={(event) => {
-                    const width = event.nativeEvent.layout.width;
-                    setToggleWidth(width);
-                  }}
-                >
-                  {toggleWidth > 0 && (
-                    <Animated.View
-                      style={[
-                        styles.typeToggleActive,
-                        {
-                          width: (toggleWidth - togglePadding * 2) / 3,
-                          backgroundColor: ui.text,
-                          transform: [{ translateX: toggleTranslate }],
-                          left: togglePadding,
-                        },
-                      ]}
-                      pointerEvents="none"
-                    />
-                  )}
-                  {toggleOptions.map((type) => {
-                    const isActive = transactionType === type;
-                    const label =
-                      type.charAt(0).toUpperCase() + type.slice(1);
-                    return (
-                      <Pressable
-                        key={type}
-                        onPress={() => {
-                          if (!isViewMode) handleTypeChange(type);
-                        }}
-                        disabled={isViewMode}
-                        style={styles.typeToggleItem}
-                      >
-                        <ThemedText
-                          style={{
-                            color: isActive ? ui.surface : ui.text,
-                            fontWeight: isActive ? "700" : "600",
+                {!isGoalAllocationMode && (
+                  <View
+                    style={[
+                      styles.typeToggle,
+                      { backgroundColor: ui.surface2, borderColor: ui.border },
+                    ]}
+                    onLayout={(event) => {
+                      const width = event.nativeEvent.layout.width;
+                      setToggleWidth(width);
+                    }}
+                  >
+                    {toggleWidth > 0 && (
+                      <Animated.View
+                        style={[
+                          styles.typeToggleActive,
+                          {
+                            width: (toggleWidth - togglePadding * 2) / 3,
+                            backgroundColor: ui.text,
+                            transform: [{ translateX: toggleTranslate }],
+                            left: togglePadding,
+                          },
+                        ]}
+                        pointerEvents="none"
+                      />
+                    )}
+                    {toggleOptions.map((type) => {
+                      const isActive = transactionType === type;
+                      const label =
+                        type.charAt(0).toUpperCase() + type.slice(1);
+                      return (
+                        <Pressable
+                          key={type}
+                          onPress={() => {
+                            if (!isViewMode) handleTypeChange(type);
                           }}
+                          disabled={isViewMode}
+                          style={styles.typeToggleItem}
                         >
-                          {label}
-                        </ThemedText>
-                      </Pressable>
-                    );
-                  })}
-                </View>
-                {transactionType === "transfer" && (
+                          <ThemedText
+                            style={{
+                              color: isActive ? ui.surface : ui.text,
+                              fontWeight: isActive ? "700" : "600",
+                            }}
+                          >
+                            {label}
+                          </ThemedText>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                )}
+                {isGoalAllocationMode && (
+                  <ThemedText
+                    style={[styles.helperText, { color: ui.mutedText }]}
+                  >
+                    Allocations earmark money from this account for the goal.
+                    They do not move money or change the account balance.
+                  </ThemedText>
+                )}
+                {!isGoalAllocationMode && transactionType === "transfer" && (
                   <ThemedText
                     style={[styles.helperText, { color: ui.mutedText }]}
                   >
@@ -1936,18 +2043,18 @@ export const AddTransactionModal = forwardRef<AddTransactionModalRef, AddTransac
                 <View style={styles.inputRow}>
                   <View style={styles.rowLeft}>
                     <Feather
-                      name="shopping-bag"
+                      name={isGoalAllocationMode ? "edit-3" : "shopping-bag"}
                       size={18}
                       color={ui.mutedText}
                     />
                     <ThemedText style={[styles.rowLabel, { color: ui.text }]}>
-                      Merchant
+                      {isGoalAllocationMode ? "Note" : "Merchant"}
                     </ThemedText>
                   </View>
                   <TextInput
                     value={description}
                     onChangeText={setDescription}
-                    placeholder="Name"
+                    placeholder={isGoalAllocationMode ? "Optional" : "Name"}
                     placeholderTextColor={ui.mutedText}
                     editable={!isViewMode}
                     style={[styles.rowInputRight, { color: ui.text }]}
@@ -2022,16 +2129,17 @@ export const AddTransactionModal = forwardRef<AddTransactionModalRef, AddTransac
                 />
               </View>
 
-              <View
-                style={[
-                  styles.groupCard,
-                  {
-                    backgroundColor: ui.surface,
-                    borderColor: ui.border,
-                    marginTop: 12,
-                  },
-                ]}
-              >
+              {!isGoalAllocationMode && (
+                <View
+                  style={[
+                    styles.groupCard,
+                    {
+                      backgroundColor: ui.surface,
+                      borderColor: ui.border,
+                      marginTop: 12,
+                    },
+                  ]}
+                >
                 <Pressable
                   onPress={() => {
                     if (!isViewMode) setCategoryModalOpen(true);
@@ -2355,7 +2463,8 @@ export const AddTransactionModal = forwardRef<AddTransactionModalRef, AddTransac
                     )}
                   </>
                 )}
-              </View>
+                </View>
+              )}
               <View style={styles.footerStack}>
                 {isViewMode ? (
                   <View style={styles.viewActionRow}>
@@ -2400,6 +2509,34 @@ export const AddTransactionModal = forwardRef<AddTransactionModalRef, AddTransac
                       </ThemedText>
                     </Pressable>
                   </View>
+                ) : isEditMode ? (
+                  <Pressable
+                    onPress={onDeleteRequest}
+                    disabled={!onDeleteRequest || isLoading}
+                    style={({ pressed }) => [
+                      styles.button,
+                      styles.editDeleteButton,
+                      {
+                        borderColor: ui.border,
+                        opacity: pressed ? 0.8 : 1,
+                      },
+                      (!onDeleteRequest || isLoading) && styles.buttonDisabled,
+                    ]}
+                  >
+                    {isLoading ? (
+                      <ActivityIndicator color={ui.danger ?? "#D32F2F"} />
+                    ) : (
+                      <ThemedText
+                        type="defaultSemiBold"
+                        style={[
+                          styles.editDeleteButtonText,
+                          { color: ui.danger ?? "#D32F2F" },
+                        ]}
+                      >
+                        {isGoalAllocationMode ? "Delete Allocation" : "Delete Transaction"}
+                      </ThemedText>
+                    )}
+                  </Pressable>
                 ) : (
                   <Pressable
                     onPress={handleSubmit}
@@ -2423,7 +2560,7 @@ export const AddTransactionModal = forwardRef<AddTransactionModalRef, AddTransac
                         type="defaultSemiBold"
                         style={{ color: isDark ? "#1C1C1E" : "#FFFFFF" }}
                       >
-                        {isEditMode ? "Save Changes" : "Submit"}
+                        Submit
                       </ThemedText>
                     )}
                   </Pressable>
@@ -2871,6 +3008,12 @@ const styles = StyleSheet.create({
   },
   buttonDisabled: {
     opacity: 0.5,
+  },
+  editDeleteButton: {
+    backgroundColor: "transparent",
+  },
+  editDeleteButtonText: {
+    fontSize: 16,
   },
   viewActionRow: {
     flexDirection: "row",

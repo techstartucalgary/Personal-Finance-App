@@ -19,7 +19,7 @@ import type { PlaidAccount, PlaidTransaction } from "@/utils/plaid";
 import { AccountsEmptyState } from "./AccountsEmptyState";
 import { AccountsSectionHeader } from "./AccountsSectionHeader";
 import { styles } from "./styles";
-import type { AccountRow, ExpenseRow } from "./types";
+import type { AccountRow, ExpenseRow, GoalRow } from "./types";
 
 type Ui = typeof tabsTheme.ui;
 
@@ -39,6 +39,8 @@ type AccountsSingleViewProps = {
   singleAccountId: string | null;
   txSearchQuery: string;
   filteredExpenses: ExpenseRow[];
+  goals: GoalRow[];
+  recurringRules: any[];
   filteredPlaidTransactions: PlaidTransaction[];
   accountsForTx: {
     id: number;
@@ -66,6 +68,8 @@ export function AccountsSingleView({
   singleAccountId,
   txSearchQuery,
   filteredExpenses,
+  goals,
+  recurringRules,
   filteredPlaidTransactions,
   accountsForTx,
   plaidAccounts,
@@ -174,8 +178,9 @@ export function AccountsSingleView({
         <TransactionsList
           ui={ui}
           expenses={filteredExpenses}
+          goals={goals}
           plaidTransactions={filteredPlaidTransactions}
-          recurringRules={[]}
+          recurringRules={recurringRules}
           accounts={accountsForTx}
           plaidAccounts={plaidAccounts}
           filterAccountId={null}

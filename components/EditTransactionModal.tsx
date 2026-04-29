@@ -291,8 +291,9 @@ export function EditTransactionModal({
       const originalAmount = expense.amount ?? 0;
       const originalAccountId = expense.account_id;
       const updatedAccountId = editSelectedAccount.id;
+      const linkedGoalId = extractGoalTransactionGoalId(expense.description);
 
-      if (originalAccountId != null && originalAccountId === updatedAccountId) {
+      if (!linkedGoalId && originalAccountId != null && originalAccountId === updatedAccountId) {
         const originalAccount = await getAccountById({
           id: originalAccountId,
           profile_id: userId,
@@ -414,7 +415,7 @@ export function EditTransactionModal({
           });
         }
 
-        if (originalAccountId != null) {
+        if (!linkedGoalId && originalAccountId != null) {
           const originalAccount = await getAccountById({
             id: originalAccountId,
             profile_id: userId,
@@ -768,7 +769,7 @@ export function EditTransactionModal({
               styles.deleteButton,
               {
                 borderColor: ui.border,
-                backgroundColor: ui.surface2,
+                backgroundColor: ui.surface3,
                 marginTop: 12,
                 opacity: pressed ? 0.7 : 1,
               },

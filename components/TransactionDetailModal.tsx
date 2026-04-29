@@ -1,4 +1,9 @@
 import { parseLocalDate } from "@/utils/date";
+import {
+    extractGoalTransactionGoalId,
+    getGoalAllocationTitle,
+    stripGoalTransactionMarker,
+} from "@/utils/goal-transactions";
 import type { PlaidTransaction } from "@/utils/plaid";
 import Feather from "@expo/vector-icons/Feather";
 import React from "react";
@@ -11,7 +16,6 @@ import {
     View,
     useColorScheme,
 } from "react-native";
-import { useTheme } from "react-native-paper";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ThemedText } from "./themed-text";
 import { ThemedView } from "./themed-view";
@@ -36,11 +40,17 @@ export type AccountRow = {
     currency: string | null;
 };
 
+export type GoalLabelRow = {
+    id: string | number;
+    name?: string | null;
+};
+
 interface TransactionDetailModalProps {
     visible: boolean;
     onClose: () => void;
     transaction: ExpenseRow | PlaidTransaction | null;
     accounts?: AccountRow[];
+    goals?: GoalLabelRow[];
     onEdit?: (expense: ExpenseRow) => void;
     recurringRules?: any[];
     children?: React.ReactNode;
@@ -53,6 +63,7 @@ export function TransactionDetailModal({
     onClose,
     transaction,
     accounts = [],
+    goals = [],
     onEdit,
     recurringRules = [],
     children,
@@ -61,9 +72,7 @@ export function TransactionDetailModal({
 }: TransactionDetailModalProps) {
     const insets = useSafeAreaInsets();
     const colorScheme = useColorScheme();
-    const theme = useTheme();
     const isDark = colorScheme === "dark";
-    const isAndroid = Platform.OS === 'android';
 
     if (!transaction) return null;
 
@@ -71,9 +80,18 @@ export function TransactionDetailModal({
 
     // Normalize data
     const amount = isPlaid ? (transaction as PlaidTransaction).amount : (transaction as ExpenseRow).amount;
+    const goalId = !isPlaid
+        ? extractGoalTransactionGoalId((transaction as ExpenseRow).description)
+        : null;
+    const isGoalAllocation = Boolean(goalId);
     const name = isPlaid
         ? ((transaction as PlaidTransaction).merchant_name || (transaction as PlaidTransaction).name)
-        : ((transaction as ExpenseRow).description || "Manual Transaction");
+        : isGoalAllocation
+            ? getGoalAllocationTitle((transaction as ExpenseRow).description, goals)
+            : (stripGoalTransactionMarker((transaction as ExpenseRow).description) || "Manual Transaction");
+    const allocationNote = isGoalAllocation
+        ? stripGoalTransactionMarker((transaction as ExpenseRow).description)
+        : "";
 
     const dateStr = isPlaid ? (transaction as PlaidTransaction).date : ((transaction as ExpenseRow).transaction_date || (transaction as ExpenseRow).created_at);
     const institution = isPlaid ? (transaction as PlaidTransaction).institution_name : null;
@@ -93,7 +111,7 @@ export function TransactionDetailModal({
     const ui = {
         bg: isDark ? "#000000" : "#F2F2F7",
         surface: isDark ? "#1C1C1E" : "#FFFFFF",
-        surface2: isDark ? "#2C2C2E" : "#F2F2F7",
+        surface2: isDark ? "#2C2C2E" : "#FFFFFF",
         border: isDark ? "rgba(84,84,88,0.65)" : "rgba(60,60,67,0.29)",
         text: isDark ? "#FFFFFF" : "#000000",
         mutedText: isDark ? "rgba(235,235,245,0.6)" : "rgba(60,60,67,0.6)",
@@ -124,7 +142,7 @@ export function TransactionDetailModal({
             styles.container,
             {
                 backgroundColor: ui.bg,
-                paddingTop: hideHeader ? insets.top + (Platform.OS === 'ios' ? 70 : 80) : (Platform.OS === 'ios' ? (isSheet ? 0 : 12) : (isSheet ? 0 : insets.top + 16)),
+                paddingTop: hideHeader ? 0 : (Platform.OS === 'ios' ? (isSheet ? 0 : 12) : (isSheet ? 0 : insets.top + 16)),
                 paddingBottom: insets.bottom + 16,
             }
         ]}>
@@ -147,71 +165,81 @@ export function TransactionDetailModal({
                 </View>
             )}
 
-                <ScrollView 
-                    contentContainerStyle={styles.scrollContent}
-                    contentInsetAdjustmentBehavior={hideHeader ? "never" : "automatic"}
-                >
-                    <View style={styles.heroSection}>
-                        <ThemedText style={[styles.amount, { color: ui.text }]}>
-                            {formatMoney(amount)}
-                        </ThemedText>
-                        <ThemedText style={[styles.merchantName, { color: ui.text }]}>
-                            {name}
-                        </ThemedText>
-                        {isPending && (
-                            <View style={styles.pendingBadge}>
-                                <ThemedText style={styles.pendingText}>PENDING</ThemedText>
-                            </View>
-                        )}
-                    </View>
-
-                    <View style={[styles.infoCard, { backgroundColor: ui.surface2, borderColor: ui.border }]}>
-                        {[
-                            { label: "Date", value: formatDate(dateStr) },
-                            { label: "Account", value: accountInfo },
-                            institution && { label: "Institution", value: institution },
-                            isPlaid && (transaction as PlaidTransaction).category && {
-                                label: "Categories",
-                                value: (transaction as PlaidTransaction).category?.join(", ") || "None",
-                            },
-                        ]
-                            .filter(Boolean)
-                            .concat(
-                                !isPlaid && (transaction as ExpenseRow).recurring_rule_id
-                                    ? (() => {
-                                        const rule = recurringRules.find(r => r.id === (transaction as ExpenseRow).recurring_rule_id);
-                                        return rule ? [
-                                            { label: "Frequency", value: rule.frequency || "Monthly" },
-                                            { label: "Next Run", value: formatDate(rule.next_run_date) }
-                                        ] : [];
-                                    })()
-                                    : []
-                            )
-                            .concat([{ label: "Source", value: isPlaid ? "Plaid Synchronization" : "Manual Transaction" }])
-                            .map((row: any, index, array) => (
-                                <DetailRow
-                                    key={row.label}
-                                    label={row.label}
-                                    value={row.value}
-                                    ui={ui}
-                                    isLast={index === array.length - 1}
-                                />
-                            ))}
-                    </View>
-
-                    {!isPlaid && onEdit && (
-                        <Pressable
-                            onPress={() => {
-                                onEdit(transaction as ExpenseRow);
-                            }}
-                            style={[styles.editButton, { backgroundColor: ui.text, paddingVertical: 12, borderRadius: 24 }]}
-                        >
-                            <Feather name="edit-2" size={18} color={ui.surface} />
-                            <ThemedText style={[styles.editButtonText, { color: ui.surface }]}>Edit Transaction</ThemedText>
-                        </Pressable>
+            <ScrollView
+                contentContainerStyle={[
+                    styles.scrollContent,
+                    hideHeader && styles.nativeHeaderScrollContent,
+                    hideHeader &&
+                    Platform.OS === "ios" && {
+                        paddingTop: insets.top + 52,
+                    },
+                ]}
+                contentInsetAdjustmentBehavior={hideHeader ? "never" : "automatic"}
+            >
+                <View style={styles.heroSection}>
+                    <ThemedText style={[styles.amount, { color: ui.text }]}>
+                        {formatMoney(amount)}
+                    </ThemedText>
+                    <ThemedText style={[styles.merchantName, { color: ui.text }]}>
+                        {name}
+                    </ThemedText>
+                    {isPending && (
+                        <View style={styles.pendingBadge}>
+                            <ThemedText style={styles.pendingText}>PENDING</ThemedText>
+                        </View>
                     )}
-                </ScrollView>
-            </ThemedView>
+                </View>
+
+                <View style={[styles.infoCard, { backgroundColor: ui.surface, borderColor: ui.border }]}>
+                    {[
+                        { label: "Date", value: formatDate(dateStr) },
+                        { label: "Account", value: accountInfo },
+                        isGoalAllocation && allocationNote && { label: "Note", value: allocationNote },
+                        institution && { label: "Institution", value: institution },
+                        isPlaid && (transaction as PlaidTransaction).category && {
+                            label: "Categories",
+                            value: (transaction as PlaidTransaction).category?.join(", ") || "None",
+                        },
+                    ]
+                        .filter(Boolean)
+                        .concat(
+                            !isPlaid && (transaction as ExpenseRow).recurring_rule_id
+                                ? (() => {
+                                    const rule = recurringRules.find(r => r.id === (transaction as ExpenseRow).recurring_rule_id);
+                                    return rule ? [
+                                        { label: "Frequency", value: rule.frequency || "Monthly" },
+                                        { label: "Next Run", value: formatDate(rule.next_run_date) }
+                                    ] : [];
+                                })()
+                                : []
+                        )
+                        .concat([{ label: "Source", value: isPlaid ? "Plaid Synchronization" : isGoalAllocation ? "Goal Allocation" : "Manual Transaction" }])
+                        .map((row: any, index, array) => (
+                            <DetailRow
+                                key={row.label}
+                                label={row.label}
+                                value={row.value}
+                                ui={ui}
+                                isLast={index === array.length - 1}
+                            />
+                        ))}
+                </View>
+
+                {!isPlaid && onEdit && (
+                    <Pressable
+                        onPress={() => {
+                            onEdit(transaction as ExpenseRow);
+                        }}
+                        style={[styles.editButton, { backgroundColor: ui.text, paddingVertical: 12, borderRadius: 24 }]}
+                    >
+                        <Feather name="edit-2" size={18} color={ui.surface} />
+                        <ThemedText style={[styles.editButtonText, { color: ui.surface }]}>
+                            {isGoalAllocation ? "Edit Allocation" : "Edit Transaction"}
+                        </ThemedText>
+                    </Pressable>
+                )}
+            </ScrollView>
+        </ThemedView>
     );
 
     if (isSheet || hideHeader) {
@@ -277,6 +305,9 @@ const styles = StyleSheet.create({
     scrollContent: {
         padding: 24,
         gap: 24,
+    },
+    nativeHeaderScrollContent: {
+        paddingTop: 8,
     },
     heroSection: {
         alignItems: "center",

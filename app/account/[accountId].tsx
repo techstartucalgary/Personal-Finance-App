@@ -6,33 +6,30 @@ import {
   RefreshControl,
   ScrollView,
 } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "react-native-paper";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import type { UnifiedAccount } from "@/components/accounts/AccountCardCarousel";
-import { TransactionDetailModal } from "@/components/TransactionDetailModal";
-import { useThemeUI } from "@/hooks/use-theme-ui";
 import { useAuthContext } from "@/hooks/use-auth-context";
+import { useThemeUI } from "@/hooks/use-theme-ui";
 import {
-  createAccount as createAccountApi,
-  deleteAccount as deleteAccountApi,
+  deleteAccount as deleteAccountApi
 } from "@/utils/accounts";
 import { listExpenses } from "@/utils/expenses";
 import { listGoals } from "@/utils/goals";
 import type { PlaidAccount, PlaidTransaction } from "@/utils/plaid";
 import {
-  exchangePublicToken,
   getPlaidAccounts,
-  getLinkToken,
   getPlaidTransactions,
-  removePlaidItem,
+  removePlaidItem
 } from "@/utils/plaid";
+import { getRecurringRules } from "@/utils/recurring";
 import { supabase } from "@/utils/supabase";
 
 import { AccountsSingleView } from "@/components/accounts/tab/AccountsSingleView";
 import { AccountsLoadingState, AccountsSignedOutState } from "@/components/accounts/tab/AccountsState";
 import { styles } from "@/components/accounts/tab/styles";
-import type { AccountRow, AccountType, ExpenseRow, GoalRow } from "@/components/accounts/tab/types";
+import type { AccountRow, ExpenseRow, GoalRow } from "@/components/accounts/tab/types";
 
 const ACCOUNT_DETAILS_SUMMARY_TTL_MS = 60_000;
 const ACCOUNT_DETAILS_TRANSACTIONS_TTL_MS = 45_000;
@@ -45,6 +42,7 @@ type AccountSummaryData = {
 type AccountTransactionData = {
   expenses: ExpenseRow[];
   plaidTransactions: PlaidTransaction[];
+  recurringRules: any[];
 };
 
 type CacheEntry<T> = {
@@ -155,10 +153,12 @@ async function fetchAccountTransactionData(userId: string, force = false): Promi
   const request = Promise.all([
     listExpenses({ profile_id: userId }),
     getPlaidTransactions(),
-  ]).then(([expenseData, plaidData]) => {
+    getRecurringRules({ profile_id: userId }),
+  ]).then(([expenseData, plaidData, recurringRules]) => {
     const nextData: AccountTransactionData = {
       expenses: (expenseData as ExpenseRow[]) ?? [],
       plaidTransactions: plaidData ?? [],
+      recurringRules: (recurringRules as any[]) ?? [],
     };
 
     accountTransactionCache.set(userId, {
@@ -196,9 +196,8 @@ export default function AccountDetailScreen() {
 
   const [expenses, setExpenses] = useState<ExpenseRow[]>([]);
   const [plaidTransactions, setPlaidTransactions] = useState<PlaidTransaction[]>([]);
+  const [recurringRules, setRecurringRules] = useState<any[]>([]);
   const [txSearchQuery, setTxSearchQuery] = useState("");
-  const [selectedTransaction, setSelectedTransaction] = useState<ExpenseRow | PlaidTransaction | null>(null);
-  const [isTxDetailVisible, setIsTxDetailVisible] = useState(false);
   const [currentSingleAccountId, setCurrentSingleAccountId] = useState(id);
 
   // Palette helper
@@ -255,12 +254,14 @@ export default function AccountDetailScreen() {
     if (cached) {
       setExpenses(cached.data.expenses);
       setPlaidTransactions(cached.data.plaidTransactions);
+      setRecurringRules(cached.data.recurringRules);
     }
 
     try {
       const nextData = await fetchAccountTransactionData(userId, force);
       setExpenses(nextData.expenses);
       setPlaidTransactions(nextData.plaidTransactions);
+      setRecurringRules(nextData.recurringRules);
     } catch (err) {
       console.error("Error loading transactions:", err);
     }
@@ -278,25 +279,25 @@ export default function AccountDetailScreen() {
       "Are you sure you want to delete this account? All associated transaction history will be permanently removed. This action cannot be undone.",
       [
         { text: "Cancel", style: "cancel" },
-      {
-        text: "Delete",
-        style: "destructive",
-        onPress: async () => {
-          setIsLoading(true);
-          try {
-            await deleteAccountApi({ id: accountId, profile_id: userId });
-          } catch (e) {
-            Alert.alert("Error", "Could not delete account.");
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            setIsLoading(true);
+            try {
+              await deleteAccountApi({ id: accountId, profile_id: userId });
+            } catch (e) {
+              Alert.alert("Error", "Could not delete account.");
+              setIsLoading(false);
+              return;
+            }
+            invalidateAccountDetailCache(userId);
+            await loadAccounts(false, true);
             setIsLoading(false);
-            return;
-          }
-          invalidateAccountDetailCache(userId);
-          await loadAccounts(false, true);
-          setIsLoading(false);
-          router.back();
+            router.back();
+          },
         },
-      },
-    ]);
+      ]);
   }, [userId, loadAccounts, router]);
 
   const calculateAvailable = useCallback((acc: AccountRow) => {
@@ -388,23 +389,24 @@ export default function AccountDetailScreen() {
         { text: "Cancel", style: "cancel" },
         {
           text: "Unlink", style: "destructive", onPress: async () => {
-          try {
-            await removePlaidItem(pa.plaid_item_id);
-            invalidateAccountDetailCache(userId);
-            router.back();
-          } catch (e) {
-            Alert.alert("Error", "Could not unlink account.");
+            try {
+              await removePlaidItem(pa.plaid_item_id);
+              invalidateAccountDetailCache(userId);
+              router.back();
+            } catch (e) {
+              Alert.alert("Error", "Could not unlink account.");
+            }
           }
         }
-      }
-    ])
+      ])
   }, [deleteAccount, router, combinedAccounts, currentSingleAccountId, userId]);
 
   useFocusEffect(
     useCallback(() => {
       if (!userId) return;
       loadAccounts(true, true);
-    }, [loadAccounts, userId]),
+      loadTransactions(true);
+    }, [loadAccounts, loadTransactions, userId]),
   );
 
   const handleSingleEdit = useCallback(() => {
@@ -414,14 +416,14 @@ export default function AccountDetailScreen() {
       pathname: "/account-edit",
       params: selected.kind === "manual"
         ? {
-            kind: "manual",
-            editId: String((selected.raw as AccountRow).id),
-          }
+          kind: "manual",
+          editId: String((selected.raw as AccountRow).id),
+        }
         : {
-            kind: "plaid",
-            plaidAccountId: (selected.raw as PlaidAccount).account_id,
-            initialPlaidAccount: JSON.stringify(selected.raw as PlaidAccount),
-          },
+          kind: "plaid",
+          plaidAccountId: (selected.raw as PlaidAccount).account_id,
+          initialPlaidAccount: JSON.stringify(selected.raw as PlaidAccount),
+        },
     });
   }, [combinedAccounts, currentSingleAccountId, router]);
 
@@ -472,6 +474,7 @@ export default function AccountDetailScreen() {
         options={{
           headerLargeTitle: false,
           headerTitle: "Account Details",
+          headerBackTitle: "Accounts",
           headerTitleAlign: "center",
           headerBackButtonDisplayMode: "minimal",
           headerSearchBarOptions,
@@ -517,6 +520,8 @@ export default function AccountDetailScreen() {
           singleAccountId={currentSingleAccountId}
           txSearchQuery={txSearchQuery}
           filteredExpenses={filteredExpensesForSingle}
+          goals={goals}
+          recurringRules={recurringRules}
           filteredPlaidTransactions={filteredPlaidForSingle}
           accountsForTx={accountsForTx}
           plaidAccounts={plaidAccounts}
@@ -526,21 +531,28 @@ export default function AccountDetailScreen() {
           onEditSelected={handleSingleEdit}
           onTxSearchChange={setTxSearchQuery}
           onSelectTransaction={(tx) => {
-            setSelectedTransaction(tx);
-            setIsTxDetailVisible(true);
+            const encoded = encodeURIComponent(JSON.stringify(tx));
+            if (!("transaction_id" in tx)) {
+              router.push({
+                pathname: "/transaction/[id]",
+                params: {
+                  id: String(tx.id),
+                  initialData: encoded,
+                },
+              });
+              return;
+            }
+
+            router.push({
+              pathname: "/transaction-detail/[id]",
+              params: {
+                id: tx.transaction_id,
+                initialData: encoded,
+              },
+            });
           }}
         />
       </ScrollView>
-
-      <TransactionDetailModal
-        visible={isTxDetailVisible}
-        onClose={() => {
-          setIsTxDetailVisible(false);
-          setSelectedTransaction(null);
-        }}
-        transaction={selectedTransaction}
-        accounts={accountsForTx}
-      />
 
     </>
   );

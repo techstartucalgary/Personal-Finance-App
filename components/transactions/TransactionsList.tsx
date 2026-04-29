@@ -11,8 +11,12 @@ import {
 import { ThemedText } from "@/components/themed-text";
 import { Tokens } from "@/constants/authTokens";
 import type { TabsUi } from "@/constants/tabsTheme";
-import { stripGoalTransactionMarker } from "@/utils/goal-transactions";
 import { parseLocalDate, toLocalISOString } from "@/utils/date";
+import {
+  extractGoalTransactionGoalId,
+  getGoalAllocationTitle,
+  stripGoalTransactionMarker,
+} from "@/utils/goal-transactions";
 import type { PlaidAccount, PlaidTransaction } from "@/utils/plaid";
 
 export type AccountRow = {
@@ -53,8 +57,15 @@ type NormalizedTx = {
   isPending?: boolean;
   recurringLabel?: string;
   isRecurringActive?: boolean;
+  isGoalAllocation?: boolean;
+  hasRecurringRule?: boolean;
   raw: ExpenseRow | PlaidTransaction;
   visual: Visual;
+};
+
+type GoalLabelRow = {
+  id: string | number;
+  name?: string | null;
 };
 
 const CATEGORY_VISUALS: { keywords: string[]; icon: Visual["icon"]; color: string }[] = [
@@ -148,6 +159,7 @@ interface TransactionsListProps {
   plaidTransactions: PlaidTransaction[];
   recurringRules?: any[];
   accounts: AccountRow[];
+  goals?: GoalLabelRow[];
   plaidAccounts?: PlaidAccount[];
   filterAccountId: FilterId;
   onFilterAccountChange: (id: FilterId) => void;
@@ -170,6 +182,7 @@ function TransactionsListComponent({
   plaidTransactions,
   recurringRules = [],
   accounts,
+  goals = [],
   plaidAccounts = [],
   filterAccountId,
   onFilterAccountChange,
@@ -225,8 +238,11 @@ function TransactionsListComponent({
       })
       .map((expense) => {
         const account = accounts.find((acc) => acc.id === expense.account_id);
+        const isGoalAllocation = Boolean(extractGoalTransactionGoalId(expense.description));
         const title =
-          stripGoalTransactionMarker(expense.description) || "Manual transaction";
+          isGoalAllocation
+            ? getGoalAllocationTitle(expense.description, goals)
+            : stripGoalTransactionMarker(expense.description) || "Manual transaction";
         const accountLabel = buildAccountLabel(account?.account_name ?? null, null);
         const recurringRule = recurringRules.find(
           (rule) => rule.id === expense.recurring_rule_id,
@@ -246,6 +262,8 @@ function TransactionsListComponent({
           accountLabel,
           recurringLabel,
           isRecurringActive: recurringRule?.is_active,
+          isGoalAllocation,
+          hasRecurringRule: Boolean(recurringRule),
           raw: expense,
           visual,
         };
@@ -308,6 +326,7 @@ function TransactionsListComponent({
     accounts,
     expenses,
     filterAccountId,
+    goals,
     isManualFilter,
     isPlaidFilter,
     plaidAccounts,
@@ -521,9 +540,25 @@ function TransactionsListComponent({
                       ]}
                     >
                       <View style={styles.itemBody}>
-                        <ThemedText type="defaultSemiBold" style={{ color: ui.text }}>
-                          {tx.title}
-                        </ThemedText>
+                        <View style={styles.titleRow}>
+                          <ThemedText
+                            type="defaultSemiBold"
+                            numberOfLines={2}
+                            style={[styles.titleText, { color: ui.text }]}
+                          >
+                            {tx.title}
+                          </ThemedText>
+                          {tx.hasRecurringRule && (
+
+                            <Feather name="repeat" size={15} color="#FF9500" />
+
+                          )}
+                          {tx.isGoalAllocation && (
+
+                            <Feather name="target" size={15} color="#16A34A" />
+
+                          )}
+                        </View>
                         {showMeta && (
                           <>
                             <ThemedText style={[styles.metaText, { color: ui.mutedText }]}>
@@ -575,6 +610,7 @@ function TransactionsListComponent({
                         <ThemedText style={[styles.amountText, { color: amountColor }]}>
                           {formatMoney(amountValue)}
                         </ThemedText>
+                        <Feather name="chevron-right" size={16} color={ui.mutedText} />
                       </View>
                     </Pressable>
                   );
@@ -695,6 +731,21 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: 5,
   },
+  titleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  titleText: {
+    flexShrink: 1,
+  },
+  statusIconPill: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   metaText: {
     fontSize: 12.5,
     fontFamily: Tokens.font.family,
@@ -729,7 +780,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     flexDirection: "row",
-    gap: 6,
+    gap: 5,
     marginLeft: 10,
   },
   amountText: {

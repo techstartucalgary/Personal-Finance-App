@@ -315,6 +315,43 @@ export default function TransactionEditScreen() {
           },
         })
       }
+      onOpenCategoryPicker={(currentCategoryId, transactionType) =>
+        router.push({
+          pathname: "/transaction/[id]/category-select",
+          params: {
+            id,
+            ...(currentCategoryId ? { currentCategoryId: String(currentCategoryId) } : {}),
+            transactionType,
+          },
+        })
+      }
+      onOpenSubcategoryPicker={(params) =>
+        router.push({
+          pathname: "/transaction/[id]/subcategory-select",
+          params: {
+            id,
+            categoryId: String(params.categoryId),
+            ...(params.categoryName ? { categoryName: params.categoryName } : {}),
+            ...(params.currentSubcategoryId
+              ? { currentSubcategoryId: String(params.currentSubcategoryId) }
+              : {}),
+            transactionType: params.transactionType,
+          },
+        })
+      }
+      onOpenRecurrencePicker={(recurrence) =>
+        router.push({
+          pathname: "/transaction/[id]/recurrence-select",
+          params: {
+            id,
+            isRecurring: String(recurrence.isRecurring),
+            frequency: recurrence.frequency,
+            ...(recurrence.nextRunDate ? { nextRunDate: recurrence.nextRunDate } : {}),
+            hasEndDate: String(recurrence.hasEndDate),
+            ...(recurrence.endDate ? { endDate: recurrence.endDate } : {}),
+          },
+        })
+      }
     />
   );
 }

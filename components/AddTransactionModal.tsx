@@ -11,7 +11,6 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  Switch,
   TextInput,
   View,
 } from "react-native";
@@ -23,6 +22,12 @@ import { DateTimePickerField } from "./ui/DateTimePickerField";
 import { IconSymbol } from "./ui/icon-symbol";
 
 import { consumePendingTransactionAccountSelection } from "@/components/transactions/pending-transaction-account-selection";
+import { consumePendingTransactionCategorySelection } from "@/components/transactions/pending-transaction-category-selection";
+import {
+  consumePendingTransactionRecurrenceSelection,
+  type PendingTransactionRecurrenceSelection,
+} from "@/components/transactions/pending-transaction-recurrence-selection";
+import { consumePendingTransactionSubcategorySelection } from "@/components/transactions/pending-transaction-subcategory-selection";
 import { Tokens } from "@/constants/authTokens";
 import { getAccountById, updateAccount } from "@/utils/accounts";
 import {
@@ -811,6 +816,17 @@ interface AddTransactionModalProps {
   initialDescription?: string | null;
   goalId?: string | null;
   onOpenAccountPicker?: (currentAccountId: number | null) => void;
+  onOpenCategoryPicker?: (
+    currentCategoryId: number | null,
+    transactionType: "expense" | "income" | "transfer",
+  ) => void;
+  onOpenSubcategoryPicker?: (params: {
+    categoryId: number;
+    categoryName: string | null;
+    currentSubcategoryId: number | null;
+    transactionType: "expense" | "income" | "transfer";
+  }) => void;
+  onOpenRecurrencePicker?: (recurrence: PendingTransactionRecurrenceSelection) => void;
   onStateChange?: (state: { isDirty: boolean; isValid: boolean }) => void;
 }
 
@@ -840,6 +856,9 @@ export const AddTransactionModal = forwardRef<AddTransactionModalRef, AddTransac
     initialDescription = null,
     goalId = null,
     onOpenAccountPicker,
+    onOpenCategoryPicker,
+    onOpenSubcategoryPicker,
+    onOpenRecurrencePicker,
     onStateChange,
   } = props;
   const insets = useSafeAreaInsets();
@@ -936,6 +955,25 @@ export const AddTransactionModal = forwardRef<AddTransactionModalRef, AddTransac
     if (partial) return source[partial];
     return source.Other ?? [];
   }, [selectedCategory?.category_name, transactionType]);
+
+  const quickPickSubcategoryOptions = useMemo(() => {
+    if (!selectedCategory) return [];
+    const selectedName = (selectedSubcategory?.category_name ?? "").trim();
+    const selectedLower = selectedName.toLowerCase();
+    const picks: string[] = [];
+
+    if (selectedName) {
+      picks.push(selectedName);
+    }
+
+    for (const label of subcategoryOptions) {
+      if (picks.length >= 3) break;
+      if (label.toLowerCase() === selectedLower) continue;
+      picks.push(label);
+    }
+
+    return picks;
+  }, [selectedCategory, selectedSubcategory?.category_name, subcategoryOptions]);
 
   const resolveCategoryIcon = useCallback(
     (category: CategoryRow) => {
@@ -1185,9 +1223,30 @@ export const AddTransactionModal = forwardRef<AddTransactionModalRef, AddTransac
   useFocusEffect(
     useCallback(() => {
       const nextAccountId = consumePendingTransactionAccountSelection();
-      if (nextAccountId == null) return;
-      const nextAccount = accounts.find((account) => account.id === nextAccountId) ?? null;
-      setSelectedAccount(nextAccount);
+      if (nextAccountId != null) {
+        const nextAccount = accounts.find((account) => account.id === nextAccountId) ?? null;
+        setSelectedAccount(nextAccount);
+      }
+
+      const nextCategory = consumePendingTransactionCategorySelection();
+      if (nextCategory !== undefined) {
+        setSelectedCategory(nextCategory);
+      }
+
+      const nextSubcategory = consumePendingTransactionSubcategorySelection();
+      if (nextSubcategory !== undefined) {
+        setSelectedSubcategory(nextSubcategory);
+      }
+
+      const nextRecurrence = consumePendingTransactionRecurrenceSelection();
+      if (nextRecurrence !== undefined && nextRecurrence !== null) {
+        setIsRecurring(nextRecurrence.isRecurring);
+        setRecurringFrequency(nextRecurrence.frequency || "Monthly");
+        setAddRuleNextRunDate(nextRecurrence.nextRunDate);
+        setHasEndDate(nextRecurrence.hasEndDate);
+        setAddRuleEndsOn(nextRecurrence.endDate);
+        setRecurrenceTouched(true);
+      }
     }, [accounts]),
   );
 
@@ -1212,7 +1271,7 @@ export const AddTransactionModal = forwardRef<AddTransactionModalRef, AddTransac
       }
     };
     loadSubcategories();
-  }, [userId, selectedCategory?.id]);
+  }, [userId, selectedCategory]);
 
   useEffect(() => {
     if (
@@ -1236,11 +1295,12 @@ export const AddTransactionModal = forwardRef<AddTransactionModalRef, AddTransac
     isViewMode,
   ]);
 
-  // Recalculate default Next Run Date when Frequency or IsRecurring changes
+  // Keep a fallback next-run date for legacy paths; pushed recurrence selection owns custom dates.
   useEffect(() => {
     if (isViewMode) return;
     if (isEditMode && !recurrenceTouched) return;
     if (isRecurring) {
+      if (addRuleNextRunDate) return;
       const nextDate = new Date();
       if (recurringFrequency === "Daily")
         nextDate.setDate(nextDate.getDate() + 1);
@@ -1254,7 +1314,14 @@ export const AddTransactionModal = forwardRef<AddTransactionModalRef, AddTransac
     } else {
       setAddRuleNextRunDate("");
     }
-  }, [isRecurring, recurringFrequency, isViewMode, isEditMode, recurrenceTouched]);
+  }, [
+    addRuleNextRunDate,
+    isRecurring,
+    recurringFrequency,
+    isViewMode,
+    isEditMode,
+    recurrenceTouched,
+  ]);
 
   // TODO(backend): Allow transfer flow once accounts-to-accounts transfers are supported.
   const isValid = useMemo(() => {
@@ -1295,6 +1362,17 @@ export const AddTransactionModal = forwardRef<AddTransactionModalRef, AddTransac
       const initialAmount = Math.abs(initialTransaction.amount ?? 0);
       const currentType = transactionType;
       const initialType = (initialTransaction.amount ?? 0) < 0 ? "income" : "expense";
+      const initialRule = initialTransaction.recurring_rule_id
+        ? recurringRules.find((rule) => rule.id === initialTransaction.recurring_rule_id)
+        : null;
+      const hasRecurrenceChanges = !isGoalAllocationMode && (
+        isRecurring !== Boolean(initialRule) ||
+        (isRecurring &&
+          (recurringFrequency !== (initialRule?.frequency ?? "Monthly") ||
+            addRuleNextRunDate !== (initialRule?.next_run_date ?? "") ||
+            hasEndDate !== Boolean(initialRule?.end_date) ||
+            (hasEndDate && addRuleEndsOn !== (initialRule?.end_date ?? ""))))
+      );
 
       const hasBasicChanges =
         currentAmount !== initialAmount ||
@@ -1310,7 +1388,8 @@ export const AddTransactionModal = forwardRef<AddTransactionModalRef, AddTransac
         (!isGoalAllocationMode &&
           (selectedSubcategory?.id ?? null) !==
           (initialTransaction.subcategory_id ?? null)) ||
-        transactionDate !== (initialTransaction.transaction_date || "");
+        transactionDate !== (initialTransaction.transaction_date || "") ||
+        hasRecurrenceChanges;
 
       return hasBasicChanges;
     }
@@ -1320,7 +1399,8 @@ export const AddTransactionModal = forwardRef<AddTransactionModalRef, AddTransac
       amount.trim() !== "" ||
       description.trim() !== "" ||
       (selectedAccount !== null && accounts.length > 1) || // ignore auto-selected if only 1
-      (!isGoalAllocationMode && selectedCategory !== null)
+      (!isGoalAllocationMode && selectedCategory !== null) ||
+      (!isGoalAllocationMode && isRecurring)
     );
   }, [
     isViewMode,
@@ -1333,6 +1413,12 @@ export const AddTransactionModal = forwardRef<AddTransactionModalRef, AddTransac
     selectedCategory,
     selectedSubcategory,
     transactionDate,
+    isRecurring,
+    recurringFrequency,
+    addRuleNextRunDate,
+    hasEndDate,
+    addRuleEndsOn,
+    recurringRules,
     accounts.length,
     isGoalAllocationMode,
   ]);
@@ -2142,7 +2228,10 @@ export const AddTransactionModal = forwardRef<AddTransactionModalRef, AddTransac
                 >
                 <Pressable
                   onPress={() => {
-                    if (!isViewMode) setCategoryModalOpen(true);
+                    if (isViewMode) return;
+                    if (onOpenCategoryPicker) {
+                      onOpenCategoryPicker(selectedCategory?.id ?? null, transactionType);
+                    }
                   }}
                   disabled={isViewMode}
                   style={styles.inputRow}
@@ -2221,11 +2310,15 @@ export const AddTransactionModal = forwardRef<AddTransactionModalRef, AddTransac
                             >
                               {item.label}
                             </ThemedText>
-                          </Pressable>
-                        );
-                      })}
-                      <Pressable
-                        onPress={() => setCategoryModalOpen(true)}
+                      </Pressable>
+                    );
+                  })}
+                  <Pressable
+                        onPress={() => {
+                          if (onOpenCategoryPicker) {
+                            onOpenCategoryPicker(selectedCategory?.id ?? null, transactionType);
+                          }
+                        }}
                         style={({ pressed }) => [
                           styles.quickPickItem,
                           { opacity: pressed ? 0.7 : 1 },
@@ -2271,7 +2364,14 @@ export const AddTransactionModal = forwardRef<AddTransactionModalRef, AddTransac
                       Alert.alert("Category required", "Please select a category first.");
                       return;
                     }
-                    setSubcategoryModalOpen(true);
+                    if (onOpenSubcategoryPicker) {
+                      onOpenSubcategoryPicker({
+                        categoryId: selectedCategory.id,
+                        categoryName: selectedCategory.category_name,
+                        currentSubcategoryId: selectedSubcategory?.id ?? null,
+                        transactionType,
+                      });
+                    }
                   }}
                   disabled={isViewMode}
                   style={[
@@ -2303,6 +2403,98 @@ export const AddTransactionModal = forwardRef<AddTransactionModalRef, AddTransac
                   </View>
                 </Pressable>
 
+                {!isViewMode && selectedCategory && quickPickSubcategoryOptions.length > 0 && (
+                  <View style={styles.quickPickWrap}>
+                    <ThemedText
+                      style={[styles.quickPickLabel, { color: ui.mutedText }]}
+                    >
+                      Quick picks
+                    </ThemedText>
+                    <View style={styles.quickPickRow}>
+                      {quickPickSubcategoryOptions.map((label) => {
+                        const isSelected =
+                          (selectedSubcategory?.category_name ?? "")
+                            .trim()
+                            .toLowerCase() === label.toLowerCase();
+                        return (
+                          <Pressable
+                            key={label}
+                            onPress={() => handleSuggestedSubcategory(label)}
+                            style={({ pressed }) => [
+                              styles.quickPickItem,
+                              { opacity: pressed ? 0.7 : 1 },
+                            ]}
+                          >
+                            <View
+                              style={[
+                                styles.quickPickIcon,
+                                {
+                                  backgroundColor: isSelected
+                                    ? (ui.accent ?? ui.text)
+                                    : ui.surface2,
+                                  borderWidth: isSelected ? 0 : StyleSheet.hairlineWidth,
+                                  borderColor: ui.border,
+                                },
+                              ]}
+                            >
+                              <Feather
+                                name="layers"
+                                size={22}
+                                color={isSelected ? "#FFFFFF" : ui.mutedText}
+                              />
+                            </View>
+                            <ThemedText
+                              numberOfLines={2}
+                              ellipsizeMode="tail"
+                              style={[styles.quickPickText, { color: ui.text }]}
+                            >
+                              {label}
+                            </ThemedText>
+                          </Pressable>
+                        );
+                      })}
+                      <Pressable
+                        onPress={() => {
+                          if (!selectedCategory || !onOpenSubcategoryPicker) return;
+                          onOpenSubcategoryPicker({
+                            categoryId: selectedCategory.id,
+                            categoryName: selectedCategory.category_name,
+                            currentSubcategoryId: selectedSubcategory?.id ?? null,
+                            transactionType,
+                          });
+                        }}
+                        style={({ pressed }) => [
+                          styles.quickPickItem,
+                          { opacity: pressed ? 0.7 : 1 },
+                        ]}
+                      >
+                        <View
+                          style={[
+                            styles.quickPickIcon,
+                            styles.quickPickMoreIcon,
+                            {
+                              backgroundColor: ui.surface2,
+                              borderColor: ui.border,
+                            },
+                          ]}
+                        >
+                          <Feather name="plus" size={22} color={ui.mutedText} />
+                        </View>
+                        <ThemedText
+                          numberOfLines={2}
+                          ellipsizeMode="tail"
+                          style={[
+                            styles.quickPickText,
+                            { color: ui.mutedText },
+                          ]}
+                        >
+                          More
+                        </ThemedText>
+                      </Pressable>
+                    </View>
+                  </View>
+                )}
+
                 <View
                   style={[
                     styles.rowSeparator,
@@ -2312,7 +2504,14 @@ export const AddTransactionModal = forwardRef<AddTransactionModalRef, AddTransac
 
                 <Pressable
                   onPress={() => {
-                    if (!isViewMode) setAddFrequencyModalOpen(true);
+                    if (isViewMode || !onOpenRecurrencePicker) return;
+                    onOpenRecurrencePicker({
+                      isRecurring,
+                      frequency: recurringFrequency,
+                      nextRunDate: addRuleNextRunDate,
+                      hasEndDate,
+                      endDate: addRuleEndsOn,
+                    });
                   }}
                   disabled={isViewMode}
                   style={styles.inputRow}
@@ -2391,78 +2590,6 @@ export const AddTransactionModal = forwardRef<AddTransactionModalRef, AddTransac
                   </View>
                 </View>
 
-                {isRecurring && (
-                  <>
-                    <View
-                      style={[
-                        styles.rowSeparator,
-                        { backgroundColor: ui.border },
-                      ]}
-                    />
-                    <DateTimePickerField
-                      label="Next Run"
-                      value={parseLocalDate(addRuleNextRunDate)}
-                      onChange={(date) =>
-                        setAddRuleNextRunDate(toLocalISOString(date))
-                      }
-                      ui={ui}
-                      icon="calendar.badge.clock"
-                      disabled={isViewMode}
-                    />
-
-                    <View
-                      style={[
-                        styles.rowSeparator,
-                        { backgroundColor: ui.border },
-                      ]}
-                    />
-                    <View style={styles.inputRow}>
-                      <Feather
-                        name="calendar"
-                        size={18}
-                        color={ui.mutedText}
-                      />
-                      <ThemedText style={styles.rowLabelInline}>
-                        Ends
-                      </ThemedText>
-                      <Switch
-                        value={hasEndDate}
-                        disabled={isViewMode}
-                        onValueChange={(val) => {
-                          setHasEndDate(val);
-                          if (val) {
-                            setAddRuleEndsOn(addRuleNextRunDate);
-                          } else {
-                            setAddRuleEndsOn("");
-                          }
-                        }}
-                        trackColor={{ false: ui.border, true: "#34C759" }}
-                      />
-                    </View>
-
-                    {hasEndDate && (
-                      <>
-                        <View
-                          style={[
-                            styles.rowSeparator,
-                            { backgroundColor: ui.border },
-                          ]}
-                        />
-                        <DateTimePickerField
-                          label="Ends On"
-                          value={parseLocalDate(addRuleEndsOn)}
-                          onChange={(date) =>
-                            setAddRuleEndsOn(toLocalISOString(date))
-                          }
-                          ui={ui}
-                          icon="calendar"
-                          placeholder="Select Date"
-                          disabled={isViewMode}
-                        />
-                      </>
-                    )}
-                  </>
-                )}
                 </View>
               )}
               <View style={styles.footerStack}>

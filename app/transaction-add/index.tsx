@@ -195,6 +195,40 @@ export default function TransactionAddScreen() {
           params: currentAccountId ? { currentAccountId: String(currentAccountId) } : {},
         })
       }
+      onOpenCategoryPicker={(currentCategoryId, transactionType) =>
+        router.push({
+          pathname: "/transaction-add/category-select",
+          params: {
+            ...(currentCategoryId ? { currentCategoryId: String(currentCategoryId) } : {}),
+            transactionType,
+          },
+        })
+      }
+      onOpenSubcategoryPicker={(params) =>
+        router.push({
+          pathname: "/transaction-add/subcategory-select",
+          params: {
+            categoryId: String(params.categoryId),
+            ...(params.categoryName ? { categoryName: params.categoryName } : {}),
+            ...(params.currentSubcategoryId
+              ? { currentSubcategoryId: String(params.currentSubcategoryId) }
+              : {}),
+            transactionType: params.transactionType,
+          },
+        })
+      }
+      onOpenRecurrencePicker={(recurrence) =>
+        router.push({
+          pathname: "/transaction-add/recurrence-select",
+          params: {
+            isRecurring: String(recurrence.isRecurring),
+            frequency: recurrence.frequency,
+            ...(recurrence.nextRunDate ? { nextRunDate: recurrence.nextRunDate } : {}),
+            hasEndDate: String(recurrence.hasEndDate),
+            ...(recurrence.endDate ? { endDate: recurrence.endDate } : {}),
+          },
+        })
+      }
     />
   );
 }

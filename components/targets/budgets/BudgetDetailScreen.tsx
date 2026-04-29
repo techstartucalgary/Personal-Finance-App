@@ -133,7 +133,10 @@ export function BudgetDetailScreen() {
             onPress={() =>
               router.push({
                 pathname: "/budget/[id]/edit",
-                params: { id: String(budget.id) },
+                params: {
+                  id: String(budget.id),
+                  initialData: encodeURIComponent(JSON.stringify(budget)),
+                },
               } as any)
             }
             hitSlop={10}
@@ -212,7 +215,10 @@ export function BudgetDetailScreen() {
             onPress={() =>
               router.push({
                 pathname: "/budget/[id]/edit",
-                params: { id: String(budget.id) },
+                params: {
+                  id: String(budget.id),
+                  initialData: encodeURIComponent(JSON.stringify(budget)),
+                },
               } as any)
             }
             style={({ pressed }) => [styles.linkAccountWrap, { opacity: pressed ? 0.72 : 1 }]}
@@ -283,7 +289,10 @@ export function BudgetDetailScreen() {
             onPress={() =>
               router.push({
                 pathname: "/budget/[id]/edit",
-                params: { id: String(budget.id) },
+                params: {
+                  id: String(budget.id),
+                  initialData: encodeURIComponent(JSON.stringify(budget)),
+                },
               } as any)
             }
             style={({ pressed }) => ({ opacity: pressed ? 0.72 : 1 })}

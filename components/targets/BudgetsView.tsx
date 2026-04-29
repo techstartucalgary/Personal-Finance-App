@@ -273,7 +273,10 @@ export function BudgetsView({
                       onPress={() =>
                         router.push({
                           pathname: "/budget/[id]/edit",
-                          params: { id: String(budget.id) },
+                          params: {
+                            id: String(budget.id),
+                            initialData: encodeURIComponent(JSON.stringify(budget)),
+                          },
                         } as any)
                       }
                       hitSlop={8}

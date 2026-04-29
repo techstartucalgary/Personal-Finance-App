@@ -93,21 +93,36 @@ function ProtectedLayout() {
         name="goal/[id]"
         options={{
           presentation: "card",
-          headerShown: false,
+          headerShown: true,
         }}
       />
       <Stack.Screen
         name="budget-add"
         options={{
+          headerTitle: "New Budget",
           presentation: "pageSheet",
-          headerShown: false,
+          headerShown: true,
+          headerBackButtonDisplayMode: "minimal",
+          headerTransparent: Platform.OS === "ios",
+          headerStyle: {
+            backgroundColor: Platform.OS === "ios" ? "transparent" : ui.surface,
+          },
+          headerShadowVisible: false,
+          headerTitleAlign: "center",
+
+
         }}
       />
       <Stack.Screen
         name="budget/[id]"
         options={{
+          headerTitle: "Edit Budget",
           presentation: "card",
-          headerShown: false,
+          headerShown: true,
+          headerBackButtonDisplayMode: "minimal",
+          headerTransparent: Platform.OS === "ios",
+
+
         }}
       />
       <Stack.Screen

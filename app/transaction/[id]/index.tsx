@@ -3,10 +3,10 @@ import { AddTransactionModal, AddTransactionModalRef } from "@/components/AddTra
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useAuthContext } from "@/hooks/use-auth-context";
 import { useThemeUI } from "@/hooks/use-theme-ui";
-import { extractGoalTransactionGoalId } from "@/utils/goal-transactions";
 import { listAccounts } from "@/utils/accounts";
 import { listCategories } from "@/utils/categories";
 import { listExpenses } from "@/utils/expenses";
+import { extractGoalTransactionGoalId } from "@/utils/goal-transactions";
 import { getRecurringRules } from "@/utils/recurring";
 import { usePreventRemove } from "@react-navigation/native";
 import { useLocalSearchParams, useNavigation, useRouter } from "expo-router";
@@ -17,6 +17,7 @@ export default function TransactionEditScreen() {
   const { session } = useAuthContext();
   const router = useRouter();
   const navigation = useNavigation();
+  const isDark = false;
   const { id, initialData, goalId } = useLocalSearchParams<{
     id: string;
     initialData?: string;
@@ -24,7 +25,6 @@ export default function TransactionEditScreen() {
   }>();
   const userId = session?.user.id;
   const ui = useThemeUI();
-  const isDark = ui.bg === "#000000";
   const modalRef = useRef<AddTransactionModalRef>(null);
 
   const [initialTransaction, setInitialTransaction] = useState<ExpenseRow | null>(() => {

@@ -14,29 +14,29 @@ import {
   View,
 } from "react-native";
 
-import type { ExpenseRow } from "@/components/transactions/tab/types";
 import { ThemedText } from "@/components/themed-text";
+import type { ExpenseRow } from "@/components/transactions/tab/types";
 import { DateTimePickerField } from "@/components/ui/DateTimePickerField";
 import { SelectionModal } from "@/components/ui/SelectionModal";
 import { Tokens } from "@/constants/authTokens";
 import { useTabsTheme } from "@/constants/tabsTheme";
 import { useAuthContext } from "@/hooks/use-auth-context";
+import { listAccounts } from "@/utils/accounts";
 import { createBudget, deleteBudget, editBudget, getBudget } from "@/utils/budgets";
-import {
-  createCategoryBudget,
-  deleteCategoryBudget,
-  listCategoryBudgets,
-  type BudgetPeriod,
-} from "@/utils/categoryBudgets";
 import {
   listAllSubcategories,
   listCategories,
   type CategoryRow,
   type SubcategoryRow,
 } from "@/utils/categories";
+import {
+  createCategoryBudget,
+  deleteCategoryBudget,
+  listCategoryBudgets,
+  type BudgetPeriod,
+} from "@/utils/categoryBudgets";
 import { parseLocalDate, toLocalISOString } from "@/utils/date";
 import { listExpenses } from "@/utils/expenses";
-import { listAccounts } from "@/utils/accounts";
 import { getPlaidAccounts } from "@/utils/plaid";
 
 import {
@@ -63,6 +63,7 @@ import {
   getBudgetEndDate,
 } from "./utils";
 
+import { IconSymbol } from "@/components/ui/icon-symbol";
 import { buildSelectableAccounts, getGoalSelectionKey } from "../goals/utils";
 
 type BudgetEditorScreenProps = {
@@ -85,16 +86,45 @@ export function BudgetEditorScreen({ mode }: BudgetEditorScreenProps) {
   const router = useRouter();
   const { ui } = useTabsTheme();
   const userId = session?.user.id;
-  const { id } = useLocalSearchParams<{ id?: string }>();
+  const { id, initialData } = useLocalSearchParams<{ id?: string; initialData?: string }>();
+  const sheetUi = useMemo(() => ui, [ui]);
 
-  const [isLoading, setIsLoading] = useState(mode === "edit");
-  const [name, setName] = useState("");
-  const [startDate, setStartDate] = useState<string | null>(toLocalISOString(new Date()));
-  const [recurrence, setRecurrence] = useState<BudgetPeriod>("monthly");
-  const [rolloverEnabled, setRolloverEnabled] = useState(false);
+  // Pre-hydrate from initialData so the form is instantly interactive
+  const preHydrated = useMemo(() => {
+    if (mode !== "edit" || !initialData) return false;
+    try {
+      const budget = JSON.parse(decodeURIComponent(initialData)) as BudgetWithDetails;
+      return budget;
+    } catch {
+      return false;
+    }
+  }, []);
+
+  const [isLoading, setIsLoading] = useState(mode === "edit" && !preHydrated);
+  const [name, setName] = useState(() =>
+    preHydrated ? (preHydrated.budget_name ?? "") : "",
+  );
+  const [startDate, setStartDate] = useState<string | null>(() =>
+    preHydrated ? (preHydrated.start_date ?? toLocalISOString(new Date())) : toLocalISOString(new Date()),
+  );
+  const [recurrence, setRecurrence] = useState<BudgetPeriod>(() =>
+    preHydrated ? preHydrated.recurrence : "monthly",
+  );
+  const [rolloverEnabled, setRolloverEnabled] = useState(() =>
+    preHydrated ? preHydrated.rolloverEnabled : false,
+  );
   const [categories, setCategories] = useState<CategoryRow[]>([]);
   const [subcategories, setSubcategories] = useState<SubcategoryRow[]>([]);
-  const [drafts, setDrafts] = useState<BudgetDraftCategory[]>([]);
+  const [drafts, setDrafts] = useState<BudgetDraftCategory[]>(() =>
+    preHydrated
+      ? preHydrated.categoryBudgets.map((category) => ({
+          localKey: String(category.id),
+          expense_category_id: category.expense_category_id,
+          category_name: category.category_name,
+          limit_amount: String(category.limit_amount ?? ""),
+        }))
+      : [],
+  );
   const [selectedAccount, setSelectedAccount] = useState<BudgetSelectableAccount | null>(null);
   const [expenses, setExpenses] = useState<ExpenseRow[]>([]);
   const [categoryPickerOpen, setCategoryPickerOpen] = useState(false);
@@ -126,15 +156,51 @@ export function BudgetEditorScreen({ mode }: BudgetEditorScreenProps) {
   const loadBudget = useCallback(async () => {
     if (!userId) return;
 
+    // In "add" mode, don't show a spinner — let the user start editing immediately
+    // while reference data loads in the background.
+    if (mode !== "edit") {
+      try {
+        const [categoryRows, subcategoryRows, manualAccounts, plaidAccounts, expenseRows] =
+          await Promise.all([
+            listCategories({ profile_id: userId }),
+            listAllSubcategories({ profile_id: userId }),
+            listAccounts({ profile_id: userId }),
+            getPlaidAccounts(),
+            listExpenses({ profile_id: userId }),
+          ]);
+
+        setCategories(categoryRows ?? []);
+        setSubcategories(subcategoryRows ?? []);
+        setExpenses((expenseRows as ExpenseRow[]) ?? []);
+      } catch (error) {
+        console.error("Error loading budget editor:", error);
+      }
+      return;
+    }
+
+    // "edit" mode — load data in the background without a spinner
+    // (the form was pre-hydrated from initialData)
+    if (!id) return;
     try {
-      setIsLoading(true);
-      const [categoryRows, subcategoryRows, manualAccounts, plaidAccounts, expenseRows] =
-        await Promise.all([
+      if (!preHydrated) setIsLoading(true);
+      const [
+        categoryRows,
+        subcategoryRows,
+        manualAccounts,
+        plaidAccounts,
+        expenseRows,
+        budgetRow,
+        categoryLinks,
+        preference,
+      ] = await Promise.all([
         listCategories({ profile_id: userId }),
         listAllSubcategories({ profile_id: userId }),
         listAccounts({ profile_id: userId }),
         getPlaidAccounts(),
         listExpenses({ profile_id: userId }),
+        getBudget({ id, profile_id: userId }),
+        listCategoryBudgets({ budget_id: Number(id) }),
+        getBudgetUiPreference(id),
       ]);
 
       const selectableAccounts = buildSelectableAccounts({
@@ -145,18 +211,6 @@ export function BudgetEditorScreen({ mode }: BudgetEditorScreenProps) {
       setCategories(categoryRows ?? []);
       setSubcategories(subcategoryRows ?? []);
       setExpenses((expenseRows as ExpenseRow[]) ?? []);
-
-      if (mode !== "edit" || !id) {
-        setName("");
-        setDrafts([]);
-        return;
-      }
-
-      const [budgetRow, categoryLinks, preference] = await Promise.all([
-        getBudget({ id, profile_id: userId }),
-        listCategoryBudgets({ budget_id: Number(id) }),
-        getBudgetUiPreference(id),
-      ]);
 
       const budget = buildBudgetWithDetails({
         budget: budgetRow as BudgetRow,
@@ -170,8 +224,10 @@ export function BudgetEditorScreen({ mode }: BudgetEditorScreenProps) {
       hydrateFromBudget(budget, selectableAccounts);
     } catch (error) {
       console.error("Error loading budget editor:", error);
-      Alert.alert("Error", "Could not load budget details.");
-      if (mode === "edit") router.back();
+      if (!preHydrated) {
+        Alert.alert("Error", "Could not load budget details.");
+        router.back();
+      }
     } finally {
       setIsLoading(false);
     }
@@ -365,9 +421,11 @@ export function BudgetEditorScreen({ mode }: BudgetEditorScreenProps) {
   ]);
 
   useEffect(() => {
-    navigation.setOptions({
+    const parent = navigation.getParent();
+    if (!parent) return;
+
+    parent.setOptions({
       title: "Budget Plan",
-      headerBackVisible: false,
       headerTitleAlign: "center",
       headerTransparent: Platform.OS === "ios",
       headerShadowVisible: false,
@@ -379,21 +437,23 @@ export function BudgetEditorScreen({ mode }: BudgetEditorScreenProps) {
         fontFamily: Tokens.font.semiFamily ?? Tokens.font.family,
       },
       headerTintColor: ui.text,
-      headerLeft: () => (
-        <Pressable
-          onPress={() => router.back()}
-          hitSlop={10}
-          style={({ pressed }) => ({
-            width: 32,
-            height: 32,
-            alignItems: "center",
-            justifyContent: "center",
-            opacity: pressed ? 0.55 : 1,
-          })}
-        >
-          <Feather name="x" size={20} color={ui.text} />
-        </Pressable>
-      ),
+      headerBackButtonDisplayMode: "minimal",
+      headerLeft: () =>
+        mode === "add" ? (
+          <Pressable
+            onPress={() => router.back()}
+            hitSlop={10}
+            style={({ pressed }) => ({
+              minWidth: 32,
+              height: 32,
+              alignItems: "center",
+              justifyContent: "center",
+              opacity: pressed ? 0.55 : 1,
+            })}
+          >
+            <IconSymbol name="xmark" size={22} color={ui.text} />
+          </Pressable>
+        ) : undefined,
       headerRight: () => (
         <Pressable
           onPress={handleSave}
@@ -407,11 +467,11 @@ export function BudgetEditorScreen({ mode }: BudgetEditorScreenProps) {
             opacity: !canSave ? 0.3 : pressed ? 0.55 : 1,
           })}
         >
-          <Feather name="check" size={20} color={ui.text} />
+          <IconSymbol name="checkmark" size={22} color={sheetUi.accent} />
         </Pressable>
       ),
     });
-  }, [canSave, handleSave, navigation, router, ui.bg, ui.text]);
+  }, [canSave, handleSave, mode, navigation, router, sheetUi.accent, ui.bg, ui.text]);
 
   const handleDelete = useCallback(() => {
     if (!userId || !id || mode !== "edit") return;

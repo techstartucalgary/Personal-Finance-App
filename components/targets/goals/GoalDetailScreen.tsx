@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -10,10 +10,10 @@ import {
   View,
 } from "react-native";
 
+import { useNavigation } from "@react-navigation/native";
 import {
   useFocusEffect,
   useLocalSearchParams,
-  useNavigation,
   useRouter,
 } from "expo-router";
 
@@ -23,9 +23,9 @@ import { IconSymbol } from "@/components/ui/icon-symbol";
 import { Tokens } from "@/constants/authTokens";
 import { useTabsTheme } from "@/constants/tabsTheme";
 import { useAuthContext } from "@/hooks/use-auth-context";
-import { isGoalTransactionForGoal } from "@/utils/goal-transactions";
 import { listAccounts } from "@/utils/accounts";
 import { listExpenses } from "@/utils/expenses";
+import { isGoalTransactionForGoal } from "@/utils/goal-transactions";
 import { getGoal } from "@/utils/goals";
 import {
   getPlaidAccounts,
@@ -118,9 +118,10 @@ export function GoalDetailScreen() {
     [id, userId],
   );
 
+  const isFirstMount = useRef(true);
   useEffect(() => {
-    loadData();
-  }, [loadData]);
+    loadData(!!initialData);
+  }, [loadData, initialData]);
 
   useFocusEffect(
     useCallback(() => {
@@ -130,7 +131,9 @@ export function GoalDetailScreen() {
 
   useEffect(() => {
     navigation.setOptions({
+      headerShown: true,
       title: "Goal Details",
+      headerTitleAlign: "center",
       headerBackButtonDisplayMode: "minimal",
       headerTransparent: Platform.OS === "ios",
       headerShadowVisible: false,
@@ -145,8 +148,11 @@ export function GoalDetailScreen() {
             onPress={() => {
               const encodedGoal = encodeURIComponent(JSON.stringify(goal));
               router.push({
-                pathname: "/goal/[id]/edit",
-                params: { id: String(goal.id), initialData: encodedGoal },
+                pathname: "/goal-edit/[id]",
+                params: {
+                  id: String(goal.id),
+                  initialData: encodedGoal,
+                },
               } as any);
             }}
             hitSlop={10}
@@ -172,8 +178,8 @@ export function GoalDetailScreen() {
     () =>
       goal
         ? expenses.filter((expense) =>
-            isGoalTransactionForGoal(expense.description, goal.id),
-          )
+          isGoalTransactionForGoal(expense.description, goal.id),
+        )
         : [],
     [expenses, goal],
   );
@@ -182,7 +188,7 @@ export function GoalDetailScreen() {
 
     const encodedGoal = encodeURIComponent(JSON.stringify(goal));
     router.push({
-      pathname: "/goal/[id]/edit",
+      pathname: "/goal-edit/[id]",
       params: { id: String(goal.id), initialData: encodedGoal },
     } as any);
   }, [goal, router]);
@@ -223,152 +229,152 @@ export function GoalDetailScreen() {
     <ScrollView
       style={{ flex: 1, backgroundColor: ui.bg }}
       contentInsetAdjustmentBehavior="automatic"
-      contentContainerStyle={[
-        detailStyles.scrollContent,
-        { paddingTop: Platform.OS === "android" ? 16 : 0 },
-      ]}
-      showsVerticalScrollIndicator={false}
-    >
-      <View style={detailStyles.headerStack}>
-        <ThemedText style={[detailStyles.goalName, { color: ui.text }]}>
-          {goal.name}
-        </ThemedText>
-
-        <GoalProgressRing
-          progress={progress}
-          ui={ui}
-          currentAmount={formatMoney(goal.current_amount ?? 0)}
-          targetAmount={formatMoney(goal.target_amount)}
-        />
-      </View>
-
-      <View
-        style={[
-          detailStyles.statsCard,
-          { backgroundColor: ui.surface, borderColor: ui.border },
+        contentContainerStyle={[
+          detailStyles.scrollContent,
+          { paddingTop: Platform.OS === "android" ? 16 : 0 },
         ]}
+        showsVerticalScrollIndicator={false}
       >
-        <DetailRow label="Linked Account" value={linkedAccountName} />
-        <DetailRow label="Target Amount" value={formatMoney(goal.target_amount)} />
-        <DetailRow label="Current Saved" value={formatMoney(goal.current_amount ?? 0)} />
-        <DetailRow
-          label="Target Date"
-          value={goal.target_date ? formatLongDate(goal.target_date) : "No target date"}
-        />
-        <DetailRow
-          label="Start Date"
-          value={goal.created_at ? formatLongDate(goal.created_at) : "Not available"}
-        />
-      </View>
-
-      <View style={detailStyles.actionsRow}>
-        <Pressable
-          onPress={handleOpenEdit}
-          style={({ pressed }) => [
-            detailStyles.actionButton,
-            {
-              backgroundColor: ui.surface,
-              borderColor: ui.border,
-              opacity: pressed ? 0.72 : 1,
-            },
-          ]}
-        >
-          <IconSymbol name="pencil" size={15} color={ui.text} />
-          <ThemedText style={[detailStyles.actionText, { color: ui.text }]}>
-            Edit Goal
+        <View style={detailStyles.headerStack}>
+          <ThemedText style={[detailStyles.goalName, { color: ui.text }]}>
+            {goal.name}
           </ThemedText>
-        </Pressable>
 
-        <Pressable
-          onPress={handleAddTransaction}
-          style={({ pressed }) => [
-            detailStyles.actionButton,
-            {
-              backgroundColor: canCreateManualTransaction ? ui.text : ui.surface,
-              borderColor: canCreateManualTransaction ? ui.text : ui.border,
-              opacity: pressed ? 0.72 : canCreateManualTransaction ? 1 : 0.8,
-            },
+          <GoalProgressRing
+            progress={progress}
+            ui={ui}
+            currentAmount={formatMoney(goal.current_amount ?? 0)}
+            targetAmount={formatMoney(goal.target_amount)}
+          />
+        </View>
+
+        <View
+          style={[
+            detailStyles.statsCard,
+            { backgroundColor: ui.surface, borderColor: ui.border },
           ]}
         >
-          <IconSymbol
-            name="plus"
-            size={15}
-            color={canCreateManualTransaction ? ui.surface : ui.text}
+          <DetailRow label="Linked Account" value={linkedAccountName} />
+          <DetailRow label="Target Amount" value={formatMoney(goal.target_amount)} />
+          <DetailRow label="Current Saved" value={formatMoney(goal.current_amount ?? 0)} />
+          <DetailRow
+            label="Target Date"
+            value={goal.target_date ? formatLongDate(goal.target_date) : "No target date"}
           />
-          <ThemedText
-            style={[
-              detailStyles.actionText,
-              { color: canCreateManualTransaction ? ui.surface : ui.text },
+          <DetailRow
+            label="Start Date"
+            value={goal.created_at ? formatLongDate(goal.created_at) : "Not available"}
+          />
+        </View>
+
+        <View style={detailStyles.actionsRow}>
+          <Pressable
+            onPress={handleOpenEdit}
+            style={({ pressed }) => [
+              detailStyles.actionButton,
+              {
+                backgroundColor: ui.surface,
+                borderColor: ui.border,
+                opacity: pressed ? 0.72 : 1,
+              },
             ]}
           >
-            Add Transaction
-          </ThemedText>
-        </Pressable>
-      </View>
+            <IconSymbol name="pencil" size={15} color={ui.text} />
+            <ThemedText style={[detailStyles.actionText, { color: ui.text }]}>
+              Edit Goal
+            </ThemedText>
+          </Pressable>
 
-      <View style={detailStyles.sectionHeader}>
-        <ThemedText style={[detailStyles.sectionTitle, { color: ui.text }]}>
-          Transactions
-        </ThemedText>
-      </View>
-
-      <View
-        style={[
-          detailStyles.searchWrap,
-          { backgroundColor: ui.surface, borderColor: ui.border },
-        ]}
-      >
-        <TextInput
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-          placeholder="Search"
-          placeholderTextColor={ui.mutedText}
-          style={[detailStyles.searchInput, { color: ui.text }]}
-        />
-        <IconSymbol name="line.3.horizontal.decrease.circle" size={16} color={ui.mutedText} />
-      </View>
-
-      <View style={detailStyles.listWrap}>
-        <TransactionsList
-          ui={ui}
-          accounts={manualAccounts}
-          plaidAccounts={plaidAccounts}
-          expenses={goalTransactions}
-          plaidTransactions={[]}
-          recurringRules={recurringRules}
-          filterAccountId={filterAccountId}
-          onFilterAccountChange={() => {}}
-          searchQuery={searchQuery}
-          onSearchQueryChange={setSearchQuery}
-          isLoading={isLoading}
-          showSearch={false}
-          showFilters={false}
-          showMeta={false}
-          showBadges={false}
-          subtleAmountColors={true}
-          emptyLabel="No goal transactions found."
-          onSelectTransaction={(transaction) => {
-            const encoded = encodeURIComponent(JSON.stringify(transaction));
-            if ("transaction_id" in transaction) {
-              router.push({
-                pathname: "/transaction-detail/[id]",
-                params: { id: transaction.transaction_id, initialData: encoded },
-              });
-              return;
-            }
-
-            router.push({
-              pathname: "/transaction/[id]",
-              params: {
-                id: String(transaction.id),
-                initialData: encoded,
-                goalId: goal.id,
+          <Pressable
+            onPress={handleAddTransaction}
+            style={({ pressed }) => [
+              detailStyles.actionButton,
+              {
+                backgroundColor: canCreateManualTransaction ? ui.text : ui.surface,
+                borderColor: canCreateManualTransaction ? ui.text : ui.border,
+                opacity: pressed ? 0.72 : canCreateManualTransaction ? 1 : 0.8,
               },
-            });
-          }}
-        />
-      </View>
-    </ScrollView>
+            ]}
+          >
+            <IconSymbol
+              name="plus"
+              size={15}
+              color={canCreateManualTransaction ? ui.surface : ui.text}
+            />
+            <ThemedText
+              style={[
+                detailStyles.actionText,
+                { color: canCreateManualTransaction ? ui.surface : ui.text },
+              ]}
+            >
+              Add Transaction
+            </ThemedText>
+          </Pressable>
+        </View>
+
+        <View style={detailStyles.sectionHeader}>
+          <ThemedText style={[detailStyles.sectionTitle, { color: ui.text }]}>
+            Transactions
+          </ThemedText>
+        </View>
+
+        <View
+          style={[
+            detailStyles.searchWrap,
+            { backgroundColor: ui.surface, borderColor: ui.border },
+          ]}
+        >
+          <TextInput
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            placeholder="Search"
+            placeholderTextColor={ui.mutedText}
+            style={[detailStyles.searchInput, { color: ui.text }]}
+          />
+          <IconSymbol name="line.3.horizontal.decrease.circle" size={16} color={ui.mutedText} />
+        </View>
+
+        <View style={detailStyles.listWrap}>
+          <TransactionsList
+            ui={ui}
+            accounts={manualAccounts}
+            plaidAccounts={plaidAccounts}
+            expenses={goalTransactions}
+            plaidTransactions={[]}
+            recurringRules={recurringRules}
+            filterAccountId={filterAccountId}
+            onFilterAccountChange={() => { }}
+            searchQuery={searchQuery}
+            onSearchQueryChange={setSearchQuery}
+            isLoading={isLoading}
+            showSearch={false}
+            showFilters={false}
+            showMeta={false}
+            showBadges={false}
+            subtleAmountColors={true}
+            emptyLabel="No goal transactions found."
+            onSelectTransaction={(transaction) => {
+              const encoded = encodeURIComponent(JSON.stringify(transaction));
+              if ("transaction_id" in transaction) {
+                router.push({
+                  pathname: "/transaction-detail/[id]",
+                  params: { id: transaction.transaction_id, initialData: encoded },
+                });
+                return;
+              }
+
+              router.push({
+                pathname: "/transaction/[id]",
+                params: {
+                  id: String(transaction.id),
+                  initialData: encoded,
+                  goalId: goal.id,
+                },
+              });
+            }}
+          />
+        </View>
+      </ScrollView>
   );
 }
 

@@ -36,9 +36,7 @@ function ProtectedLayout() {
       | Record<string, any>
       | undefined;
     const onboardingComplete =
-      metadata?.onboarding_complete ??
-      metadata?.onboardingComplete ??
-      true;
+      metadata?.onboarding_complete ?? metadata?.onboardingComplete ?? true;
     const needsOnboarding = onboardingComplete === false;
 
     if (session) {
@@ -66,7 +64,10 @@ function ProtectedLayout() {
     <Stack>
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-      <Stack.Screen name="account/[accountId]" options={{ headerShown: true }} />
+      <Stack.Screen
+        name="account/[accountId]"
+        options={{ headerShown: true }}
+      />
       <Stack.Screen name="account-edit" options={{ headerShown: true }} />
       <Stack.Screen
         name="add-account-source"
@@ -85,15 +86,39 @@ function ProtectedLayout() {
       <Stack.Screen
         name="goal-add"
         options={{
+          headerTitle: "New Goal",
           presentation: "pageSheet",
-          headerShown: false,
+          headerShown: true,
+          headerBackButtonDisplayMode: "minimal",
+          headerTransparent: Platform.OS === "ios",
+          headerShadowVisible: false,
+          headerTitleAlign: "center",
         }}
       />
       <Stack.Screen
         name="goal/[id]"
         options={{
+          headerTitle: "Goal Details",
           presentation: "card",
           headerShown: true,
+          headerBackButtonDisplayMode: "minimal",
+          headerTransparent: Platform.OS === "ios",
+          headerShadowVisible: false,
+          headerTitleAlign: "center",
+          headerTitleStyle: {
+            fontFamily: "Lato-Bold",
+          },
+        }}
+      />
+      <Stack.Screen
+        name="goal-edit"
+        options={{
+          presentation: "pageSheet",
+          headerShown: true,
+          headerTitleAlign: "center",
+          headerBackButtonDisplayMode: "minimal",
+          headerTransparent: Platform.OS === "ios",
+          headerShadowVisible: false,
         }}
       />
       <Stack.Screen
@@ -109,8 +134,6 @@ function ProtectedLayout() {
           },
           headerShadowVisible: false,
           headerTitleAlign: "center",
-
-
         }}
       />
       <Stack.Screen
@@ -121,8 +144,6 @@ function ProtectedLayout() {
           headerShown: true,
           headerBackButtonDisplayMode: "minimal",
           headerTransparent: Platform.OS === "ios",
-
-
         }}
       />
       <Stack.Screen
@@ -264,44 +285,43 @@ export default function RootLayout() {
     }
     */
 
-
     // Custom neutral overrides to match iOS look on Android
-    const isDark = colorScheme === 'dark';
+    const isDark = colorScheme === "dark";
     return {
       ...baseTheme,
       colors: {
         ...baseTheme.colors,
-        primary: isDark ? '#FFFFFF' : '#000000',
-        onPrimary: isDark ? '#000000' : '#FFFFFF',
-        primaryContainer: isDark ? '#1C1C1E' : '#F2F2F7',
-        onPrimaryContainer: isDark ? '#FFFFFF' : '#000000',
+        primary: isDark ? "#FFFFFF" : "#000000",
+        onPrimary: isDark ? "#000000" : "#FFFFFF",
+        primaryContainer: isDark ? "#1C1C1E" : "#F2F2F7",
+        onPrimaryContainer: isDark ? "#FFFFFF" : "#000000",
 
-        secondary: isDark ? '#FFFFFF' : '#000000',
-        onSecondary: isDark ? '#000000' : '#FFFFFF',
-        secondaryContainer: isDark ? '#3A3A3C' : '#E5E5EA',
-        onSecondaryContainer: isDark ? '#FFFFFF' : '#000000',
+        secondary: isDark ? "#FFFFFF" : "#000000",
+        onSecondary: isDark ? "#000000" : "#FFFFFF",
+        secondaryContainer: isDark ? "#3A3A3C" : "#E5E5EA",
+        onSecondaryContainer: isDark ? "#FFFFFF" : "#000000",
 
-        tertiary: isDark ? '#FFFFFF' : '#000000',
-        onTertiary: isDark ? '#000000' : '#FFFFFF',
-        tertiaryContainer: isDark ? '#1C1C1E' : '#F2F2F7',
-        onTertiaryContainer: isDark ? '#FFFFFF' : '#000000',
+        tertiary: isDark ? "#FFFFFF" : "#000000",
+        onTertiary: isDark ? "#000000" : "#FFFFFF",
+        tertiaryContainer: isDark ? "#1C1C1E" : "#F2F2F7",
+        onTertiaryContainer: isDark ? "#FFFFFF" : "#000000",
 
-        background: isDark ? '#000000' : '#FFFFFF',
-        onBackground: isDark ? '#FFFFFF' : '#000000',
+        background: isDark ? "#000000" : "#FFFFFF",
+        onBackground: isDark ? "#FFFFFF" : "#000000",
 
-        surface: isDark ? '#1C1C1E' : '#F2F2F7',
-        onSurface: isDark ? '#FFFFFF' : '#000000',
-        surfaceVariant: isDark ? '#3A3A3C' : '#E5E5EA',
-        onSurfaceVariant: isDark ? '#EBEBF5' : '#3C3C43', // Muted text/icons
+        surface: isDark ? "#1C1C1E" : "#F2F2F7",
+        onSurface: isDark ? "#FFFFFF" : "#000000",
+        surfaceVariant: isDark ? "#3A3A3C" : "#E5E5EA",
+        onSurfaceVariant: isDark ? "#EBEBF5" : "#3C3C43", // Muted text/icons
 
-        outline: isDark ? '#545458' : '#D1D1D6',
-        outlineVariant: isDark ? '#3A3A3C' : '#E5E5EA',
+        outline: isDark ? "#545458" : "#D1D1D6",
+        outlineVariant: isDark ? "#3A3A3C" : "#E5E5EA",
 
         elevation: {
           ...baseTheme.colors.elevation,
-          level2: isDark ? '#1C1C1E' : '#F2F2F7',
-        }
-      }
+          level2: isDark ? "#1C1C1E" : "#F2F2F7",
+        },
+      },
     };
   }, [colorScheme]);
 
@@ -330,7 +350,9 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <PaperProvider theme={paperTheme}>
-        <ThemeProvider value={colorScheme === "dark" ? CustomDarkTheme : CustomDefaultTheme}>
+        <ThemeProvider
+          value={colorScheme === "dark" ? CustomDarkTheme : CustomDefaultTheme}
+        >
           <AuthProvider>
             <SplashScreenController />
             <ProtectedLayout />

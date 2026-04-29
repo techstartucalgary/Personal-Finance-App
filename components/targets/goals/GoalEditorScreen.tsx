@@ -16,11 +16,10 @@ import {
   View,
 } from "react-native";
 
-import { usePreventRemove } from "@react-navigation/native";
+import { useNavigation, usePreventRemove } from "@react-navigation/native";
 import {
   useFocusEffect,
   useLocalSearchParams,
-  useNavigation,
   useRouter,
 } from "expo-router";
 
@@ -43,7 +42,6 @@ import {
   buildSelectableAccounts,
   formatLongDate,
   formatMoney,
-  getGoalLinkedAccountName,
   getGoalRowSelectionKey,
   getGoalSelectionKey,
   normalizeGoal,
@@ -76,32 +74,45 @@ export function GoalEditorScreen({ mode }: GoalEditorScreenProps) {
     initialData?: string;
   }>();
 
-  const [accounts, setAccounts] = useState<GoalSelectableAccount[]>([]);
-  const [goal, setGoal] = useState<GoalRow | null>(() => {
+  // Pre-hydrate from initialData so the form is instantly interactive
+  const preHydrated = useMemo(() => {
     if (mode !== "edit" || !initialData) return null;
     try {
       return normalizeGoal(JSON.parse(decodeURIComponent(initialData)));
     } catch {
       return null;
     }
-  });
-  const [isLoading, setIsLoading] = useState(mode === "edit" && !initialData);
+  }, [mode, initialData]);
+
+  const [goal, setGoal] = useState<GoalRow | null>(preHydrated);
+  const [isLoading, setIsLoading] = useState(mode === "edit" && !preHydrated);
   const [allowRemoval, setAllowRemoval] = useState(false);
-  const [name, setName] = useState("");
-  const [targetAmount, setTargetAmount] = useState("");
-  const [currentAmount, setCurrentAmount] = useState("");
-  const [targetDate, setTargetDate] = useState<string | null>(null);
+  const [name, setName] = useState(preHydrated?.name ?? "");
+  const [targetAmount, setTargetAmount] = useState(
+    preHydrated?.target_amount != null && preHydrated.target_amount > 0
+      ? String(preHydrated.target_amount)
+      : ""
+  );
+  const [currentAmount, setCurrentAmount] = useState(
+    preHydrated?.current_amount != null ? String(preHydrated.current_amount) : ""
+  );
+  const [targetDate, setTargetDate] = useState<string | null>(preHydrated?.target_date ?? null);
   const [selectedAccount, setSelectedAccount] =
     useState<GoalSelectableAccount | null>(null);
+
   const initialDraftRef = useRef<string>(
     serializeDraft({
-      name: "",
-      targetAmount: "",
-      currentAmount: "",
-      targetDate: null,
-      selectedAccountKey: null,
+      name: preHydrated?.name ?? "",
+      targetAmount: preHydrated?.target_amount != null && preHydrated.target_amount > 0
+        ? String(preHydrated.target_amount)
+        : "",
+      currentAmount: preHydrated?.current_amount != null ? String(preHydrated.current_amount) : "",
+      targetDate: preHydrated?.target_date ?? null,
+      selectedAccountKey: null, // Will be updated after accounts load
     }),
   );
+  const hasHydratedDraftRef = useRef(false);
+  const hasPickedAccountRef = useRef(false);
 
   const hydrateFromGoal = useCallback(
     (nextGoal: GoalRow | null, selectableAccounts: GoalSelectableAccount[]) => {
@@ -138,14 +149,29 @@ export function GoalEditorScreen({ mode }: GoalEditorScreenProps) {
   const loadData = useCallback(async () => {
     if (!userId) return;
 
+    if (mode !== "edit") {
+      if (!hasHydratedDraftRef.current) {
+        initialDraftRef.current = serializeDraft({
+          name: "",
+          targetAmount: "",
+          currentAmount: "",
+          targetDate: null,
+          selectedAccountKey: null,
+        });
+        hasHydratedDraftRef.current = true;
+      }
+      setIsLoading(false);
+      return;
+    }
+
     try {
-      setIsLoading(true);
+      if (!preHydrated) setIsLoading(true);
       const [manualAccounts, plaidAccounts, goalData] = await Promise.all([
         listAccounts({ profile_id: userId }),
         getPlaidAccounts(),
-        mode === "edit" && id
+        id && !preHydrated
           ? getGoal({ id, profile_id: userId })
-          : Promise.resolve(goal),
+          : Promise.resolve(preHydrated),
       ]);
 
       const selectableAccounts = buildSelectableAccounts({
@@ -156,29 +182,21 @@ export function GoalEditorScreen({ mode }: GoalEditorScreenProps) {
       const normalizedGoal =
         goalData && mode === "edit" ? normalizeGoal(goalData) : null;
 
-      setAccounts(selectableAccounts);
       if (mode === "edit") {
         setGoal(normalizedGoal);
-        hydrateFromGoal(normalizedGoal, selectableAccounts);
-      } else {
-        initialDraftRef.current = serializeDraft({
-          name: "",
-          targetAmount: "",
-          currentAmount: "",
-          targetDate: null,
-          selectedAccountKey: null,
-        });
+        if (!hasHydratedDraftRef.current && !hasPickedAccountRef.current) {
+          hydrateFromGoal(normalizedGoal, selectableAccounts);
+          hasHydratedDraftRef.current = true;
+        }
       }
     } catch (error) {
       console.error("Error loading goal editor data:", error);
       Alert.alert("Error", "Could not load goal details.");
-      if (mode === "edit") {
-        router.back();
-      }
+      router.back();
     } finally {
       setIsLoading(false);
     }
-  }, [goal, hydrateFromGoal, id, mode, router, userId]);
+  }, [hydrateFromGoal, id, mode, router, userId, preHydrated]);
 
   useEffect(() => {
     loadData();
@@ -188,6 +206,7 @@ export function GoalEditorScreen({ mode }: GoalEditorScreenProps) {
     useCallback(() => {
       const pendingSelection = consumePendingGoalAccountSelection();
       if (pendingSelection) {
+        hasPickedAccountRef.current = true;
         setSelectedAccount(pendingSelection);
       }
     }, []),
@@ -251,6 +270,7 @@ export function GoalEditorScreen({ mode }: GoalEditorScreenProps) {
         });
       }
 
+      setAllowRemoval(true);
       router.back();
     } catch (error) {
       setAllowRemoval(false);
@@ -321,8 +341,10 @@ export function GoalEditorScreen({ mode }: GoalEditorScreenProps) {
 
   useEffect(() => {
     const canSave = mode === "edit" ? isDirty && isValid : isValid;
+    const parent = navigation.getParent();
+    if (!parent) return;
 
-    navigation.setOptions({
+    parent.setOptions({
       title: mode === "edit" ? "Edit Goal" : "Add Goal",
       headerBackVisible: false,
       headerTitleAlign: "center",
@@ -336,6 +358,7 @@ export function GoalEditorScreen({ mode }: GoalEditorScreenProps) {
         fontFamily: Tokens.font.semiFamily ?? Tokens.font.family,
       },
       headerTintColor: ui.accent,
+      headerBackButtonDisplayMode: "minimal",
       headerLeft: () => (
         <Pressable
           onPress={() => router.back()}
@@ -402,22 +425,7 @@ export function GoalEditorScreen({ mode }: GoalEditorScreenProps) {
         </ThemedText>
         <ThemedText style={[styles.heroMeta, { color: ui.mutedText }]}>
           {selectedAccount
-            ? getGoalLinkedAccountName(
-                {
-                  id: "preview",
-                  name: name.trim(),
-                  target_amount: parsedTargetAmount || 0,
-                  current_amount: parsedCurrentAmount,
-                  target_date: targetDate,
-                  linked_account: selectedAccount.isPlaid
-                    ? null
-                    : Number(selectedAccount.id),
-                  linked_plaid_account: selectedAccount.isPlaid
-                    ? String(selectedAccount.id)
-                    : null,
-                },
-                accounts,
-              )
+            ? selectedAccount.name
             : "Link Account"}
         </ThemedText>
         <View style={styles.progressPreviewTrack}>
@@ -514,7 +522,7 @@ export function GoalEditorScreen({ mode }: GoalEditorScreenProps) {
             onPress={() => {
               const pathname =
                 mode === "edit" && id
-                  ? "/goal/[id]/account-select"
+                  ? "/goal-edit/account-select"
                   : "/goal-add/account-select";
 
               router.push({

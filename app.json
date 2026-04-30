@@ -8,10 +8,9 @@
     "icon": "./assets/images/icon.png",
     "scheme": "sterling-scheme",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.techstart.sterlingbudgeting",
+      "bundleIdentifier": "com.sterlingmoney.app",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "CFBundleURLTypes": [
@@ -32,7 +31,8 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.techstart.sterlingbudgeting"
+      "softwareKeyboardLayoutMode": "pan",
+      "package": "com.sterlingmoney.app"
     },
     "web": {
       "output": "server",
@@ -59,13 +59,15 @@
         }
       ],
       "expo-web-browser",
+      "expo-font",
+      "expo-image",
       [
-      "expo-speech-recognition",
+        "expo-speech-recognition",
         {
           "microphonePermission": "Allow Sterling to access your microphone",
           "speechRecognitionPermission": "Allow Sterling to recognize your speech"
         }
-      ]  
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

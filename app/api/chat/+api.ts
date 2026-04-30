@@ -14,63 +14,69 @@ import {
   stepCountIs,
   streamText,
 } from "ai";
-import { Agent } from "undici";
+import { config } from "dotenv";
+
+config({ path: ".env.local" });
+
 export async function POST(req: Request) {
-  const requestData = await req.json();
-  console.log("Full request data:", requestData);
+  const requestId = Math.random().toString(36).slice(2, 10);
 
-  const messages = requestData.messages;
-  const token = requestData.token;
+  try {
+    console.log(`[chat:${requestId}] request received`);
+    console.log(`[chat:${requestId}] env`, {
+      hasSupabaseUrl: Boolean(process.env.EXPO_PUBLIC_SUPABASE_URL),
+      hasSupabaseSecretKey: Boolean(process.env.SUPABASE_SECRET_KEY),
+      hasAiGatewayApiKey: Boolean(process.env.AI_GATEWAY_API_KEY),
+      embeddingModel: process.env.EMBEDDING_MODEL ?? null,
+    });
 
-  const supabase = createClient(
-    process.env.EXPO_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SECRET_KEY!, // latest supabase document recommends using a supabase secret key
-  );
+    const requestData = await req.json();
+    console.log(`[chat:${requestId}] request body`, {
+      messageCount: requestData.messages?.length ?? 0,
+      hasToken: Boolean(requestData.token),
+      hasProfileId: Boolean(requestData.profile_id),
+    });
 
-  // validate token
-  let userId: string | null = null;
-  if (token) {
-    try {
+    const messages = requestData.messages;
+    const token = requestData.token;
+
+    const supabase = createClient(
+      process.env.EXPO_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SECRET_KEY!, // latest supabase document recommends using a supabase secret key
+    );
+
+    // validate token
+    let userId: string | null = null;
+    if (token) {
+      console.log(`[chat:${requestId}] validating Supabase token`);
       const { data, error } = await supabase.auth.getUser(token);
       if (error) {
-        console.error("Token validation failed:", error);
+        console.error(`[chat:${requestId}] token validation failed`, error);
         return new Response(
           JSON.stringify({ error: "Unauthorized: Invalid token" }),
           { status: 401, headers: { "Content-Type": "application/json" } },
         );
       }
       userId = data.user?.id || null;
-      console.log("✅ Token validated. User ID:", userId);
-    } catch (err) {
-      console.error("Auth error:", err);
-      return new Response(
-        JSON.stringify({ error: "Unauthorized: Auth failed" }),
-        { status: 401, headers: { "Content-Type": "application/json" } },
-      );
+      console.log(`[chat:${requestId}] token validated`, {
+        hasUserId: Boolean(userId),
+      });
     }
-  }
 
-  if (!userId) {
-    return new Response(JSON.stringify({ error: "Profile ID is required" }), {
-      status: 400,
-      headers: { "Content-Type": "application/json" },
-    });
-  }
+    if (!userId) {
+      console.warn(`[chat:${requestId}] missing user id`);
+      return new Response(JSON.stringify({ error: "Profile ID is required" }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
 
-  const gateway = createGateway({
-    fetch: (url, init) =>
-      fetch(url, {
-        ...init,
-        dispatcher: new Agent({
-          headersTimeout: 15 * 60 * 1000, // 15 minutes
-          bodyTimeout: 15 * 60 * 1000,
-        }),
-      } as RequestInit),
-  });
-  const result = streamText({
-    model: gateway("google/gemini-2.5-flash-lite"),
-    messages: await convertToModelMessages(messages),
-    system: `You are the Sterling Financial Engine, a high-precision financial analyzer and advisor.
+    console.log(`[chat:${requestId}] creating gateway stream`);
+    const gateway = createGateway();
+    const result = streamText({
+      model: gateway("google/gemini-2.5-flash-lite"),
+      messages: await convertToModelMessages(messages),
+      system: `You are the Sterling Financial Engine, a high-precision financial analyzer and advisor.
   Your goal is to help users manage their wealth through accurate data entry, insightful analysis, and proactive coaching.
 
   RETRIEVAL RULES (READ FIRST):
@@ -161,28 +167,42 @@ export async function POST(req: Request) {
 
   BE FAST. Never auto-pick a category from existing ones — always let the user choose via the picker.`,
 
-    tools: {
-      ...expenseTools(userId, supabase),
-      ...incomeTools(userId, supabase),
-      ...accountTools(userId, supabase),
-      ...searchTools(userId, supabase, gateway),
-      ...queryTools(userId, supabase),
-    },
-    stopWhen: [
-      stepCountIs(5),
-      hasToolCall("getAccountsAndCategoriesForSelection"),
-      hasToolCall("getAccountsAndIncomeCategoriesForSelection"),
-      hasToolCall("getExpenseCategoriesForSelection"),
-      hasToolCall("getIncomeCategoriesForSelection"),
-      hasToolCall("requestNewExpenseCategoryName"),
-      hasToolCall("requestNewIncomeCategoryName"),
-    ],
-  });
+      tools: {
+        ...expenseTools(userId, supabase),
+        ...incomeTools(userId, supabase),
+        ...accountTools(userId, supabase),
+        ...searchTools(userId, supabase, gateway),
+        ...queryTools(userId, supabase),
+      },
+      stopWhen: [
+        stepCountIs(5),
+        hasToolCall("getAccountsAndCategoriesForSelection"),
+        hasToolCall("getAccountsAndIncomeCategoriesForSelection"),
+        hasToolCall("getExpenseCategoriesForSelection"),
+        hasToolCall("getIncomeCategoriesForSelection"),
+        hasToolCall("requestNewExpenseCategoryName"),
+        hasToolCall("requestNewIncomeCategoryName"),
+      ],
+    });
 
-  return result.toUIMessageStreamResponse({
-    headers: {
-      "Content-Type": "application/octet-stream",
-      "Content-Encoding": "none",
-    },
-  });
+    console.log(`[chat:${requestId}] returning stream response`);
+    return result.toUIMessageStreamResponse({
+      onError: (error) => {
+        console.error(`[chat:${requestId}] stream error`, error);
+        return error instanceof Error ? error.message : String(error);
+      },
+      headers: {
+        "Content-Type": "application/octet-stream",
+        "Content-Encoding": "none",
+      },
+    });
+  } catch (error) {
+    console.error(`[chat:${requestId}] route error`, error);
+    return new Response(
+      JSON.stringify({
+        error: error instanceof Error ? error.message : "Unknown chat API error",
+      }),
+      { status: 500, headers: { "Content-Type": "application/json" } },
+    );
+  }
 }

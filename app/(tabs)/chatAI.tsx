@@ -34,6 +34,23 @@ export default function ChatAI() {
   const { session } = useAuthContext();
   const apiUrl = generateAPIUrl("/api/chat");
 
+  const chatFetch: typeof globalThis.fetch = async (input, init) => {
+    console.log("Chat request started", { apiUrl });
+    const response = await expoFetch(input, init);
+    console.log("Chat response received", {
+      apiUrl,
+      status: response.status,
+      ok: response.ok,
+      contentType: response.headers.get("content-type"),
+    });
+
+    if (!response.ok) {
+      console.error("Chat error response body", await response.clone().text());
+    }
+
+    return response as Response;
+  };
+
   useSpeechRecognitionEvent("result", (event) => {
     setTranscript(event.results[0]?.transcript || "");
   });
@@ -66,14 +83,14 @@ export default function ChatAI() {
 
   const { messages, error, sendMessage } = useChat({
     transport: new DefaultChatTransport({
-      fetch: expoFetch as unknown as typeof globalThis.fetch,
+      fetch: chatFetch,
       api: apiUrl,
       body: {
         profile_id: session?.user.id,
         token: session?.access_token,
       },
     }),
-    onError: (error) => console.error(error, "ERROR"),
+    onError: (error) => console.error("Chat request failed", { apiUrl, error }),
   });
 
   if (error) return <Text>{error.message}</Text>;
@@ -103,6 +120,8 @@ export default function ChatAI() {
                 // The tool result should have account options
                 // Render radio buttons here
                 if (part.state === "output-available") {
+                  const output = part.output as { accounts?: any[] };
+
                   return (
                     <View
                       key={menuId}
@@ -114,7 +133,7 @@ export default function ChatAI() {
                       <Text style={{ fontWeight: "600", marginBottom: 8 }}>
                         Select an account:
                       </Text>
-                      {part.output?.accounts?.map((res: any) => {
+                      {output.accounts?.map((res: any) => {
                         const wasOptionSent =
                           isMenuSent &&
                           sentMenuOptions.has(`${menuId}-${res.value}`);

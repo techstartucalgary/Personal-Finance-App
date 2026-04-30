@@ -1,7 +1,11 @@
 import Constants from "expo-constants";
 // In production: needs to point at deployed API URL Ex. https://sterling.vercel.app
 export const generateAPIUrl = (relativePath: string) => {
-  const origin = Constants.experienceUrl.replace("exp://", "http://");
+  const origin = (
+    Constants.expoConfig?.hostUri ?? Constants.experienceUrl
+  )
+    .replace(/^exp:\/\//, "http://")
+    .replace(/^(?!https?:\/\/)/, "http://");
 
   const path = relativePath.startsWith("/") ? relativePath : `/${relativePath}`;
 

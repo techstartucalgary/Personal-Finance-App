@@ -5,6 +5,7 @@ export type TransactionsUi = {
   surface2: string;
   border: string;
   text: string;
+  primaryText: string;
   mutedText: string;
   backdrop: string;
   accent: string;

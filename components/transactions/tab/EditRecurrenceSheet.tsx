@@ -35,6 +35,8 @@ import type {
   TransactionsUi,
 } from "./types";
 
+const RECURRENCE_FREQUENCIES = ["Daily", "Weekly", "Monthly", "Yearly"];
+
 type EditRecurrenceSheetProps = {
   editingRule: RecurringRule | null;
   onClose: () => void;
@@ -79,8 +81,6 @@ export function EditRecurrenceSheet({
   const [editRuleSelectedSubcategory, setEditRuleSelectedSubcategory] =
     useState<SubcategoryRow | null>(null);
 
-  const [editRuleFrequencyModalOpen, setEditRuleFrequencyModalOpen] =
-    useState(false);
   const [editRuleCategoryModalOpen, setEditRuleCategoryModalOpen] =
     useState(false);
   const [editRuleSubcategoryModalOpen, setEditRuleSubcategoryModalOpen] =
@@ -298,7 +298,7 @@ export function EditRecurrenceSheet({
             is_active:
               statusOverride !== undefined
                 ? statusOverride
-                : editingRule.is_active,
+                : editingRule.is_active ?? true,
           },
         });
         onClose();
@@ -444,15 +444,35 @@ export function EditRecurrenceSheet({
 
               <View style={{ gap: 6 }}>
                 <ThemedText type="defaultSemiBold">Frequency</ThemedText>
-                <Pressable
-                  onPress={() => setEditRuleFrequencyModalOpen(true)}
-                  style={[
-                    styles.dropdownButton,
-                    { borderColor: ui.border, backgroundColor: ui.surface2 },
-                  ]}
-                >
-                  <ThemedText>{editRuleFrequency}</ThemedText>
-                </Pressable>
+                <View style={styles.frequencySelectorRow}>
+                  {RECURRENCE_FREQUENCIES.map((freq) => {
+                    const isSelected = editRuleFrequency === freq;
+                    return (
+                      <Pressable
+                        key={freq}
+                        onPress={() => setEditRuleFrequency(freq)}
+                        style={({ pressed }) => [
+                          styles.frequencyOption,
+                          {
+                            borderColor: isSelected ? ui.text : ui.border,
+                            backgroundColor: isSelected ? ui.text : ui.surface2,
+                            opacity: pressed ? 0.72 : 1,
+                          },
+                        ]}
+                      >
+                        <ThemedText
+                          numberOfLines={1}
+                          style={[
+                            styles.frequencyOptionText,
+                            { color: isSelected ? ui.surface : ui.text },
+                          ]}
+                        >
+                          {freq}
+                        </ThemedText>
+                      </Pressable>
+                    );
+                  })}
+                </View>
               </View>
 
               <DateTimePickerField
@@ -542,29 +562,6 @@ export function EditRecurrenceSheet({
           </ScrollView>
         </ThemedView>
       </Modal>
-
-      <SelectionModal
-        visible={editRuleFrequencyModalOpen}
-        onClose={() => setEditRuleFrequencyModalOpen(false)}
-        title="Select Frequency"
-        ui={ui}
-      >
-        {["Daily", "Weekly", "Monthly", "Yearly"].map((freq) => (
-          <Pressable
-            key={freq}
-            style={[
-              styles.modalOption,
-              { borderColor: ui.border, backgroundColor: ui.surface },
-            ]}
-            onPress={() => {
-              setEditRuleFrequency(freq);
-              setEditRuleFrequencyModalOpen(false);
-            }}
-          >
-            <ThemedText>{freq}</ThemedText>
-          </Pressable>
-        ))}
-      </SelectionModal>
 
       <SelectionModal
         visible={editRuleCategoryModalOpen}

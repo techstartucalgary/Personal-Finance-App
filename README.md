@@ -68,3 +68,9 @@ npx expo start --web
 
 - **"Cannot find native module"**: You are likely trying to use Expo Go. Please use `npx expo run:ios` or `npx expo run:android` to create a custom development build.
 - **CocoaPods errors**: Run `cd ios && pod install && cd ..`
+
+## Feature Documentation
+
+Deeper documentation for individual features lives under [`docs/`](docs/).
+
+- [AI Chatbot](docs/README.md) — chat API, AI tools, embedding pipeline, hybrid retrieval, configuration, and troubleshooting.

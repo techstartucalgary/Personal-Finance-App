@@ -34,7 +34,7 @@
       "package": "com.sterlingmoney.app"
     },
     "web": {
-      "output": "single",
+      "output": "server",
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
@@ -59,7 +59,14 @@
       ],
       "expo-web-browser",
       "expo-font",
-      "expo-image"
+      "expo-image",
+      [
+        "expo-speech-recognition",
+        {
+          "microphonePermission": "Allow Sterling to access your microphone",
+          "speechRecognitionPermission": "Allow Sterling to recognize your speech"
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

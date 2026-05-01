@@ -185,7 +185,7 @@ function ProtectedLayout() {
         options={{
           presentation: "card",
           headerShown: true,
-          title: "AI buddy",
+          title: "AI Chat",
           headerBackTitle: "Dashboard",
           headerBackButtonDisplayMode: "minimal",
           headerTitleAlign: "center",

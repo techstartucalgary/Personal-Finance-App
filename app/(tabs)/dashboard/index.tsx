@@ -519,7 +519,7 @@ export default function DashboardScreen() {
       </ScrollView>
 
       <NativeFab
-        accessibilityLabel="Open AI buddy"
+        accessibilityLabel="Open AI Chatbot"
         androidIconSource={require("../../../assets/icons/chat.xml")}
         bottom={fabBottom}
         fallbackFeatherName="message-square"

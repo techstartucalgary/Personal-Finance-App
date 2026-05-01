@@ -1,6 +1,7 @@
 import { SupabaseClient } from "@supabase/supabase-js";
 import { tool } from "ai";
 import { z } from "zod";
+import { formatMoney, roundMoney } from "../money";
 
 
 export const incomeTools = (profile_id: string, supabase: SupabaseClient) => ({
@@ -32,11 +33,11 @@ export const incomeTools = (profile_id: string, supabase: SupabaseClient) => ({
       return {
         accounts: accountData.map(acc => ({
           id: acc.id,
-          label: `${acc.account_name} (${acc.account_type}) - Balance: $${acc.balance}`,
+          label: `${acc.account_name} (${acc.account_type}) - Balance: ${formatMoney(Number(acc.balance ?? 0), acc.currency ?? "CAD")}`,
           name: acc.account_name,
           type: acc.account_type,
           value: acc.id,
-          balance: acc.balance,
+          balance: roundMoney(Number(acc.balance ?? 0)),
         })),
         categories: categoryData.map(cat => ({
           id: cat.id,
@@ -166,7 +167,7 @@ export const incomeTools = (profile_id: string, supabase: SupabaseClient) => ({
       // Validate account belongs to user
       const { data: account, error: accountError } = await supabase
         .from("account")
-        .select("id, account_name, account_type, balance")
+        .select("id, account_name, account_type, balance, currency")
         .eq("profile_id", profile_id)
         .eq("id", accountId)
         .maybeSingle();
@@ -209,7 +210,9 @@ export const incomeTools = (profile_id: string, supabase: SupabaseClient) => ({
 
         // Income increases balance for regular accounts, decreases for credit (reduces what you owe)
         const isCredit = account.account_type === "credit";
-        const newBalance = isCredit ? account.balance - amount : account.balance + amount;
+        const oldBalance = Number(account.balance ?? 0);
+        const newBalance = roundMoney(isCredit ? oldBalance - amount : oldBalance + amount);
+        const currency = account.currency ?? "CAD";
 
         const { error: updateError } = await supabase
           .from("account")
@@ -228,12 +231,12 @@ export const incomeTools = (profile_id: string, supabase: SupabaseClient) => ({
           success: true,
           message: `✅ Income added successfully!`,
           details: {
-            amount: `$${amount}`,
+            amount: formatMoney(amount, currency),
             source_description,
             account: account.account_name,
             category: category.category_name,
-            oldBalance: `$${account.balance}`,
-            newBalance: `$${newBalance}`
+            oldBalance: formatMoney(oldBalance, currency),
+            newBalance: formatMoney(newBalance, currency)
           }
         };
       } catch (err) {

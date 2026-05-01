@@ -9,6 +9,13 @@ export const formatMoney = (amount: number, currency: string = "CAD") => {
 };
 
 /**
+ * Rounds currency math to cents to avoid floating point display/storage noise.
+ */
+export const roundMoney = (amount: number): number => {
+  return Math.round((amount + Number.EPSILON) * 100) / 100;
+};
+
+/**
  * Formats a string as the user types (adds commas, limits decimals).
  * Use this for TextInput onChangeText.
  */

@@ -2,6 +2,7 @@ import { SupabaseClient } from "@supabase/supabase-js";
 import { tool } from "ai";
 import { z } from "zod";
 import { AccountRow } from "../accounts";
+import { formatMoney, roundMoney } from "../money";
 
 export const accountTools = (profile_id: string, supabase: SupabaseClient) => ({
 
@@ -31,7 +32,14 @@ export const accountTools = (profile_id: string, supabase: SupabaseClient) => ({
   
         // const accountNames = data.map(acc => acc.account_name).filter(Boolean);
         // return `The user's accounts are: ${accountNames.join(', ')}.`;
-        return data as AccountRow[];
+        return data.map((account) => ({
+          ...(account as AccountRow),
+          balance: roundMoney(Number(account.balance ?? 0)),
+          formattedBalance: formatMoney(
+            Number(account.balance ?? 0),
+            account.currency ?? "CAD",
+          ),
+        }));
       }catch (err) {
         console.error("Error in allAccounts tool:", err);
         return "An error occurred while fetching accounts.";

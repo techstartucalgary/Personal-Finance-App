@@ -1,6 +1,7 @@
 import { SupabaseClient } from "@supabase/supabase-js";
 import { tool } from "ai";
 import { z } from "zod";
+import { formatMoney, roundMoney } from "../money";
 
 const dateString = z
   .string()
@@ -344,8 +345,9 @@ export const queryTools = (profile_id: string, supabase: SupabaseClient) => ({
       const accounts = (data ?? []).map((a: any) => ({
         name: a.account_name,
         type: a.account_type,
-        balance: Number(a.balance ?? 0),
-        currency: a.currency,
+        balance: roundMoney(Number(a.balance ?? 0)),
+        formattedBalance: formatMoney(Number(a.balance ?? 0), a.currency ?? "CAD"),
+        currency: a.currency ?? "CAD",
       }));
 
       // Credit accounts represent debt — subtract from net worth
@@ -359,9 +361,9 @@ export const queryTools = (profile_id: string, supabase: SupabaseClient) => ({
       return {
         accounts,
         totals: {
-          assets: Number(assets.toFixed(2)),
-          liabilities: Number(liabilities.toFixed(2)),
-          netWorth: Number((assets - liabilities).toFixed(2)),
+          assets: roundMoney(assets),
+          liabilities: roundMoney(liabilities),
+          netWorth: roundMoney(assets - liabilities),
         },
       };
     },

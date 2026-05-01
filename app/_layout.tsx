@@ -181,6 +181,24 @@ function ProtectedLayout() {
         }}
       />
       <Stack.Screen
+        name="chat-ai"
+        options={{
+          presentation: "card",
+          headerShown: true,
+          title: "AI buddy",
+          headerBackTitle: "Dashboard",
+          headerBackButtonDisplayMode: "minimal",
+          headerTitleAlign: "center",
+          headerTransparent: Platform.OS === "ios",
+          headerShadowVisible: false,
+          headerTintColor: ui.text,
+          headerStyle:
+            Platform.OS === "android"
+              ? { backgroundColor: ui.surface }
+              : undefined,
+        }}
+      />
+      <Stack.Screen
         name="mfa-setup"
         options={{
           presentation: "pageSheet",

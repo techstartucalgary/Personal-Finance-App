@@ -39,23 +39,6 @@ export default function TabLayout() {
         <NativeTabs.Trigger.Label>Targets</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon sf="target" md="target" />
       </NativeTabs.Trigger>
-
-      <NativeTabs.Trigger
-        name="chatAI"
-        options={{
-          title: "AI buddy",
-        }}
-      >
-        <Icon
-          sf="eye"
-          androidSrc={
-            <VectorIcon
-              family={Feather}
-              name="eye"
-            />
-          }
-        />
-        </NativeTabs.Trigger>
     </NativeTabs>
   );
 }

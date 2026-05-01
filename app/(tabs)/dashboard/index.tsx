@@ -15,6 +15,7 @@ import {
 import { AccountsTrendChart } from "@/components/accounts/AccountsTrendChart";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
+import { NativeFab } from "@/components/ui/native-fab";
 import { Tokens } from "@/constants/authTokens";
 import { useTabsTheme } from "@/constants/tabsTheme";
 import { useAuthContext } from "@/hooks/use-auth-context";
@@ -59,7 +60,8 @@ export default function DashboardScreen() {
   const router = useRouter();
 
   // Dynamic tab bar height (NativeTabs-safe)
-  const tabBarHeight = insets.bottom + 60;
+  const tabBarHeight = insets.bottom + 48;
+  const fabBottom = tabBarHeight + 2;
   const { ui } = useTabsTheme();
   const pageBackground = ui.bg;
   const cardBackground = ui.surface;
@@ -515,6 +517,16 @@ export default function DashboardScreen() {
           )}
         </View>
       </ScrollView>
+
+      <NativeFab
+        accessibilityLabel="Open AI buddy"
+        androidIconSource={require("../../../assets/icons/chat.xml")}
+        bottom={fabBottom}
+        fallbackFeatherName="message-square"
+        iosSystemName="message"
+        inverted
+        onPress={() => router.push("/chat-ai")}
+      />
     </>
   );
 }

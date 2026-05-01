@@ -57,7 +57,7 @@ const messages = requestData.messages;
 const token = requestData.token;
 ```
 
-Body shape sent by [chatAI.tsx](../app/(tabs)/chatAI.tsx) via the
+Body shape sent by [chat-ai.tsx](../app/chat-ai.tsx) via the
 `DefaultChatTransport`:
 
 - `messages` — full conversation history, including tool calls and results

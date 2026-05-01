@@ -84,7 +84,7 @@ See [architecture.md](architecture.md) for the full mental model.
 | Path | What it does |
 |---|---|
 | [app/api/chat/+api.ts](../app/api/chat/+api.ts) | Chat API route. System prompt, tool wiring, `stopWhen` halts. |
-| [app/(tabs)/chatAI.tsx](../app/(tabs)/chatAI.tsx) | Client UI. Renders messages, account/category pickers, voice input. |
+| [app/chat-ai.tsx](../app/chat-ai.tsx) | Client UI. Renders messages, account/category pickers, voice input. |
 | [utils/apiUrlGenerator.ts](../utils/apiUrlGenerator.ts) | Resolves the API URL for dev (Expo origin) vs prod (`EXPO_PUBLIC_API_BASE_URL`). |
 | [utils/ai-tools/expense-tools.ts](../utils/ai-tools/expense-tools.ts) | Tools for the expense insertion flow (5 tools). |
 | [utils/ai-tools/income-tools.ts](../utils/ai-tools/income-tools.ts) | Tools for the income insertion flow (5 tools). |

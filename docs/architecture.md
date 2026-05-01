@@ -10,7 +10,7 @@ rest of the docs are implementation details that hang off this picture.
 ```
 ┌─────────────────────────┐                ┌──────────────────────────┐
 │   Mobile / Web Client   │                │   Vercel AI Gateway      │
-│   app/(tabs)/chatAI.tsx │                │   - LLM (Gemini)         │
+│   app/chat-ai.tsx       │                │   - LLM (Gemini)         │
 │   - useChat() hook      │                │   - Embeddings (OpenAI)  │
 │   - Pickers & UI prompts│                └────────────┬─────────────┘
 └────────────┬────────────┘                             │

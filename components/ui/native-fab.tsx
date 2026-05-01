@@ -9,8 +9,16 @@ import {
   ZStack as IOSZStack,
 } from "@expo/ui/swift-ui";
 import { frame, glassEffect, onTapGesture } from "@expo/ui/swift-ui/modifiers";
+import Feather from "@expo/vector-icons/Feather";
 import React from "react";
-import { Platform, Pressable, StyleSheet, View } from "react-native";
+import {
+  type ImageSourcePropType,
+  Platform,
+  Pressable,
+  StyleSheet,
+  View,
+} from "react-native";
+import type { SFSymbol } from "sf-symbols-typescript";
 
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { getColors } from "@/constants/authTokens";
@@ -22,20 +30,36 @@ const VISUAL_BOTTOM_ADJUSTMENT = 10;
 
 type NativeFabProps = {
   accessibilityLabel: string;
+  androidIconSource?: ImageSourcePropType;
   bottom: number;
+  fallbackFeatherName?: React.ComponentProps<typeof Feather>["name"];
+  iosSystemName?: SFSymbol;
   onPress: () => void;
+  inverted?: boolean;
 };
 
 export function NativeFab({
   accessibilityLabel,
+  androidIconSource,
   bottom,
+  fallbackFeatherName,
+  iosSystemName = "plus",
+  inverted = false,
   onPress,
 }: NativeFabProps) {
   const scheme = useColorScheme();
   const colors = getColors(scheme);
   const colorScheme = scheme;
-  const surfaceColor = colors.primaryBtn;
-  const iconColor = colors.primaryText;
+  const surfaceColor = inverted
+    ? scheme === "dark"
+      ? "#000000"
+      : "#FFFFFF"
+    : colors.primaryBtn;
+  const iconColor = inverted
+    ? scheme === "dark"
+      ? "#FFFFFF"
+      : "#000000"
+    : colors.primaryText;
   const anchoredBottom = Math.max(bottom - VISUAL_BOTTOM_ADJUSTMENT, 12);
 
   return (
@@ -67,7 +91,7 @@ export function NativeFab({
             ]}
           >
             <IOSImage
-              systemName="plus"
+              systemName={iosSystemName}
               size={22}
               color={iconColor}
             />
@@ -85,9 +109,9 @@ export function NativeFab({
           >
             <AndroidFloatingActionButton.Icon>
               <AndroidIcon
-                source={require("../../assets/icons/add.xml")}
+                source={androidIconSource ?? require("../../assets/icons/add.xml")}
                 size={24}
-                tintColor={iconColor}
+                tint={iconColor}
                 contentDescription={accessibilityLabel}
               />
             </AndroidFloatingActionButton.Icon>
@@ -105,7 +129,11 @@ export function NativeFab({
             },
           ]}
         >
-          <IconSymbol name="plus" size={28} color={iconColor} />
+          {fallbackFeatherName ? (
+            <Feather name={fallbackFeatherName} size={28} color={iconColor} />
+          ) : (
+            <IconSymbol name="plus" size={28} color={iconColor} />
+          )}
         </Pressable>
       )}
     </View>

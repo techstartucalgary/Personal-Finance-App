@@ -176,7 +176,7 @@ export default function SignUp() {
             </Pressable>
           </View>
 
-          <Text style={[styles.brandTitle, { color: "#000000" }]}>Sterling</Text>
+          <Text style={[styles.brandTitle, { color: C.text }]}>Sterling</Text>
 
           <KeyboardAvoidingView
             style={styles.formSection}
@@ -188,7 +188,7 @@ export default function SignUp() {
               showsVerticalScrollIndicator={false}
               contentContainerStyle={styles.formScroll}
             >
-              <Text style={[styles.title, { color: "#000000", marginBottom: titleBottom }]}>
+              <Text style={[styles.title, { color: C.text, marginBottom: titleBottom }]}>
                 {"Let's get you set up"}
               </Text>
               <View style={[styles.form, { gap: formGap }]}>
@@ -200,9 +200,16 @@ export default function SignUp() {
                       if (errors.name) setErrors((prev) => ({ ...prev, name: undefined }));
                     }}
                     placeholder="Name"
-                    forceScheme="light"
+                    inputProps={{
+                      autoCapitalize: "words",
+                      autoComplete: "name",
+                      textContentType: "name",
+                    }}
                     inputStyle={styles.inputText}
-                    containerStyle={styles.inputBox}
+                    containerStyle={[
+                      styles.inputBox,
+                      { backgroundColor: C.controlBg, borderColor: C.chipBorder },
+                    ]}
                     hasError={!!errors.name}
                   />
                   {errors.name ? (
@@ -217,10 +224,17 @@ export default function SignUp() {
                       if (errors.email) setErrors((prev) => ({ ...prev, email: undefined }));
                     }}
                     placeholder="Email"
-                    inputProps={{ keyboardType: "email-address", autoCapitalize: "none" }}
-                    forceScheme="light"
+                    inputProps={{
+                      autoCapitalize: "none",
+                      autoComplete: "email",
+                      keyboardType: "email-address",
+                      textContentType: "emailAddress",
+                    }}
                     inputStyle={styles.inputText}
-                    containerStyle={styles.inputBox}
+                    containerStyle={[
+                      styles.inputBox,
+                      { backgroundColor: C.controlBg, borderColor: C.chipBorder },
+                    ]}
                     hasError={!!errors.email}
                   />
                   {errors.email ? (
@@ -238,9 +252,11 @@ export default function SignUp() {
                     secureTextEntry={!showPassword}
                     showPasswordToggle
                     onTogglePassword={() => setShowPassword((v) => !v)}
-                    forceScheme="light"
                     inputStyle={styles.inputText}
-                    containerStyle={styles.inputBox}
+                    containerStyle={[
+                      styles.inputBox,
+                      { backgroundColor: C.controlBg, borderColor: C.chipBorder },
+                    ]}
                     hasError={!!errors.password}
                   />
                   {errors.password ? (
@@ -260,9 +276,11 @@ export default function SignUp() {
                     secureTextEntry={!showConfirm}
                     showPasswordToggle
                     onTogglePassword={() => setShowConfirm((v) => !v)}
-                    forceScheme="light"
                     inputStyle={styles.inputText}
-                    containerStyle={styles.inputBox}
+                    containerStyle={[
+                      styles.inputBox,
+                      { backgroundColor: C.controlBg, borderColor: C.chipBorder },
+                    ]}
                     hasError={!!errors.confirmPassword}
                   />
                   {errors.confirmPassword ? (
@@ -290,14 +308,33 @@ export default function SignUp() {
                 </View>
 
                 <View style={styles.socialRow}>
-                  <Pressable style={styles.socialIconBtn} hitSlop={8} onPress={handleGoogle}>
+                  <Pressable
+                    style={[
+                      styles.socialIconBtn,
+                      {
+                        backgroundColor: C.socialIconBg,
+                        borderColor: C.socialIconBorder,
+                      },
+                    ]}
+                    hitSlop={8}
+                    onPress={handleGoogle}
+                  >
                     <Image
                       source={require("../../assets/images/google.png")}
                       style={styles.socialIconImage}
                       resizeMode="contain"
                     />
                   </Pressable>
-                  <Pressable style={styles.socialIconBtn} hitSlop={8}>
+                  <Pressable
+                    style={[
+                      styles.socialIconBtn,
+                      {
+                        backgroundColor: C.socialIconBg,
+                        borderColor: C.socialIconBorder,
+                      },
+                    ]}
+                    hitSlop={8}
+                  >
                     <Image
                       source={require("../../assets/images/apple.png")}
                       style={styles.socialIconImage}
@@ -366,13 +403,15 @@ const styles = StyleSheet.create({
     lineHeight: 30,
   },
   inputBox: {
-    backgroundColor: "#E1E1E1",
     minHeight: 56,
+    borderWidth: 1,
   },
   inputText: {
     fontFamily: T.font.family,
     fontSize: 15.5,
+    letterSpacing: 0,
     paddingVertical: 8,
+    textTransform: "none",
   },
   fieldBlock: {
     gap: 4,
@@ -427,6 +466,8 @@ const styles = StyleSheet.create({
   socialIconBtn: {
     width: 46,
     height: 46,
+    borderRadius: 23,
+    borderWidth: 1,
     alignItems: "center",
     justifyContent: "center",
   },

@@ -144,7 +144,7 @@ export default function VerifyEmail() {
             </Pressable>
           </View>
 
-          <Text style={[styles.brandTitle, { color: "#000000" }]}>
+          <Text style={[styles.brandTitle, { color: C.text }]}>
             Sterling
           </Text>
 
@@ -160,18 +160,18 @@ export default function VerifyEmail() {
             >
               {/* Mail Icon */}
               <View style={styles.iconRow}>
-                <View style={[styles.iconCircle, { backgroundColor: "#E8F5F1" }]}>
-                  <Ionicons name="mail-outline" size={32} color="#1F6F5B" />
+                <View style={[styles.iconCircle, { backgroundColor: C.surface2 }]}>
+                  <Ionicons name="mail-outline" size={32} color={C.accent} />
                 </View>
               </View>
 
-              <Text style={[styles.title, { color: "#000000" }]}>
+              <Text style={[styles.title, { color: C.text }]}>
                 Verify your email
               </Text>
 
               <Text style={[styles.subtitle, { color: C.muted }]}>
                 We sent a 6-digit verification code to{" "}
-                <Text style={{ fontWeight: "600", color: "#000000" }}>
+                <Text style={{ fontWeight: "600", color: C.text }}>
                   {email}
                 </Text>
                 . Enter it below to activate your account.
@@ -188,7 +188,6 @@ export default function VerifyEmail() {
                     }}
                     placeholder="000000"
                     hasError={!!error}
-                    forceScheme="light"
                     inputProps={{
                       keyboardType: "number-pad",
                       maxLength: 6,
@@ -196,7 +195,10 @@ export default function VerifyEmail() {
                       textContentType: "oneTimeCode",
                     }}
                     inputStyle={styles.codeInput}
-                    containerStyle={styles.codeBox}
+                    containerStyle={[
+                      styles.codeBox,
+                      { backgroundColor: C.controlBg, borderColor: C.chipBorder },
+                    ]}
                   />
                   {error ? (
                     <Text style={[styles.fieldError, { color: C.danger }]}>
@@ -216,7 +218,7 @@ export default function VerifyEmail() {
 
                 <View style={styles.resendRow}>
                   <Text style={[styles.resendText, { color: C.muted }]}>
-                    Didn't receive a code?{" "}
+                    Did not receive a code?{" "}
                   </Text>
                   <Pressable
                     onPress={handleResend}
@@ -229,7 +231,7 @@ export default function VerifyEmail() {
                           color:
                             resendCooldown > 0
                               ? C.muted
-                              : "#1F6F5B",
+                              : C.accent,
                         },
                       ]}
                     >
@@ -321,8 +323,8 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   codeBox: {
-    backgroundColor: "#E1E1E1",
     minHeight: 64,
+    borderWidth: 1,
   },
   verifyBtn: {
     height: 50,

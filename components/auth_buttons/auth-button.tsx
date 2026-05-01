@@ -1,7 +1,14 @@
 import { Tokens, getColors } from "@/constants/authTokens";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import React from "react";
-import { Pressable, StyleSheet, Text, TextStyle, ViewStyle } from "react-native";
+import {
+  Pressable,
+  StyleSheet,
+  Text,
+  type StyleProp,
+  type TextStyle,
+  type ViewStyle,
+} from "react-native";
 
 type Variant = "outline" | "primary";
 
@@ -9,8 +16,8 @@ type Props = {
   label: string;
   onPress: () => void;
   variant?: Variant;
-  style?: ViewStyle;
-  labelStyle?: TextStyle;
+  style?: StyleProp<ViewStyle>;
+  labelStyle?: StyleProp<TextStyle>;
   disabled?: boolean;
 };
 
@@ -35,10 +42,10 @@ export function AuthButton({
         styles.base,
         isPrimary
           ? {
-              backgroundColor: "#020202",
+              backgroundColor: C.primaryBtn,
             }
           : {
-              backgroundColor: "#FFFFFF",
+              backgroundColor: C.surface,
               borderColor: C.chipBorder,
               borderWidth: 1.4,
             },
@@ -50,7 +57,7 @@ export function AuthButton({
       <Text
         style={[
           styles.label,
-          { color: isPrimary ? "#FFFFFF" : "#020202" },
+          { color: isPrimary ? C.primaryText : C.text },
           labelStyle,
         ]}
       >

@@ -250,9 +250,11 @@ export default function OnboardingProfile() {
                   value={preferredName}
                   onChangeText={setPreferredName}
                   placeholder="e.g., Johnny"
-                  forceScheme="light"
                   inputStyle={styles.inputText}
-                  containerStyle={[styles.inputBox, { borderColor: C.chipBorder }]}
+                  containerStyle={[
+                    styles.inputBox,
+                    { backgroundColor: C.controlBg, borderColor: C.chipBorder },
+                  ]}
                 />
 
                 <Text style={[styles.label, { color: C.text, marginTop: 12 }]}>
@@ -262,9 +264,11 @@ export default function OnboardingProfile() {
                   value={username}
                   onChangeText={setUsername}
                   placeholder="e.g., JohnD300"
-                  forceScheme="light"
                   inputStyle={styles.inputText}
-                  containerStyle={[styles.inputBox, { borderColor: C.chipBorder }]}
+                  containerStyle={[
+                    styles.inputBox,
+                    { backgroundColor: C.controlBg, borderColor: C.chipBorder },
+                  ]}
                   inputProps={{ autoCapitalize: "none" }}
                 />
 
@@ -300,12 +304,14 @@ export default function OnboardingProfile() {
                       onPress={() => setGoal(g.id)}
                       style={({ pressed }) => [
                         styles.goalCard,
-                        { borderColor: C.chipBorder, backgroundColor: "#E1E1E1" },
-                        selected && styles.goalCardSelected,
+                        {
+                          borderColor: selected ? C.text : C.chipBorder,
+                          backgroundColor: selected ? C.controlBgSelected : C.controlBg,
+                        },
                         pressed && styles.pressed,
                       ]}
                     >
-                      <View style={styles.goalIcon}>
+                      <View style={[styles.goalIcon, { backgroundColor: C.surface2 }]}>
                         <Feather name={g.icon} size={18} color={C.text} />
                       </View>
                       <View style={{ flex: 1 }}>
@@ -405,9 +411,8 @@ const styles = StyleSheet.create({
     height: 96,
     borderRadius: 999,
     borderWidth: 1.5,
-    borderColor: "rgba(17,17,17,0.35)",
+    borderColor: "rgba(142,142,147,0.45)",
     overflow: "hidden",
-    backgroundColor: "#F7F7F7",
   },
   photoPlaceholder: {
     flex: 1,
@@ -443,7 +448,6 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   inputBox: {
-    backgroundColor: "#E1E1E1",
     minHeight: 56,
     borderWidth: 1,
     borderRadius: 10,
@@ -489,15 +493,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 12,
   },
-  goalCardSelected: {
-    borderColor: "#111",
-    backgroundColor: "#E8E8EA",
-  },
   goalIcon: {
     width: 34,
     height: 34,
     borderRadius: 10,
-    backgroundColor: "rgba(17,17,17,0.06)",
     alignItems: "center",
     justifyContent: "center",
   },

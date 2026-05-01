@@ -94,9 +94,9 @@ export default function OnboardingCurrency() {
           </Text>
 
           <View style={styles.circleWrap}>
-            <View style={styles.circle}>
-              <View style={[styles.diag, styles.diagA]} />
-              <View style={[styles.diag, styles.diagB]} />
+            <View style={[styles.circle, { borderColor: C.text }]}>
+              <View style={[styles.diag, styles.diagA, { backgroundColor: C.text }]} />
+              <View style={[styles.diag, styles.diagB, { backgroundColor: C.text }]} />
             </View>
           </View>
 
@@ -112,7 +112,12 @@ export default function OnboardingCurrency() {
             This helps format all of your numbers in the app.
           </Text>
 
-          <View style={[styles.selectWrap, { borderColor: C.chipBorder }]}>
+          <View
+            style={[
+              styles.selectWrap,
+              { backgroundColor: C.controlBg, borderColor: C.chipBorder },
+            ]}
+          >
             <Pressable
               onPress={() => setOpen((prev) => !prev)}
               style={({ pressed }) => [
@@ -134,7 +139,12 @@ export default function OnboardingCurrency() {
             </Pressable>
 
             {open ? (
-              <View style={[styles.optionList, { borderColor: C.chipBorder }]}>
+              <View
+                style={[
+                  styles.optionList,
+                  { backgroundColor: C.surface, borderColor: C.chipBorder },
+                ]}
+              >
                 {options.map((o, index) => {
                   const selected = currency === o.value;
                   return (
@@ -146,8 +156,9 @@ export default function OnboardingCurrency() {
                       }}
                       style={({ pressed }) => [
                         styles.optionRow,
+                        { borderBottomColor: C.line },
                         index === options.length - 1 ? styles.optionRowLast : null,
-                        selected ? styles.optionRowSelected : null,
+                        selected ? { backgroundColor: C.controlBgSelected } : null,
                         pressed && styles.pressed,
                       ]}
                     >
@@ -240,7 +251,6 @@ const styles = StyleSheet.create({
     height: 170,
     borderRadius: 999,
     borderWidth: 1.5,
-    borderColor: "#111",
     opacity: 0.35,
     alignItems: "center",
     justifyContent: "center",
@@ -251,7 +261,6 @@ const styles = StyleSheet.create({
     position: "absolute",
     width: 220,
     height: 1.5,
-    backgroundColor: "#111",
     opacity: 0.35,
   },
   diagA: { transform: [{ rotate: "45deg" }] },
@@ -277,7 +286,6 @@ const styles = StyleSheet.create({
   selectWrap: {
     borderWidth: 1.25,
     borderRadius: 10,
-    backgroundColor: "#E1E1E1",
     overflow: "hidden",
   },
 
@@ -309,8 +317,6 @@ const styles = StyleSheet.create({
 
   optionList: {
     borderTopWidth: 1,
-    borderColor: "rgba(0,0,0,0.12)",
-    backgroundColor: "#EFEFF1",
   },
   optionRow: {
     minHeight: 48,
@@ -319,13 +325,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     borderBottomWidth: 1,
-    borderBottomColor: "rgba(0,0,0,0.08)",
   },
   optionRowLast: {
     borderBottomWidth: 0,
-  },
-  optionRowSelected: {
-    backgroundColor: "#E5E5E8",
   },
   optionText: {
     fontFamily: T.font.family,

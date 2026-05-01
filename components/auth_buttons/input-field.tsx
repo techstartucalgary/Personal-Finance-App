@@ -5,10 +5,11 @@ import React from "react";
 import {
   Pressable,
   StyleSheet,
+  type StyleProp,
   TextInput,
-  TextInputProps,
-  TextStyle,
-  ViewStyle,
+  type TextInputProps,
+  type TextStyle,
+  type ViewStyle,
   View,
 } from "react-native";
 
@@ -21,8 +22,8 @@ type Props = {
   onTogglePassword?: () => void;
   hasError?: boolean;
   inputProps?: Omit<TextInputProps, "value" | "onChangeText" | "placeholder">;
-  inputStyle?: TextStyle;
-  containerStyle?: ViewStyle;
+  inputStyle?: StyleProp<TextStyle>;
+  containerStyle?: StyleProp<ViewStyle>;
   forceScheme?: "light" | "dark";
 };
 
@@ -71,7 +72,7 @@ export function InputField({
 
       {showPasswordToggle ? (
         <Pressable onPress={onTogglePassword} style={styles.eyeButton} hitSlop={8}>
-          <Ionicons name={secureTextEntry ? "eye" : "eye-off"} size={20} color="#707070" />
+          <Ionicons name={secureTextEntry ? "eye" : "eye-off"} size={20} color={C.muted} />
         </Pressable>
       ) : null}
     </View>
@@ -96,7 +97,9 @@ const styles = StyleSheet.create({
   input: {
     fontFamily: T.font.inputFamily,
     fontSize: T.font.bodySize,
+    letterSpacing: 0,
     paddingVertical: 10,
+    textTransform: "none",
   },
   inputWithIcon: {
     paddingRight: 36,

@@ -44,6 +44,12 @@ export function getColors(scheme: "light" | "dark") {
       primaryBtn: "#FFFFFF",
       primaryText: "#111111",
       surface: "#1C1C1E",
+      surface2: "#2C2C2E",
+      socialIconBg: "#FFFFFF",
+      socialIconBorder: "rgba(235,235,245,0.22)",
+      controlBg: "#1C1C1E",
+      controlBgSelected: "#2C2C2E",
+      accent: "#79D7BE",
     };
   }
 
@@ -58,5 +64,11 @@ export function getColors(scheme: "light" | "dark") {
     primaryBtn: "#111111",
     primaryText: "#FFFFFF",
     surface: "#FFFFFF",
+    surface2: "#F7F7FA",
+    socialIconBg: "#FFFFFF",
+    socialIconBorder: "rgba(60,60,67,0.18)",
+    controlBg: "#E1E1E1",
+    controlBgSelected: "#E8E8EA",
+    accent: "#1F6F5B",
   };
 }

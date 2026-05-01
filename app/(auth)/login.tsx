@@ -157,7 +157,7 @@ export default function Login() {
             </Pressable>
           </View>
 
-          <Text style={[styles.brandTitle, { color: "#000000" }]}>Sterling</Text>
+          <Text style={[styles.brandTitle, { color: C.text }]}>Sterling</Text>
 
           <KeyboardAvoidingView
             style={styles.formSection}
@@ -169,7 +169,7 @@ export default function Login() {
               showsVerticalScrollIndicator={false}
               contentContainerStyle={styles.formScroll}
             >
-            <Text style={[styles.title, { color: "#000000", marginBottom: titleBottom }]}>
+            <Text style={[styles.title, { color: C.text, marginBottom: titleBottom }]}>
               Glad to see you again!
             </Text>
             {formError ? (
@@ -186,10 +186,17 @@ export default function Login() {
                   }}
                   placeholder="Email"
                   hasError={!!errors.email}
-                  inputProps={{ keyboardType: "email-address", autoCapitalize: "none" }}
-                  forceScheme="light"
+                  inputProps={{
+                    autoCapitalize: "none",
+                    autoComplete: "email",
+                    keyboardType: "email-address",
+                    textContentType: "emailAddress",
+                  }}
                   inputStyle={styles.inputText}
-                  containerStyle={styles.inputBox}
+                  containerStyle={[
+                    styles.inputBox,
+                    { backgroundColor: C.controlBg, borderColor: C.chipBorder },
+                  ]}
                 />
                 {errors.email ? (
                   <Text style={[styles.fieldError, { color: C.danger }]}>{errors.email}</Text>
@@ -210,9 +217,11 @@ export default function Login() {
                   showPasswordToggle
                   onTogglePassword={() => setShowPassword((v) => !v)}
                   hasError={!!errors.password}
-                  forceScheme="light"
                   inputStyle={styles.inputText}
-                  containerStyle={styles.inputBox}
+                  containerStyle={[
+                    styles.inputBox,
+                    { backgroundColor: C.controlBg, borderColor: C.chipBorder },
+                  ]}
                 />
                 {errors.password ? (
                   <Text style={[styles.fieldError, { color: C.danger }]}>
@@ -246,14 +255,33 @@ export default function Login() {
               </View>
 
               <View style={styles.socialRow}>
-                <Pressable style={styles.socialIconBtn} onPress={handleGoogle} hitSlop={8}>
+                <Pressable
+                  style={[
+                    styles.socialIconBtn,
+                    {
+                      backgroundColor: C.socialIconBg,
+                      borderColor: C.socialIconBorder,
+                    },
+                  ]}
+                  onPress={handleGoogle}
+                  hitSlop={8}
+                >
                   <Image
                     source={require("../../assets/images/google.png")}
                     style={styles.socialIconImage}
                     resizeMode="contain"
                   />
                 </Pressable>
-                <Pressable style={styles.socialIconBtn} hitSlop={8}>
+                <Pressable
+                  style={[
+                    styles.socialIconBtn,
+                    {
+                      backgroundColor: C.socialIconBg,
+                      borderColor: C.socialIconBorder,
+                    },
+                  ]}
+                  hitSlop={8}
+                >
                   <Image
                     source={require("../../assets/images/apple.png")}
                     style={styles.socialIconImage}
@@ -310,13 +338,15 @@ const styles = StyleSheet.create({
     lineHeight: 30,
   },
   inputBox: {
-    backgroundColor: "#E1E1E1",
     minHeight: 56,
+    borderWidth: 1,
   },
   inputText: {
     fontFamily: T.font.family,
     fontSize: 15.5,
+    letterSpacing: 0,
     paddingVertical: 8,
+    textTransform: "none",
   },
   fieldBlock: {
     gap: 4,
@@ -385,6 +415,8 @@ const styles = StyleSheet.create({
   socialIconBtn: {
     width: 46,
     height: 46,
+    borderRadius: 23,
+    borderWidth: 1,
     alignItems: "center",
     justifyContent: "center",
   },

@@ -3,7 +3,7 @@ import { Tokens, getColors } from "@/constants/authTokens";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { supabase } from "@/utils/supabase";
 import { Feather } from "@expo/vector-icons";
-import Checkbox from "expo-checkbox";
+import { Checkbox } from "expo-checkbox";
 import { router, useLocalSearchParams } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import React, { useMemo, useState } from "react";
@@ -111,7 +111,12 @@ export default function OnboardingConsent() {
           <View style={[styles.divider, { backgroundColor: C.line }]} />
 
           {/* Scrollable policy area */}
-          <View style={[styles.policyCard, { backgroundColor: C.inputBg }]}>
+          <View
+            style={[
+              styles.policyCard,
+              { backgroundColor: C.inputBg, borderColor: C.chipBorder },
+            ]}
+          >
             <ScrollView
               showsVerticalScrollIndicator
               contentContainerStyle={styles.policyContent}
@@ -140,7 +145,7 @@ export default function OnboardingConsent() {
             <Checkbox
               value={agreed}
               onValueChange={setAgreed}
-              color={agreed ? C.text : undefined}
+              color={agreed ? C.primaryBtn : undefined}
               style={styles.checkbox}
             />
             <Text style={[styles.consentText, { color: C.text }]}>
@@ -214,7 +219,6 @@ const styles = StyleSheet.create({
   policyCard: {
     borderRadius: 12,
     borderWidth: 1.25,
-    borderColor: "rgba(2,2,2,0.18)",
     flex: 1,
     overflow: "hidden",
   },

@@ -90,7 +90,7 @@ export default function OnboardingStart() {
             },
           ]}
         >
-          <Text style={[styles.brandTitle, { color: "#000000" }]}>
+          <Text style={[styles.brandTitle, { color: C.text }]}>
             Sterling
           </Text>
 
@@ -123,7 +123,7 @@ export default function OnboardingStart() {
                   key={slide.title}
                   style={[styles.slide, { width: cardWidth }]}
                 >
-                  <Text style={[styles.heading, { color: "#000000" }]}>
+                  <Text style={[styles.heading, { color: C.text }]}>
                     {slide.title}
                   </Text>
                   <Text style={[styles.copy, { color: C.muted }]}>

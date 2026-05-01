@@ -1,0 +1,1124 @@
+import Feather from "@expo/vector-icons/Feather";
+import { useNavigation, usePreventRemove } from "@react-navigation/native";
+import { LinearGradient } from "expo-linear-gradient";
+import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  ActivityIndicator,
+  Alert,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  TextInput,
+  View,
+} from "react-native";
+
+import { ThemedText } from "@/components/themed-text";
+import type { ExpenseRow } from "@/components/transactions/tab/types";
+import { DateTimePickerField } from "@/components/ui/DateTimePickerField";
+import { Tokens } from "@/constants/authTokens";
+import { useTabsTheme } from "@/constants/tabsTheme";
+import { useAuthContext } from "@/hooks/use-auth-context";
+import { listAccounts } from "@/utils/accounts";
+import { createBudget, deleteBudget, editBudget, getBudget } from "@/utils/budgets";
+import {
+  listAllSubcategories,
+  listCategories,
+  type CategoryRow,
+  type SubcategoryRow,
+} from "@/utils/categories";
+import {
+  createCategoryBudget,
+  deleteCategoryBudget,
+  listCategoryBudgets,
+  type BudgetPeriod,
+} from "@/utils/categoryBudgets";
+import { parseLocalDate, toLocalISOString } from "@/utils/date";
+import { listExpenses } from "@/utils/expenses";
+import { getPlaidAccounts } from "@/utils/plaid";
+
+import {
+  consumePendingBudgetAccountSelection,
+} from "./pending-budget-account-selection";
+import {
+  consumePendingBudgetExpenseSelection,
+  consumePendingBudgetRecurrenceSelection,
+} from "./pending-budget-editor-selection";
+import {
+  getBudgetUiPreference,
+  removeBudgetUiPreference,
+  saveBudgetUiPreference,
+} from "./storage";
+import type {
+  BudgetDraftCategory,
+  BudgetRow,
+  BudgetSelectableAccount,
+  BudgetWithDetails,
+} from "./types";
+import {
+  buildBudgetWithDetails,
+  formatBudgetPeriodLabel,
+  formatLongDate,
+  formatMoney,
+  getBudgetCategorySpent,
+  getBudgetCategorySubcategoryBreakdown,
+  getBudgetEndDate,
+} from "./utils";
+
+import { IconSymbol } from "@/components/ui/icon-symbol";
+import { buildSelectableAccounts, getGoalSelectionKey } from "../goals/utils";
+
+type BudgetEditorScreenProps = {
+  mode: "add" | "edit";
+};
+
+type BudgetDraftSnapshot = {
+  name: string;
+  startDate: string | null;
+  recurrence: BudgetPeriod;
+  rolloverEnabled: boolean;
+  selectedAccountKey: string | null;
+  drafts: {
+    expense_category_id: number;
+    limit_amount: string;
+  }[];
+};
+
+const AVATAR_COLORS = ["#DE7C78", "#67C7C0", "#D96CB9", "#6F8BEA", "#F2B35D"];
+
+function serializeBudgetDraft(snapshot: BudgetDraftSnapshot) {
+  return JSON.stringify({
+    ...snapshot,
+    drafts: [...snapshot.drafts].sort(
+      (left, right) => left.expense_category_id - right.expense_category_id,
+    ),
+  });
+}
+
+export function BudgetEditorScreen({ mode }: BudgetEditorScreenProps) {
+  const { session } = useAuthContext();
+  const navigation = useNavigation();
+  const router = useRouter();
+  const { ui } = useTabsTheme();
+  const isDark = ui.bg === "#000000";
+  const budgetRed = isDark ? "#FF8F82" : "#FF5252";
+  const userId = session?.user.id;
+  const { id, initialData } = useLocalSearchParams<{ id?: string; initialData?: string }>();
+  const sheetUi = useMemo(() => ui, [ui]);
+
+  // Pre-hydrate from initialData so the form is instantly interactive
+  const preHydrated = useMemo(() => {
+    if (mode !== "edit" || !initialData) return false;
+    try {
+      const budget = JSON.parse(decodeURIComponent(initialData)) as BudgetWithDetails;
+      return budget;
+    } catch {
+      return false;
+    }
+  }, []);
+
+  const [isLoading, setIsLoading] = useState(mode === "edit" && !preHydrated);
+  const [name, setName] = useState(() =>
+    preHydrated ? (preHydrated.budget_name ?? "") : "",
+  );
+  const [startDate, setStartDate] = useState<string | null>(() =>
+    preHydrated ? (preHydrated.start_date ?? toLocalISOString(new Date())) : toLocalISOString(new Date()),
+  );
+  const [recurrence, setRecurrence] = useState<BudgetPeriod>(() =>
+    preHydrated ? preHydrated.recurrence : "monthly",
+  );
+  const [rolloverEnabled, setRolloverEnabled] = useState(() =>
+    preHydrated ? preHydrated.rolloverEnabled : false,
+  );
+  const [subcategories, setSubcategories] = useState<SubcategoryRow[]>([]);
+  const [drafts, setDrafts] = useState<BudgetDraftCategory[]>(() =>
+    preHydrated
+      ? preHydrated.categoryBudgets.map((category) => ({
+        localKey: String(category.id),
+        expense_category_id: category.expense_category_id,
+        category_name: category.category_name,
+        limit_amount: String(category.limit_amount ?? ""),
+      }))
+      : [],
+  );
+  const [selectedAccount, setSelectedAccount] = useState<BudgetSelectableAccount | null>(null);
+  const [expenses, setExpenses] = useState<ExpenseRow[]>([]);
+  const [allowRemoval, setAllowRemoval] = useState(false);
+  const initialDraftRef = useRef<string>(
+    serializeBudgetDraft({
+      name: preHydrated ? (preHydrated.budget_name ?? "").trim() : "",
+      startDate: preHydrated
+        ? (preHydrated.start_date ?? toLocalISOString(new Date()))
+        : toLocalISOString(new Date()),
+      recurrence: preHydrated ? preHydrated.recurrence : "monthly",
+      rolloverEnabled: preHydrated ? preHydrated.rolloverEnabled : false,
+      selectedAccountKey: null,
+      drafts: preHydrated
+        ? preHydrated.categoryBudgets.map((category) => ({
+          expense_category_id: category.expense_category_id,
+          limit_amount: String(category.limit_amount ?? "").trim(),
+        }))
+        : [],
+    }),
+  );
+
+  const hydrateFromBudget = useCallback(
+    (budget: BudgetWithDetails, selectableAccounts: BudgetSelectableAccount[]) => {
+      setName(budget.budget_name ?? "");
+      setStartDate(budget.start_date ?? toLocalISOString(new Date()));
+      setRecurrence(budget.recurrence);
+      setRolloverEnabled(budget.rolloverEnabled);
+      setDrafts(
+        budget.categoryBudgets.map((category) => ({
+          localKey: String(category.id),
+          expense_category_id: category.expense_category_id,
+          category_name: category.category_name,
+          limit_amount: String(category.limit_amount ?? ""),
+        })),
+      );
+      setSelectedAccount(
+        selectableAccounts.find(
+          (account) => getGoalSelectionKey(account) === budget.linkedAccountKey,
+        ) ?? null,
+      );
+      initialDraftRef.current = serializeBudgetDraft({
+        name: (budget.budget_name ?? "").trim(),
+        startDate: budget.start_date ?? toLocalISOString(new Date()),
+        recurrence: budget.recurrence,
+        rolloverEnabled: budget.rolloverEnabled,
+        selectedAccountKey: budget.linkedAccountKey,
+        drafts: budget.categoryBudgets.map((category) => ({
+          expense_category_id: category.expense_category_id,
+          limit_amount: String(category.limit_amount ?? "").trim(),
+        })),
+      });
+    },
+    [],
+  );
+
+  const loadBudget = useCallback(async () => {
+    if (!userId) return;
+
+    if (mode !== "edit") {
+      try {
+        const [subcategoryRows, expenseRows] =
+          await Promise.all([
+            listAllSubcategories({ profile_id: userId }),
+            listExpenses({ profile_id: userId }),
+          ]);
+
+        setSubcategories(subcategoryRows ?? []);
+        setExpenses((expenseRows as ExpenseRow[]) ?? []);
+      } catch (error) {
+        console.error("Error loading budget editor:", error);
+      }
+      return;
+    }
+
+    if (!id) return;
+    try {
+      if (!preHydrated) setIsLoading(true);
+      const [
+        categoryRows,
+        subcategoryRows,
+        manualAccounts,
+        plaidAccounts,
+        expenseRows,
+        budgetRow,
+        categoryLinks,
+        preference,
+      ] = await Promise.all([
+        listCategories({ profile_id: userId }),
+        listAllSubcategories({ profile_id: userId }),
+        listAccounts({ profile_id: userId }),
+        getPlaidAccounts(),
+        listExpenses({ profile_id: userId }),
+        getBudget({ id, profile_id: userId }),
+        listCategoryBudgets({ budget_id: Number(id) }),
+        getBudgetUiPreference(id),
+      ]);
+
+      const selectableAccounts = buildSelectableAccounts({
+        manualAccounts: (manualAccounts as any[]) ?? [],
+        plaidAccounts,
+      });
+
+      setSubcategories(subcategoryRows ?? []);
+      setExpenses((expenseRows as ExpenseRow[]) ?? []);
+
+      const budget = buildBudgetWithDetails({
+        budget: budgetRow as BudgetRow,
+        categoryBudgets: categoryLinks,
+        categories: categoryRows ?? [],
+        subcategories: subcategoryRows ?? [],
+        expenses: (expenseRows as ExpenseRow[]) ?? [],
+        preference,
+      });
+
+      hydrateFromBudget(budget, selectableAccounts);
+    } catch (error) {
+      console.error("Error loading budget editor:", error);
+      if (!preHydrated) {
+        Alert.alert("Error", "Could not load budget details.");
+        router.back();
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  }, [hydrateFromBudget, id, mode, router, userId]);
+
+  useEffect(() => {
+    loadBudget();
+  }, [loadBudget]);
+
+  const totalBudgeted = useMemo(
+    () =>
+      drafts.reduce((sum, draft) => {
+        const parsed = Number(draft.limit_amount);
+        return sum + (Number.isFinite(parsed) ? parsed : 0);
+      }, 0),
+    [drafts],
+  );
+
+  const budgetEndDate = useMemo(() => {
+    if (!startDate) return null;
+    return getBudgetEndDate(startDate, recurrence);
+  }, [recurrence, startDate]);
+
+  const spentByCategory = useMemo(() => {
+    if (!startDate || !budgetEndDate) return {};
+
+    const linkedAccountKey = getGoalSelectionKey(selectedAccount);
+
+    return drafts.reduce<Record<number, number>>((accumulator, draft) => {
+      accumulator[draft.expense_category_id] = getBudgetCategorySpent({
+        expenses,
+        expenseCategoryId: draft.expense_category_id,
+        startDate,
+        endDate: budgetEndDate,
+        linkedAccountKey,
+      });
+      return accumulator;
+    }, {});
+  }, [budgetEndDate, drafts, expenses, selectedAccount, startDate]);
+
+  const subcategorySummaryByCategory = useMemo(() => {
+    if (!startDate || !budgetEndDate) return {};
+
+    const linkedAccountKey = getGoalSelectionKey(selectedAccount);
+
+    return drafts.reduce<Record<number, string>>((accumulator, draft) => {
+      const breakdown = getBudgetCategorySubcategoryBreakdown({
+        expenses,
+        subcategories,
+        expenseCategoryId: draft.expense_category_id,
+        startDate,
+        endDate: budgetEndDate,
+        linkedAccountKey,
+      });
+
+      accumulator[draft.expense_category_id] = breakdown
+        .map((subcategory) => `${subcategory.name} ${formatMoney(subcategory.spent)}`)
+        .join("  •  ");
+
+      return accumulator;
+    }, {});
+  }, [budgetEndDate, drafts, expenses, selectedAccount, startDate, subcategories]);
+
+  const canSave = useMemo(() => {
+    return (
+      name.trim().length > 0 &&
+      !!startDate &&
+      drafts.length > 0 &&
+      drafts.every((draft) => Number(draft.limit_amount) > 0)
+    );
+  }, [drafts, name, startDate]);
+
+  const currentDraft = useMemo<BudgetDraftSnapshot>(
+    () => ({
+      name: name.trim(),
+      startDate,
+      recurrence,
+      rolloverEnabled,
+      selectedAccountKey: getGoalSelectionKey(selectedAccount),
+      drafts: drafts.map((draft) => ({
+        expense_category_id: draft.expense_category_id,
+        limit_amount: draft.limit_amount.trim(),
+      })),
+    }),
+    [drafts, name, recurrence, rolloverEnabled, selectedAccount, startDate],
+  );
+  const isDirty = serializeBudgetDraft(currentDraft) !== initialDraftRef.current;
+
+  const handleAddCategory = useCallback(
+    (category: CategoryRow) => {
+      setDrafts((current) => {
+        if (current.some((draft) => draft.expense_category_id === category.id)) {
+          return current;
+        }
+
+        return [
+          ...current,
+          {
+            localKey: `${category.id}-${Date.now()}`,
+            expense_category_id: category.id,
+            category_name: category.category_name ?? "Expense",
+            limit_amount: "",
+          },
+        ];
+      });
+    },
+    [],
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      const pendingSelection = consumePendingBudgetAccountSelection();
+      if (pendingSelection !== undefined) {
+        setSelectedAccount(pendingSelection);
+      }
+
+      const pendingRecurrence = consumePendingBudgetRecurrenceSelection();
+      if (pendingRecurrence) {
+        setRecurrence(pendingRecurrence);
+      }
+
+      const pendingCategory = consumePendingBudgetExpenseSelection();
+      if (pendingCategory) {
+        handleAddCategory(pendingCategory);
+      }
+    }, [handleAddCategory]),
+  );
+
+  const handleSave = useCallback(async () => {
+    if (!userId || !canSave || !startDate) return;
+
+    const parsedDrafts = drafts.map((draft) => ({
+      ...draft,
+      amount: Number(draft.limit_amount),
+    }));
+    const hasInvalidDraft = parsedDrafts.some(
+      (draft) => !Number.isFinite(draft.amount) || draft.amount <= 0,
+    );
+
+    if (hasInvalidDraft) {
+      Alert.alert("Invalid Budget", "Enter a valid amount for each expense line.");
+      return;
+    }
+
+    try {
+      setAllowRemoval(true);
+      const endDate = getBudgetEndDate(startDate, recurrence);
+      const totalAmount = parsedDrafts.reduce((sum, draft) => sum + draft.amount, 0);
+      let budgetId = Number(id);
+
+      if (mode === "edit" && id) {
+        const existingLinks = await listCategoryBudgets({ budget_id: Number(id) });
+        await editBudget({
+          id,
+          profile_id: userId,
+          update: {
+            budget_name: name.trim(),
+            total_amount: totalAmount,
+            start_date: startDate,
+            end_date: endDate,
+          },
+        });
+
+        for (const link of existingLinks) {
+          await deleteCategoryBudget({ id: link.id });
+        }
+      } else {
+        const created = await createBudget({
+          profile_id: userId,
+          budget_name: name.trim(),
+          total_amount: totalAmount,
+          start_date: startDate,
+          end_date: endDate,
+        });
+        budgetId = Number((created as any).id);
+      }
+
+      for (const draft of parsedDrafts) {
+        await createCategoryBudget({
+          budget_id: budgetId,
+          expense_category_id: draft.expense_category_id,
+          limit_amount: draft.amount,
+          budget_period: recurrence,
+        });
+      }
+
+      await saveBudgetUiPreference(budgetId, {
+        linkedAccountKey: getGoalSelectionKey(selectedAccount),
+        rolloverEnabled,
+      });
+
+      router.back();
+    } catch (error) {
+      setAllowRemoval(false);
+      console.error("Error saving budget:", error);
+      Alert.alert("Error", "Could not save budget.");
+    }
+  }, [
+    canSave,
+    drafts,
+    id,
+    mode,
+    name,
+    recurrence,
+    rolloverEnabled,
+    router,
+    selectedAccount,
+    startDate,
+    userId,
+  ]);
+
+  usePreventRemove(isDirty && !allowRemoval, ({ data }) => {
+    Alert.alert(
+      "Discard changes?",
+      "You have unsaved changes. Are you sure you want to leave this screen?",
+      [
+        { text: "Keep Editing", style: "cancel" },
+        {
+          text: "Discard",
+          style: "destructive",
+          onPress: () => {
+            setAllowRemoval(true);
+            requestAnimationFrame(() => {
+              navigation.dispatch(data.action);
+            });
+          },
+        },
+      ],
+    );
+  });
+
+  useEffect(() => {
+    navigation.setOptions({
+      title: "Budget Plan",
+      headerTitleAlign: "center",
+      headerTransparent: Platform.OS === "ios",
+      headerShadowVisible: false,
+      headerStyle: {
+        backgroundColor: Platform.OS === "ios" ? "transparent" : ui.bg,
+      },
+      headerTitleStyle: {
+        color: ui.text,
+        fontFamily: Tokens.font.semiFamily ?? Tokens.font.family,
+      },
+      headerTintColor: ui.text,
+      headerBackButtonDisplayMode: "minimal",
+      headerBackVisible: mode !== "add",
+      headerLeft:
+        mode === "add"
+          ? () => (
+          <Pressable
+            onPress={() => router.back()}
+            hitSlop={10}
+            style={({ pressed }) => ({
+              minWidth: 32,
+              height: 32,
+              alignItems: "center",
+              justifyContent: "center",
+              opacity: pressed ? 0.55 : 1,
+            })}
+          >
+            <IconSymbol name="xmark" size={22} color={ui.text} />
+          </Pressable>
+          )
+          : undefined,
+      headerRight: () => (
+        <Pressable
+          onPress={handleSave}
+          disabled={!canSave}
+          hitSlop={10}
+          style={({ pressed }) => ({
+            width: 32,
+            height: 32,
+            alignItems: "center",
+            justifyContent: "center",
+            opacity: !canSave ? 0.3 : pressed ? 0.55 : 1,
+          })}
+        >
+          <IconSymbol name="checkmark" size={22} color={sheetUi.accent} />
+        </Pressable>
+      ),
+    });
+  }, [canSave, handleSave, mode, navigation, router, sheetUi.accent, ui.bg, ui.text]);
+
+  const handleDelete = useCallback(() => {
+    if (!userId || !id || mode !== "edit") return;
+
+    Alert.alert("Delete Budget", "Are you sure you want to delete this budget?", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            const links = await listCategoryBudgets({ budget_id: Number(id) });
+            for (const link of links) {
+              await deleteCategoryBudget({ id: link.id });
+            }
+            await deleteBudget({ id, profile_id: userId });
+            await removeBudgetUiPreference(id);
+            router.replace("/(tabs)/targets" as any);
+          } catch (error) {
+            console.error("Error deleting budget:", error);
+            Alert.alert("Error", "Could not delete budget.");
+          }
+        },
+      },
+    ]);
+  }, [id, mode, router, userId]);
+
+  if (isLoading) {
+    return (
+      <View style={[styles.loaderWrap, { backgroundColor: ui.bg }]}>
+        <ActivityIndicator size="large" color={ui.accent} />
+      </View>
+    );
+  }
+
+  return (
+    <>
+      <ScrollView
+        style={{ flex: 1, backgroundColor: ui.bg }}
+        contentInsetAdjustmentBehavior="automatic"
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingTop: Platform.OS === "android" ? 16 : 0 },
+        ]}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
+        <LinearGradient
+          colors={["rgba(255, 211, 143, 0)", "#FFD38F"]}
+          style={styles.heroWrap}
+        >
+          <View style={styles.heroPanel}>
+            <View style={styles.heroNameWrap}>
+              <TextInput
+                value={name}
+                onChangeText={setName}
+                placeholder="Budget Plan 1"
+                placeholderTextColor={ui.text}
+                style={[styles.heroNameInput, { color: ui.text }]}
+              />
+              <Feather name="edit-2" size={14} color={ui.text} style={styles.heroEditIcon} />
+            </View>
+
+            <ThemedText style={[styles.heroAmount, { color: totalBudgeted > 0 ? budgetRed : ui.text }]}>
+              {formatMoney(totalBudgeted)}
+            </ThemedText>
+
+            <Pressable
+              onPress={() => {
+                const pathname =
+                  mode === "edit" && id
+                    ? "/budget-edit-account-select"
+                    : "/budget-add/account-select";
+                router.push({
+                  pathname,
+                  params: {
+                    ...(mode === "edit" && id ? { id } : {}),
+                    currentAccountKey: getGoalSelectionKey(selectedAccount) ?? undefined,
+                  },
+                } as any);
+              }}
+              style={({ pressed }) => [styles.linkAccountWrap, { opacity: pressed ? 0.72 : 1 }]}
+            >
+              <ThemedText style={[styles.linkAccountLabel, { color: ui.text }]}>
+                Link Account
+              </ThemedText>
+
+              {selectedAccount ? (
+                <View style={styles.badgeRow}>
+                  <AccountBadge account={selectedAccount} />
+                </View>
+              ) : (
+                <View style={styles.plusCircle}>
+                  <Feather name="plus" size={18} color={ui.text} />
+                </View>
+              )}
+            </Pressable>
+          </View>
+        </LinearGradient>
+
+        <View style={styles.formStack}>
+          <View style={styles.topSettingsRow}>
+            <Pressable
+              onPress={() => {
+                const pathname =
+                  mode === "edit" && id
+                    ? "/budget-edit-recurrence-select"
+                    : "/budget-add/recurrence-select";
+
+                router.push({
+                  pathname,
+                  params: {
+                    ...(mode === "edit" && id ? { id } : {}),
+                    currentPeriod: recurrence,
+                  },
+                } as any);
+              }}
+              style={({ pressed }) => [
+                styles.settingCard,
+                {
+                  backgroundColor: ui.surface,
+                  borderColor: ui.border,
+                  opacity: pressed ? 0.72 : 1,
+                },
+              ]}
+            >
+              <View style={styles.settingLabelRow}>
+                <ThemedText style={[styles.settingLabel, { color: ui.text }]}>
+                  Recurrence
+                </ThemedText>
+              </View>
+              <View style={styles.settingValueRow}>
+                <ThemedText style={[styles.settingValue, { color: ui.mutedText }]}>
+                  {formatBudgetPeriodLabel(recurrence)}
+                </ThemedText>
+                <Feather name="chevron-right" size={14} color={ui.mutedText} />
+              </View>
+            </Pressable>
+
+            <View
+              style={[
+                styles.settingCard,
+                {
+                  backgroundColor: ui.surface,
+                  borderColor: ui.border,
+                },
+              ]}
+            >
+              <View style={styles.settingLabelRow}>
+                <ThemedText style={[styles.settingLabel, { color: ui.text }]}>
+                  Rollover
+                </ThemedText>
+                <Feather name="info" size={12} color={ui.mutedText} />
+              </View>
+              <Switch
+                value={rolloverEnabled}
+                onValueChange={setRolloverEnabled}
+                trackColor={{ false: "#D8D8DE", true: "#C8C8CE" }}
+                thumbColor={rolloverEnabled ? "#FFFFFF" : "#F5F5F5"}
+                style={{ alignSelf: "flex-end" }}
+              />
+            </View>
+          </View>
+
+          <DateTimePickerField
+            label="Start Date"
+            value={parseLocalDate(startDate)}
+            onChange={(value) => setStartDate(toLocalISOString(value))}
+            ui={ui}
+          />
+
+          <View style={styles.sectionHeader}>
+            <ThemedText style={[styles.sectionTitle, { color: ui.text }]}>
+              Expenses
+            </ThemedText>
+            <Pressable
+              onPress={() => {
+                const pathname =
+                  mode === "edit" && id
+                    ? "/budget-edit-expense-select"
+                    : "/budget-add/expense-select";
+
+                router.push({
+                  pathname,
+                  params: {
+                    ...(mode === "edit" && id ? { id } : {}),
+                    excludedCategoryIds: drafts
+                      .map((draft) => String(draft.expense_category_id))
+                      .join(","),
+                  },
+                } as any);
+              }}
+              style={({ pressed }) => [
+                styles.addButton,
+                {
+                  backgroundColor: ui.surface,
+                  borderColor: ui.border,
+                  opacity: pressed ? 0.72 : 1,
+                },
+              ]}
+            >
+              <ThemedText style={[styles.addButtonText, { color: ui.text }]}>
+                ADD
+              </ThemedText>
+            </Pressable>
+          </View>
+
+          <View
+            style={[
+              styles.tableCard,
+              {
+                backgroundColor: ui.surface,
+                borderColor: ui.border,
+              },
+            ]}
+          >
+            <View style={[styles.tableHeader, { borderBottomColor: ui.border }]}>
+              <ThemedText style={[styles.headerName, { color: ui.text }]}>Name</ThemedText>
+              <ThemedText style={[styles.headerMetric, { color: ui.mutedText }]}>
+                Budgeted
+              </ThemedText>
+              <ThemedText style={[styles.headerMetric, { color: ui.mutedText }]}>
+                Available
+              </ThemedText>
+              <Feather name="minus-circle" size={14} color={ui.mutedText} />
+            </View>
+
+            {drafts.length === 0 ? (
+              <View style={styles.emptyCategoryState}>
+                <ThemedText style={{ color: ui.mutedText }}>
+                  Add expense categories to build this budget.
+                </ThemedText>
+              </View>
+            ) : (
+              drafts.map((draft) => {
+                const parsedAmount = Number(draft.limit_amount);
+                const spent = spentByCategory[draft.expense_category_id] ?? 0;
+                const available =
+                  (Number.isFinite(parsedAmount) ? parsedAmount : 0) - Number(spent);
+
+                return (
+                  <View key={draft.localKey} style={styles.tableRow}>
+                    <View style={styles.nameColumn}>
+                      <ThemedText style={[styles.rowTitle, { color: ui.text }]}>
+                        {draft.category_name}
+                      </ThemedText>
+                      {mode === "edit" ? (
+                        <ThemedText style={[styles.rowFootnote, { color: ui.mutedText }]}>
+                          Spent {formatMoney(spent)}
+                        </ThemedText>
+                      ) : null}
+                      {subcategorySummaryByCategory[draft.expense_category_id] ? (
+                        <ThemedText style={[styles.rowFootnote, { color: ui.mutedText }]}>
+                          {subcategorySummaryByCategory[draft.expense_category_id]}
+                        </ThemedText>
+                      ) : null}
+                    </View>
+
+                    <TextInput
+                      value={draft.limit_amount}
+                      onChangeText={(value) =>
+                        setDrafts((current) =>
+                          current.map((entry) =>
+                            entry.localKey === draft.localKey
+                              ? { ...entry, limit_amount: value }
+                              : entry,
+                          ),
+                        )
+                      }
+                      keyboardType="decimal-pad"
+                      placeholder="0.00"
+                      placeholderTextColor={ui.mutedText}
+                      style={[
+                        styles.amountInput,
+                        {
+                          color: ui.text,
+                          borderColor: ui.border,
+                          backgroundColor: ui.bg,
+                        },
+                      ]}
+                    />
+
+                    <ThemedText
+                      style={[
+                        styles.rowMetric,
+                        {
+                          color: available < 0 ? budgetRed : ui.text,
+                        },
+                      ]}
+                    >
+                      {formatMoney(available)}
+                    </ThemedText>
+
+                    <Pressable
+                      onPress={() =>
+                        setDrafts((current) =>
+                          current.filter((entry) => entry.localKey !== draft.localKey),
+                        )
+                      }
+                      hitSlop={8}
+                    >
+                      <Feather name="minus-circle" size={16} color={ui.text} />
+                    </Pressable>
+                  </View>
+                );
+              })
+            )}
+          </View>
+
+          {mode === "edit" ? (
+            <Pressable
+              onPress={handleDelete}
+              style={({ pressed }) => [
+                styles.deleteButton,
+                {
+                  backgroundColor: ui.surface,
+                  borderColor: ui.border,
+                  opacity: pressed ? 0.72 : 1,
+                },
+              ]}
+            >
+              <ThemedText style={[styles.deleteButtonText, { color: budgetRed }]}>
+                Delete Budget
+              </ThemedText>
+            </Pressable>
+          ) : null}
+
+          {startDate ? (
+            <ThemedText style={[styles.dateFootnote, { color: ui.mutedText }]}>
+              Budget window ends {formatLongDate(getBudgetEndDate(startDate, recurrence))}
+            </ThemedText>
+          ) : null}
+        </View>
+      </ScrollView>
+
+    </>
+  );
+}
+
+function AccountBadge({ account }: { account: BudgetSelectableAccount }) {
+  const colorIndex = Math.abs(account.name.length) % AVATAR_COLORS.length;
+  return (
+    <View style={[styles.accountBadge, { backgroundColor: AVATAR_COLORS[colorIndex] }]}>
+      <ThemedText style={styles.accountBadgeText}>{getInitials(account.name)}</ThemedText>
+    </View>
+  );
+}
+
+function getInitials(name: string) {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "?";
+  if (parts.length === 1) return parts[0].slice(0, 1).toUpperCase();
+  return `${parts[0][0] ?? ""}${parts[1][0] ?? ""}`.toUpperCase();
+}
+
+const styles = StyleSheet.create({
+  loaderWrap: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  scrollContent: {
+    paddingBottom: 40,
+    gap: 16,
+  },
+  heroWrap: {
+    marginTop: Platform.OS === "ios" ? -100 : -20,
+    paddingTop: Platform.OS === "ios" ? 100 : 20,
+    borderBottomLeftRadius: 36,
+    borderBottomRightRadius: 36,
+    overflow: "hidden",
+  },
+  heroPanel: {
+    paddingHorizontal: 16,
+    paddingTop: 18,
+    paddingBottom: 16,
+    alignItems: "center",
+    gap: 8,
+  },
+  heroNameWrap: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginLeft: 20, // Offset for the icon to keep name centered
+  },
+  heroNameInput: {
+    minWidth: 150,
+    textAlign: "center",
+    fontSize: 28,
+    paddingVertical: 0,
+    fontFamily: Tokens.font.semiFamily ?? Tokens.font.family,
+  },
+  heroEditIcon: {
+    opacity: 0.5,
+    marginTop: 4,
+  },
+  heroAmount: {
+    fontSize: 50,
+    lineHeight: 54,
+    fontFamily: Tokens.font.boldFamily ?? Tokens.font.headingFamily,
+    fontVariant: ["tabular-nums"],
+  },
+  linkAccountWrap: {
+    alignItems: "center",
+    gap: 6,
+  },
+  linkAccountLabel: {
+    fontSize: 15,
+    fontFamily: Tokens.font.family,
+  },
+  plusCircle: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: "rgba(0, 0, 0, 0.14)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  badgeRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  accountBadge: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  accountBadgeText: {
+    color: "#1C1C1C",
+    fontSize: 12,
+    fontFamily: Tokens.font.semiFamily ?? Tokens.font.family,
+  },
+  formStack: {
+    paddingHorizontal: 16,
+    gap: 18,
+  },
+  topSettingsRow: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  settingCard: {
+    flex: 1,
+    minHeight: 86,
+    borderRadius: 20,
+    borderWidth: StyleSheet.hairlineWidth,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    justifyContent: "space-between",
+  },
+  settingLabelRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  settingLabel: {
+    fontSize: 15,
+    fontFamily: Tokens.font.semiFamily ?? Tokens.font.family,
+  },
+  settingValueRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  settingValue: {
+    fontSize: 14,
+    fontFamily: Tokens.font.family,
+  },
+  sectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  sectionTitle: {
+    fontSize: 26,
+    fontFamily: Tokens.font.boldFamily ?? Tokens.font.headingFamily,
+  },
+  addButton: {
+    minWidth: 72,
+    minHeight: 32,
+    borderRadius: 999,
+    borderWidth: StyleSheet.hairlineWidth,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 14,
+  },
+  addButtonText: {
+    fontSize: 12,
+    fontFamily: Tokens.font.semiFamily ?? Tokens.font.family,
+  },
+  tableCard: {
+    borderRadius: 18,
+    borderWidth: StyleSheet.hairlineWidth,
+    padding: 12,
+    gap: 10,
+  },
+  tableHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingBottom: 8,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  headerName: {
+    flex: 1,
+    fontSize: 12,
+    fontFamily: Tokens.font.semiFamily ?? Tokens.font.family,
+  },
+  headerMetric: {
+    width: 78,
+    textAlign: "right",
+    fontSize: 12,
+    fontFamily: Tokens.font.semiFamily ?? Tokens.font.family,
+  },
+  tableRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  nameColumn: {
+    flex: 1,
+    gap: 2,
+  },
+  rowTitle: {
+    fontSize: 13,
+    fontFamily: Tokens.font.family,
+  },
+  rowFootnote: {
+    fontSize: 10,
+    fontFamily: Tokens.font.family,
+  },
+  amountInput: {
+    width: 78,
+    minHeight: 34,
+    borderRadius: 10,
+    borderWidth: StyleSheet.hairlineWidth,
+    textAlign: "center",
+    fontSize: 13,
+    paddingVertical: 6,
+    paddingHorizontal: 8,
+    fontFamily: Tokens.font.family,
+  },
+  rowMetric: {
+    width: 78,
+    textAlign: "right",
+    fontSize: 13,
+    fontFamily: Tokens.font.family,
+    fontVariant: ["tabular-nums"],
+  },
+  emptyCategoryState: {
+    minHeight: 120,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 16,
+  },
+  deleteButton: {
+    minHeight: 46,
+    borderRadius: 999,
+    borderWidth: StyleSheet.hairlineWidth,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  deleteButtonText: {
+    fontSize: 15,
+    fontFamily: Tokens.font.semiFamily ?? Tokens.font.family,
+  },
+  dateFootnote: {
+    textAlign: "center",
+    fontSize: 12,
+    fontFamily: Tokens.font.family,
+  },
+});

@@ -123,7 +123,7 @@ export async function getCategorySpending(params: {
   expense_category_id: number;
   start_date: string;
   end_date: string;
-  account_id?: number | null;
+  account_id?: string | number | null;
 }): Promise<number> {
   const { profile_id, expense_category_id, start_date, end_date, account_id } =
     params;

@@ -1,6 +1,7 @@
 import { AuthButton } from "@/components/auth_buttons/auth-button";
 import { InputField } from "@/components/auth_buttons/input-field";
 import { Tokens, getColors } from "@/constants/authTokens";
+import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Feather } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import { StatusBar } from "expo-status-bar";
@@ -29,7 +30,8 @@ type GoalOption = {
 };
 
 export default function OnboardingProfile() {
-  const C = getColors("light");
+  const scheme = useColorScheme();
+  const C = getColors(scheme);
   const { height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const compact = height < 760;
@@ -145,7 +147,7 @@ export default function OnboardingProfile() {
 
   return (
     <SafeAreaView style={[styles.screen, { backgroundColor: C.bg }]}>
-      <StatusBar style="dark" backgroundColor={C.bg} />
+      <StatusBar style={scheme === "dark" ? "light" : "dark"} backgroundColor={C.bg} />
       <View style={[styles.screen, { backgroundColor: C.bg }]}>
         <View
           style={[

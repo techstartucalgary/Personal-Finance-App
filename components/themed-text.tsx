@@ -2,11 +2,12 @@ import { StyleSheet, Text, type TextProps } from 'react-native';
 
 import { useThemeColor } from '@/hooks/use-theme-color';
 import React from 'react';
+import { Tokens } from '@/constants/authTokens';
 
 export type ThemedTextProps = TextProps & {
   lightColor?: string;
   darkColor?: string;
-  type?: 'default' | 'title' | 'defaultSemiBold' | 'subtitle' | 'link';
+  type?: 'default' | 'title' | 'defaultSemiBold' | 'subtitle' | 'link' | 'heroNumber';
 };
 
 export function ThemedText({
@@ -27,6 +28,7 @@ export function ThemedText({
         type === 'defaultSemiBold' ? styles.defaultSemiBold : undefined,
         type === 'subtitle' ? styles.subtitle : undefined,
         type === 'link' ? styles.link : undefined,
+        type === 'heroNumber' ? styles.heroNumber : undefined,
         style,
       ]}
       {...rest}
@@ -38,24 +40,32 @@ const styles = StyleSheet.create({
   default: {
     fontSize: 16,
     lineHeight: 24,
+    fontFamily: Tokens.font.family,
   },
   defaultSemiBold: {
     fontSize: 16,
     lineHeight: 24,
-    fontWeight: '600',
+    fontFamily: Tokens.font.semiFamily ?? Tokens.font.family,
   },
   title: {
     fontSize: 32,
-    fontWeight: 'bold',
     lineHeight: 32,
+    fontFamily: Tokens.font.headingFamily ?? Tokens.font.boldFamily ?? Tokens.font.family,
   },
   subtitle: {
     fontSize: 20,
-    fontWeight: 'bold',
+    fontFamily: Tokens.font.boldFamily ?? Tokens.font.family,
   },
   link: {
     lineHeight: 30,
     fontSize: 16,
-    color: '#0a7ea4',
+    textDecorationLine: 'underline',
+    fontFamily: Tokens.font.family,
+  },
+  heroNumber: {
+    fontSize: 36,
+    lineHeight: 38,
+    fontFamily: Tokens.font.numberFamily ?? Tokens.font.family,
+    fontVariant: ['tabular-nums'],
   },
 });

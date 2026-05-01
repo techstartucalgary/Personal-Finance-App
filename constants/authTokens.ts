@@ -1,11 +1,12 @@
 export const Tokens = {
   font: {
-    family: "Avenir LT Std 55 Roman",
-    headingFamily: "Avenir LT Std 95 Black",
-    inputFamily: "Avenir LT Std 55 Roman",
-    semiFamily: "Avenir LT Std 65 Medium",
-    boldFamily: "Avenir LT Std 85 Heavy",
-    obliqueFamily: "Avenir LT Std 55 Oblique",
+    family: "Lato-Regular",
+    headingFamily: "Lato-Bold",
+    inputFamily: "Lato-Regular",
+    semiFamily: "Lato-Bold",
+    boldFamily: "Lato-Bold",
+    obliqueFamily: "Lato-Italic",
+    numberFamily: "Lato-Bold",
     titleSize: 34,
     subtitleSize: 22,
     buttonSize: 24,
@@ -33,29 +34,29 @@ export const Tokens = {
 export function getColors(scheme: "light" | "dark") {
   if (scheme === "dark") {
     return {
-      bg: "#1B1717",
+      bg: "#000000",
       text: "#FFFFFF",
-      muted: "rgba(255,255,255,0.65)",
-      line: "rgba(255,255,255,0.25)",
-      chipBorder: "rgba(255,255,255,0.35)",
-      inputBg: "#3A3434",
-      danger: "#E35B5B",
-      primaryBtn: "#E1BB80",
-      primaryText: "#1B1717",
-      surface: "rgba(255,255,255,0.06)",
+      muted: "rgba(235,235,245,0.6)",
+      line: "rgba(84,84,88,0.65)",
+      chipBorder: "rgba(84,84,88,0.8)",
+      inputBg: "#1C1C1E",
+      danger: "#FF6B6B",
+      primaryBtn: "#FFFFFF",
+      primaryText: "#111111",
+      surface: "#1C1C1E",
     };
   }
 
   return {
-    bg: "#ECECF1",
-    text: "#222225",
-    muted: "#5C5C60",
-    line: "#020202",
-    chipBorder: "rgba(2,2,2,0.25)",
-    inputBg: "#D7D7D9",
-    danger: "#EF4444",
-    primaryBtn: "#1F1F1F",
-    primaryText: "#F4F4F4",
-    surface: "#ECECF1",
+    bg: "#F2F2F7",
+    text: "#111111",
+    muted: "rgba(60,60,67,0.65)",
+    line: "rgba(60,60,67,0.18)",
+    chipBorder: "rgba(60,60,67,0.22)",
+    inputBg: "#FFFFFF",
+    danger: "#C65B5B",
+    primaryBtn: "#111111",
+    primaryText: "#FFFFFF",
+    surface: "#FFFFFF",
   };
 }

@@ -18,10 +18,12 @@ import {
 
 import { AuthButton } from "@/components/auth_buttons/auth-button";
 import { getColors, Tokens } from "@/constants/authTokens";
+import { useColorScheme } from "@/hooks/use-color-scheme";
 import { supabase } from "@/utils/supabase";
 
 export default function OnboardingStart() {
-  const C = getColors("light");
+  const scheme = useColorScheme();
+  const C = getColors(scheme);
   const { height, width } = useWindowDimensions();
   const scrollX = React.useRef(new Animated.Value(0)).current;
   const insets = useSafeAreaInsets();
@@ -73,7 +75,7 @@ export default function OnboardingStart() {
 
   return (
     <SafeAreaView style={[styles.screen, { backgroundColor: C.bg }]}>
-      <StatusBar style="dark" backgroundColor={C.bg} />
+      <StatusBar style={scheme === "dark" ? "light" : "dark"} backgroundColor={C.bg} />
       <KeyboardAvoidingView
         style={styles.screen}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
@@ -173,7 +175,7 @@ export default function OnboardingStart() {
               style={{ height: buttonHeight }}
               labelStyle={styles.actionLabel}
               onPress={async () => {
-                await supabase.auth.signOut();
+                await supabase.auth.signOut({ scope: 'local' });
                 router.push("/(auth)/signup");
               }}
             />
@@ -183,7 +185,7 @@ export default function OnboardingStart() {
               style={{ height: buttonHeight }}
               labelStyle={styles.actionLabel}
               onPress={async () => {
-                await supabase.auth.signOut();
+                await supabase.auth.signOut({ scope: 'local' });
                 router.push("/(auth)/login");
               }}
             />

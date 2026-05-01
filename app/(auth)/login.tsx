@@ -1,6 +1,7 @@
 import { AuthButton } from "@/components/auth_buttons/auth-button";
 import { InputField } from "@/components/auth_buttons/input-field";
 import { Tokens, getColors } from "@/constants/authTokens";
+import { useColorScheme } from "@/hooks/use-color-scheme";
 import { supabase } from "@/utils/supabase";
 import { Ionicons } from "@expo/vector-icons";
 import { Link, router } from "expo-router";
@@ -21,7 +22,8 @@ import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
 import { configureGoogleOnce, signInWithGoogle } from "@/utils/authGoogle";
 
 export default function Login() {
-  const C = getColors("light");
+  const scheme = useColorScheme();
+  const C = getColors(scheme);
   const { height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
 
@@ -77,6 +79,15 @@ export default function Login() {
       });
 
       if (error) {
+        // If the user hasn't confirmed their email yet, send them to verify
+        if (error.message.toLowerCase().includes("email not confirmed")) {
+          router.push({
+            pathname: "/(auth)/verify-email",
+            params: { email: email.trim() },
+          });
+          return;
+        }
+
         setErrors({
           email: "Email or password is incorrect.",
           password: "Email or password is incorrect.",
@@ -84,7 +95,16 @@ export default function Login() {
         return;
       }
 
-      router.replace("/(tabs)/accounts");
+      // Check if user has MFA factors that need verification
+      const { data: factors } = await supabase.auth.mfa.listFactors();
+      const verifiedFactors = factors?.totp ?? [];
+
+      if (verifiedFactors.length > 0) {
+        // User has MFA — send them to the challenge screen
+        router.replace("/mfa-verify" as any);
+      } else {
+        router.replace("/(tabs)/accounts");
+      }
     } finally {
       setLoading(false);
     }
@@ -97,12 +117,20 @@ export default function Login() {
       return;
     }
 
-    router.replace("/(tabs)/accounts");
+    // Check if user has MFA factors that need verification
+    const { data: factors } = await supabase.auth.mfa.listFactors();
+    const verifiedFactors = factors?.totp ?? [];
+
+    if (verifiedFactors.length > 0) {
+      router.replace("/mfa-verify" as any);
+    } else {
+      router.replace("/(tabs)/accounts");
+    }
   }
 
   return (
     <SafeAreaView style={[styles.screen, { backgroundColor: C.bg }]}>
-      <StatusBar style="dark" backgroundColor={C.bg} />
+      <StatusBar style={scheme === "dark" ? "light" : "dark"} backgroundColor={C.bg} />
       <View style={[styles.screen, { backgroundColor: C.bg }]}>
         <View
           style={[

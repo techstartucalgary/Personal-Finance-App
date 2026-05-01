@@ -1,11 +1,12 @@
 import { AuthButton } from "@/components/auth_buttons/auth-button";
 import { Tokens, getColors } from "@/constants/authTokens";
+import { useColorScheme } from "@/hooks/use-color-scheme";
+import { supabase } from "@/utils/supabase";
 import { Feather } from "@expo/vector-icons";
 import Checkbox from "expo-checkbox";
 import { router, useLocalSearchParams } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import React, { useMemo, useState } from "react";
-import { supabase } from "@/utils/supabase";
 import {
   Pressable,
   ScrollView,
@@ -14,10 +15,14 @@ import {
   View,
   useWindowDimensions,
 } from "react-native";
-import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 
 export default function OnboardingConsent() {
-  const C = getColors("light");
+  const scheme = useColorScheme();
+  const C = getColors(scheme);
   const { height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const compact = height < 760;
@@ -41,7 +46,7 @@ export default function OnboardingConsent() {
         "Full terms and privacy details are available in the complete policy documents.",
       ],
     }),
-    []
+    [],
   );
 
   const onBack = () => router.back();
@@ -64,12 +69,12 @@ export default function OnboardingConsent() {
       router.replace("/(auth)/login");
       return;
     }
-    router.replace("/(tabs)");
+    router.replace("/(tabs)/dashboard");
   };
 
   return (
     <SafeAreaView style={[styles.screen, { backgroundColor: C.bg }]}>
-      <StatusBar style="dark" backgroundColor={C.bg} />
+      <StatusBar style={scheme === "dark" ? "light" : "dark"} backgroundColor={C.bg} />
       <View style={[styles.screen, { backgroundColor: C.bg }]}>
         <View
           style={[
@@ -81,18 +86,25 @@ export default function OnboardingConsent() {
             },
           ]}
         >
-          <Text style={[styles.progressText, { color: C.text }]}>Setting Up 3/3</Text>
+          <Text style={[styles.progressText, { color: C.text }]}>
+            Setting Up 3/3
+          </Text>
 
           <View style={styles.headerRow}>
             <Pressable
               onPress={onBack}
               hitSlop={10}
-              style={({ pressed }) => [styles.backBtn, pressed && styles.pressed]}
+              style={({ pressed }) => [
+                styles.backBtn,
+                pressed && styles.pressed,
+              ]}
             >
               <Feather name="arrow-left" size={22} color={C.text} />
             </Pressable>
 
-            <Text style={[styles.headerTitle, { color: C.text }]}>Setting up</Text>
+            <Text style={[styles.headerTitle, { color: C.text }]}>
+              Setting up
+            </Text>
             <View style={{ width: 34 }} />
           </View>
 
@@ -111,7 +123,11 @@ export default function OnboardingConsent() {
               {policyText.paragraphs.map((p, i) => (
                 <Text
                   key={i}
-                  style={[styles.policyBody, { color: C.text }, i > 0 && styles.policySpacing]}
+                  style={[
+                    styles.policyBody,
+                    { color: C.text },
+                    i > 0 && styles.policySpacing,
+                  ]}
                 >
                   {p}
                 </Text>

@@ -1,6 +1,7 @@
 import { AuthButton } from "@/components/auth_buttons/auth-button";
 import { InputField } from "@/components/auth_buttons/input-field";
 import { Tokens, getColors } from "@/constants/authTokens";
+import { useColorScheme } from "@/hooks/use-color-scheme";
 import { supabase } from "@/utils/supabase";
 import { Ionicons } from "@expo/vector-icons";
 import { Link, router } from "expo-router";
@@ -22,7 +23,8 @@ import { Button, Dialog, Text as PaperText, Portal } from "react-native-paper";
 import { configureGoogleOnce, signInWithGoogle } from "@/utils/authGoogle";
 
 export default function SignUp() {
-  const C = getColors("light");
+  const scheme = useColorScheme();
+  const C = getColors(scheme);
   const { height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
 
@@ -128,10 +130,11 @@ export default function SignUp() {
         return;
       }
 
-      showDialog(
-        "Check your email",
-        "A confirmation link has been sent to your email address.",
-      );
+      // No session means email confirmation is required
+      router.push({
+        pathname: "/(auth)/verify-email",
+        params: { email: email.trim() },
+      });
     } finally {
       setLoading(false);
     }
@@ -146,7 +149,7 @@ export default function SignUp() {
 
   return (
     <SafeAreaView style={[styles.screen, { backgroundColor: C.bg }]}>
-      <StatusBar style="dark" backgroundColor={C.bg} />
+      <StatusBar style={scheme === "dark" ? "light" : "dark"} backgroundColor={C.bg} />
       <View style={[styles.screen, { backgroundColor: C.bg }]}>
         <View
           style={[
@@ -186,7 +189,7 @@ export default function SignUp() {
               contentContainerStyle={styles.formScroll}
             >
               <Text style={[styles.title, { color: "#000000", marginBottom: titleBottom }]}>
-                Let's get you set up
+                {"Let's get you set up"}
               </Text>
               <View style={[styles.form, { gap: formGap }]}>
                 <View style={styles.fieldBlock}>

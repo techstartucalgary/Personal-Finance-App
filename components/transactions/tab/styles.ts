@@ -72,25 +72,6 @@ export const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 10,
   },
-  frequencySelectorRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-  },
-  frequencyOption: {
-    flexGrow: 1,
-    minWidth: "22%",
-    height: 40,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: 12,
-    borderWidth: StyleSheet.hairlineWidth,
-    paddingHorizontal: 10,
-  },
-  frequencyOptionText: {
-    fontSize: 13,
-    fontFamily: Tokens.font.semiFamily ?? Tokens.font.family,
-  },
   button: {
     alignSelf: "flex-start",
     paddingHorizontal: 14,

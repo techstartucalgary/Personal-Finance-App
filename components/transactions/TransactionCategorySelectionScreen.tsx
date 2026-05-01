@@ -16,60 +16,24 @@ import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { setPendingTransactionCategorySelection } from "@/components/transactions/pending-transaction-category-selection";
+import {
+  getCategorySuggestions,
+  resolveCategorySuggestion,
+  type CategorySuggestion,
+  type TransactionType,
+} from "@/components/transactions/transaction-classification-options";
 import { useAuthContext } from "@/hooks/use-auth-context";
 import { useThemeUI } from "@/hooks/use-theme-ui";
 import { addCategory, deleteCategory, listCategories } from "@/utils/categories";
 
 type Ui = ReturnType<typeof useThemeUI>;
 
-type CategorySuggestion = {
-  label: string;
-  icon: React.ComponentProps<typeof Feather>["name"];
-  color: string;
-};
-
 type Props = {
   currentCategoryId?: number | null;
-  transactionType?: "expense" | "income" | "transfer";
+  transactionType?: TransactionType;
   onSelectCategory: (category: CategoryRow) => void;
   uiOverride?: Ui;
 };
-
-const EXPENSE_CATEGORY_SUGGESTIONS: CategorySuggestion[] = [
-  { label: "Auto & Transport", icon: "truck", color: "#4C6EF5" },
-  { label: "Housing", icon: "home", color: "#1971C2" },
-  { label: "Bills & Utilities", icon: "zap", color: "#15AABF" },
-  { label: "Food & Dining", icon: "coffee", color: "#F08C00" },
-  { label: "Groceries", icon: "shopping-cart", color: "#2F9E44" },
-  { label: "Shopping", icon: "shopping-bag", color: "#E8590C" },
-  { label: "Health & Fitness", icon: "activity", color: "#E03131" },
-  { label: "Entertainment", icon: "film", color: "#845EF7" },
-  { label: "Travel", icon: "map-pin", color: "#F06595" },
-  { label: "Gifts & Donations", icon: "gift", color: "#BE4BDB" },
-];
-
-const INCOME_CATEGORY_SUGGESTIONS: CategorySuggestion[] = [
-  { label: "Salary", icon: "briefcase", color: "#2F9E44" },
-  { label: "Business Income", icon: "dollar-sign", color: "#12B886" },
-  { label: "Freelance", icon: "pen-tool", color: "#15AABF" },
-  { label: "Investments", icon: "trending-up", color: "#1C7ED6" },
-  { label: "Interest", icon: "percent", color: "#5C7CFA" },
-  { label: "Gifts", icon: "gift", color: "#F06595" },
-  { label: "Rental Income", icon: "home", color: "#1971C2" },
-  { label: "Refunds", icon: "refresh-cw", color: "#ADB5BD" },
-  { label: "Bonuses", icon: "award", color: "#F59F00" },
-  { label: "Other Income", icon: "layers", color: "#845EF7" },
-];
-
-const ALL_CATEGORY_SUGGESTIONS = [
-  ...EXPENSE_CATEGORY_SUGGESTIONS,
-  ...INCOME_CATEGORY_SUGGESTIONS,
-].filter(
-  (item, index, arr) =>
-    arr.findIndex(
-      (entry) => entry.label.toLowerCase() === item.label.toLowerCase(),
-    ) === index,
-);
 
 export function TransactionCategorySelectionScreen({
   currentCategoryId = null,
@@ -89,9 +53,7 @@ export function TransactionCategorySelectionScreen({
   const [deletingCategoryId, setDeletingCategoryId] = useState<number | null>(null);
 
   const isDark = ui.bg === "#000000" || ui.bg === "#1C1C1E" || ui.bg === "#1B1B1E";
-  const suggestions = transactionType === "income"
-    ? INCOME_CATEGORY_SUGGESTIONS
-    : EXPENSE_CATEGORY_SUGGESTIONS;
+  const suggestions = getCategorySuggestions(transactionType);
 
   const loadCategories = async () => {
     if (!userId) {
@@ -128,11 +90,7 @@ export function TransactionCategorySelectionScreen({
   }, [categories, suggestions]);
 
   const resolveCategoryIcon = (category: CategoryRow) => {
-    const match = ALL_CATEGORY_SUGGESTIONS.find(
-      (item) =>
-        item.label.toLowerCase() ===
-        (category.category_name ?? "").trim().toLowerCase(),
-    );
+    const match = resolveCategorySuggestion(category.category_name);
     return match ?? { label: "Other", icon: "tag" as const, color: ui.accent ?? "#4C6EF5" };
   };
 

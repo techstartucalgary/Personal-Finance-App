@@ -167,6 +167,13 @@ function ProtectedLayout() {
         }}
       />
       <Stack.Screen
+        name="recurrence/[id]"
+        options={{
+          presentation: "card",
+          headerShown: true,
+        }}
+      />
+      <Stack.Screen
         name="transaction-detail/[id]"
         options={{
           presentation: "card",

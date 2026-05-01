@@ -16,13 +16,15 @@ import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { setPendingTransactionSubcategorySelection } from "@/components/transactions/pending-transaction-subcategory-selection";
+import {
+  getSuggestedSubcategories,
+  type TransactionType,
+} from "@/components/transactions/transaction-classification-options";
 import { useAuthContext } from "@/hooks/use-auth-context";
 import { useThemeUI } from "@/hooks/use-theme-ui";
 import { addSubcategory, deleteSubcategory, listSubcategories } from "@/utils/categories";
 
 type Ui = ReturnType<typeof useThemeUI>;
-type TransactionType = "expense" | "income" | "transfer";
-type SubcategoryMap = Record<string, string[]>;
 
 type Props = {
   categoryId?: number | null;
@@ -32,68 +34,6 @@ type Props = {
   onSelectSubcategory: (subcategory: SubcategoryRow | null) => void;
   uiOverride?: Ui;
 };
-
-const EXPENSE_SUBCATEGORIES: SubcategoryMap = {
-  "Auto & Transport": [
-    "Auto Payment",
-    "Public Transit",
-    "Gas",
-    "Auto Maintenance",
-    "Parking & Tolls",
-    "Taxi & Ride Shares",
-  ],
-  Housing: ["Mortgage", "Rent", "Home Improvement", "HOA Fees", "Property Tax"],
-  "Bills & Utilities": [
-    "Electricity",
-    "Water",
-    "Internet",
-    "Phone",
-    "Gas",
-    "Garbage",
-  ],
-  "Food & Dining": ["Restaurants", "Cafe", "Takeout", "Delivery"],
-  Groceries: ["Supermarket", "Farmers Market", "Snacks", "Household"],
-  Shopping: ["Clothing", "Electronics", "Home Goods", "Personal Care"],
-  "Health & Fitness": ["Pharmacy", "Doctor", "Dental", "Gym"],
-  Entertainment: ["Movies", "Games", "Streaming", "Events"],
-  Travel: ["Flights", "Hotels", "Transit", "Car Rental"],
-  "Gifts & Donations": ["Charity", "Gifts"],
-  Other: ["Misc", "One-time", "Recurring"],
-};
-
-const INCOME_SUBCATEGORIES: SubcategoryMap = {
-  Salary: ["Paychecks", "Bonuses", "Commission"],
-  "Business Income": ["Sales", "Services", "Other"],
-  Freelance: ["Projects", "Consulting", "Contract"],
-  Investments: ["Dividends", "Capital Gains", "Interest"],
-  Interest: ["Bank Interest", "Cashback", "Savings Interest"],
-  Gifts: ["Gifts", "Donations", "Support"],
-  "Rental Income": ["Rent", "Lease", "Airbnb"],
-  Refunds: ["Returns", "Reimbursements", "Tax Refund"],
-  Bonuses: ["Annual Bonus", "Performance Bonus", "Referral Bonus"],
-  "Other Income": ["Other", "Misc", "One-time"],
-  Other: ["Other", "Misc", "One-time"],
-};
-
-function getSuggestedSubcategories(
-  categoryName: string | null | undefined,
-  transactionType: TransactionType,
-) {
-  const name = (categoryName ?? "").trim();
-  if (!name) return [];
-  const source = transactionType === "income"
-    ? INCOME_SUBCATEGORIES
-    : EXPENSE_SUBCATEGORIES;
-  const exact = Object.keys(source).find(
-    (key) => key.toLowerCase() === name.toLowerCase(),
-  );
-  if (exact) return source[exact];
-  const partial = Object.keys(source).find((key) =>
-    name.toLowerCase().includes(key.toLowerCase()),
-  );
-  if (partial) return source[partial];
-  return source.Other ?? [];
-}
 
 export function TransactionSubcategorySelectionScreen({
   categoryId = null,

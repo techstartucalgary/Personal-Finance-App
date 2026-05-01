@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  Alert,
   Platform,
   RefreshControl,
   ScrollView,
@@ -11,28 +10,21 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useTabsTheme } from "@/constants/tabsTheme";
 import { useAuthContext } from "@/hooks/use-auth-context";
-import { getAccountById, listAccounts, updateAccount } from "@/utils/accounts";
-import { listCategories } from "@/utils/categories";
-import { deleteExpense, listExpenses } from "@/utils/expenses";
-import {
-  extractGoalTransactionGoalId,
-  getGoalDeltaFromTransactionAmount,
-} from "@/utils/goal-transactions";
-import { listGoals, updateGoalCurrentAmountByDelta } from "@/utils/goals";
+import { listAccounts } from "@/utils/accounts";
+import { listExpenses } from "@/utils/expenses";
+import { listGoals } from "@/utils/goals";
 import type { PlaidAccount, PlaidTransaction } from "@/utils/plaid";
 import { getPlaidAccounts, getPlaidTransactions } from "@/utils/plaid";
-import { deleteRecurringRule, getRecurringRules } from "@/utils/recurring";
+import { getRecurringRules } from "@/utils/recurring";
 
 import { TransactionsList } from "@/components/transactions/TransactionsList";
 import { AccountFilterChips } from "@/components/transactions/tab/AccountFilterChips";
-import { EditRecurrenceSheet } from "@/components/transactions/tab/EditRecurrenceSheet";
 import { RecurringRulesList } from "@/components/transactions/tab/RecurringRulesList";
 import { TransactionsFab } from "@/components/transactions/tab/TransactionsFab";
 import { TransactionsSegmentedControl } from "@/components/transactions/tab/TransactionsSegmentedControl";
 import { styles } from "@/components/transactions/tab/styles";
 import type {
   AccountRow,
-  CategoryRow,
   ExpenseRow,
   FilterAccountId,
   RecurringRule,
@@ -51,13 +43,11 @@ export default function HomeScreen() {
 
   // Keep tab screens on the auth palette for a more consistent app shell.
   const { ui } = useTabsTheme();
-  const isDark = ui.bg === "#000000";
 
   const userId = session?.user.id;
 
   const [isLoading, setIsLoading] = useState(false);
   const [accounts, setAccounts] = useState<AccountRow[]>([]);
-  const [categories, setCategories] = useState<CategoryRow[]>([]);
   const [expenses, setExpenses] = useState<ExpenseRow[]>([]);
   const [goals, setGoals] = useState<{ id: string | number; name?: string | null }[]>([]);
   const [plaidTransactions, setPlaidTransactions] = useState<
@@ -68,7 +58,6 @@ export default function HomeScreen() {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState<TransactionsTab>("transactions");
   const [recurringRules, setRecurringRules] = useState<RecurringRule[]>([]);
-  const [editingRule, setEditingRule] = useState<RecurringRule | null>(null);
   const [filterAccountId, setFilterAccountId] = useState<FilterAccountId>(null);
 
   // Formatters shared across list rows and detail views.
@@ -125,20 +114,6 @@ export default function HomeScreen() {
     [userId],
   );
 
-  const loadCategories = useCallback(async () => {
-    if (!userId) {
-      setCategories([]);
-      return;
-    }
-
-    try {
-      const data = await listCategories({ profile_id: userId });
-      setCategories((data as CategoryRow[]) ?? []);
-    } catch (error) {
-      console.error("Error loading categories:", error);
-    }
-  }, [userId]);
-
   const loadExpenses = useCallback(async () => {
     if (!userId) {
       setExpenses([]);
@@ -181,10 +156,6 @@ export default function HomeScreen() {
   }, [userId]);
 
   useEffect(() => {
-    loadCategories();
-  }, [loadCategories]);
-
-  useEffect(() => {
     loadExpenses();
     loadGoals();
     loadRecurringRules();
@@ -193,7 +164,6 @@ export default function HomeScreen() {
   useFocusEffect(
     useCallback(() => {
       loadAccounts(true);
-      loadCategories();
       loadExpenses();
       loadGoals();
       loadRecurringRules();
@@ -212,7 +182,6 @@ export default function HomeScreen() {
       }
     }, [
       loadAccounts,
-      loadCategories,
       loadExpenses,
       loadGoals,
       loadRecurringRules,
@@ -236,132 +205,10 @@ export default function HomeScreen() {
 
   const handleRefreshAll = useCallback(() => {
     loadAccounts();
-    loadCategories();
     loadExpenses();
     loadGoals();
     loadRecurringRules();
-  }, [loadAccounts, loadCategories, loadExpenses, loadGoals, loadRecurringRules]);
-
-  const handleModalRefresh = useCallback(async () => {
-    await loadExpenses();
-    await loadGoals();
-    await loadAccounts();
-    await loadCategories();
-    await loadRecurringRules();
-  }, [loadAccounts, loadCategories, loadExpenses, loadGoals, loadRecurringRules]);
-
-  const applyTransactionToBalance = useCallback(
-    (account: AccountRow, transactionAmount: number) => {
-      const currentBalance = account.balance ?? 0;
-      const isCredit = account.account_type === "credit";
-      return isCredit
-        ? currentBalance + transactionAmount
-        : currentBalance - transactionAmount;
-    },
-    [],
-  );
-
-  const handleDeleteTransaction = useCallback(
-    async (expense: ExpenseRow) => {
-      if (!userId) return;
-
-      const executeDelete = async () => {
-        if (!userId) return;
-        try {
-          const originalAmount = expense.amount ?? 0;
-          const originalAccountId = expense.account_id;
-          const linkedGoalId = extractGoalTransactionGoalId(expense.description);
-
-          await deleteExpense({ id: expense.id, profile_id: userId });
-
-          if (linkedGoalId) {
-            await updateGoalCurrentAmountByDelta({
-              id: linkedGoalId,
-              profile_id: userId,
-              delta: -getGoalDeltaFromTransactionAmount(originalAmount),
-            });
-          }
-
-          if (!linkedGoalId && originalAccountId != null) {
-            const originalAccount = await getAccountById({
-              id: originalAccountId,
-              profile_id: userId,
-            });
-            if (originalAccount) {
-              const revertedBalance = applyTransactionToBalance(
-                originalAccount,
-                -originalAmount,
-              );
-              await updateAccount({
-                id: String(originalAccount.id),
-                profile_id: userId,
-                update: { balance: revertedBalance },
-              });
-            }
-          }
-
-          await handleModalRefresh();
-        } catch (error) {
-          console.error("Error deleting transaction:", error);
-          Alert.alert("Error", "Could not delete transaction.");
-        } finally {
-          setIsLoading(false);
-        }
-      };
-
-      if (expense.recurring_rule_id) {
-        Alert.alert(
-          "Recurring Transaction",
-          "This transaction is part of a recurring series. What would you like to do?",
-          [
-            { text: "Cancel", style: "cancel" },
-            {
-              text: "Delete and Cancel Future Recurring",
-              style: "destructive",
-              onPress: async () => {
-                setIsLoading(true);
-                try {
-                  await deleteRecurringRule({
-                    id: expense.recurring_rule_id!,
-                    profile_id: userId,
-                  });
-                  await executeDelete();
-                } catch (error) {
-                  console.error("Error updating rule:", error);
-                  Alert.alert(
-                    "Error",
-                    "Could not cancel future recurring transactions.",
-                  );
-                  setIsLoading(false);
-                }
-              },
-            },
-            {
-              text: "Delete This Transaction Only",
-              style: "default",
-              onPress: async () => {
-                setIsLoading(true);
-                await executeDelete();
-              },
-            },
-          ],
-        );
-      } else {
-        Alert.alert("Delete transaction?", "This action cannot be undone.", [
-          { text: "Cancel", style: "cancel" },
-          {
-            text: "Delete",
-            style: "destructive",
-            onPress: async () => {
-              setIsLoading(true);
-              await executeDelete();
-            },
-          },
-        ]);
-      }
-    },
-    [applyTransactionToBalance, handleModalRefresh, userId],
-  );
+  }, [loadAccounts, loadExpenses, loadGoals, loadRecurringRules]);
 
   const handleSelectTransaction = useCallback(
     (transaction: ExpenseRow | PlaidTransaction) => {
@@ -444,7 +291,15 @@ export default function HomeScreen() {
             filterAccountId={filterAccountId}
             searchQuery={searchQuery}
             isLoading={isLoading}
-            onEditRule={setEditingRule}
+            onEditRule={(rule) => {
+              router.push({
+                pathname: "/recurrence/[id]",
+                params: {
+                  id: String(rule.id),
+                  initialData: encodeURIComponent(JSON.stringify(rule)),
+                },
+              });
+            }}
             ui={ui}
             formatDate={formatDate}
             formatMoney={formatMoney}
@@ -462,20 +317,6 @@ export default function HomeScreen() {
       />
 
       {/* TransactionsModals removed in favor of native routing */}
-
-      <EditRecurrenceSheet
-        editingRule={editingRule}
-        onClose={() => setEditingRule(null)}
-        ui={ui}
-        isDark={isDark}
-        insets={insets}
-        userId={userId}
-        categories={categories}
-        onRefreshCategories={loadCategories}
-        onRefreshRules={loadRecurringRules}
-        isLoading={isLoading}
-        setIsLoading={setIsLoading}
-      />
     </>
   );
 }

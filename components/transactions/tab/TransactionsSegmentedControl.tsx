@@ -22,7 +22,7 @@ export function TransactionsSegmentedControl({
 }: TransactionsSegmentedControlProps) {
   return (
     <SegmentedControl
-      values={["Transactions", "Recurring"]}
+      values={["Transactions", "Recurrences"]}
       selectedIndex={activeTab === "transactions" ? 0 : 1}
       onChange={(event) => {
         const index = event.nativeEvent.selectedSegmentIndex;

@@ -15,6 +15,7 @@ import {
 import { AccountsTrendChart } from "@/components/accounts/AccountsTrendChart";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
+import { TransactionsList } from "@/components/transactions/TransactionsList";
 import { NativeFab } from "@/components/ui/native-fab";
 import { Tokens } from "@/constants/authTokens";
 import { useTabsTheme } from "@/constants/tabsTheme";
@@ -47,9 +48,11 @@ type GoalRow = {
 
 type ExpenseRow = {
   id: string;
-  account_id: number;
+  account_id?: number | null;
   amount: number | null;
+  created_at?: string | null;
   description?: string | null;
+  recurring_rule_id?: number | null;
   transaction_date?: string | null;
 };
 
@@ -244,39 +247,44 @@ export default function DashboardScreen() {
     return manualAvail + plaidAvail;
   }, [accounts, plaidAccounts, calculateAvailable, calculatePlaidAvailable]);
 
-  const recentActivity = useMemo(() => {
-    type UnifiedTx = {
-      id: string;
-      title: string;
-      amount: number;
-      date: string; // YYYY-MM-DD
-      isPlaid: boolean;
+  const recentTransactions = useMemo(() => {
+    const getTime = (value?: string | null) => {
+      if (!value) return 0;
+      const parsed = new Date(value);
+      return Number.isNaN(parsed.getTime()) ? 0 : parsed.getTime();
     };
-    const unified: UnifiedTx[] = [];
 
-    expenses.forEach((ex) => {
-      unified.push({
-        id: ex.id,
-        title: ex.description || "Manual Expense",
-        amount: ex.amount || 0, // In expenses, positive amount represents an expense
-        date: ex.transaction_date || "2000-01-01",
-        isPlaid: false,
-      });
-    });
-
-    plaidTransactions.forEach((pt) => {
-      unified.push({
-        id: pt.transaction_id,
-        title: pt.name || "Bank Transaction",
-        amount: pt.amount, // Positive amount is an outflow/expense in plaid usually
-        date: pt.date || "2000-01-01",
-        isPlaid: true,
-      });
-    });
-
-    unified.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-    return unified.slice(0, 5); // Return top 5
+    return [
+      ...expenses.map((transaction) => ({
+        source: "manual" as const,
+        transaction,
+        date: transaction.transaction_date || transaction.created_at,
+      })),
+      ...plaidTransactions.map((transaction) => ({
+        source: "plaid" as const,
+        transaction,
+        date: transaction.date,
+      })),
+    ]
+      .sort((a, b) => getTime(b.date) - getTime(a.date))
+      .slice(0, 5);
   }, [expenses, plaidTransactions]);
+
+  const recentExpenses = useMemo(
+    () =>
+      recentTransactions
+        .filter((item) => item.source === "manual")
+        .map((item) => item.transaction as ExpenseRow),
+    [recentTransactions],
+  );
+
+  const recentPlaidTransactions = useMemo(
+    () =>
+      recentTransactions
+        .filter((item) => item.source === "plaid")
+        .map((item) => item.transaction as PlaidTransaction),
+    [recentTransactions],
+  );
 
   const formatMoney = (amount: number) => {
     return new Intl.NumberFormat("en-CA", {
@@ -286,13 +294,24 @@ export default function DashboardScreen() {
     }).format(amount);
   };
 
-  const formatDateShort = (dateStr: string) => {
-    const d = new Date(dateStr);
-    if (isNaN(d.getTime())) return dateStr;
-    const userTimezoneOffset = d.getTimezoneOffset() * 60000;
-    const localD = new Date(d.getTime() + userTimezoneOffset);
-    return localD.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-  };
+  const handleSelectTransaction = useCallback(
+    (transaction: ExpenseRow | PlaidTransaction) => {
+      const initialData = encodeURIComponent(JSON.stringify(transaction));
+      if ("transaction_id" in transaction) {
+        router.push({
+          pathname: "/transaction-detail/[id]",
+          params: { id: transaction.transaction_id, initialData },
+        });
+        return;
+      }
+
+      router.push({
+        pathname: "/transaction/[id]",
+        params: { id: String(transaction.id), initialData },
+      });
+    },
+    [router],
+  );
 
   if (authLoading && !session) {
     return (
@@ -488,34 +507,30 @@ export default function DashboardScreen() {
           </Pressable>
         </View>
 
-        <View style={[styles.card, { borderColor: subtleBorder, backgroundColor: cardBackground }]}>
-          {recentActivity.length > 0 ? (
-            recentActivity.map((tx) => {
-              const isNegative = tx.amount > 0;
-              return (
-                <View key={tx.id} style={[styles.txRow, { borderBottomColor: ui.border }]}>
-                  <View style={styles.txLeft}>
-                    <ThemedText style={[styles.txName, { color: ui.text }]} numberOfLines={1}>
-                      {tx.title}
-                    </ThemedText>
-                    <ThemedText style={[styles.txDate, { color: ui.mutedText }]}>
-                      {formatDateShort(tx.date)} {tx.isPlaid && "• Bank"}
-                    </ThemedText>
-                  </View>
-                  <ThemedText
-                    style={[styles.txAmount, { color: isNegative ? ui.negative : ui.positive }]}
-                  >
-                    {isNegative ? "-" : "+"}{formatMoney(Math.abs(tx.amount))}
-                  </ThemedText>
-                </View>
-              );
-            })
-          ) : (
-            <ThemedText style={{ color: ui.mutedText, textAlign: "center", paddingVertical: 16 }}>
-              No recent activity
-            </ThemedText>
-          )}
-        </View>
+        <TransactionsList
+          accounts={accounts.map((account) => ({
+            ...account,
+            id: Number(account.id),
+          }))}
+          goals={goals}
+          expenses={recentExpenses}
+          plaidTransactions={recentPlaidTransactions}
+          recurringRules={[]}
+          plaidAccounts={plaidAccounts}
+          filterAccountId={null}
+          onFilterAccountChange={() => { }}
+          searchQuery=""
+          onSearchQueryChange={() => { }}
+          isLoading={isLoading}
+          onSelectTransaction={handleSelectTransaction}
+          ui={ui}
+          showSearch={false}
+          showFilters={false}
+          showMeta={false}
+          showBadges={false}
+          emptyLabel="No recent activity"
+          subtleAmountColors
+        />
       </ScrollView>
 
       <NativeFab
@@ -693,33 +708,5 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "flex-end",
     marginBottom: -8,
-  },
-  card: {
-    borderRadius: 24,
-    borderWidth: 1,
-    overflow: "hidden",
-  },
-  txRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    padding: 16,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-  },
-  txLeft: {
-    flex: 1,
-    marginRight: 16,
-  },
-  txName: {
-    fontSize: 16,
-    fontWeight: "600",
-    marginBottom: 4,
-  },
-  txDate: {
-    fontSize: 13,
-  },
-  txAmount: {
-    fontSize: 16,
-    fontWeight: "700",
   },
 });

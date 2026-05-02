@@ -192,7 +192,10 @@ export default function HomeScreen() {
   // iOS header search configuration.
   const headerSearchBarOptions = useMemo(
     () => ({
-      placeholder: "Search transactions...",
+      placeholder:
+        activeTab === "transactions"
+          ? "Search transactions..."
+          : "Search recurrences...",
       onChangeText: (event: any) => setSearchQuery(event.nativeEvent.text),
       hideWhenScrolling: true,
       tintColor: ui.text,
@@ -200,7 +203,7 @@ export default function HomeScreen() {
       hintTextColor: ui.mutedText,
       headerIconColor: ui.mutedText,
     }),
-    [setSearchQuery, ui.mutedText, ui.text],
+    [activeTab, setSearchQuery, ui.mutedText, ui.text],
   );
 
   const handleRefreshAll = useCallback(() => {
@@ -231,7 +234,13 @@ export default function HomeScreen() {
 
   return (
     <>
-      <Stack.Screen options={{ headerSearchBarOptions }} />
+      <Stack.Screen
+        options={{
+          title: activeTab === "transactions" ? "Transactions" : "Recurrences",
+          headerSearchBarOptions,
+          headerLargeTitle: Platform.OS === "ios",
+        }}
+      />
       <ScrollView
         style={[styles.container, { backgroundColor: ui.bg }]}
         contentInsetAdjustmentBehavior="automatic"

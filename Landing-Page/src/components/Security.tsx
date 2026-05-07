@@ -62,17 +62,22 @@ export default function Security() {
               <path d="M9 7H5a2 2 0 0 0-2 2v4a2 2 0 0 0 2 2h2v-2a2 2 0 0 1 2-2V7zm10 0h-4a2 2 0 0 0-2 2v4a2 2 0 0 0 2 2h2v-2a2 2 0 0 1 2-2V7z"/>
             </svg>
             <p className="display text-[24px] sm:text-[30px] font-light leading-[1.25] mt-5 text-sand-50 max-w-3xl">
-              We process information only when we have a valid legal reason, and we never sell it.
-              Sterling is built so the only person who profits from your money is you.
+              We process your information only when we have a valid legal reason to do so.
             </p>
             <div className="mt-5 flex items-center justify-end max-w-3xl">
               <svg width="32" height="32" viewBox="0 0 24 24" fill="#F2D7A4" aria-hidden style={{ transform: 'rotate(180deg)' }}>
                 <path d="M9 7H5a2 2 0 0 0-2 2v4a2 2 0 0 0 2 2h2v-2a2 2 0 0 1 2-2V7zm10 0h-4a2 2 0 0 0-2 2v4a2 2 0 0 0 2 2h2v-2a2 2 0 0 1 2-2V7z"/>
               </svg>
             </div>
-            <div className="mt-5 text-[12.5px] uppercase tracking-[0.2em] text-cream-200/80">
-              Sterling Privacy Commitment
-            </div>
+            <a
+              href="/privacy.html"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-5 inline-flex items-center gap-2 text-[12.5px] uppercase tracking-[0.2em] text-cream-200/80 hover:text-cream-200 transition-colors under-link"
+            >
+              From the Sterling Privacy Policy
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M7 17L17 7M9 7h8v8"/></svg>
+            </a>
           </div>
         </div>
 

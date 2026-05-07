@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import Phone from './Phone';
 import AnimatedNumber from './AnimatedNumber';
 import CursorGlow from './CursorGlow';
+import WaitlistForm from './WaitlistForm';
 
 export default function Hero() {
   const [phoneTilt, setPhoneTilt] = useState({ x: 0, y: 0 });
@@ -67,7 +68,7 @@ export default function Hero() {
                style={{ animation: 'fadeUp 700ms cubic-bezier(.22,1,.36,1) forwards' }}
           >
             <span className="inline-block w-1.5 h-1.5 rounded-full bg-cream-200 animate-breathe" />
-            Available on iOS &amp; Android
+            Beta waitlist open
           </div>
 
           <h1
@@ -102,45 +103,14 @@ export default function Hero() {
             No clutter. No noise. Just your money, finally legible.
           </p>
 
-          {/* CTA buttons */}
+          {/* Waitlist */}
           <div
-            className="mt-9 flex flex-col sm:flex-row gap-3 sm:gap-4 max-w-lg"
+            className="mt-9 max-w-xl"
             style={{
               animation: 'fadeUp 800ms cubic-bezier(.22,1,.36,1) 800ms backwards',
             }}
           >
-            <a
-              href="#download"
-              className="group inline-flex items-center justify-center gap-3 h-14 px-6 rounded-full bg-sand-50 text-ink-900 font-medium transition-all duration-300 hover:bg-cream-100 shadow-[0_8px_30px_-8px_rgba(242,215,164,0.45)] hover:translate-y-[-1px]"
-            >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
-                <path d="M17.6 13.6c-.04-3.05 2.49-4.51 2.6-4.58-1.42-2.07-3.62-2.36-4.4-2.4-1.87-.19-3.65 1.1-4.6 1.1-.94 0-2.41-1.07-3.96-1.04-2.04.03-3.92 1.18-4.97 3-2.12 3.67-.54 9.1 1.52 12.07 1.01 1.46 2.21 3.1 3.79 3.04 1.52-.06 2.1-.99 3.94-.99 1.84 0 2.36.99 3.97.95 1.64-.03 2.68-1.49 3.68-2.96 1.16-1.69 1.64-3.34 1.66-3.42-.04-.02-3.18-1.21-3.21-4.81zM14.55 4.34c.83-1.01 1.39-2.4 1.24-3.78-1.2.05-2.65.8-3.51 1.8-.78.9-1.46 2.32-1.28 3.68 1.34.1 2.71-.68 3.55-1.7z"/>
-              </svg>
-              <span className="text-left leading-tight">
-                <span className="block text-[10.5px] uppercase tracking-[0.18em] text-ink-900/55">Download on</span>
-                <span className="block text-[16px] font-semibold">App Store</span>
-              </span>
-            </a>
-            <a
-              href="#download"
-              className="group inline-flex items-center justify-center gap-3 h-14 px-6 rounded-full bg-white/5 border border-white/15 text-sand-50 font-medium hover:bg-white/10 transition-all duration-300"
-            >
-              <svg width="18" height="20" viewBox="0 0 24 24" aria-hidden>
-                <defs>
-                  <linearGradient id="gp1" x1="0" y1="0" x2="1" y2="1">
-                    <stop offset="0" stopColor="#7C7DF5"/><stop offset="1" stopColor="#3D3DC9"/>
-                  </linearGradient>
-                </defs>
-                <path d="M3 2.5v19l11-9.5L3 2.5z" fill="url(#gp1)"/>
-                <path d="M3 2.5l11 9.5 4-3.5L3 2.5z" fill="#F2D7A4"/>
-                <path d="M3 21.5l11-9.5 4 3.5L3 21.5z" fill="#D86666"/>
-                <path d="M14 12l4-3.5v7L14 12z" fill="#E5B86F"/>
-              </svg>
-              <span className="text-left leading-tight">
-                <span className="block text-[10.5px] uppercase tracking-[0.18em] text-sand-100/55">Get it on</span>
-                <span className="block text-[16px] font-semibold">Google Play</span>
-              </span>
-            </a>
+            <WaitlistForm tone="dark" />
           </div>
 
           {/* trust signals */}
@@ -160,7 +130,7 @@ export default function Hero() {
             </span>
             <span className="inline-flex items-center gap-2">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 1v22M5 8l7-7 7 7"/></svg>
-              CAD &amp; USD, side by side
+              Manual and linked accounts
             </span>
           </div>
         </div>

@@ -1,38 +1,39 @@
+import { WAITLIST_FORM_URL } from '../constants';
+
 const plans = [
   {
-    name: 'Personal',
-    price: 'Free',
+    name: 'Free',
+    price: null,
     badge: 'Available now',
-    description:
-      'Everything you need to track your accounts, transactions, budgets and goals across iOS and Android.',
     features: [
-      'Unlimited accounts (manual + Plaid-linked)',
-      'Multi-currency: CAD and USD',
-      'Recurring rules at every cadence',
-      'Goal-linked account allocations',
-      'Five-month trend chart',
-      'Twelve notification controls',
+      'Manual Accounts',
+      'Budgets',
+      'Goals',
+      'Voice Input Transactions',
+      'Set Recurring Transactions',
+      'Track Subscriptions',
+      'Custom Categories & Tags',
+      'Widget based Metrics',
+      'Personalizable Dashboard',
+      'Reminders & Notifications',
     ],
-    cta: 'Download Sterling',
-    href: '#download',
+    cta: 'Join waitlist',
     highlight: false,
   },
   {
-    name: 'Sterling Premium',
-    price: 'Coming soon',
+    name: 'Premium',
+    price: '$10.99/m',
     badge: 'In development',
-    description:
-      'A future plan for households and people who want shared budgets, deeper analytics and priority support. Pricing announced before launch.',
     features: [
-      'Everything in Personal',
-      'Shared accounts and goals',
-      'Detailed category analytics',
-      'Multi-year history & exports',
-      'Priority customer support',
-      'Custom recurring schedules',
+      'Bank Synced Accounts',
+      'Auto-categorization & rules',
+      'AI Financial Assistant',
+      'AI Insights & Analysis',
+      'Receipt Input',
+      'CSV Input',
+      'Generate Reports',
     ],
-    cta: 'Get notified',
-    href: '#download',
+    cta: 'Join waitlist',
     highlight: true,
   },
 ];
@@ -46,14 +47,9 @@ export default function Pricing() {
             Pricing
           </div>
           <h2 className="display mt-5 text-4xl sm:text-5xl lg:text-[3.4rem] font-light text-ink-900 leading-[1.02]">
-            Free today.
-            <span className="italic font-normal"> Honest tomorrow.</span>
+            Free today,
+            <span className="italic font-normal"> Automatic tomorrow</span>
           </h2>
-          <p className="mt-6 text-[16.5px] leading-relaxed text-ink-900/65 max-w-xl">
-            Sterling is free to download and use. A premium tier is in development. Whatever
-            changes, you’ll know about them well before they happen. No surprise charges. No
-            quiet feature locks.
-          </p>
         </div>
 
         <div className="mt-14 grid lg:grid-cols-2 gap-5 lg:gap-7">
@@ -91,12 +87,11 @@ export default function Pricing() {
                     {p.name}
                   </h3>
                 </div>
-                <div className={`mt-3 display text-[36px] sm:text-[44px] font-light ${p.highlight ? 'text-cream-200' : 'text-ink-900'}`}>
-                  {p.price}
-                </div>
-                <p className={`mt-4 text-[15px] leading-relaxed ${p.highlight ? 'text-sand-100/70' : 'text-ink-900/65'} max-w-md`}>
-                  {p.description}
-                </p>
+                {p.price && (
+                  <div className={`mt-3 display text-[36px] sm:text-[44px] font-light ${p.highlight ? 'text-cream-200' : 'text-ink-900'}`}>
+                    {p.price}
+                  </div>
+                )}
 
                 <ul className="mt-7 space-y-3">
                   {p.features.map(f => (
@@ -113,7 +108,9 @@ export default function Pricing() {
                 </ul>
 
                 <a
-                  href={p.href}
+                  href={WAITLIST_FORM_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
                   className={`mt-9 inline-flex items-center justify-center h-12 px-6 rounded-full text-sm font-medium transition-all hover:translate-y-[-1px] ${
                     p.highlight
                       ? 'bg-cream-200 text-ink-900 hover:bg-cream-100'

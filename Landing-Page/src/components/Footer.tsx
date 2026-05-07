@@ -14,7 +14,6 @@ export default function Footer() {
     {
       heading: 'Company',
       links: [
-        { label: 'How it works', href: '#onboarding' },
         { label: 'Security', href: '#security' },
         { label: 'Pricing', href: '#pricing' },
         { label: 'FAQ', href: '#faq' },
@@ -109,7 +108,7 @@ export default function Footer() {
             </span>
             <span className="inline-flex items-center gap-2">
               <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg>
-              CAD &amp; USD supported
+              iOS &amp; Android
             </span>
           </div>
         </div>

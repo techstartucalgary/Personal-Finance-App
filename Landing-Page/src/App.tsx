@@ -3,16 +3,10 @@ import PageLoader from './components/PageLoader';
 import Nav from './components/Nav';
 import Hero from './components/Hero';
 import TrustStrip from './components/TrustStrip';
-import StatsStrip from './components/StatsStrip';
 import OneScreenIntro from './components/OneScreenIntro';
 import PinnedTour from './components/PinnedTour';
 import BeforeAfter from './components/BeforeAfter';
-import DayInLife from './components/DayInLife';
-import FeatureGrid from './components/FeatureGrid';
-import Voices from './components/Voices';
-import OnboardingShowcase from './components/OnboardingShowcase';
 import Security from './components/Security';
-import FounderNote from './components/FounderNote';
 import Pricing from './components/Pricing';
 import FAQ from './components/FAQ';
 import FinalCTA from './components/FinalCTA';
@@ -47,16 +41,10 @@ export default function App() {
       <Nav />
       <Hero />
       <TrustStrip />
-      <StatsStrip />
       <OneScreenIntro />
       <PinnedTour />
       <BeforeAfter />
-      <DayInLife />
-      <FeatureGrid />
-      <Voices />
-      <OnboardingShowcase />
       <Security />
-      <FounderNote />
       <Pricing />
       <FAQ />
       <FinalCTA />

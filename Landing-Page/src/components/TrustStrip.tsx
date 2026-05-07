@@ -2,7 +2,7 @@ export default function TrustStrip() {
   const items = [
     'Plaid · 10,000+ institutions',
     'TLS-encrypted connections',
-    'CAD · USD',
+    'Manual + linked accounts',
     'Recurring rules',
     'Goal allocations',
     'No data selling, ever',

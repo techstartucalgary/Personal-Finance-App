@@ -18,7 +18,7 @@ const stages = [
       'Plaid handles the secure handshake to over ten thousand institutions. For anything that doesn’t plug in, like cash or joint pots, you add accounts by hand.',
     src: '/screens/accounts-overview.png',
     accent: '#F2D7A4',
-    bullets: ['Chequing · Credit · Savings · Loan', 'CAD and USD, side by side', 'Color-coded balances'],
+    bullets: ['Chequing · Credit · Savings · Loan', 'Manual and synced balances', 'Color-coded accounts'],
   },
   {
     eyebrow: '03 · Transactions',

@@ -5,15 +5,11 @@ type FAQItem = { q: string; a: ReactNode };
 const faqs: FAQItem[] = [
   {
     q: 'Is Sterling free?',
-    a: 'Sterling is currently free to download and use. We will be transparent about any changes to pricing well in advance. No surprises, no dark patterns.',
+    a: 'Sterling is free today. Premium automation features are in development, and pricing will be clear before they launch.',
   },
   {
     q: 'Which banks does Sterling support?',
     a: 'Sterling connects to over 10,000 financial institutions across North America via Plaid, including all major banks and most credit unions. You can always add manual accounts for anything not on the list.',
-  },
-  {
-    q: 'Does Sterling work in CAD and USD?',
-    a: 'Yes. You pick a default currency at signup (CAD or USD) and can adjust later. Multiple-currency support across accounts is built in from day one.',
   },
   {
     q: 'How is my financial data secured?',

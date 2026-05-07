@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import Logo from './Logo';
+import { WAITLIST_FORM_URL } from '../constants';
 
 export default function Nav() {
   const [scrolled, setScrolled] = useState(false);
@@ -33,10 +34,12 @@ export default function Nav() {
 
         <div className="flex items-center gap-2.5">
           <a
-            href="#download"
+            href={WAITLIST_FORM_URL}
+            target="_blank"
+            rel="noopener noreferrer"
             className="hidden sm:inline-flex items-center gap-2 px-4 h-10 rounded-full text-sm font-medium text-ink-900 btn-cream transition-all duration-300 hover:translate-y-[-1px] shadow-[0_4px_18px_-6px_rgba(242,215,164,0.55)]"
           >
-            Get the app
+            Join waitlist
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
           </a>
           <button

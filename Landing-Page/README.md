@@ -53,7 +53,7 @@ All marketing copy is grounded in the actual app feature set (verified against t
 
 - 4-step onboarding (welcome → profile → currency → consent)
 - Dashboard with total / available / accounts / 5-month balance trend
-- Plaid bank linking + manual accounts (CAD & USD)
+- Plaid bank linking + manual accounts
 - Manual + recurring transactions (daily / weekly / monthly / yearly rules)
 - Targets = Goals (with account allocation) + Budgets (period-based, by category)
 - 12 notification toggles across spending / budget / goals / credit
